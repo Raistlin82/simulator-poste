@@ -5,7 +5,7 @@ import { Target, Download, TrendingUp, AlertCircle, Loader2 } from 'lucide-react
 import axios from 'axios';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const Gauge = ({ value, max, color, label }) => {
     const data = [
@@ -17,8 +17,8 @@ const Gauge = ({ value, max, color, label }) => {
     const percent = (value / max) * 100;
 
     return (
-        <div className="h-40 relative flex flex-col items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="h-40 w-full relative flex flex-col items-center justify-center">
+            <ResponsiveContainer width="100%" height={160} minWidth={100}>
                 <PieChart>
                     <Pie
                         data={data}
@@ -245,8 +245,8 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
                 </div>
 
                 {simulationData && simulationData.length > 0 && (
-                    <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="w-full" style={{ height: '320px' }}>
+                        <ResponsiveContainer width="100%" height={320} minWidth={100}>
                             <AreaChart data={simulationData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">

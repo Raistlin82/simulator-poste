@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Save, Plus, Trash2, ShieldCheck, Award, Tag, Info } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export default function MasterDataConfig({ onBack }) {
     const { t } = useTranslation();

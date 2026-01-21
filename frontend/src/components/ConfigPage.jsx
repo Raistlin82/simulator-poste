@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
-import { Save, Plus, Trash2, Settings2, Building2, Users, DollarSign, Briefcase, FileCheck, Award, Info } from 'lucide-react';
+import { Save, Plus, Trash2, Settings2, Building2, Users, DollarSign, Briefcase, FileCheck, Award, Info, TrendingUp } from 'lucide-react';
 
 export default function ConfigPage({ config, masterData, onSave, onAddLot, onDeleteLot, onBack }) {
     const { t } = useTranslation();
@@ -289,81 +289,123 @@ export default function ConfigPage({ config, masterData, onSave, onAddLot, onDel
 
                 {/* Company Certifications */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                    <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center gap-2 mb-6">
                         <Building2 className="w-5 h-5 text-purple-600" />
                         <h2 className="text-lg font-semibold text-slate-900">{t('dashboard.company_certs')}</h2>
                         <button
                             onClick={addCompanyCert}
-                            className="ml-auto px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm"
+                            className="ml-auto px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow-md"
                         >
                             <Plus className="w-4 h-4" />
                             {t('config.add_cert')}
                         </button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {currentLot.company_certs && currentLot.company_certs.length > 0 ? (
                             currentLot.company_certs.map((cert, idx) => (
-                                <div key={idx} className="flex gap-4 items-center bg-purple-50 p-3 rounded-lg border border-purple-200">
+                                <div key={idx} className="flex gap-4 items-center bg-gradient-to-r from-purple-50 via-purple-50 to-white p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:shadow-md transition-all group">
                                     <div className="flex-1">
+                                        <label className="block text-xs font-bold text-purple-700 uppercase mb-2 tracking-wider opacity-70">Certificazione</label>
                                         <select
                                             value={cert.label}
                                             onChange={(e) => updateCompanyCert(idx, e.target.value)}
-                                            className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                            className="w-full p-3 border-2 border-purple-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none font-medium text-slate-800"
                                         >
                                             <option value="" disabled>{t('master.item_placeholder', 'Seleziona...')}</option>
                                             {knownCerts.map(c => <option key={c} value={c}>{c}</option>)}
                                         </select>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.5"
-                                            value={cert.points}
-                                            onChange={(e) => updateCompanyCertPoints(idx, Math.max(0, parseFloat(e.target.value) || 0))}
-                                            className="w-16 p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none font-bold text-center"
-                                        />
-                                        <span className="text-xs font-bold text-purple-600 uppercase italic">pt</span>
+                                    <div className="flex items-center gap-3 bg-gradient-to-br from-purple-100 to-purple-50 px-4 py-3 rounded-lg border-2 border-purple-300">
+                                        <div>
+                                            <div className="text-[11px] text-purple-700 font-bold uppercase tracking-widest">Punti</div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.5"
+                                                value={cert.points}
+                                                onChange={(e) => updateCompanyCertPoints(idx, Math.max(0, parseFloat(e.target.value) || 0))}
+                                                className="w-24 p-2 border-2 border-purple-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none font-bold text-center text-purple-700 text-lg transition-all"
+                                            />
+                                        </div>
                                     </div>
                                     <button
                                         onClick={() => deleteCompanyCert(idx)}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                        title="Elimina"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
                             ))
                         ) : (
-                            <p className="text-sm text-slate-400 text-center py-4">{t('config.no_certs')}</p>
+                            <div className="text-center py-10 border-2 border-dashed border-purple-200 rounded-xl bg-purple-50">
+                                <div className="text-sm text-purple-600 font-medium">Nessuna certificazione aggiunta</div>
+                                <div className="text-xs text-purple-500 mt-1">Clicca su "Aggiungi Certificazione" per iniziare</div>
+                            </div>
                         )}
+                    </div>
+                    <div className="mt-6 pt-4 border-t-2 border-slate-200">
+                        <div className="flex justify-between items-center bg-gradient-to-r from-purple-50 to-transparent px-5 py-4 rounded-lg border-2 border-purple-300">
+                            <div>
+                                <div className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-1">Totale Punti</div>
+                                <div className="text-sm text-purple-600 font-medium">Certificazioni Aziendali</div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-3xl font-black text-purple-600">{(currentLot.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0).toFixed(1)}</div>
+                                <div className="text-[10px] text-purple-500 font-semibold uppercase mt-1 tracking-wider">Punti</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* Economic Formula */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <DollarSign className="w-5 h-5 text-green-600" />
-                        <h2 className="text-lg font-semibold text-slate-900">{t('config.economic_formula')}</h2>
+                    <div className="flex items-center gap-2 mb-6">
+                        <TrendingUp className="w-5 h-5 text-amber-600" />
+                        <h2 className="text-lg font-semibold text-slate-900">Formula Scoring Economico</h2>
                     </div>
-                    <div className="border border-slate-200 rounded-lg p-4">
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">{t('config.alpha')}</label>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Alpha */}
+                            <div className="bg-gradient-to-br from-green-50 to-white p-4 rounded-xl border-2 border-green-300 hover:border-green-400 transition-all">
+                                <label className="block text-xs font-bold text-green-700 uppercase mb-3 tracking-wider opacity-70">Coefficiente Alpha (α)</label>
                                 <input
                                     type="number"
-                                    step="0.1"
+                                    step="0.05"
+                                    min="0"
+                                    max="1"
                                     value={currentLot.alpha || 0.3}
                                     onChange={(e) => {
                                         currentLot.alpha = parseFloat(e.target.value);
                                         setEditedConfig({ ...editedConfig });
                                     }}
-                                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="w-full p-3 border-2 border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none font-black text-xl text-green-600 transition-all"
                                 />
+                                <div className="text-xs text-green-600 font-semibold mt-2">Rapporto Economico</div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">{t('config.formula')}</label>
+                            
+                            {/* Max Economic Score */}
+                            <div className="bg-gradient-to-br from-amber-50 to-white p-4 rounded-xl border-2 border-amber-300 hover:border-amber-400 transition-all">
+                                <label className="block text-xs font-bold text-amber-700 uppercase mb-3 tracking-wider opacity-70">Punteggio Massimo</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={currentLot.max_econ_score || 40}
+                                    onChange={(e) => {
+                                        currentLot.max_econ_score = Math.max(0, parseFloat(e.target.value) || 0);
+                                        setEditedConfig({ ...editedConfig });
+                                    }}
+                                    className="w-full p-3 border-2 border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none font-black text-xl text-amber-600 transition-all"
+                                />
+                                <div className="text-xs text-amber-600 font-semibold mt-2">P_max</div>
+                            </div>
+
+                            {/* Formula Selection */}
+                            <div className="bg-gradient-to-br from-blue-50 to-white p-4 rounded-xl border-2 border-blue-300 hover:border-blue-400 transition-all">
+                                <label className="block text-xs font-bold text-blue-700 uppercase mb-3 tracking-wider opacity-70">Tipo Formula</label>
                                 <select
-                                    className="w-full p-2 border border-slate-300 rounded-lg bg-white outline-none text-xs font-semibold"
+                                    className="w-full p-3 border-2 border-blue-300 rounded-lg bg-white outline-none font-semibold text-sm text-blue-700 focus:ring-2 focus:ring-blue-500 transition-all"
                                     value={currentLot.economic_formula || 'interp_alpha'}
                                     onChange={(e) => {
                                         currentLot.economic_formula = e.target.value;
@@ -376,8 +418,59 @@ export default function ConfigPage({ config, masterData, onSave, onAddLot, onDel
                                 </select>
                             </div>
                         </div>
-                        <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs text-blue-700 font-mono">
-                            {masterData?.economic_formulas?.find(f => f.id === (currentLot.economic_formula || 'interp_alpha'))?.desc || 'Formula non definita'}
+
+                        {/* Formula Display with Dynamic Values */}
+                        <div className="bg-slate-50 border-2 border-slate-300 rounded-xl p-6 shadow-sm">
+                            <h3 className="text-sm font-bold text-slate-700 uppercase mb-4 tracking-wider">📐 Formula Dinamica</h3>
+                            <div className="bg-white rounded-lg p-4 border border-slate-300 font-mono text-sm text-slate-800 leading-relaxed space-y-3">
+                                {(() => {
+                                    const formula = masterData?.economic_formulas?.find(f => f.id === (currentLot.economic_formula || 'interp_alpha'))?.desc || 'Formula non definita';
+                                    const alpha = (currentLot.alpha || 0.3).toFixed(2);
+                                    const maxEcon = (currentLot.max_econ_score || 40).toFixed(1);
+                                    
+                                    // Sostituisci α con il valore reale e Pmax con il valore max economico
+                                    const updatedFormula = formula
+                                        .replace(/\\alpha/g, alpha)
+                                        .replace(/P\\_{.*?max.*?}/g, maxEcon);
+                                    
+                                    return (
+                                        <>
+                                            <div>
+                                                <div className="text-xs font-bold text-slate-600 uppercase mb-2 tracking-wider opacity-70">Formula Base:</div>
+                                                <div className="text-slate-800 font-mono">{formula}</div>
+                                            </div>
+                                            {formula !== updatedFormula && (
+                                                <>
+                                                    <div className="border-t-2 border-blue-300 pt-3"></div>
+                                                    <div>
+                                                        <div className="text-xs font-bold text-blue-700 uppercase mb-2 tracking-wider opacity-70">Con i Tuoi Valori:</div>
+                                                        <div className="text-blue-700 font-black text-base bg-blue-50 p-3 rounded border-2 border-blue-300">{updatedFormula}</div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+
+                        {/* Summary Box */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-gradient-to-br from-green-50 to-white border-2 border-green-300 rounded-xl p-4 text-center">
+                                <div className="text-xs font-bold text-green-700 uppercase tracking-wider mb-2 opacity-70">α Impostato</div>
+                                <div className="text-4xl font-black text-green-600">{(currentLot.alpha || 0.3).toFixed(2)}</div>
+                                <div className="text-xs text-green-600 font-semibold mt-2">Peso Economico</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-amber-50 to-white border-2 border-amber-300 rounded-xl p-4 text-center">
+                                <div className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 opacity-70">Pmax</div>
+                                <div className="text-4xl font-black text-amber-600">{currentLot.max_econ_score || 40}</div>
+                                <div className="text-xs text-amber-600 font-semibold mt-2">Punti Massimi</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-blue-50 to-white border-2 border-blue-300 rounded-xl p-4 text-center">
+                                <div className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2 opacity-70">Range Punteggio</div>
+                                <div className="text-xl font-black text-blue-600">0 - {currentLot.max_econ_score || 40}</div>
+                                <div className="text-xs text-blue-600 font-semibold mt-2">Punteggio Economico</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -385,28 +478,28 @@ export default function ConfigPage({ config, masterData, onSave, onAddLot, onDel
                 {/* Requirements with Tabs */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                     <div className="flex items-center gap-2 mb-6">
-                        <Users className="w-5 h-5 text-blue-600" />
+                        <Award className="w-5 h-5 text-blue-600" />
                         <h2 className="text-lg font-semibold text-slate-900">Requisiti Tecnici</h2>
                     </div>
 
                     <div className="flex gap-2 mb-6 border-b border-slate-200">
                         <button
                             onClick={() => setActiveTab('resource')}
-                            className={`px-4 py-2 font-medium transition-colors border-b-2 ${activeTab === 'resource' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === 'resource' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                         >
                             <Award className="w-4 h-4 inline mr-2" />
                             {t('tech.prof_certs')}
                         </button>
                         <button
                             onClick={() => setActiveTab('reference')}
-                            className={`px-4 py-2 font-medium transition-colors border-b-2 ${activeTab === 'reference' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === 'reference' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                         >
                             <FileCheck className="w-4 h-4 inline mr-2" />
                             {t('tech.references')}
                         </button>
                         <button
                             onClick={() => setActiveTab('project')}
-                            className={`px-4 py-2 font-medium transition-colors border-b-2 ${activeTab === 'project' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === 'project' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                         >
                             <Briefcase className="w-4 h-4 inline mr-2" />
                             {t('tech.projects')}

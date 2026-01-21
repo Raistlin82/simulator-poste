@@ -31,16 +31,22 @@ matplotlib.use("Agg")
 app = FastAPI(title="Poste Tender Simulator API")
 
 # Configure CORS with specific origins
-ALLOWED_ORIGINS = os.environ.get(
-    "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:5173,http://localhost:80,http://localhost"
-).split(",")
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:80",
+    "http://localhost",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:8001",
+]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
     max_age=600,  # Cache preflight for 10 minutes
 )
@@ -302,7 +308,13 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
                 sub_score_sum = 0.0
                 criteria_list = req.get("criteria") or req.get("sub_reqs")
                 if inp.sub_req_vals:
-                    val_map = {s.sub_id: s.val for s in inp.sub_req_vals}
+                    # Handle both dict and object formats
+                    val_map = {}
+                    for s in inp.sub_req_vals:
+                        if isinstance(s, dict):
+                            val_map[s.get("sub_id")] = s.get("val", 0)
+                        else:
+                            val_map[s.sub_id] = s.val
                     for sub in criteria_list:
                         val = val_map.get(sub["id"], 0)
                         weight = sub.get("weight", 1)

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Save, X, ChevronDown, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const JUDGMENT_LEVELS = [
     { value: 5, label: "Ottimo", color: "green" },

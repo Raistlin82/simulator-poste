@@ -9,7 +9,7 @@ import MasterDataConfig from './components/MasterDataConfig';
 import { Settings } from 'lucide-react';
 import { formatCurrency, formatNumber } from './utils/formatters';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 function App() {
   const { t } = useTranslation();
@@ -221,8 +221,8 @@ function App() {
               try {
                 await axios.post(`${API_URL}/config`, newCfg);
                 setConfig(newCfg);
-                setView('dashboard');
-                setResults(null);
+                // Rimane in configurazione dopo salvataggio, non torna a dashboard
+                alert(t('config.save_success') || '✓ Configurazione salvata con successo');
               } catch (err) {
                 console.error("Save config error", err);
                 alert(t('config.save_error'));
