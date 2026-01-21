@@ -1,0 +1,8 @@
+fastapi==0.115.0
+uvicorn==0.27.1
+pydantic==2.10.0
+python-multipart==0.0.9
+gunicorn==21.2.0
+numpy==1.26.4
+reportlab==4.1.0
+matplotlib

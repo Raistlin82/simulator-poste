@@ -1,0 +1,386 @@
+{
+    "Lotto 1": {
+        "name": "Lotto 1 - Technology & Architecture",
+        "base_amount": 16837200.0,
+        "max_raw_score": 284.0,
+        "alpha": 0.3,
+        "company_cert_points": 2,
+        "company_certs": [
+            "ISO 9001",
+            "ISO 27001",
+            "ISO 20000",
+            "ISO 22301",
+            "ISO 14001",
+            "ISO 45001"
+        ],
+        "reqs": [
+            {
+                "id": "VAL_REQ_7",
+                "label": "Technical PM (PMP/PgMP)",
+                "max_points": 8,
+                "type": "resource",
+                "max_res": 2
+            },
+            {
+                "id": "VAL_REQ_8",
+                "label": "Cloud Lead (AWS/Azure/DevOps)",
+                "max_points": 120,
+                "type": "resource",
+                "max_res": 10,
+                "max_certs": 10,
+                "custom_formula": "C_times_R_plus_2"
+            },
+            {
+                "id": "VAL_REQ_9",
+                "label": "Architect Project Lead",
+                "max_points": 35,
+                "type": "resource",
+                "max_res": 5
+            },
+            {
+                "id": "VAL_REQ_10",
+                "label": "Specialist Tech Lead",
+                "max_points": 8,
+                "type": "resource",
+                "max_res": 2
+            },
+            {
+                "id": "VAL_REQ_11",
+                "label": "Ref. IaC / Cloud Platforms",
+                "max_points": 28,
+                "type": "reference",
+                "bonus_label": "Attestazione Cliente (+3)",
+                "bonus_val": 3.0,
+                "sub_reqs": [
+                    {
+                        "id": "a",
+                        "label": "Tecnologie IaC",
+                        "weight": 0.5
+                    },
+                    {
+                        "id": "b",
+                        "label": "Piattaforme Cloud",
+                        "weight": 0.5
+                    },
+                    {
+                        "id": "c",
+                        "label": "Architettura Applicativa",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "d",
+                        "label": "Architettura Infra",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "e",
+                        "label": "Produttivit\u00e0",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "f",
+                        "label": "Modalit\u00e0 Operativa",
+                        "weight": 1.0
+                    }
+                ]
+            },
+            {
+                "id": "VAL_REQ_12",
+                "label": "Ref. Container & Microservizi",
+                "max_points": 58,
+                "type": "reference",
+                "bonus_label": "Attestazione Cliente (+3)",
+                "bonus_val": 3.0,
+                "sub_reqs": [
+                    {
+                        "id": "a",
+                        "label": "Grado Aderenza",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "b",
+                        "label": "Linee Guida Arch.",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "c",
+                        "label": "Requisiti NF",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "d",
+                        "label": "Perf. Test & Tuning",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "e",
+                        "label": "Setup Ambienti",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "f",
+                        "label": "Gestione Rilasci",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "g",
+                        "label": "Supporto Test/Cert",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "h",
+                        "label": "Strumenti",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "i",
+                        "label": "Ambiti Tecnologici",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "j",
+                        "label": "Tipologia Ambienti",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "k",
+                        "label": "Produttivit\u00e0",
+                        "weight": 1.0
+                    }
+                ]
+            },
+            {
+                "id": "VAL_REQ_13",
+                "label": "Organizzazione e Flessibilit\u00e0",
+                "max_points": 15,
+                "type": "project",
+                "sub_reqs": [
+                    {
+                        "id": "a",
+                        "label": "Startup Fornitura",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "b",
+                        "label": "Modello Org. Governo",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "c",
+                        "label": "Fine Fornitura",
+                        "weight": 1.0
+                    }
+                ]
+            }
+        ]
+    },
+    "Lotto 2": {
+        "name": "Lotto 2 - Transition & Governance",
+        "base_amount": 9277200.0,
+        "max_raw_score": 105.0,
+        "alpha": 0.3,
+        "company_cert_points": 2,
+        "company_certs": [
+            "ISO 9001",
+            "ISO 27001",
+            "ISO 20000",
+            "ISO 22301",
+            "ISO 14001",
+            "ISO 45001"
+        ],
+        "reqs": [
+            {
+                "id": "VAL_REQ_20",
+                "label": "Project Tech Mgr (ITIL/PMP)",
+                "max_points": 15,
+                "type": "resource",
+                "max_res": 3
+            },
+            {
+                "id": "VAL_REQ_21",
+                "label": "Service Trans. Expert",
+                "max_points": 8,
+                "type": "resource",
+                "max_res": 2
+            },
+            {
+                "id": "VAL_REQ_22",
+                "label": "Tech Delivery Mgr",
+                "max_points": 8,
+                "type": "resource",
+                "max_res": 2
+            },
+            {
+                "id": "VAL_REQ_23",
+                "label": "Transition Mgr",
+                "max_points": 1,
+                "type": "resource",
+                "max_res": 1
+            },
+            {
+                "id": "VAL_REQ_24",
+                "label": "Ref. Service Transition",
+                "max_points": 18,
+                "type": "reference",
+                "bonus_label": "Attestazione (+3)",
+                "bonus_val": 3.0,
+                "sub_reqs": [
+                    {
+                        "id": "a",
+                        "label": "Grado Aderenza",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "b",
+                        "label": "Numero Iniziative",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "c",
+                        "label": "Tipologia Ambienti",
+                        "weight": 1.0
+                    }
+                ]
+            },
+            {
+                "id": "VAL_REQ_25",
+                "label": "Ref. Secure DevOps",
+                "max_points": 23,
+                "type": "reference",
+                "bonus_label": "Attestazione (+3)",
+                "bonus_val": 3.0,
+                "sub_reqs": [
+                    {
+                        "id": "a",
+                        "label": "Grado Aderenza",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "b",
+                        "label": "Metodologia",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "c",
+                        "label": "Numero Iniziative",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "d",
+                        "label": "Strumenti",
+                        "weight": 1.0
+                    }
+                ]
+            },
+            {
+                "id": "VAL_REQ_26",
+                "label": "Organizzazione Servizio",
+                "max_points": 20,
+                "type": "project",
+                "sub_reqs": [
+                    {
+                        "id": "a",
+                        "label": "Modello Governo",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "b",
+                        "label": "Modello Operativo",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "c",
+                        "label": "Startup",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "d",
+                        "label": "Fine Fornitura",
+                        "weight": 1.0
+                    }
+                ]
+            }
+        ]
+    },
+    "Lotto 3": {
+        "name": "Lotto 3 - Data Center",
+        "base_amount": 5495779.0,
+        "max_raw_score": 82.0,
+        "alpha": 0.3,
+        "company_cert_points": 2,
+        "company_certs": [
+            "ISO 9001",
+            "ISO 27001",
+            "ISO 20000",
+            "ISO 22301",
+            "ISO 14001",
+            "ISO 45001"
+        ],
+        "reqs": [
+            {
+                "id": "VAL_REQ_33",
+                "label": "Specialista Rete (Cisco)",
+                "max_points": 15,
+                "type": "resource",
+                "max_res": 3
+            },
+            {
+                "id": "VAL_REQ_34",
+                "label": "Delivery DC",
+                "max_points": 15,
+                "type": "resource",
+                "max_res": 3
+            },
+            {
+                "id": "VAL_REQ_35",
+                "label": "Operatore DC",
+                "max_points": 8,
+                "type": "resource",
+                "max_res": 2
+            },
+            {
+                "id": "VAL_REQ_36",
+                "label": "Ref. Data Center Mgmt",
+                "max_points": 17,
+                "type": "reference",
+                "bonus_label": "Att. (+3) + Volumi (+9)",
+                "bonus_val": 12.0,
+                "sub_reqs": [
+                    {
+                        "id": "a",
+                        "label": "Processi Operativi",
+                        "weight": 0.5
+                    },
+                    {
+                        "id": "b",
+                        "label": "Organizzazione",
+                        "weight": 0.5
+                    }
+                ]
+            },
+            {
+                "id": "VAL_REQ_37",
+                "label": "Organizzazione DC",
+                "max_points": 15,
+                "type": "project",
+                "sub_reqs": [
+                    {
+                        "id": "a",
+                        "label": "Startup",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "b",
+                        "label": "Governo e Qualit\u00e0",
+                        "weight": 1.0
+                    },
+                    {
+                        "id": "c",
+                        "label": "Fine Fornitura",
+                        "weight": 1.0
+                    }
+                ]
+            }
+        ]
+    }
+}

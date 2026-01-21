@@ -1,0 +1,40 @@
+{
+    "company_certs": [
+        "ISO 9001",
+        "ISO 27001",
+        "ISO 20000",
+        "ISO 22301",
+        "ISO 14001",
+        "ISO 45001"
+    ],
+    "prof_certs": [
+        "Technical PM (PMP/PgMP)",
+        "Cloud Lead (AWS/Azure/DevOps)",
+        "Architect Project Lead",
+        "Specialist Tech Lead",
+        "Project Tech Mgr (ITIL/PMP)",
+        "Service Trans. Expert",
+        "Tech Delivery Mgr",
+        "Transition Mgr",
+        "Operatore DC",
+        "Delivery DC",
+        "Specialista Rete (Cisco)"
+    ],
+    "requirement_labels": [
+        "Ref. IaC / Cloud Platforms",
+        "Ref. Container & Microservizi",
+        "Organizzazione e Flessibilit\u00e0",
+        "Ref. Service Transition",
+        "Ref. Secure DevOps",
+        "Organizzazione Servizio",
+        "Ref. Data Center Mgmt",
+        "Organizzazione DC"
+    ],
+    "economic_formulas": [
+        {
+            "id": "interp_alpha",
+            "label": "Interpolazione (Fattore Alpha)",
+            "desc": "P = $P_{max} \\\\times [ (P_{base} - P_{off}) / (P_{base} - P_{best}) ]^{alpha}"
+        }
+    ]
+}

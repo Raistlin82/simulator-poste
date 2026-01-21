@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+}
+
+body {
+  background-color: #f8fafc;
+  font-family: var(--font-sans);
+}
+
+/* Custom Range Slider Styling (Optional) */
+input[type="range"] {
+  @apply accent-blue-600 cursor-pointer;
+}
