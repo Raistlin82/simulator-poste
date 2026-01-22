@@ -105,6 +105,7 @@ class MonteCarloRequest(BaseModel):
 class ExportPDFRequest(BaseModel):
     """Request to export PDF report"""
     lot_key: str
+    base_amount: float
     technical_score: float
     economic_score: float
     total_score: float

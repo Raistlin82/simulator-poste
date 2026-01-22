@@ -8,6 +8,7 @@ import ConfigPage from './components/ConfigPage';
 import MasterDataConfig from './components/MasterDataConfig';
 import { Settings } from 'lucide-react';
 import { formatCurrency, formatNumber } from './utils/formatters';
+import { logger } from './utils/logger';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -50,7 +51,7 @@ function App() {
         setSelectedLot(firstLot);
         setBaseAmount(configRes.data[firstLot].base_amount);
       } catch (err) {
-        console.error("Fetch error:", err);
+        logger.error("Failed to fetch initial data", err, { component: "App" });
       } finally {
         setLoading(false);
       }
@@ -93,7 +94,7 @@ function App() {
       await axios.post(`${API_URL}/config/state?lot_key=${encodeURIComponent(selectedLot)}`, statePayload);
       return true;
     } catch (err) {
-      console.error("Error saving state:", err);
+      logger.error("Failed to save state", err, { component: "App", lot: selectedLot });
       return false;
     }
   };
@@ -114,7 +115,7 @@ function App() {
     if (view === 'config' || view === 'master') {
       axios.get(`${API_URL}/master-data`)
         .then(res => setMasterData(res.data))
-        .catch(err => console.error("MasterData sync error", err));
+        .catch(err => logger.error("Failed to sync master data", err, { component: "App" }));
     }
   }, [view]);
 
@@ -136,7 +137,7 @@ function App() {
     // Calculate Scores
     axios.post(`${API_URL}/calculate`, payload)
       .then(res => setResults(res.data))
-      .catch(err => console.error("Calc error", err));
+      .catch(err => logger.error("Calculation failed", err, { component: "App", lot: selectedLot }));
   }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config]);
 
   // Simulation Effect (runs only when technical or economic results change)
@@ -151,7 +152,7 @@ function App() {
       current_tech_score: results.technical_score
     })
       .then(res => setSimulationData(res.data))
-      .catch(err => console.error("Sim error", err));
+      .catch(err => logger.error("Simulation failed", err, { component: "App", lot: selectedLot }));
   }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config]);
 
   if (loading) return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
@@ -224,7 +225,7 @@ function App() {
                 // Rimane in configurazione dopo salvataggio, non torna a dashboard
                 alert(t('config.save_success') || '✓ Configurazione salvata con successo');
               } catch (err) {
-                console.error("Save config error", err);
+                logger.error("Failed to save configuration", err, { component: "ConfigPage" });
                 alert(t('config.save_error'));
               }
             }}
@@ -236,7 +237,7 @@ function App() {
                 setSelectedLot(lotName);
                 alert(t('app.add_success', { name: lotName }));
               } catch (err) {
-                console.error("Add lot error", err);
+                logger.error("Failed to add lot", err, { component: "ConfigPage", lotName });
                 alert(t('app.add_error'));
               }
             }}
@@ -251,7 +252,7 @@ function App() {
                 setView('dashboard');
                 alert(t('app.delete_success', { name: lotKey }));
               } catch (err) {
-                console.error("Delete lot error", err);
+                logger.error("Failed to delete lot", err, { component: "ConfigPage", lotKey });
                 alert(t('app.delete_error'));
               }
             }}

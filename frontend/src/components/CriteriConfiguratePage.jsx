@@ -5,11 +5,11 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const JUDGMENT_LEVELS = [
-    { value: 5, label: "Ottimo", color: "green" },
-    { value: 4, label: "Più che adeguato", color: "lime" },
-    { value: 3, label: "Adeguato", color: "yellow" },
-    { value: 2, label: "Parzialmente adeguato", color: "orange" },
-    { value: 0, label: "Assente/Inadeguato", color: "red" }
+    { value: 5, label: "Ottimo" },
+    { value: 4, label: "Più che adeguato" },
+    { value: 3, label: "Adeguato" },
+    { value: 2, label: "Parzialmente adeguato" },
+    { value: 0, label: "Assente/Inadeguato" }
 ];
 
 export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSave }) {
@@ -149,33 +149,33 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
     ) || [];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="min-h-screen bg-slate-50 p-6">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="mb-8 flex justify-between items-center">
                     <div>
-                        <h1 className="text-4xl font-bold text-slate-800 mb-2">
-                            Configurazione Criteri - {lotKey}
+                        <h1 className="text-2xl font-bold text-slate-900">
+                            {t('config.criteri_title')} - <span className="text-slate-500">{lotKey}</span>
                         </h1>
-                        <p className="text-slate-600">
-                            Definisci le voci (PA_i) e i loro pesi (Pe_i) per la valutazione discrezionale
+                        <p className="text-slate-500">
+                            {t('config.criteri_subtitle')}
                         </p>
                     </div>
                     <button
                         onClick={onBack}
-                        className="px-4 py-2 text-slate-600 hover:bg-white rounded-lg transition border border-slate-200"
+                        className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
                     >
-                        ← Indietro
+                        {t('common.back')}
                     </button>
                 </div>
 
                 {/* Info Box */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-sm font-semibold text-blue-900">Formula di valutazione:</p>
-                        <p className="text-sm text-blue-800 mt-1">
-                            P<sub>max</sub> = Σ(Pe_i × V_i) dove Pe_i è il peso della voce e V_i è il giudizio (0-5)
+                        <p className="text-sm font-semibold text-blue-800">{t('config.criteri_formula_title')}</p>
+                        <p className="text-sm text-blue-700 mt-1 font-mono">
+                            P_max = Σ(Pe_i × V_i)
                         </p>
                     </div>
                 </div>
@@ -199,7 +199,7 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
                                 {/* Header Requisito */}
                                 <button
                                     onClick={() => handleToggleExpand(req.id)}
-                                    className="w-full px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition border-b border-slate-200"
+                                    className="w-full px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition"
                                 >
                                     <div className="flex items-center gap-4 flex-1 text-left">
                                         <ChevronDown
@@ -207,83 +207,82 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
                                         />
                                         <div>
                                             <h3 className="font-semibold text-slate-800">{req.label}</h3>
-                                            <p className="text-xs text-slate-500 mt-1">{req.id} · {req.type}</p>
+                                            <p className="text-xs text-slate-500 mt-1 font-mono">{req.id} · {req.type}</p>
                                         </div>
                                     </div>
 
                                     {/* Score Badge */}
                                     <div className="text-right ml-4">
-                                        <div className="text-xs text-slate-500 font-medium mb-1">Pmax</div>
                                         <div className="text-2xl font-bold text-blue-600">
                                             {scoreValue.toFixed(2)}
                                         </div>
-                                        <div className="text-xs text-slate-400">/ {req.max_points}</div>
+                                        <div className="text-xs text-slate-400">/ {req.max_points} max</div>
                                     </div>
                                 </button>
 
                                 {/* Expanded Content */}
                                 {isExpanded && (
-                                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-200">
-                                        <div className="space-y-4 mb-6">
+                                    <div className="px-6 py-4 bg-slate-50/70 border-t border-slate-200">
+                                        <div className="space-y-3 mb-6">
                                             {criteria.map((criterion) => {
                                                 const judgment = localJudgments[req.id]?.[criterion.id] || 0;
                                                 const contribution = criterion.weight * judgment;
 
                                                 return (
-                                                    <div key={criterion.id} className="bg-white p-4 rounded-lg border border-slate-200">
-                                                        <div className="grid grid-cols-12 gap-4 mb-3">
+                                                    <div key={criterion.id} className="bg-white p-3 rounded-lg border border-slate-200">
+                                                        <div className="grid grid-cols-12 gap-3 items-center">
                                                             {/* Label */}
-                                                            <input
-                                                                type="text"
-                                                                value={criterion.label}
-                                                                onChange={(e) => handleUpdateCriterion(req.id, criterion.id, 'label', e.target.value)}
-                                                                placeholder="Nome voce (PA)"
-                                                                className="col-span-4 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            />
-
-                                                            {/* Weight */}
-                                                            <input
-                                                                type="number"
-                                                                min="0.1"
-                                                                step="0.1"
-                                                                value={criterion.weight}
-                                                                onChange={(e) => handleUpdateCriterion(req.id, criterion.id, 'weight', parseFloat(e.target.value))}
-                                                                placeholder="Peso Pe"
-                                                                className="col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            />
-
-                                                            {/* Contribution Display */}
-                                                            <div className="col-span-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
-                                                                <div className="text-xs text-blue-700 font-semibold">Contributo</div>
-                                                                <div className="text-lg font-bold text-blue-600">{contribution.toFixed(2)}</div>
+                                                            <div className="col-span-4">
+                                                                <input
+                                                                    type="text"
+                                                                    value={criterion.label}
+                                                                    onChange={(e) => handleUpdateCriterion(req.id, criterion.id, 'label', e.target.value)}
+                                                                    placeholder="Nome voce di valutazione"
+                                                                    className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                />
                                                             </div>
 
-                                                            {/* Delete Button */}
-                                                            <button
-                                                                onClick={() => handleRemoveCriterion(req.id, criterion.id)}
-                                                                className="col-span-1 p-2 hover:bg-red-100 rounded-lg transition text-red-600"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
+                                                            {/* Weight */}
+                                                            <div className="col-span-2">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0.1"
+                                                                    step="0.1"
+                                                                    value={criterion.weight}
+                                                                    onChange={(e) => handleUpdateCriterion(req.id, criterion.id, 'weight', parseFloat(e.target.value))}
+                                                                    placeholder="Peso"
+                                                                    className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold"
+                                                                />
+                                                            </div>
 
-                                                        {/* Judgment Selection */}
-                                                        <div className="border-t border-slate-200 pt-3">
-                                                            <div className="text-xs font-semibold text-slate-600 mb-2">Giudizio (V_i)</div>
-                                                            <div className="grid grid-cols-5 gap-2">
-                                                                {JUDGMENT_LEVELS.map(level => (
-                                                                    <button
-                                                                        key={level.value}
-                                                                        onClick={() => handleSetJudgment(req.id, criterion.id, level.value)}
-                                                                        className={`px-2 py-1.5 rounded border text-xs font-semibold transition-all ${judgment === level.value
-                                                                            ? `bg-${level.color}-100 border-${level.color}-400 text-${level.color}-900 ring-2 ring-offset-2 ring-${level.color}-400`
-                                                                            : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
-                                                                            }`}
-                                                                    >
-                                                                        <div>{level.label}</div>
-                                                                        <div className="text-[10px] font-bold mt-0.5">{level.value}</div>
-                                                                    </button>
-                                                                ))}
+                                                            {/* Contribution Display */}
+                                                            <div className="col-span-5 flex items-center gap-2">
+                                                                <div className="grid grid-cols-5 gap-1 w-full">
+                                                                    {JUDGMENT_LEVELS.map(level => (
+                                                                        <button
+                                                                            key={level.value}
+                                                                            onClick={() => handleSetJudgment(req.id, criterion.id, level.value)}
+                                                                            title={level.label}
+                                                                            className={`h-8 rounded border text-xs font-semibold transition-all ${judgment === level.value
+                                                                                ? `bg-blue-500 border-blue-500 text-white`
+                                                                                : 'bg-white border-slate-300 text-slate-400 hover:border-slate-400 hover:text-slate-600'
+                                                                                }`}
+                                                                        >
+                                                                            {level.value}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+
+                                                            {/* Delete Button */}
+                                                            <div className="col-span-1 text-right">
+                                                                <button
+                                                                    onClick={() => handleRemoveCriterion(req.id, criterion.id)}
+                                                                    className="p-2 hover:bg-red-100 rounded-lg transition text-slate-400 hover:text-red-500"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -294,25 +293,11 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
                                         {/* Add Criterion Button */}
                                         <button
                                             onClick={() => handleAddCriterion(req.id)}
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition font-medium text-sm mb-4"
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition font-medium text-sm mb-4"
                                         >
                                             <Plus className="w-4 h-4" />
-                                            Aggiungi voce
+                                            Aggiungi Criterio
                                         </button>
-
-                                        {/* Score Summary */}
-                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                            <div className="flex justify-between items-center">
-                                                <div>
-                                                    <div className="text-sm font-semibold text-blue-900">Punteggio Massimo (Pmax)</div>
-                                                    <div className="text-xs text-blue-700 mt-1">Formula: Σ(Pe_i × V_i)</div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-3xl font-bold text-blue-600">{scoreValue.toFixed(2)}</div>
-                                                    <div className="text-xs text-blue-600 mt-1">su {req.max_points} max</div>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -324,14 +309,14 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
                 <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
                     <button
                         onClick={onBack}
-                        className="px-6 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition font-medium text-slate-700"
+                        className="px-6 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
                     >
                         Annulla
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50"
+                        className="flex items-center gap-2 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors flex items-center gap-2 shadow-sm text-sm font-medium disabled:opacity-50"
                     >
                         <Save className="w-4 h-4" />
                         {saving ? 'Salvataggio...' : 'Salva Configurazione'}

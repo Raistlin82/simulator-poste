@@ -49,26 +49,24 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <h3 className="font-semibold text-slate-800">{t('dashboard.company_certs')}</h3>
-                    <span className="text-sm font-medium bg-blue-100 text-blue-800 px-3 py-1 rounded-full">Max {formatNumber(maxCompanyCerts, 1)} pt</span>
+                    <span className="text-sm font-bold text-blue-600">Max {formatNumber(maxCompanyCerts, 1)} pt</span>
                 </div>
-                <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {lotData.company_certs && lotData.company_certs.length > 0 ? (
                         lotData.company_certs.map((cert) => (
                             <button
                                 key={cert.label}
                                 onClick={() => toggleCert(cert.label)}
-                                className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all ${certs[cert.label] ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${certs[cert.label] ? 'bg-blue-50 border-blue-500 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                                     }`}
                             >
-                                <div className="flex items-center gap-3 w-full">
-                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${certs[cert.label] ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-300'}`}>
-                                        {certs[cert.label] && <Check className="w-3 h-3 text-white" />}
-                                    </div>
-                                    <span className="text-sm font-semibold truncate">{cert.label}</span>
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${certs[cert.label] ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-300'}`}>
+                                    {certs[cert.label] && <Check className="w-3 h-3 text-white" />}
                                 </div>
-                                <div className={`text-[10px] font-bold uppercase ml-8 ${certs[cert.label] ? 'text-blue-500' : 'text-slate-400'}`}>
-                                    +{cert.points} pt
-                                </div>
+                                <span className="text-sm font-semibold truncate flex-1">{cert.label}</span>
+                                <span className={`text-xs font-bold ${certs[cert.label] ? 'text-blue-600' : 'text-slate-400'}`}>
+                                    +{cert.points}
+                                </span>
                             </button>
                         ))
                     ) : (

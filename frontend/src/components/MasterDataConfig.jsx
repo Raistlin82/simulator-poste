@@ -96,14 +96,14 @@ export default function MasterDataConfig({ onBack }) {
                     <div className="flex gap-3">
                         <button
                             onClick={onBack}
-                            className="px-6 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                            className="px-6 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
                         >
                             {t('common.back')}
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+                            className="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition-colors flex items-center gap-2 shadow-sm text-sm font-medium disabled:opacity-50"
                         >
                             <Save className="w-4 h-4" />
                             {saving ? t('common.loading') : t('common.save')}
@@ -113,94 +113,91 @@ export default function MasterDataConfig({ onBack }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {/* Sidebar Tabs */}
-                    <div className="md:col-span-1 space-y-2">
+                    <div className="md:col-span-1 space-y-1">
                         {sections.map(s => (
                             <button
                                 key={s.id}
                                 onClick={() => setActiveSection(s.id)}
-                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${activeSection === s.id
-                                    ? 'bg-white border-blue-600 shadow-sm text-blue-600'
-                                    : 'bg-transparent border-transparent text-slate-500 hover:bg-slate-100'}`}
+                                className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${activeSection === s.id
+                                    ? `${s.bg.replace('bg-', 'border-')} ${s.bg} font-semibold ${s.color}`
+                                    : 'border-transparent text-slate-600 hover:bg-slate-100'}`}
                             >
                                 <s.icon className={`w-5 h-5 ${activeSection === s.id ? s.color : 'text-slate-400'}`} />
-                                <span className="font-medium text-sm">{s.label}</span>
+                                <span className="text-sm">{s.label}</span>
                             </button>
                         ))}
                     </div>
 
                     {/* Content */}
-                    <div className="md:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-lg font-semibold text-slate-900">
-                                {sections.find(s => s.id === activeSection)?.label}
-                            </h2>
-                            <button
-                                onClick={() => addItem(activeSection)}
-                                className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2 text-sm shadow-sm"
-                            >
-                                <Plus className="w-4 h-4" />
-                                {t('master.add_item')}
-                            </button>
-                        </div>
+                    <div className="md:col-span-3">
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-semibold text-slate-800">
+                                    {sections.find(s => s.id === activeSection)?.label}
+                                </h2>
+                                <button
+                                    onClick={() => addItem(activeSection)}
+                                    className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors flex items-center gap-2 text-sm font-medium"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    {t('master.add_item')}
+                                </button>
+                            </div>
 
-                        <div className="space-y-3">
-                            {data[activeSection].length > 0 ? (
-                                data[activeSection].map((item, idx) => (
-                                    <div key={idx} className="flex gap-3 items-center group">
-                                        <div className="flex-1 space-y-2">
-                                            {activeSection === 'economic_formulas' ? (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                                    <div>
-                                                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Etichetta</label>
-                                                        <input
-                                                            type="text"
-                                                            value={item.label}
-                                                            onChange={(e) => updateItem(activeSection, idx, 'label', e.target.value)}
-                                                            className="w-full p-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                                                        />
+                            <div className="space-y-3">
+                                {data[activeSection] && data[activeSection].length > 0 ? (
+                                    data[activeSection].map((item, idx) => (
+                                        <div key={idx} className={`flex gap-3 items-center group p-3 rounded-lg border ${sections.find(s => s.id === activeSection)?.bg} ${sections.find(s => s.id === activeSection)?.bg.replace('bg-','border-')}`}>
+                                            <div className="flex-1">
+                                                {activeSection === 'economic_formulas' ? (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Etichetta</label>
+                                                            <input
+                                                                type="text"
+                                                                value={item.label}
+                                                                onChange={(e) => updateItem(activeSection, idx, 'label', e.target.value)}
+                                                                className="w-full p-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Descrizione Formula</label>
+                                                            <input
+                                                                type="text"
+                                                                value={item.desc}
+                                                                onChange={(e) => updateItem(activeSection, idx, 'desc', e.target.value)}
+                                                                className="w-full p-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Descrizione Formula (es. $P_{"{"}max{"}"}$)</label>
-                                                        <input
-                                                            type="text"
-                                                            value={item.desc}
-                                                            onChange={(e) => updateItem(activeSection, idx, 'desc', e.target.value)}
-                                                            className="w-full p-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="relative">
+                                                ) : (
                                                     <input
                                                         type="text"
                                                         value={item}
                                                         onChange={(e) => updateItem(activeSection, idx, e.target.value)}
-                                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none text-sm pr-10"
+                                                        className="w-full p-2 bg-white/50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                                                         placeholder={t('master.item_placeholder')}
                                                     />
-                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Tag className="w-4 h-4" />
-                                                    </div>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => deleteItem(activeSection, idx)}
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                                                title={t('common.delete')}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => deleteItem(activeSection, idx)}
-                                            className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                                            title={t('common.delete')}
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
+                                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <Info className="w-6 h-6 text-slate-400" />
+                                        </div>
+                                        <p className="text-slate-500 text-sm">Nessun elemento presente.</p>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="text-center py-12 border-2 border-dashed border-slate-100 rounded-2xl">
-                                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <Info className="w-6 h-6 text-slate-300" />
-                                    </div>
-                                    <p className="text-slate-400 text-sm">Nessun elemento presente.</p>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
