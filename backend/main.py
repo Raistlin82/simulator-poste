@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -420,16 +420,17 @@ def calculate_prof_score(R, C, max_res, max_points, max_certs=5):
     return min(score, max_points)
 
 
-# --- ENDPOINTS ---
+# --- API ROUTER (Business endpoints with /api prefix) ---
+api_router = APIRouter(prefix="/api")
 
 
-@app.get("/config", response_model=Dict[str, schemas.LotConfig])
+@api_router.get("/config", response_model=Dict[str, schemas.LotConfig])
 def get_config(db: Session = Depends(get_db)):
     configs = crud.get_lot_configs(db)
     return {c.name: schemas.LotConfig.model_validate(c) for c in configs}
 
 
-@app.get("/master-data", response_model=schemas.MasterData)
+@api_router.get("/master-data", response_model=schemas.MasterData)
 def get_master_data(db: Session = Depends(get_db)):
     master_data = crud.get_master_data(db)
     if not master_data:
@@ -437,12 +438,12 @@ def get_master_data(db: Session = Depends(get_db)):
     return master_data
 
 
-@app.post("/master-data", response_model=schemas.MasterData)
+@api_router.post("/master-data", response_model=schemas.MasterData)
 def update_master_data(data: schemas.MasterData, db: Session = Depends(get_db)):
     return crud.update_master_data(db, data)
 
 
-@app.post("/config/state")
+@api_router.post("/config/state")
 def update_lot_state(
     lot_key: str, state: schemas.SimulationState, db: Session = Depends(get_db)
 ):
@@ -455,7 +456,7 @@ def update_lot_state(
     return {"status": "success"}
 
 
-@app.post("/config", response_model=Dict[str, schemas.LotConfig])
+@api_router.post("/config", response_model=Dict[str, schemas.LotConfig])
 def update_config(
     new_config: Dict[str, schemas.LotConfig], db: Session = Depends(get_db)
 ):
@@ -466,7 +467,7 @@ def update_config(
     return {c.name: schemas.LotConfig.model_validate(c) for c in configs}
 
 
-@app.post("/config/add", response_model=schemas.LotConfig)
+@api_router.post("/config/add", response_model=schemas.LotConfig)
 def add_lot(lot_key: str, db: Session = Depends(get_db)):
     if crud.get_lot_config(db, lot_key):
         raise HTTPException(status_code=400, detail="Gara/Lotto già esistente")
@@ -484,14 +485,14 @@ def add_lot(lot_key: str, db: Session = Depends(get_db)):
     return schemas.LotConfig.model_validate(db_lot)
 
 
-@app.delete("/config/{lot_key}")
+@api_router.delete("/config/{lot_key}")
 def delete_lot(lot_key: str, db: Session = Depends(get_db)):
     if not crud.delete_lot_config(db, lot_key):
         raise HTTPException(status_code=404, detail="Gara/Lotto non trovato")
     return {"status": "success", "message": f"Gara/Lotto {lot_key} eliminato"}
 
 
-@app.post("/config/{lot_key}/req/{req_id}/criteria")
+@api_router.post("/config/{lot_key}/req/{req_id}/criteria")
 def update_requirement_criteria(
     lot_key: str,
     req_id: str,
@@ -516,7 +517,7 @@ def update_requirement_criteria(
     return {"status": "success", "message": f"Criteri aggiornati per {req_id}"}
 
 
-@app.get("/config/{lot_key}/req/{req_id}/criteria")
+@api_router.get("/config/{lot_key}/req/{req_id}/criteria")
 def get_requirement_criteria(lot_key: str, req_id: str, db: Session = Depends(get_db)):
     lot = crud.get_lot_config(db, lot_key)
     if not lot:
@@ -538,7 +539,7 @@ def get_requirement_criteria(lot_key: str, req_id: str, db: Session = Depends(ge
     }
 
 
-@app.post("/calculate")
+@api_router.post("/calculate")
 def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db)):
     logger.info(
         "Score calculation requested",
@@ -640,7 +641,7 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
     return result
 
 
-@app.post("/simulate")
+@api_router.post("/simulate")
 def simulate(data: schemas.SimulationRequest, db: Session = Depends(get_db)):
     lot_cfg_db = crud.get_lot_config(db, data.lot_key)
     if not lot_cfg_db:
@@ -666,7 +667,7 @@ def simulate(data: schemas.SimulationRequest, db: Session = Depends(get_db)):
     return results
 
 
-@app.post("/monte-carlo")
+@api_router.post("/monte-carlo")
 def monte_carlo_simulation(
     data: schemas.MonteCarloRequest, db: Session = Depends(get_db)
 ):
@@ -719,7 +720,7 @@ def monte_carlo_simulation(
     }
 
 
-@app.post("/export-pdf")
+@api_router.post("/export-pdf")
 def export_pdf(data: schemas.ExportPDFRequest, db: Session = Depends(get_db)):
     """
     Export comprehensive PDF report with REAL Monte Carlo simulation results
@@ -858,6 +859,10 @@ def export_pdf(data: schemas.ExportPDFRequest, db: Session = Depends(get_db)):
             "Access-Control-Expose-Headers": "Content-Disposition",
         },
     )
+
+
+# Register API router
+app.include_router(api_router)
 
 
 if __name__ == "__main__":
