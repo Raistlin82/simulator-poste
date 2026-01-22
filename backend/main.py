@@ -733,7 +733,7 @@ def monte_carlo_simulation(
 def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depends(get_db)):
     """
     Intelligent discount optimizer: suggests optimal discount to beat a specific competitor
-    Returns 4 scenarios: Conservativo (70-80%), Bilanciato (80-90%), Aggressivo (90-95%), Sicuro (95%+)
+    Returns 4 scenarios: Conservativo (70-80%), Bilanciato (80-90%), Aggressivo (90-95%), Max (95%+)
     """
     logger.info(f"Discount optimization requested for lot: {data.lot_key}")
 
@@ -788,7 +788,7 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
             {"name": "Conservativo", "discount": 40},
             {"name": "Bilanciato", "discount": 50},
             {"name": "Aggressivo", "discount": 60},
-            {"name": "Sicuro", "discount": 70},
+            {"name": "Max", "discount": 70},
         ]
     else:
         # Show discounts around minimum needed
@@ -796,7 +796,7 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
             {"name": "Conservativo", "discount": max(min_discount_to_beat, 5)},
             {"name": "Bilanciato", "discount": max(min_discount_to_beat + 5, 15)},
             {"name": "Aggressivo", "discount": max(min_discount_to_beat + 10, 25)},
-            {"name": "Sicuro", "discount": max(min_discount_to_beat + 15, 35)},
+            {"name": "Max", "discount": max(min_discount_to_beat + 15, 35)},
         ]
 
     scenarios = []

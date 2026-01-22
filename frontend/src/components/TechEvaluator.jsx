@@ -1,9 +1,19 @@
-import { Check, Star, Info } from 'lucide-react';
+import { useState } from 'react';
+import { Check, Star, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
 
 export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCerts, details }) {
     const { t } = useTranslation();
+    const [expandedSections, setExpandedSections] = useState({
+        companyCerts: true,
+        profCerts: true,
+        projectRefs: true
+    });
+
+    const toggleSection = (section) => {
+        setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
     const QUAL_OPTIONS = [
         t('tech.qual_options.absent'),
         t('tech.qual_options.partial'),
@@ -47,11 +57,20 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
 
             {/* 1. Company Certifications */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <h3 className="font-semibold text-slate-800">{t('dashboard.company_certs')}</h3>
-                    <span className="text-sm font-bold text-blue-600">Max {formatNumber(maxCompanyCerts, 1)} pt</span>
-                </div>
-                <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <button
+                    onClick={() => toggleSection('companyCerts')}
+                    className="w-full px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <h3 className="font-semibold text-slate-800">{t('dashboard.company_certs')}</h3>
+                        <span className="text-sm font-bold text-blue-600">
+                            {formatNumber(details?.company_certs_score || 0, 2)} / {formatNumber(maxCompanyCerts, 2)} pt
+                        </span>
+                    </div>
+                    {expandedSections.companyCerts ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                </button>
+                {expandedSections.companyCerts && (
+                    <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {lotData.company_certs && lotData.company_certs.length > 0 ? (
                         lotData.company_certs.map((cert) => (
                             <button
@@ -75,15 +94,25 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                         </div>
                     )}
                 </div>
+                )}
             </div>
 
             {/* 2. Professional Certs */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-slate-800">{t('tech.prof_certs')}</h3>
-                    <span className="text-sm font-medium bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">Max {formatNumber(maxProfCerts, 1)} pt</span>
-                </div>
-                <div className="p-6 space-y-6">
+                <button
+                    onClick={() => toggleSection('profCerts')}
+                    className="w-full px-6 py-4 border-b border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center"
+                >
+                    <div className="flex items-center gap-3">
+                        <h3 className="font-semibold text-slate-800">{t('tech.prof_certs')}</h3>
+                        <span className="text-sm font-bold text-indigo-600">
+                            {formatNumber(lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) => sum + (details[r.id] || 0), 0) || 0, 2)} / {formatNumber(maxProfCerts, 2)} pt
+                        </span>
+                    </div>
+                    {expandedSections.profCerts ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                </button>
+                {expandedSections.profCerts && (
+                    <div className="p-6 space-y-6">
                     {lotData.reqs.filter(r => r.type === 'resource').length === 0 ? (
                         <div className="text-center text-slate-400 text-sm italic py-4">
                             ⚠️ Nessuna certificazione professionale configurata per questo lotto.<br />
@@ -116,8 +145,8 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-lg font-bold text-blue-600">{formatNumber(pts, 1)}</span>
-                                            <span className="text-xs text-slate-400"> / {formatNumber(req.max_points, 1)}</span>
+                                            <span className="text-lg font-bold text-blue-600">{formatNumber(pts, 2)}</span>
+                                            <span className="text-xs text-slate-400"> / {formatNumber(req.max_points, 2)}</span>
                                         </div>
                                     </div>
 
@@ -165,18 +194,30 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                         })
                     )}
                 </div>
+                )}
             </div>
 
             {/* 3. Projects & Refs */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                    <div>
-                        <h3 className="font-semibold text-slate-800">{t('tech.project_refs')}</h3>
-                        <p className="text-xs text-slate-500 mt-1">Giudizio Discrezionale: Assente=0, Parziale=2, Adeguato=3, Più che adeguato=4, Ottimo=5</p>
+                <button
+                    onClick={() => toggleSection('projectRefs')}
+                    className="w-full px-6 py-4 border-b border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center"
+                >
+                    <div className="flex items-center gap-3">
+                        <div>
+                            <h3 className="font-semibold text-slate-800 text-left">{t('tech.project_refs')}</h3>
+                            {expandedSections.projectRefs && (
+                                <p className="text-xs text-slate-500 mt-1 text-left">Giudizio Discrezionale: Assente=0, Parziale=2, Adeguato=3, Più che adeguato=4, Ottimo=5</p>
+                            )}
+                        </div>
+                        <span className="text-sm font-bold text-purple-600">
+                            {formatNumber(lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) => sum + (details[r.id] || 0), 0) || 0, 2)} / {formatNumber(maxProjectRefs, 2)} pt
+                        </span>
                     </div>
-                    <span className="text-sm font-medium bg-purple-100 text-purple-800 px-3 py-1 rounded-full">Max {formatNumber(maxProjectRefs, 1)} pt</span>
-                </div>
-                <div className="divide-y divide-slate-100">
+                    {expandedSections.projectRefs ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                </button>
+                {expandedSections.projectRefs && (
+                    <div className="divide-y divide-slate-100">
                     {lotData.reqs.filter(r => ['reference', 'project'].includes(r.type)).map(req => {
                         const cur = inputs[req.id] || { qual_val: 'Adeguato', bonus_active: false };
                         const pts = details[req.id] || 0;
@@ -197,8 +238,8 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                                         {req.label}
                                     </h4>
                                     <div className="text-right">
-                                        <span className="text-lg font-bold text-blue-600">{formatNumber(pts, 1)}</span>
-                                        <span className="text-xs text-slate-400"> / {formatNumber(req.max_points, 1)}</span>
+                                        <span className="text-lg font-bold text-blue-600">{formatNumber(pts, 2)}</span>
+                                        <span className="text-xs text-slate-400"> / {formatNumber(req.max_points, 2)}</span>
                                     </div>
                                 </div>
 
@@ -264,6 +305,7 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                         )
                     })}
                 </div>
+                )}
             </div>
 
         </div>

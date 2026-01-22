@@ -92,6 +92,16 @@ function App() {
         company_certs: companyCerts
       };
       await axios.post(`${API_URL}/config/state?lot_key=${encodeURIComponent(selectedLot)}`, statePayload);
+
+      // Update local config with saved state
+      setConfig(prev => ({
+        ...prev,
+        [selectedLot]: {
+          ...prev[selectedLot],
+          state: statePayload
+        }
+      }));
+
       return true;
     } catch (err) {
       logger.error("Failed to save state", err, { component: "App", lot: selectedLot });
