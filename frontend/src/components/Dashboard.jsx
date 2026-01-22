@@ -53,7 +53,7 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
 
     // Competitor inputs for discount optimizer
     const [competitorTechScore, setCompetitorTechScore] = useState(lotData?.max_tech_score || 60);
-    const [competitorEconDiscount, setCompetitorEconDiscount] = useState(30.0);
+    const [competitorEconDiscount, setCompetitorEconDiscount] = useState(Math.min(30.0, competitorDiscount));
     const [optimizerResults, setOptimizerResults] = useState(null);
     const [optimizerLoading, setOptimizerLoading] = useState(false);
 
@@ -85,6 +85,13 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
         return () => clearTimeout(timer);
     }, [myDiscount, competitorDiscount, results?.technical_score, lotKey]);
 
+    // Ensure competitor discount doesn't exceed Best Offer
+    useEffect(() => {
+        if (competitorEconDiscount > competitorDiscount) {
+            setCompetitorEconDiscount(competitorDiscount);
+        }
+    }, [competitorDiscount]);
+
     // Run optimizer when competitor inputs change
     useEffect(() => {
         if (!results || !lotData) return;
@@ -97,7 +104,8 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
                     base_amount: lotData.base_amount,
                     my_tech_score: results.technical_score,
                     competitor_tech_score: competitorTechScore,
-                    competitor_discount: competitorEconDiscount
+                    competitor_discount: competitorEconDiscount,
+                    best_offer_discount: competitorDiscount
                 });
                 setOptimizerResults(res.data);
             } catch (err) {
@@ -109,7 +117,7 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
 
         const timer = setTimeout(runOptimizer, 1000); // debounce
         return () => clearTimeout(timer);
-    }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey]);
+    }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount]);
 
     const handleExport = async () => {
         setExportLoading(true);
@@ -211,9 +219,9 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
                                     <input
                                         type="range"
                                         min="0"
-                                        max="70"
+                                        max={competitorDiscount}
                                         step="0.5"
-                                        value={competitorEconDiscount}
+                                        value={Math.min(competitorEconDiscount, competitorDiscount)}
                                         onChange={(e) => setCompetitorEconDiscount(parseFloat(e.target.value))}
                                         className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                     />
@@ -222,7 +230,7 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
                                     </span>
                                 </div>
                                 <div className="text-[10px] text-slate-500 mt-1">
-                                    Range: 0-70%
+                                    Max: Best Offer {formatNumber(competitorDiscount, 1)}%
                                 </div>
                             </div>
                         </div>

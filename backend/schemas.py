@@ -107,6 +107,7 @@ class OptimizeDiscountRequest(BaseModel):
     my_tech_score: float = Field(ge=0, description="My technical score")
     competitor_tech_score: float = Field(ge=0, description="Competitor technical score")
     competitor_discount: float = Field(ge=0, le=100, description="Competitor discount %")
+    best_offer_discount: float = Field(ge=0, le=100, description="Best offer discount % from market")
 
 
 class ExportPDFRequest(BaseModel):

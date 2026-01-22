@@ -746,9 +746,13 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
     # Calculate competitor's economic score and total score
     p_base = data.base_amount
     p_comp = p_base * (1 - data.competitor_discount / 100)
+    p_best = p_base * (1 - data.best_offer_discount / 100)
 
+    # Competitor's economic score depends on best offer:
+    # - If competitor_discount >= best_offer_discount → p_comp <= p_best → max score
+    # - Otherwise → reduced score according to formula
     comp_econ_score = calculate_economic_score(
-        p_base, p_comp, p_comp, lot_cfg.alpha, lot_cfg.max_econ_score
+        p_base, p_comp, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
     )
     competitor_total = data.competitor_tech_score + comp_econ_score
 
@@ -776,7 +780,7 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
             # Run mini Monte Carlo to estimate win probability at this discount
             p_my = p_base * (1 - mid / 100)
             my_econ = calculate_economic_score(
-                p_base, p_my, p_comp, lot_cfg.alpha, lot_cfg.max_econ_score
+                p_base, p_my, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
             )
             my_total = data.my_tech_score + my_econ
 
@@ -787,13 +791,14 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
                 comp_tech_var = np.random.normal(data.competitor_tech_score, 2.0)
                 comp_tech_var = max(0, min(lot_cfg.max_tech_score, comp_tech_var))
 
-                # Add small variance to competitor discount
+                # Add small variance to competitor discount (cannot exceed best_offer)
                 comp_disc_var = np.random.normal(data.competitor_discount, 1.5)
-                comp_disc_var = max(0, min(70, comp_disc_var))
+                comp_disc_var = max(0, min(data.best_offer_discount, comp_disc_var))
                 p_comp_var = p_base * (1 - comp_disc_var / 100)
 
+                # Competitor economic score depends on best offer, not on my offer
                 comp_econ_var = calculate_economic_score(
-                    p_base, p_comp_var, min(p_comp_var, p_my), lot_cfg.alpha, lot_cfg.max_econ_score
+                    p_base, p_comp_var, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
                 )
                 comp_total_var = comp_tech_var + comp_econ_var
 
@@ -821,7 +826,7 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
         if best_discount is not None:
             p_my_final = p_base * (1 - best_discount / 100)
             my_econ_final = calculate_economic_score(
-                p_base, p_my_final, p_comp, lot_cfg.alpha, lot_cfg.max_econ_score
+                p_base, p_my_final, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
             )
             my_total_final = data.my_tech_score + my_econ_final
 
