@@ -184,8 +184,6 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
                         max={lotData.max_tech_score || 60}
                         color="#3b82f6"
                         label={t('dashboard.technical')}
-                        raw={results.raw_technical_score}
-                        weighted={results.technical_score}
                     />
                     <Gauge value={results.economic_score} max={lotData.max_econ_score || 40} color="#10b981" label={t('dashboard.economic')} />
                     <Gauge value={results.total_score} max={100} color="#f59e0b" label={t('dashboard.total')} />

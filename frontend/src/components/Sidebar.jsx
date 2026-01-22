@@ -31,9 +31,9 @@ export default function Sidebar({
 
     return (
         <div className="w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg z-20">
-            {/* Poste Logo Banner */}
+            {/* Lutech Logo Banner */}
             <div className="p-4 bg-gradient-to-br from-slate-50 to-white border-b border-slate-200 flex justify-center">
-                <img src="/poste-italiane-logo.png" alt="Poste Italiane" className="h-12 object-contain" />
+                <img src="/logo-lutech.png" alt="Lutech" className="h-10 object-contain" />
             </div>
 
             <div className="p-6 border-b border-slate-100 bg-slate-50">

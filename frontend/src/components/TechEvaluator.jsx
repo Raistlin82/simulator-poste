@@ -3,7 +3,7 @@ import { Check, Star, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
 
-export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCerts, details }) {
+export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCerts, results }) {
     const { t } = useTranslation();
     const [expandedSections, setExpandedSections] = useState({
         companyCerts: true,
@@ -47,7 +47,7 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
         sum + (certs[cert.label] ? cert.points : 0), 0) || 0;
 
     const weightedProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) =>
-        sum + (details[r.id] || 0), 0) || 0;
+        sum + (results?.details[r.id] || 0), 0) || 0;
 
     const rawProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, req) => {
         const cur = inputs[req.id] || { r_val: 0, c_val: 0 };
@@ -55,7 +55,7 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
     }, 0) || 0;
 
     const weightedProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) =>
-        sum + (details[r.id] || 0), 0) || 0;
+        sum + (results?.details[r.id] || 0), 0) || 0;
 
     const rawProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, req) => {
         const cur = inputs[req.id] || { sub_req_vals: [] };
@@ -85,13 +85,14 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                     <div className="flex items-center gap-3">
                         <div>
                             <h3 className="font-semibold text-slate-800">{t('dashboard.company_certs')}</h3>
-                            <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
-                                <div>Raw: {formatNumber(rawCompanyCerts, 2)}</div>
-                                <div>Weighted: {formatNumber(details?.company_certs_score || 0, 2)}</div>
+                            <div className="text-[10px] text-slate-500 mt-1">
+                                <span>Raw: {formatNumber(rawCompanyCerts, 2)}</span>
+                                <span className="mx-2">•</span>
+                                <span>Weighted: {formatNumber(results?.company_certs_score || 0, 2)}</span>
                             </div>
                         </div>
                         <span className="text-sm font-bold text-blue-600">
-                            {formatNumber(details?.company_certs_score || 0, 2)} / {formatNumber(maxCompanyCerts, 2)} pt
+                            {formatNumber(results?.company_certs_score || 0, 2)} / {formatNumber(maxCompanyCerts, 2)} pt
                         </span>
                     </div>
                     {expandedSections.companyCerts ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
@@ -133,9 +134,10 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                     <div className="flex items-center gap-3">
                         <div>
                             <h3 className="font-semibold text-slate-800">{t('tech.prof_certs')}</h3>
-                            <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
-                                <div>Raw: {formatNumber(rawProfCerts, 2)}</div>
-                                <div>Weighted: {formatNumber(weightedProfCerts, 2)}</div>
+                            <div className="text-[10px] text-slate-500 mt-1">
+                                <span>Raw: {formatNumber(rawProfCerts, 2)}</span>
+                                <span className="mx-2">•</span>
+                                <span>Weighted: {formatNumber(weightedProfCerts, 2)}</span>
                             </div>
                         </div>
                         <span className="text-sm font-bold text-indigo-600">
@@ -154,7 +156,7 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                     ) : (
                         lotData.reqs.filter(r => r.type === 'resource').map(req => {
                             const cur = inputs[req.id] || { r_val: 0, c_val: 0 };
-                            const pts = details[req.id] || 0;
+                            const pts = results?.details[req.id] || 0;
                             // Dynamic max values from configuration
 
                             // Mostra sempre la formula, anche se prof_R/prof_C sono bassi o mancanti
@@ -242,9 +244,10 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                             {expandedSections.projectRefs && (
                                 <p className="text-xs text-slate-500 mt-1 text-left">Giudizio Discrezionale: Assente=0, Parziale=2, Adeguato=3, Più che adeguato=4, Ottimo=5</p>
                             )}
-                            <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
-                                <div>Raw: {formatNumber(rawProjectRefs, 2)}</div>
-                                <div>Weighted: {formatNumber(weightedProjectRefs, 2)}</div>
+                            <div className="text-[10px] text-slate-500 mt-1">
+                                <span>Raw: {formatNumber(rawProjectRefs, 2)}</span>
+                                <span className="mx-2">•</span>
+                                <span>Weighted: {formatNumber(weightedProjectRefs, 2)}</span>
                             </div>
                         </div>
                         <span className="text-sm font-bold text-purple-600">
@@ -257,7 +260,7 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                     <div className="divide-y divide-slate-100">
                     {lotData.reqs.filter(r => ['reference', 'project'].includes(r.type)).map(req => {
                         const cur = inputs[req.id] || { qual_val: 'Adeguato', bonus_active: false };
-                        const pts = details[req.id] || 0;
+                        const pts = results?.details[req.id] || 0;
 
                         const JUDGMENT_OPTIONS = [
                             { value: 0, label: "Assente/Inadeguato", color: "bg-red-100 border-red-300 text-red-800" },

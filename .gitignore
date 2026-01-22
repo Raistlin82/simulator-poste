@@ -88,3 +88,9 @@ logs/
 *~
 .DS_Store
 Thumbs.db
+
+# Kubernetes / SAP BTP Kyma
+kubeconfig.yaml
+kubeconfig*.yaml
+**/kubeconfig.yaml
+lutech/
