@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Save, X, ChevronDown, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -13,6 +14,7 @@ const JUDGMENT_LEVELS = [
 ];
 
 export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSave }) {
+    const { t } = useTranslation();
     const [expandedReqs, setExpandedReqs] = useState({});
     const [editingCriteria, setEditingCriteria] = useState({});
     const [localJudgments, setLocalJudgments] = useState({});
@@ -138,7 +140,7 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
             }
         } catch (error) {
             console.error('Errore nel salvataggio:', error);
-            alert('Errore nel salvataggio della configurazione');
+            alert(t('config.save_error'));
         } finally {
             setSaving(false);
         }

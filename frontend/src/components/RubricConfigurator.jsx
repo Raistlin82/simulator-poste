@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Save, X } from 'lucide-react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -13,6 +14,7 @@ const JUDGMENT_LEVELS = [
 ];
 
 export default function RubricConfigurator({ lotKey, lotConfig, onUpdate, onClose }) {
+    const { t } = useTranslation();
     const [criteria, setCriteria] = useState({});
     const [judgments, setJudgments] = useState({});
     const [saving, setSaving] = useState(false);
@@ -141,10 +143,10 @@ export default function RubricConfigurator({ lotKey, lotConfig, onUpdate, onClos
                 onUpdate(updatedConfig);
             }
 
-            alert('Configurazione salvata con successo!');
+            alert(t('config.save_success'));
         } catch (error) {
             console.error('Errore nel salvataggio:', error);
-            alert('Errore nel salvataggio della configurazione');
+            alert(t('config.save_error'));
         } finally {
             setSaving(false);
         }

@@ -84,6 +84,10 @@
     "config": {
         "title": "Parametri Gara/Lotto",
         "subtitle": "Configura pesi, soglie e requisiti specifici per questa gara",
+        "criteri_title": "Configurazione Criteri",
+        "criteri_subtitle": "Definisci i criteri di valutazione e i pesi per questo requisito",
+        "criteri_formula_title": "Formula di Calcolo",
+        "no_subreqs": "Nessun criterio. Aggiungi uno per iniziare.",
         "name": "Nome Gara/Lotto",
         "lot_name": "Nome Gara/Lotto",
         "base_amount": "Base d'Asta (€)",

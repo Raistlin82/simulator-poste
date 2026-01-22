@@ -4,11 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 from typing import List, Dict, Any
+from datetime import datetime
 import uvicorn
 import numpy as np
 import io
 import os
+import time
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -37,17 +40,47 @@ matplotlib.use("Agg")
 
 app = FastAPI(title="Poste Tender Simulator API")
 
-# Configure CORS with specific origins
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:80",
-    "http://localhost",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:8001",
-]
+
+# --- CORS Configuration (Environment-based) ---
+
+def get_allowed_origins():
+    """
+    Get allowed CORS origins based on environment
+    Supports development, staging, and production configurations
+    """
+    env = os.getenv("ENVIRONMENT", "development")
+
+    if env == "production":
+        # Production: Only allow specific production domain
+        production_url = os.getenv("FRONTEND_URL")
+        if not production_url:
+            logger.warning("FRONTEND_URL not set in production environment")
+            return []
+        logger.info(f"Production CORS: {production_url}")
+        return [production_url]
+
+    elif env == "staging":
+        # Staging: Allow staging domain + localhost for testing
+        staging_url = os.getenv("FRONTEND_URL", "https://staging.simulator-poste.example.com")
+        origins = [staging_url, "http://localhost:5173"]
+        logger.info(f"Staging CORS: {origins}")
+        return origins
+
+    else:  # development
+        # Development: Allow all localhost variants
+        origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:80",
+            "http://localhost",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+        ]
+        logger.info(f"Development CORS: {len(origins)} origins allowed")
+        return origins
+
+
+ALLOWED_ORIGINS = get_allowed_origins()
 
 app.add_middleware(
     CORSMiddleware,
@@ -135,6 +168,147 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# --- HEALTH CHECK & MONITORING ENDPOINTS ---
+
+@app.get("/health", tags=["Monitoring"])
+def health_check(db: Session = Depends(get_db)):
+    """
+    Comprehensive health check endpoint for monitoring
+    Returns detailed system health status
+    """
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0",
+        "checks": {}
+    }
+
+    # Check database connectivity
+    try:
+        db.execute(text("SELECT 1"))
+        health_status["checks"]["database"] = {
+            "status": "healthy",
+            "message": "Database connection OK"
+        }
+    except Exception as e:
+        health_status["status"] = "unhealthy"
+        health_status["checks"]["database"] = {
+            "status": "unhealthy",
+            "message": f"Database error: {str(e)}"
+        }
+        logger.error("Health check failed: database", exc_info=True)
+
+    # Check if lot configs exist
+    try:
+        lot_count = db.query(models.LotConfigModel).count()
+        health_status["checks"]["lot_configs"] = {
+            "status": "healthy" if lot_count > 0 else "warning",
+            "count": lot_count,
+            "message": "OK" if lot_count > 0 else "No lot configurations found"
+        }
+    except Exception as e:
+        health_status["checks"]["lot_configs"] = {
+            "status": "warning",
+            "message": str(e)
+        }
+
+    # Check master data
+    try:
+        master_data = crud.get_master_data(db)
+        health_status["checks"]["master_data"] = {
+            "status": "healthy" if master_data else "warning",
+            "message": "OK" if master_data else "Master data not initialized"
+        }
+    except Exception as e:
+        health_status["checks"]["master_data"] = {
+            "status": "warning",
+            "message": str(e)
+        }
+
+    # Response with appropriate status code
+    status_code = 200 if health_status["status"] == "healthy" else 503
+    return JSONResponse(content=health_status, status_code=status_code)
+
+
+@app.get("/health/ready", tags=["Monitoring"])
+def readiness_check(db: Session = Depends(get_db)):
+    """
+    Kubernetes-style readiness probe
+    Returns 200 only if app is fully ready to serve traffic
+    """
+    try:
+        # Quick database check
+        db.execute(text("SELECT 1"))
+
+        # Check at least one lot config exists
+        lot_count = db.query(models.LotConfigModel).count()
+        if lot_count == 0:
+            logger.warning("Readiness check: no lot configurations found")
+            return JSONResponse(
+                content={"status": "not_ready", "reason": "No lot configurations"},
+                status_code=503
+            )
+
+        return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
+    except Exception as e:
+        logger.warning("Readiness check failed", extra={"error": str(e)})
+        return JSONResponse(
+            content={"status": "not_ready", "reason": str(e)},
+            status_code=503
+        )
+
+
+@app.get("/health/live", tags=["Monitoring"])
+def liveness_check():
+    """
+    Kubernetes-style liveness probe
+    Returns 200 if app process is alive (lightweight check)
+    """
+    return {
+        "status": "alive",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@app.get("/metrics", tags=["Monitoring"])
+def metrics_endpoint():
+    """
+    Basic metrics endpoint for monitoring
+    Returns system resource usage and application statistics
+    """
+    try:
+        import psutil
+        import os
+
+        process = psutil.Process(os.getpid())
+
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "process": {
+                "memory_mb": round(process.memory_info().rss / 1024 / 1024, 2),
+                "memory_percent": round(process.memory_percent(), 2),
+                "cpu_percent": round(process.cpu_percent(interval=0.1), 2),
+                "num_threads": process.num_threads(),
+                "uptime_seconds": round(time.time() - process.create_time(), 2)
+            },
+            "system": {
+                "cpu_count": psutil.cpu_count(),
+                "memory_total_gb": round(psutil.virtual_memory().total / 1024 / 1024 / 1024, 2),
+                "memory_available_gb": round(psutil.virtual_memory().available / 1024 / 1024 / 1024, 2),
+                "memory_percent": round(psutil.virtual_memory().percent, 2)
+            }
+        }
+    except ImportError:
+        logger.warning("psutil not installed, metrics limited")
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "message": "Install psutil for detailed metrics"
+        }
+    except Exception as e:
+        logger.error("Metrics endpoint failed", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve metrics")
 
 
 @app.on_event("startup")
