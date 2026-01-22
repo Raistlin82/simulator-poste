@@ -178,6 +178,8 @@ function App() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
+                <img src="/logo-lutech.png" alt="Lutech" className="h-8 object-contain" />
+                <div className="w-px h-8 bg-slate-200"></div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   {t('app.title')}
                 </h1>
