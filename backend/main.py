@@ -760,25 +760,44 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
 
     # Calculate the minimum discount needed to beat competitor
     # Start from 0% and find where we start winning
-    min_discount_to_beat = 0.0
+    min_discount_to_beat = None
+    can_beat = False
+
     for test_disc in range(0, 71, 1):
         p_test = p_base * (1 - test_disc / 100)
         test_econ = calculate_economic_score(p_base, p_test, p_best, lot_cfg.alpha, lot_cfg.max_econ_score)
         test_total = data.my_tech_score + test_econ
         if test_total > competitor_total:
             min_discount_to_beat = test_disc
+            can_beat = True
             break
 
-    logger.info(f"Min discount to beat competitor: {min_discount_to_beat}%")
+    if not can_beat:
+        # Cannot beat competitor even with max discount - use high discounts anyway
+        min_discount_to_beat = 70
+        logger.info(f"WARNING: Cannot beat competitor even with 70% discount!")
+
+    logger.info(f"Min discount to beat competitor: {min_discount_to_beat}% (can_beat={can_beat})")
 
     # Define 4 discount ranges that make sense
-    # Strategy: spread discounts from min_to_beat to higher values
-    scenarios_config = [
-        {"name": "Conservativo", "discount": max(0, min_discount_to_beat)},
-        {"name": "Bilanciato", "discount": max(min_discount_to_beat + 5, 15)},
-        {"name": "Aggressivo", "discount": max(min_discount_to_beat + 10, 25)},
-        {"name": "Sicuro", "discount": max(min_discount_to_beat + 15, 35)},
-    ]
+    # If can't beat: show progressive discounts to minimize loss
+    # If can beat: show discounts around the threshold
+    if not can_beat:
+        # Show 4 levels of high discounts to minimize damage
+        scenarios_config = [
+            {"name": "Conservativo", "discount": 40},
+            {"name": "Bilanciato", "discount": 50},
+            {"name": "Aggressivo", "discount": 60},
+            {"name": "Sicuro", "discount": 70},
+        ]
+    else:
+        # Show discounts around minimum needed
+        scenarios_config = [
+            {"name": "Conservativo", "discount": max(min_discount_to_beat, 5)},
+            {"name": "Bilanciato", "discount": max(min_discount_to_beat + 5, 15)},
+            {"name": "Aggressivo", "discount": max(min_discount_to_beat + 10, 25)},
+            {"name": "Sicuro", "discount": max(min_discount_to_beat + 15, 35)},
+        ]
 
     scenarios = []
     iterations = 200  # Monte Carlo iterations per scenario
