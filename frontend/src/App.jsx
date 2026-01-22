@@ -264,7 +264,7 @@ function App() {
           <div className="flex-1 overflow-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-7 space-y-6">
               <TechEvaluator
-                lotData={config[selectedLot]}
+                lotData={config?.[selectedLot]}
                 inputs={techInputs}
                 setInputs={setTechInputs}
                 certs={companyCerts}
