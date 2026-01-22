@@ -42,6 +42,27 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
     const maxProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) => sum + (r.max_points || 0), 0) || 0;
     const maxProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) => sum + (r.max_points || 0), 0) || 0;
 
+    // Calculate raw scores for each category
+    const rawCompanyCerts = lotData.company_certs?.reduce((sum, cert) =>
+        sum + (certs[cert.label] ? cert.points : 0), 0) || 0;
+
+    const weightedProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) =>
+        sum + (details[r.id] || 0), 0) || 0;
+
+    const rawProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, req) => {
+        const cur = inputs[req.id] || { r_val: 0, c_val: 0 };
+        return sum + (2 * cur.r_val + cur.r_val * cur.c_val);
+    }, 0) || 0;
+
+    const weightedProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) =>
+        sum + (details[r.id] || 0), 0) || 0;
+
+    const rawProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, req) => {
+        const cur = inputs[req.id] || { sub_req_vals: [] };
+        return sum + (cur.sub_req_vals?.reduce((subSum, sv) =>
+            subSum + (sv.val || 0) * ((req.sub_reqs || req.criteria)?.find(s => s.sub_id === sv.sub_id || s.id === sv.sub_id)?.weight || 1), 0) || 0);
+    }, 0) || 0;
+
     // Safety check
     if (!lotData || !Array.isArray(lotData.reqs)) {
         return (
@@ -62,7 +83,13 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                     className="w-full px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
                     <div className="flex items-center gap-3">
-                        <h3 className="font-semibold text-slate-800">{t('dashboard.company_certs')}</h3>
+                        <div>
+                            <h3 className="font-semibold text-slate-800">{t('dashboard.company_certs')}</h3>
+                            <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
+                                <div>Raw: {formatNumber(rawCompanyCerts, 2)}</div>
+                                <div>Weighted: {formatNumber(details?.company_certs_score || 0, 2)}</div>
+                            </div>
+                        </div>
                         <span className="text-sm font-bold text-blue-600">
                             {formatNumber(details?.company_certs_score || 0, 2)} / {formatNumber(maxCompanyCerts, 2)} pt
                         </span>
@@ -104,9 +131,15 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                     className="w-full px-6 py-4 border-b border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center"
                 >
                     <div className="flex items-center gap-3">
-                        <h3 className="font-semibold text-slate-800">{t('tech.prof_certs')}</h3>
+                        <div>
+                            <h3 className="font-semibold text-slate-800">{t('tech.prof_certs')}</h3>
+                            <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
+                                <div>Raw: {formatNumber(rawProfCerts, 2)}</div>
+                                <div>Weighted: {formatNumber(weightedProfCerts, 2)}</div>
+                            </div>
+                        </div>
                         <span className="text-sm font-bold text-indigo-600">
-                            {formatNumber(lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) => sum + (details[r.id] || 0), 0) || 0, 2)} / {formatNumber(maxProfCerts, 2)} pt
+                            {formatNumber(weightedProfCerts, 2)} / {formatNumber(maxProfCerts, 2)} pt
                         </span>
                     </div>
                     {expandedSections.profCerts ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
@@ -209,9 +242,13 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
                             {expandedSections.projectRefs && (
                                 <p className="text-xs text-slate-500 mt-1 text-left">Giudizio Discrezionale: Assente=0, Parziale=2, Adeguato=3, Più che adeguato=4, Ottimo=5</p>
                             )}
+                            <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
+                                <div>Raw: {formatNumber(rawProjectRefs, 2)}</div>
+                                <div>Weighted: {formatNumber(weightedProjectRefs, 2)}</div>
+                            </div>
                         </div>
                         <span className="text-sm font-bold text-purple-600">
-                            {formatNumber(lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) => sum + (details[r.id] || 0), 0) || 0, 2)} / {formatNumber(maxProjectRefs, 2)} pt
+                            {formatNumber(weightedProjectRefs, 2)} / {formatNumber(maxProjectRefs, 2)} pt
                         </span>
                     </div>
                     {expandedSections.projectRefs ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
