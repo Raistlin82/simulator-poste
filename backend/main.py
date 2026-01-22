@@ -756,92 +756,82 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
     )
     competitor_total = data.competitor_tech_score + comp_econ_score
 
-    # Define target win probabilities for each scenario
+    logger.info(f"Optimizer: competitor_total={competitor_total:.2f}, my_tech={data.my_tech_score:.2f}, comp_econ={comp_econ_score:.2f}")
+
+    # Calculate the minimum discount needed to beat competitor
+    # Start from 0% and find where we start winning
+    min_discount_to_beat = 0.0
+    for test_disc in range(0, 71, 1):
+        p_test = p_base * (1 - test_disc / 100)
+        test_econ = calculate_economic_score(p_base, p_test, p_best, lot_cfg.alpha, lot_cfg.max_econ_score)
+        test_total = data.my_tech_score + test_econ
+        if test_total > competitor_total:
+            min_discount_to_beat = test_disc
+            break
+
+    logger.info(f"Min discount to beat competitor: {min_discount_to_beat}%")
+
+    # Define 4 discount ranges that make sense
+    # Strategy: spread discounts from min_to_beat to higher values
     scenarios_config = [
-        {"name": "Conservativo", "target_prob": 75, "min_prob": 70, "max_prob": 80},
-        {"name": "Bilanciato", "target_prob": 85, "min_prob": 80, "max_prob": 90},
-        {"name": "Aggressivo", "target_prob": 92, "min_prob": 90, "max_prob": 95},
-        {"name": "Sicuro", "target_prob": 96, "min_prob": 95, "max_prob": 100},
+        {"name": "Conservativo", "discount": max(0, min_discount_to_beat)},
+        {"name": "Bilanciato", "discount": max(min_discount_to_beat + 5, 15)},
+        {"name": "Aggressivo", "discount": max(min_discount_to_beat + 10, 25)},
+        {"name": "Sicuro", "discount": max(min_discount_to_beat + 15, 35)},
     ]
 
     scenarios = []
+    iterations = 200  # Monte Carlo iterations per scenario
 
     for scenario_cfg in scenarios_config:
-        # Binary search for optimal discount
-        left, right = 0.0, 70.0
-        best_discount = None
-        best_prob = 0
-        iterations = 100  # Monte Carlo iterations per test
+        discount = scenario_cfg["discount"]
 
-        # Try to find discount that achieves target probability
-        for _ in range(15):  # Binary search iterations
-            mid = (left + right) / 2
+        logger.info(f"Simulating scenario: {scenario_cfg['name']}, discount={discount}%")
 
-            # Run mini Monte Carlo to estimate win probability at this discount
-            p_my = p_base * (1 - mid / 100)
-            my_econ = calculate_economic_score(
-                p_base, p_my, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
+        # Calculate my score with this discount
+        p_my = p_base * (1 - discount / 100)
+        my_econ = calculate_economic_score(
+            p_base, p_my, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
+        )
+        my_total = data.my_tech_score + my_econ
+
+        # Run Monte Carlo simulation to estimate win probability
+        wins = 0
+        for _ in range(iterations):
+            # Add variance to competitor tech score
+            comp_tech_var = np.random.normal(data.competitor_tech_score, 2.0)
+            comp_tech_var = max(0, min(lot_cfg.max_tech_score, comp_tech_var))
+
+            # Add variance to competitor discount (cannot exceed best_offer)
+            comp_disc_var = np.random.normal(data.competitor_discount, 1.5)
+            comp_disc_var = max(0, min(data.best_offer_discount, comp_disc_var))
+            p_comp_var = p_base * (1 - comp_disc_var / 100)
+
+            # Competitor economic score
+            comp_econ_var = calculate_economic_score(
+                p_base, p_comp_var, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
             )
-            my_total = data.my_tech_score + my_econ
+            comp_total_var = comp_tech_var + comp_econ_var
 
-            # Simulate competitor variability (tech score variance)
-            wins = 0
-            for _ in range(iterations):
-                # Add small variance to competitor tech score
-                comp_tech_var = np.random.normal(data.competitor_tech_score, 2.0)
-                comp_tech_var = max(0, min(lot_cfg.max_tech_score, comp_tech_var))
+            if my_total > comp_total_var:
+                wins += 1
 
-                # Add small variance to competitor discount (cannot exceed best_offer)
-                comp_disc_var = np.random.normal(data.competitor_discount, 1.5)
-                comp_disc_var = max(0, min(data.best_offer_discount, comp_disc_var))
-                p_comp_var = p_base * (1 - comp_disc_var / 100)
+        prob = (wins / iterations) * 100
 
-                # Competitor economic score depends on best offer, not on my offer
-                comp_econ_var = calculate_economic_score(
-                    p_base, p_comp_var, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
-                )
-                comp_total_var = comp_tech_var + comp_econ_var
+        economic_impact = p_base - p_my
+        delta_vs_competitor = my_total - competitor_total
 
-                if my_total > comp_total_var:
-                    wins += 1
+        logger.info(f"  Result: prob={prob:.1f}%, my_total={my_total:.2f}, delta={delta_vs_competitor:.2f}")
 
-            prob = (wins / iterations) * 100
-
-            # Check if we're in the target range
-            if scenario_cfg["min_prob"] <= prob <= scenario_cfg["max_prob"]:
-                best_discount = mid
-                best_prob = prob
-                break
-
-            # Binary search adjustment
-            if prob < scenario_cfg["target_prob"]:
-                right = mid  # Need more discount (lower price)
-            else:
-                left = mid  # Need less discount
-
-            best_discount = mid
-            best_prob = prob
-
-        # Calculate final metrics with best discount
-        if best_discount is not None:
-            p_my_final = p_base * (1 - best_discount / 100)
-            my_econ_final = calculate_economic_score(
-                p_base, p_my_final, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
-            )
-            my_total_final = data.my_tech_score + my_econ_final
-
-            economic_impact = p_base - p_my_final
-            delta_vs_competitor = my_total_final - competitor_total
-
-            scenarios.append({
-                "name": scenario_cfg["name"],
-                "suggested_discount": round(best_discount, 2),
-                "resulting_total_score": round(my_total_final, 2),
-                "resulting_economic_score": round(my_econ_final, 2),
-                "win_probability": round(best_prob, 1),
-                "economic_impact": round(economic_impact, 2),
-                "delta_vs_competitor": round(delta_vs_competitor, 2),
-            })
+        scenarios.append({
+            "name": scenario_cfg["name"],
+            "suggested_discount": round(discount, 2),
+            "resulting_total_score": round(my_total, 2),
+            "resulting_economic_score": round(my_econ, 2),
+            "win_probability": round(prob, 1),
+            "economic_impact": round(economic_impact, 2),
+            "delta_vs_competitor": round(delta_vs_competitor, 2),
+        })
 
     return {
         "competitor_total_score": round(competitor_total, 2),
