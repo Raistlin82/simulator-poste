@@ -30,8 +30,7 @@ jobs:
 
     - name: Verify cluster connection
       run: |
-        kubectl version --short
-        kubectl get namespace simulator-poste
+        kubectl get namespace simulator-poste || kubectl create namespace simulator-poste
 
     - name: Create namespace
       run: |
