@@ -108,6 +108,7 @@
         "bonus_value": "Valore Bonus",
         "save_success": "Configurazione salvata con successo",
         "save_error": "Errore nel salvataggio della configurazione",
+        "validation_error": "Per favore, correggi gli errori di validazione prima di salvare.",
         "max_raw_tooltip": "<b>Calcolo Automatico:</b><br />Viene calcolato come la somma di tutti i punteggi massimi dei requisiti e delle certificazioni aziendali. Serve come base (denominatore) per rapportare il tuo punteggio al <b>Punteggio Tecnico Max</b> scelto.",
         "economic_formula_desc": "<strong>Dove:</strong><br />• <strong>P_base</strong> = Base d'asta<br />• <strong>P_best</strong> = Miglior prezzo competitor o tuo<br />• <strong>P_off</strong> = Tua offerta<br />• <strong>alpha</strong> = Esponente (default 0.3)",
         "formula": "Formula",

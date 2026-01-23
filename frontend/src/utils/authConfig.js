@@ -3,7 +3,7 @@
  * Configuration for SAP IAS (Identity Authentication Service)
  */
 
-const VITE_OIDC_AUTHORITY = import.meta.env.VITE_OIDC_AUTHORITY || 'https://kyma.accounts.ondemand.com';
+const VITE_OIDC_AUTHORITY = import.meta.env.VITE_OIDC_AUTHORITY || 'https://asojzafbi.accounts.ondemand.com';
 const VITE_OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || '';
 const VITE_OIDC_REDIRECT_URI = import.meta.env.VITE_OIDC_REDIRECT_URI || `${window.location.origin}/callback`;
 const VITE_OIDC_POST_LOGOUT_REDIRECT_URI = import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_URI || window.location.origin;

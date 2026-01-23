@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class OIDCConfig:
     """OIDC Configuration from environment variables"""
     def __init__(self):
-        self.issuer = os.getenv("OIDC_ISSUER", "https://kyma.accounts.ondemand.com")
+        self.issuer = os.getenv("OIDC_ISSUER", "https://asojzafbi.accounts.ondemand.com")
         self.client_id = os.getenv("OIDC_CLIENT_ID")
         self.audience = os.getenv("OIDC_AUDIENCE", self.client_id)
 

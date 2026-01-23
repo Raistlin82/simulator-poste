@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Save, X, ChevronDown, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { isEqual } from '../utils/isEqual';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -13,6 +14,8 @@ const JUDGMENT_LEVELS = [
     { value: 0, label: "Assente/Inadeguato" }
 ];
 
+import { isEqual } from '../utils/isEqual';
+
 export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSave }) {
     const { t } = useTranslation();
     const [expandedReqs, setExpandedReqs] = useState({});
@@ -20,11 +23,15 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
     const [localJudgments, setLocalJudgments] = useState({});
     const [saving, setSaving] = useState(false);
     const [successMsg, setSuccessMsg] = useState("");
+    const [errors, setErrors] = useState({});
+    const prevLotConfigRef = useRef();
 
     useEffect(() => {
+        if (isEqual(lotConfig, prevLotConfigRef.current)) {
+            return;
+        }
         // Inizializza la configurazione dai requisiti
         const initial = {};
-        const initialJudgments = {};
 
         lotConfig?.reqs?.forEach(req => {
             if (req.type === 'reference' || req.type === 'project') {
@@ -34,18 +41,12 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
                     label: c.label,
                     weight: c.weight || 1
                 }));
-
-                initialJudgments[req.id] = {};
-                if (lotConfig.state?.tech_inputs?.[req.id]?.sub_req_vals) {
-                    lotConfig.state.tech_inputs[req.id].sub_req_vals.forEach(val => {
-                        initialJudgments[req.id][val.sub_id] = val.val;
-                    });
-                }
             }
         });
 
         setEditingCriteria(initial);
-        setLocalJudgments(initialJudgments);
+        setLocalJudgments({});
+        prevLotConfigRef.current = lotConfig;
     }, [lotConfig]);
 
     const handleToggleExpand = (reqId) => {
@@ -56,6 +57,7 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
     };
 
     const handleAddCriterion = (reqId) => {
+        setSuccessMsg("");
         setEditingCriteria(prev => ({
             ...prev,
             [reqId]: [
@@ -70,6 +72,7 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
     };
 
     const handleRemoveCriterion = (reqId, criterionId) => {
+        setSuccessMsg("");
         setEditingCriteria(prev => ({
             ...prev,
             [reqId]: prev[reqId].filter(c => c.id !== criterionId)
@@ -85,15 +88,44 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
     };
 
     const handleUpdateCriterion = (reqId, criterionId, field, value) => {
+        setSuccessMsg("");
+        let processedValue = value;
+        if (field === 'weight') {
+            if (value === '') {
+                processedValue = '';
+            } else {
+                const numValue = parseFloat(value);
+                processedValue = isNaN(numValue) ? '' : numValue;
+            }
+        }
+
         setEditingCriteria(prev => ({
             ...prev,
             [reqId]: prev[reqId].map(c =>
-                c.id === criterionId ? { ...c, [field]: value } : c
+                c.id === criterionId ? { ...c, [field]: processedValue } : c
             )
         }));
+
+        // Clear validation error on change
+        if (errors[reqId]?.[criterionId]?.[field]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                if (newErrors[reqId]?.[criterionId]) {
+                    delete newErrors[reqId][criterionId][field];
+                    if (Object.keys(newErrors[reqId][criterionId]).length === 0) {
+                        delete newErrors[reqId][criterionId];
+                    }
+                    if (Object.keys(newErrors[reqId]).length === 0) {
+                        delete newErrors[reqId];
+                    }
+                }
+                return newErrors;
+            });
+        }
     };
 
     const handleSetJudgment = (reqId, criterionId, value) => {
+        setSuccessMsg("");
         setLocalJudgments(prev => ({
             ...prev,
             [reqId]: {
@@ -110,33 +142,90 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
 
         criteria.forEach(criterion => {
             const judgment = judgments[criterion.id] || 0;
-            total += criterion.weight * judgment;
+            const weight = criterion.weight === '' ? 0 : criterion.weight;
+            total += weight * judgment;
         });
 
         return parseFloat(total.toFixed(2));
     };
 
+    const validateCriteria = () => {
+        const newErrors = {};
+        let isValid = true;
+
+        for (const [reqId, criteria] of Object.entries(editingCriteria)) {
+            criteria.forEach((criterion) => {
+                if (!criterion.label || criterion.label.trim() === '') {
+                    if (!newErrors[reqId]) newErrors[reqId] = {};
+                    newErrors[reqId][criterion.id] = { ...newErrors[reqId]?.[criterion.id], label: 'Il nome non può essere vuoto.' };
+                    isValid = false;
+                }
+
+                if (criterion.weight === '' || criterion.weight <= 0) {
+                    if (!newErrors[reqId]) newErrors[reqId] = {};
+                    newErrors[reqId][criterion.id] = { ...newErrors[reqId]?.[criterion.id], weight: 'Il peso deve essere un numero positivo.' };
+                    isValid = false;
+                }
+            });
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
+
     const handleSave = async () => {
+        if (!validateCriteria()) {
+            alert(t('config.validation_error'));
+            return;
+        }
         setSaving(true);
         setSuccessMsg("");
 
         try {
-            // Salva ogni requisito con i suoi nuovi criteri
+            // Crea una copia profonda della configurazione per evitare mutazioni dirette
+            const updatedLotConfig = JSON.parse(JSON.stringify(lotConfig));
+
+            // Aggiorna i criteri per ogni requisito modificato
             for (const [reqId, criteria] of Object.entries(editingCriteria)) {
-                if (criteria && criteria.length > 0) {
-                    try {
-                        await axios.post(`${API_URL}/config/${lotKey}/req/${reqId}/criteria`, criteria);
-                    } catch (err) {
-                        console.error(`Errore durante salvataggio ${reqId}:`, err);
-                    }
+                const reqToUpdate = updatedLotConfig.reqs.find(r => r.id === reqId);
+                if (reqToUpdate) {
+                    reqToUpdate.criteria = criteria;
+                    reqToUpdate.sub_reqs = criteria; // Manteniamo la coerenza
                 }
             }
 
+            // Update judgments in the state
+            if (!updatedLotConfig.state) {
+                updatedLotConfig.state = { tech_inputs: {} };
+            }
+            if (!updatedLotConfig.state.tech_inputs) {
+                updatedLotConfig.state.tech_inputs = {};
+            }
+
+            for (const [reqId, judgments] of Object.entries(localJudgments)) {
+                if (!updatedLotConfig.state.tech_inputs[reqId]) {
+                    updatedLotConfig.state.tech_inputs[reqId] = {};
+                }
+                updatedLotConfig.state.tech_inputs[reqId].sub_req_vals = Object.entries(judgments).map(([subId, value]) => ({
+                    sub_id: subId,
+                    val: value
+                }));
+            }
+
+
+            // Prepara il payload per l'aggiornamento globale
+            const payload = {
+                [lotKey]: updatedLotConfig
+            };
+
+            // Invia la configurazione completa al backend
+            await axios.post(`${API_URL}/config`, payload);
+
             setSuccessMsg("✓ Configurazione salvata con successo!");
-            setTimeout(() => setSuccessMsg(""), 3000);
 
             if (onSave) {
-                onSave();
+                onSave(); // Riesegue il fetch della configurazione aggiornata
             }
         } catch (error) {
             console.error('Errore nel salvataggio:', error);
@@ -228,11 +317,11 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
                                         <div className="space-y-3 mb-6">
                                             {criteria.map((criterion) => {
                                                 const judgment = localJudgments[req.id]?.[criterion.id] || 0;
-                                                const contribution = criterion.weight * judgment;
+                                                const criterionErrors = errors[req.id]?.[criterion.id] || {};
 
                                                 return (
                                                     <div key={criterion.id} className="bg-white p-3 rounded-lg border border-slate-200">
-                                                        <div className="grid grid-cols-12 gap-3 items-center">
+                                                        <div className="grid grid-cols-12 gap-3 items-start">
                                                             {/* Label */}
                                                             <div className="col-span-4">
                                                                 <input
@@ -240,8 +329,9 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
                                                                     value={criterion.label}
                                                                     onChange={(e) => handleUpdateCriterion(req.id, criterion.id, 'label', e.target.value)}
                                                                     placeholder="Nome voce di valutazione"
-                                                                    className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    className={`w-full px-3 py-2 border ${criterionErrors.label ? 'border-red-500' : 'border-slate-200'} bg-white rounded-lg text-sm focus:outline-none focus:ring-2 ${criterionErrors.label ? 'ring-red-500' : 'focus:ring-blue-500'}`}
                                                                 />
+                                                                {criterionErrors.label && <p className="text-red-500 text-xs mt-1">{criterionErrors.label}</p>}
                                                             </div>
 
                                                             {/* Weight */}
@@ -251,10 +341,11 @@ export default function CriteriConfiguratePage({ lotKey, lotConfig, onBack, onSa
                                                                     min="0.1"
                                                                     step="0.1"
                                                                     value={criterion.weight}
-                                                                    onChange={(e) => handleUpdateCriterion(req.id, criterion.id, 'weight', parseFloat(e.target.value))}
+                                                                    onChange={(e) => handleUpdateCriterion(req.id, criterion.id, 'weight', e.target.value)}
                                                                     placeholder="Peso"
-                                                                    className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold"
+                                                                    className={`w-full px-3 py-2 border ${criterionErrors.weight ? 'border-red-500' : 'border-slate-200'} bg-white rounded-lg text-sm focus:outline-none focus:ring-2 ${criterionErrors.weight ? 'ring-red-500' : 'focus:ring-blue-500'} text-center font-bold`}
                                                                 />
+                                                                {criterionErrors.weight && <p className="text-red-500 text-xs mt-1">{criterionErrors.weight}</p>}
                                                             </div>
 
                                                             {/* Contribution Display */}
