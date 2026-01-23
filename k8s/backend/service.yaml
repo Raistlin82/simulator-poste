@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: simulator-poste
+  labels:
+    app: simulator-poste-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: simulator-poste-backend
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP

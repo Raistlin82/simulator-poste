@@ -1,0 +1,104 @@
+name: Deploy to Kyma
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    branches: [kyma]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to SAP BTP Kyma
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Setup kubeconfig
+      env:
+        KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG }}
+      run: |
+        echo "$KUBECONFIG_BASE64" | base64 -d > kubeconfig.yaml
+        echo "KUBECONFIG=$(pwd)/kubeconfig.yaml" >> $GITHUB_ENV
+
+    - name: Verify kubectl connection
+      run: |
+        kubectl version --client
+        kubectl cluster-info
+
+    - name: Create namespace
+      run: |
+        kubectl create namespace simulator-poste --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Apply namespace
+      run: |
+        kubectl apply -f k8s/namespace.yaml
+
+    - name: Create OIDC secrets
+      env:
+        OIDC_CLIENT_ID: ${{ secrets.OIDC_CLIENT_ID }}
+        OIDC_CLIENT_SECRET: ${{ secrets.OIDC_CLIENT_SECRET }}
+        OIDC_AUDIENCE: ${{ secrets.OIDC_AUDIENCE }}
+      run: |
+        kubectl create secret generic oidc-credentials \
+          --from-literal=client-id="$OIDC_CLIENT_ID" \
+          --from-literal=client-secret="$OIDC_CLIENT_SECRET" \
+          --from-literal=audience="$OIDC_AUDIENCE" \
+          --namespace simulator-poste \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Apply ConfigMaps
+      run: |
+        kubectl apply -f k8s/backend/configmap.yaml
+        kubectl apply -f k8s/frontend/configmap.yaml
+
+    - name: Apply Backend resources
+      run: |
+        kubectl apply -f k8s/backend/deployment.yaml
+        kubectl apply -f k8s/backend/service.yaml
+
+    - name: Apply Frontend resources
+      run: |
+        kubectl apply -f k8s/frontend/deployment.yaml
+        kubectl apply -f k8s/frontend/service.yaml
+
+    - name: Apply Ingress
+      run: |
+        kubectl apply -f k8s/ingress.yaml
+
+    - name: Wait for backend rollout
+      run: |
+        kubectl rollout status deployment/simulator-poste-backend -n simulator-poste --timeout=5m
+
+    - name: Wait for frontend rollout
+      run: |
+        kubectl rollout status deployment/simulator-poste-frontend -n simulator-poste --timeout=5m
+
+    - name: Verify deployment
+      run: |
+        echo "=== Backend Deployment ==="
+        kubectl get deployment simulator-poste-backend -n simulator-poste
+        kubectl get pods -l app=simulator-poste-backend -n simulator-poste
+
+        echo "=== Frontend Deployment ==="
+        kubectl get deployment simulator-poste-frontend -n simulator-poste
+        kubectl get pods -l app=simulator-poste-frontend -n simulator-poste
+
+        echo "=== Services ==="
+        kubectl get services -n simulator-poste
+
+        echo "=== Ingress ==="
+        kubectl get ingress -n simulator-poste
+
+    - name: Cleanup kubeconfig
+      if: always()
+      run: |
+        rm -f kubeconfig.yaml

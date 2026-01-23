@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: simulator-poste
+  labels:
+    app: simulator-poste-backend
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  OIDC_ISSUER: "https://kyma.accounts.ondemand.com"
+  # Frontend URL for CORS (will be updated with actual ingress URL)
+  FRONTEND_URL: "https://simulator-poste-dev-xytwh0n6.kyma.ondemand.com"

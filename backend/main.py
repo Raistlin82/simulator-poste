@@ -30,6 +30,7 @@ import matplotlib
 import crud, models, schemas
 from database import SessionLocal, engine
 from logging_config import setup_logging, get_logger
+from auth import OIDCMiddleware, OIDCConfig, get_current_user
 
 # Setup structured logging
 setup_logging()
@@ -118,6 +119,14 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
     max_age=600,  # Cache preflight for 10 minutes
 )
+
+# --- OIDC Authentication Middleware ---
+# Initialize OIDC configuration
+oidc_config = OIDCConfig()
+logger.info(f"OIDC Authentication initialized: issuer={oidc_config.issuer}, client_id={'configured' if oidc_config.client_id else 'NOT SET'}")
+
+# Add OIDC middleware (must be added after CORS)
+app.middleware("http")(OIDCMiddleware(app, oidc_config))
 
 
 # --- GLOBAL EXCEPTION HANDLERS ---

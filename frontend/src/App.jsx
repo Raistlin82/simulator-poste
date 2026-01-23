@@ -9,10 +9,15 @@ import MasterDataConfig from './components/MasterDataConfig';
 import { Settings } from 'lucide-react';
 import { formatCurrency, formatNumber } from './utils/formatters';
 import { logger } from './utils/logger';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import LogoutButton from './components/LogoutButton';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-function App() {
+// Main app content (to be wrapped with auth)
+function AppContent() {
+  const { getAccessToken, handleCallback } = useAuth();
   const { t } = useTranslation();
   const [view, setView] = useState('dashboard'); // dashboard, config, master
   const [config, setConfig] = useState(null);
@@ -36,6 +41,39 @@ function App() {
   // Results State
   const [results, setResults] = useState(null);
   const [simulationData, setSimulationData] = useState([]);
+
+  // Configure axios interceptor to add auth token
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use(
+      (config) => {
+        const token = getAccessToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, [getAccessToken]);
+
+  // Handle OIDC callback
+  useEffect(() => {
+    const handleOIDCCallback = async () => {
+      if (window.location.pathname === '/callback') {
+        try {
+          await handleCallback();
+          setView('dashboard');
+        } catch (err) {
+          logger.error("OIDC callback failed", err, { component: "App" });
+        }
+      }
+    };
+    handleOIDCCallback();
+  }, [handleCallback]);
 
   // Fetch initial data
   useEffect(() => {
@@ -222,6 +260,7 @@ function App() {
                 <Settings className="w-4 h-4" />
                 {t('common.master_data')}
               </button>
+              <LogoutButton />
             </div>
           </div>
         </header>
@@ -301,4 +340,13 @@ function App() {
   );
 }
 
-export default App;
+// Main App wrapper with authentication
+export default function App() {
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <AppContent />
+      </ProtectedRoute>
+    </AuthProvider>
+  );
+}
