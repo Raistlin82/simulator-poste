@@ -4,6 +4,11 @@ import LoginButton from './LoginButton';
 export default function ProtectedRoute({ children }) {
     const { isAuthenticated, isLoading, error } = useAuth();
 
+    // Allow callback path to pass through for OIDC flow completion
+    if (window.location.pathname === '/callback') {
+        return children;
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-screen bg-slate-50">
