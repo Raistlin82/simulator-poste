@@ -16,6 +16,8 @@ spec:
       labels:
         app: simulator-poste-frontend
         component: web
+      annotations:
+        sidecar.istio.io/inject: "true"
     spec:
       containers:
       - name: frontend

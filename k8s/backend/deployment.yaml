@@ -16,6 +16,8 @@ spec:
       labels:
         app: simulator-poste-backend
         component: api
+      annotations:
+        sidecar.istio.io/inject: "true"
     spec:
       containers:
       - name: backend
