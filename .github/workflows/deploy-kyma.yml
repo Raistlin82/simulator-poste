@@ -33,6 +33,10 @@ jobs:
         echo "Testing cluster connection..."
         kubectl get pods -n simulator-poste 2>/dev/null || echo "Namespace ready"
 
+    - name: Apply namespace with Istio injection
+      run: |
+        kubectl apply -f k8s/namespace.yaml
+
     # OIDC secrets are already configured in Kyma namespace
     # No need to create them via workflow
 
