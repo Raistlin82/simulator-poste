@@ -7,7 +7,7 @@ metadata:
     app: simulator-poste-backend
     component: api
 spec:
-  replicas: 2
+  replicas: 1  # SQLite requires single instance
   selector:
     matchLabels:
       app: simulator-poste-backend
@@ -28,6 +28,8 @@ spec:
           name: http
           protocol: TCP
         env:
+        - name: DATABASE_URL
+          value: "sqlite:////data/simulator_poste.db"
         - name: ENVIRONMENT
           valueFrom:
             configMapKeyRef:
@@ -89,3 +91,10 @@ spec:
           capabilities:
             drop:
             - ALL
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: backend-data
