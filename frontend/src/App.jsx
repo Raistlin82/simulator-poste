@@ -12,6 +12,9 @@ import { logger } from './utils/logger';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LogoutButton from './components/LogoutButton';
+import { ConfigProvider } from './features/config/context/ConfigContext';
+import { SimulationProvider } from './features/simulation/context/SimulationContext';
+import { ToastProvider } from './shared/components/ui/Toast';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -438,12 +441,18 @@ function AppContent() {
   );
 }
 
-// Main App wrapper with authentication
+// Main App wrapper with authentication and context providers
 export default function App() {
   return (
     <AuthProvider>
       <ProtectedRoute>
-        <AppContent />
+        <ToastProvider>
+          <ConfigProvider>
+            <SimulationProvider>
+              <AppContent />
+            </SimulationProvider>
+          </ConfigProvider>
+        </ToastProvider>
       </ProtectedRoute>
     </AuthProvider>
   );
