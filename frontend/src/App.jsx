@@ -285,15 +285,6 @@ function AppContent() {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         <Sidebar
-          config={config}
-          selectedLotKey={selectedLot}
-          onSelectLot={setSelectedLot}
-          baseAmount={baseAmount}
-          competitorDiscount={competitorDiscount}
-          setCompetitorDiscount={setCompetitorDiscount}
-          myDiscount={myDiscount}
-          setMyDiscount={setMyDiscount}
-          results={results}
           onSaveState={handleSaveState}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
