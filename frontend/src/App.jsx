@@ -12,8 +12,8 @@ import { logger } from './utils/logger';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LogoutButton from './components/LogoutButton';
-import { ConfigProvider } from './features/config/context/ConfigContext';
-import { SimulationProvider } from './features/simulation/context/SimulationContext';
+import { ConfigProvider, useConfig } from './features/config/context/ConfigContext';
+import { SimulationProvider, useSimulation } from './features/simulation/context/SimulationContext';
 import { ToastProvider } from './shared/components/ui/Toast';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -22,30 +22,32 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 function AppContent() {
   const { getAccessToken, handleCallback, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslation();
+
+  // Use contexts instead of local state
+  const { config, masterData, loading: configLoading } = useConfig();
+  const {
+    selectedLot,
+    myDiscount,
+    competitorDiscount,
+    techInputs,
+    companyCerts,
+    results,
+    simulationData,
+    setDiscount,
+    setTechInput,
+    setCompanyCert,
+    resetState,
+    setResults,
+    setSimulationData
+  } = useSimulation();
+
   const [view, setView] = useState('dashboard'); // dashboard, config, master
-  const [config, setConfig] = useState(null);
-  const [masterData, setMasterData] = useState({
-    company_certs: [],
-    prof_certs: [],
-    requirement_labels: []
-  });
-  const [selectedLot, setSelectedLot] = useState("Lotto 1");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar state
 
-  // State for Inputs
-  const [baseAmount, setBaseAmount] = useState(0);
-  const [competitorDiscount, setCompetitorDiscount] = useState(30.0);
-  const [myDiscount, setMyDiscount] = useState(0.0);
-
-  // Tech inputs: { req_id: { r_val, c_val, qual_val, bonus_active } }
-  const [techInputs, setTechInputs] = useState({});
-  const [companyCerts, setCompanyCerts] = useState({});
-
-  // Results State
-  const [results, setResults] = useState(null);
-  const [simulationData, setSimulationData] = useState([]);
-  const [mockMode, setMockMode] = useState(false); // Track if using mock data
+  // Derived values from context
+  const baseAmount = config && selectedLot && config[selectedLot] ? config[selectedLot].base_amount : 0;
+  const mockMode = !config; // Demo mode if no config loaded
 
   // Configure axios interceptor to add auth token
   useEffect(() => {
@@ -80,107 +82,45 @@ function AppContent() {
     handleOIDCCallback();
   }, [handleCallback, authLoading]);
 
-  // Fetch initial data - only when authenticated
+  // Update loading state when config loads
   useEffect(() => {
-    // Don't fetch if still processing auth or not authenticated
-    if (authLoading || !isAuthenticated) {
-      return;
+    if (config !== null || configLoading === false) {
+      setLoading(false);
     }
+  }, [config, configLoading]);
 
-    const fetchData = async () => {
-      try {
-        const [configRes, masterRes] = await Promise.all([
-          axios.get(`${API_URL}/config`),
-          axios.get(`${API_URL}/master-data`)
-        ]);
-        setConfig(configRes.data);
-        setMasterData(masterRes.data);
-        const firstLot = Object.keys(configRes.data)[0];
-        setSelectedLot(firstLot);
-        setBaseAmount(configRes.data[firstLot].base_amount);
-      } catch (err) {
-        logger.error("Failed to fetch initial data", err, { component: "App" });
-
-        // Use mock data for frontend-only testing
-        setMockMode(true);
-        const mockConfig = {
-          "Lotto 1": {
-            name: "Lotto 1 - Demo Mode",
-            base_amount: 1000000,
-            alpha: 0.3,
-            max_econ_score: 40,
-            max_tech_score: 60,
-            max_raw_score: 100,
-            company_certs: [
-              { label: "ISO 9001", points: 2 },
-              { label: "ISO 27001", points: 2 }
-            ],
-            reqs: [
-              { id: "req1", label: "Team Size", type: "resource", max_points: 20, max_res: 10, max_certs: 5 },
-              { id: "req2", label: "Experience", type: "resource", max_points: 15, max_res: 8, max_certs: 3 }
-            ]
-          },
-          "Lotto 2": {
-            name: "Lotto 2 - Demo Mode",
-            base_amount: 800000,
-            alpha: 0.3,
-            max_econ_score: 40,
-            max_tech_score: 60,
-            max_raw_score: 100,
-            company_certs: [],
-            reqs: []
-          }
-        };
-        setConfig(mockConfig);
-        setSelectedLot("Lotto 1");
-        setBaseAmount(1000000);
-
-        // Set mock results
-        setResults({
-          technical_score: 45.5,
-          economic_score: 28.3,
-          total_score: 73.8,
-          raw_technical_score: 75.8,
-          company_certs_score: 4.0,
-          details: {}
-        });
-
-        // Set mock simulation data
-        setSimulationData([
-          { discount: 10, total_score: 50.2, economic_score: 10.1 },
-          { discount: 20, total_score: 60.5, economic_score: 20.3 },
-          { discount: 30, total_score: 70.8, economic_score: 30.6 },
-          { discount: 40, total_score: 75.2, economic_score: 35.0 },
-          { discount: 50, total_score: 78.5, economic_score: 38.3 }
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [isAuthenticated, authLoading]);
-
-  // Update simulation state when lot changes
+  // Update simulation state when lot changes - load saved state
   useEffect(() => {
     if (config && selectedLot) {
       const lot = config[selectedLot];
-      setBaseAmount(lot.base_amount);
 
-      // Load saved state if available
-      if (lot.state) {
-        setMyDiscount(lot.state.my_discount ?? 0.0);
-        setCompetitorDiscount(lot.state.competitor_discount ?? 30.0);
-        setTechInputs(lot.state.tech_inputs ?? {});
-        setCompanyCerts(lot.state.company_certs ?? {});
-      } else {
-        // Reset to defaults for new lots
-        setMyDiscount(0.0);
-        setCompetitorDiscount(30.0);
-        setTechInputs({});
-        setCompanyCerts({});
-      }
+      // Load saved state if available, otherwise use defaults
+      resetState({
+        selectedLot,
+        myDiscount: lot.state?.my_discount ?? 0.0,
+        competitorDiscount: lot.state?.competitor_discount ?? 30.0,
+        techInputs: lot.state?.tech_inputs ?? {},
+        companyCerts: lot.state?.company_certs ?? {}
+      });
     }
-  }, [selectedLot, config]);
+  }, [selectedLot, config, resetState]);
+
+  // Helper functions for TechEvaluator (adapts context to callback pattern)
+  const handleSetTechInputs = (updater) => {
+    const newInputs = typeof updater === 'function' ? updater(techInputs) : updater;
+    // Update each input individually in the context
+    Object.entries(newInputs).forEach(([reqId, value]) => {
+      setTechInput(reqId, value);
+    });
+  };
+
+  const handleSetCompanyCerts = (updater) => {
+    const newCerts = typeof updater === 'function' ? updater(companyCerts) : updater;
+    // Update each cert individually in the context
+    Object.entries(newCerts).forEach(([label, checked]) => {
+      setCompanyCert(label, checked);
+    });
+  };
 
   // Manual save function for simulation state
   const handleSaveState = async () => {
@@ -194,14 +134,8 @@ function AppContent() {
       };
       await axios.post(`${API_URL}/config/state?lot_key=${encodeURIComponent(selectedLot)}`, statePayload);
 
-      // Update local config with saved state
-      setConfig(prev => ({
-        ...prev,
-        [selectedLot]: {
-          ...prev[selectedLot],
-          state: statePayload
-        }
-      }));
+      // State saved to server successfully
+      logger.info("Simulation state saved", { lot: selectedLot });
 
       return true;
     } catch (err) {
@@ -409,9 +343,9 @@ function AppContent() {
               <TechEvaluator
                 lotData={config?.[selectedLot]}
                 inputs={techInputs}
-                setInputs={setTechInputs}
+                setInputs={handleSetTechInputs}
                 certs={companyCerts}
-                setCerts={setCompanyCerts}
+                setCerts={handleSetCompanyCerts}
                 results={results}
               />
             </div>
