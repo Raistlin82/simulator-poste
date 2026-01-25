@@ -24,7 +24,7 @@ function AppContent() {
   const { t } = useTranslation();
 
   // Use contexts instead of local state
-  const { config, masterData, loading: configLoading } = useConfig();
+  const { config, masterData, loading: configLoading, updateConfig, refetch: refetchConfig } = useConfig();
   const {
     selectedLot,
     myDiscount,
@@ -33,6 +33,7 @@ function AppContent() {
     companyCerts,
     results,
     simulationData,
+    setLot,
     setDiscount,
     setTechInput,
     setCompanyCert,
@@ -88,6 +89,16 @@ function AppContent() {
       setLoading(false);
     }
   }, [config, configLoading]);
+
+  // Auto-select first lot when config loads and no lot is selected
+  useEffect(() => {
+    if (config && !selectedLot) {
+      const lotKeys = Object.keys(config);
+      if (lotKeys.length > 0) {
+        setLot(lotKeys[0]);
+      }
+    }
+  }, [config, selectedLot, setLot]);
 
   // Update simulation state when lot changes - load saved state
   useEffect(() => {
@@ -158,11 +169,9 @@ function AppContent() {
   // Refetch master data when entering config or master views to ensure fresh sync
   useEffect(() => {
     if (view === 'config' || view === 'master') {
-      axios.get(`${API_URL}/master-data`)
-        .then(res => setMasterData(res.data))
-        .catch(err => logger.error("Failed to sync master data", err, { component: "App" }));
+      refetchConfig();
     }
-  }, [view]);
+  }, [view, refetchConfig]);
 
   // Main Calculation Effect
   useEffect(() => {
@@ -297,10 +306,12 @@ function AppContent() {
             masterData={masterData}
             onSave={async (newCfg) => {
               try {
-                await axios.post(`${API_URL}/config`, newCfg);
-                setConfig(newCfg);
-                // Rimane in configurazione dopo salvataggio, non torna a dashboard
-                alert(t('config.save_success') || '✓ Configurazione salvata con successo');
+                const result = await updateConfig(newCfg);
+                if (result.success) {
+                  alert(t('config.save_success') || '✓ Configurazione salvata con successo');
+                } else {
+                  alert(t('config.save_error'));
+                }
               } catch (err) {
                 logger.error("Failed to save configuration", err, { component: "ConfigPage" });
                 alert(t('config.save_error'));
@@ -309,9 +320,8 @@ function AppContent() {
             onAddLot={async (lotName) => {
               try {
                 await axios.post(`${API_URL}/config/add?lot_key=${encodeURIComponent(lotName)}`);
-                const res = await axios.get(`${API_URL}/config`);
-                setConfig(res.data);
-                setSelectedLot(lotName);
+                await refetchConfig();
+                setLot(lotName);
                 alert(t('app.add_success', { name: lotName }));
               } catch (err) {
                 logger.error("Failed to add lot", err, { component: "ConfigPage", lotName });
@@ -322,10 +332,8 @@ function AppContent() {
               if (!window.confirm(t('app.delete_confirm', { name: lotKey }))) return;
               try {
                 await axios.delete(`${API_URL}/config/${encodeURIComponent(lotKey)}`);
-                const res = await axios.get(`${API_URL}/config`);
-                setConfig(res.data);
-                const keys = Object.keys(res.data);
-                if (keys.length > 0) setSelectedLot(keys[0]);
+                await refetchConfig();
+                // Refresh will trigger auto-select of first available lot
                 setView('dashboard');
                 alert(t('app.delete_success', { name: lotKey }));
               } catch (err) {
