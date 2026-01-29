@@ -25,7 +25,7 @@ function AppContent() {
   const { success, error: showError } = useToast();
 
   // Use contexts instead of local state
-  const { config, masterData, loading: configLoading, updateConfig, refetch: refetchConfig } = useConfig();
+  const { config, loading: configLoading, updateConfig, refetch: refetchConfig } = useConfig();
   const {
     selectedLot,
     myDiscount,
@@ -33,11 +33,7 @@ function AppContent() {
     techInputs,
     companyCerts,
     results,
-    simulationData,
     setLot,
-    setDiscount,
-    setTechInput,
-    setCompanyCert,
     resetState,
     setResults,
     setSimulationData
@@ -119,23 +115,6 @@ function AppContent() {
       lastLoadedLot.current = selectedLot;
     }
   }, [selectedLot, config, resetState]);
-
-  // Helper functions for TechEvaluator (adapts context to callback pattern)
-  const handleSetTechInputs = (updater) => {
-    const newInputs = typeof updater === 'function' ? updater(techInputs) : updater;
-    // Update each input individually in the context
-    Object.entries(newInputs).forEach(([reqId, value]) => {
-      setTechInput(reqId, value);
-    });
-  };
-
-  const handleSetCompanyCerts = (updater) => {
-    const newCerts = typeof updater === 'function' ? updater(companyCerts) : updater;
-    // Update each cert individually in the context
-    Object.entries(newCerts).forEach(([label, checked]) => {
-      setCompanyCert(label, checked);
-    });
-  };
 
   // Manual save function for simulation state
   const handleSaveState = async () => {
@@ -299,8 +278,6 @@ function AppContent() {
 
         {view === 'config' ? (
           <ConfigPage
-            config={config}
-            masterData={masterData}
             onSave={async (newCfg) => {
               try {
                 const result = await updateConfig(newCfg);
@@ -345,24 +322,10 @@ function AppContent() {
         ) : (
           <div className="flex-1 overflow-auto p-3 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
             <div className="lg:col-span-7 space-y-4 md:space-y-6">
-              <TechEvaluator
-                lotData={config?.[selectedLot]}
-                inputs={techInputs}
-                setInputs={handleSetTechInputs}
-                certs={companyCerts}
-                setCerts={handleSetCompanyCerts}
-                results={results}
-              />
+              <TechEvaluator />
             </div>
             <div className="lg:col-span-5 space-y-4 md:space-y-6">
-              <Dashboard
-                results={results}
-                simulationData={simulationData}
-                myDiscount={myDiscount}
-                competitorDiscount={competitorDiscount}
-                lotData={config?.[selectedLot]}
-                lotKey={selectedLot}
-              />
+              <Dashboard />
             </div>
           </div>
         )}

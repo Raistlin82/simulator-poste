@@ -4,9 +4,11 @@ import { formatNumber } from '../utils/formatters';
 import { Save, Plus, Trash2, Settings2, Building2, Users, DollarSign, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X } from 'lucide-react';
 import LotSelector from '../features/config/components/LotSelector';
 import CompanyCertsEditor from '../features/config/components/CompanyCertsEditor';
+import { useConfig } from '../features/config/context/ConfigContext';
 
-export default function ConfigPage({ config, masterData, onSave, onAddLot, onDeleteLot, onBack }) {
+export default function ConfigPage({ onSave, onAddLot, onDeleteLot, onBack }) {
     const { t } = useTranslation();
+    const { config, masterData } = useConfig();
     const [editedConfig, setEditedConfig] = useState(JSON.parse(JSON.stringify(config)));
     const [selectedLot, setSelectedLot] = useState(Object.keys(editedConfig)[0] || "");
     const [activeTab, setActiveTab] = useState('resource');

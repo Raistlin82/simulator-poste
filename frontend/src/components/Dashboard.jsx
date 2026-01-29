@@ -1,59 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, BarChart, Bar } from 'recharts';
-import { Target, Download, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
+import { Target, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { SkeletonGauge, SkeletonCard } from '../shared/components/ui/Skeleton';
+import ScoreGauges from '../features/simulation/components/ScoreGauges';
+import SimulationChart from '../features/simulation/components/SimulationChart';
+import { useConfig } from '../features/config/context/ConfigContext';
+import { useSimulation } from '../features/simulation/context/SimulationContext';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-const Gauge = ({ value, max, color, label, raw, weighted }) => {
-    const data = [
-        { name: 'Value', value: value },
-        { name: 'Empty', value: max - value }
-    ];
-
-    // Calculate percentage for needle or just filled arc
-    const percent = (value / max) * 100;
-
-    return (
-        <div className="h-40 w-full relative flex flex-col items-center justify-center">
-            <ResponsiveContainer width="100%" height={160} minWidth={100}>
-                <PieChart>
-                    <Pie
-                        data={data}
-                        cx="50%"
-                        cy="70%"
-                        startAngle={180}
-                        endAngle={0}
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={0}
-                        dataKey="value"
-                        stroke="none"
-                    >
-                        <Cell key="val" fill={color} />
-                        <Cell key="empty" fill="#f1f5f9" />
-                    </Pie>
-                </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute top-[65%] text-center">
-                <div className="text-3xl font-bold text-slate-800">{formatNumber(value, 2)}</div>
-                <div className="text-xs text-slate-400 uppercase">{label}</div>
-                {(raw !== undefined || weighted !== undefined) && (
-                    <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
-                        {raw !== undefined && <div>Raw: {formatNumber(raw, 2)}</div>}
-                        {weighted !== undefined && <div>Weighted: {formatNumber(weighted, 2)}</div>}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-export default function Dashboard({ results, simulationData, myDiscount, competitorDiscount, lotData, lotKey }) {
+export default function Dashboard() {
     const { t } = useTranslation();
+    const { config } = useConfig();
+    const {
+        selectedLot,
+        myDiscount,
+        competitorDiscount,
+        results,
+        simulationData
+    } = useSimulation();
+
+    // Derive lotData and lotKey from contexts
+    const lotKey = selectedLot;
+    const lotData = config?.[selectedLot];
     const [monteCarlo, setMonteCarlo] = useState(null);
     const [mcLoading, setMcLoading] = useState(false);
     const [exportLoading, setExportLoading] = useState(false);
@@ -180,29 +151,12 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
         <div className="space-y-6 sticky top-6">
 
             {/* 1. Score Cards */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-semibold text-slate-800">{t('dashboard.performance_score')}</h3>
-                    <button
-                        onClick={handleExport}
-                        disabled={exportLoading}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all text-sm font-medium disabled:opacity-50"
-                    >
-                        {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        {t('dashboard.export_pdf')}
-                    </button>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                    <Gauge
-                        value={results.technical_score}
-                        max={lotData.max_tech_score || 60}
-                        color="#3b82f6"
-                        label={t('dashboard.technical')}
-                    />
-                    <Gauge value={results.economic_score} max={lotData.max_econ_score || 40} color="#10b981" label={t('dashboard.economic')} />
-                    <Gauge value={results.total_score} max={100} color="#f59e0b" label={t('dashboard.total')} />
-                </div>
-            </div>
+            <ScoreGauges
+                results={results}
+                lotData={lotData}
+                onExport={handleExport}
+                exportLoading={exportLoading}
+            />
 
             {/* Strategic Analysis (Monte Carlo) */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden relative">
@@ -388,104 +342,12 @@ export default function Dashboard({ results, simulationData, myDiscount, competi
             </div>
 
             {/* 2. Simulation Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-semibold text-slate-800">{t('dashboard.bid_to_win')}</h3>
-                    <div className="flex gap-4">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div>
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Safe Zone</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Tu</span>
-                        </div>
-                    </div>
-                </div>
-
-                {simulationData && simulationData.length > 0 && (
-                    <div className="w-full" style={{ height: '320px' }}>
-                        <ResponsiveContainer width="100%" height={320} minWidth={100}>
-                            <AreaChart data={simulationData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis
-                                    dataKey="discount"
-                                    tick={{ fontSize: 10, fill: '#94a3b8' }}
-                                    label={{ value: 'Sconto %', position: 'insideBottom', offset: -5, fontSize: 10 }}
-                                />
-                                <YAxis domain={['auto', 40]} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                                <Tooltip
-                                    formatter={(value) => [`${value} Punti Economici`, 'Economic Score']}
-                                    labelFormatter={(label) => `Sconto: ${label}%`}
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '11px' }}
-                                />
-
-                                {/* Optimal Discount Zone Shading */}
-                                {monteCarlo?.optimal_discount && (
-                                    <ReferenceLine
-                                        segment={[{ x: monteCarlo.optimal_discount, y: 0 }, { x: 70, y: 0 }]}
-                                        stroke="transparent"
-                                    />
-                                )}
-
-                                <Area
-                                    type="monotone"
-                                    dataKey="economic_score"
-                                    stroke="#10b981"
-                                    strokeWidth={3}
-                                    fillOpacity={1}
-                                    fill="url(#colorTotal)"
-                                    name={t('dashboard.economic')}
-                                />
-
-                                {/* Current Economic Position Line */}
-                                <ReferenceLine
-                                    y={results?.economic_score || 0}
-                                    stroke="#ef4444"
-                                    strokeWidth={2}
-                                    strokeDasharray="3 3"
-                                    label={{ position: 'right', value: 'Tua Posizione', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }}
-                                />
-
-                                {/* Competitor Threshold Line */}
-                                <ReferenceLine
-                                    y={monteCarlo?.competitor_threshold || 95}
-                                    stroke="#f97316"
-                                    strokeDasharray="4 4"
-                                    label={{ position: 'right', value: t('dashboard.threshold_win'), fill: '#f97316', fontSize: 10, fontWeight: 'bold' }}
-                                />
-
-                                {/* Safe Zone Marker */}
-                                {monteCarlo?.optimal_discount && (
-                                    <ReferenceLine
-                                        x={monteCarlo.optimal_discount}
-                                        stroke="#10b981"
-                                        strokeWidth={1}
-                                        label={{ position: 'top', value: 'Safe Zone Start', fill: '#10b981', fontSize: 9, fontWeight: 'bold' }}
-                                    />
-                                )}
-
-                                {/* Marker for Current Position */}
-                                <ReferenceLine x={myDiscount} stroke="#ef4444" strokeWidth={2} label={{ position: 'top', value: 'TU', fill: '#ef4444', fontSize: 11, fontWeight: 'bold' }} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
-                <div className="mt-4 flex flex-col gap-1 items-center">
-                    <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                        {t('dashboard.chart_description')}
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                        Safe Zone: {t('dashboard.win_prob')} {">"} 90%
-                    </p>
-                </div>
-            </div>
+            <SimulationChart
+                simulationData={simulationData}
+                monteCarlo={monteCarlo}
+                results={results}
+                myDiscount={myDiscount}
+            />
 
 
             {/* 3. Detailed Score Table */}

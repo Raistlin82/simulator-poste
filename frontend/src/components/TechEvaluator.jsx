@@ -2,9 +2,23 @@ import { useState } from 'react';
 import { Check, Star, Info, ChevronDown, ChevronUp, Plus, Minus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
+import { useConfig } from '../features/config/context/ConfigContext';
+import { useSimulation } from '../features/simulation/context/SimulationContext';
 
-export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCerts, results }) {
+export default function TechEvaluator() {
     const { t } = useTranslation();
+    const { config } = useConfig();
+    const {
+        selectedLot,
+        techInputs: inputs,
+        companyCerts: certs,
+        results,
+        setTechInput,
+        setCompanyCert
+    } = useSimulation();
+
+    // Derive lotData from context
+    const lotData = config?.[selectedLot];
     const [expandedSections, setExpandedSections] = useState({
         companyCerts: true,
         profCerts: true,
@@ -24,17 +38,15 @@ export default function TechEvaluator({ lotData, inputs, setInputs, certs, setCe
     ];
 
     const updateInput = (reqId, field, value) => {
-        setInputs(prev => ({
-            ...prev,
-            [reqId]: {
-                ...prev[reqId],
-                [field]: value
-            }
-        }));
+        const currentInput = inputs[reqId] || {};
+        setTechInput(reqId, {
+            ...currentInput,
+            [field]: value
+        });
     };
 
     const toggleCert = (key) => {
-        setCerts(prev => ({ ...prev, [key]: !prev[key] }));
+        setCompanyCert(key, !certs[key]);
     };
 
     // Guard clause - return early if no lotData
