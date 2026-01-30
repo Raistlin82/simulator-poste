@@ -88,35 +88,42 @@
                     {
                         "id": "a",
                         "label": "Tecnologie IaC",
-                        "weight": 0.5
+                        "weight": 0.5,
+                        "max_value": 5
                     },
                     {
                         "id": "b",
                         "label": "Piattaforme Cloud",
-                        "weight": 0.5
+                        "weight": 0.5,
+                        "max_value": 5
                     },
                     {
                         "id": "c",
                         "label": "Architettura Applicativa",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "d",
                         "label": "Architettura Infra",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "e",
                         "label": "Produttività",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "f",
                         "label": "Modalità Operativa",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     }
                 ],
-                "gara_weight": 6.18
+                "gara_weight": 6.18,
+                "scoring_formula": "qualitative_judgement"
             },
             {
                 "id": "VAL_REQ_12",
@@ -128,60 +135,72 @@
                     {
                         "id": "a",
                         "label": "Grado Aderenza",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "b",
                         "label": "Linee Guida Arch.",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "c",
                         "label": "Requisiti NF",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "d",
                         "label": "Perf. Test & Tuning",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "e",
                         "label": "Setup Ambienti",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "f",
                         "label": "Gestione Rilasci",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "g",
                         "label": "Supporto Test/Cert",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "h",
                         "label": "Strumenti",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "i",
                         "label": "Ambiti Tecnologici",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "j",
                         "label": "Tipologia Ambienti",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "k",
                         "label": "Produttività",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     }
                 ],
-                "gara_weight": 12.79
+                "gara_weight": 12.79,
+                "scoring_formula": "qualitative_judgement"
             },
             {
                 "id": "VAL_REQ_13",
@@ -192,20 +211,24 @@
                     {
                         "id": "a",
                         "label": "Startup Fornitura",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "b",
                         "label": "Modello Org. Governo",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "c",
                         "label": "Fine Fornitura",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     }
                 ],
-                "gara_weight": 3.31
+                "gara_weight": 3.31,
+                "scoring_formula": "qualitative_judgement"
             }
         ],
         "state": {
@@ -415,20 +438,24 @@
                     {
                         "id": "a",
                         "label": "Grado Aderenza",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "b",
                         "label": "Numero Iniziative",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "c",
                         "label": "Tipologia Ambienti",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     }
                 ],
-                "gara_weight": 11.61
+                "gara_weight": 11.61,
+                "scoring_formula": "qualitative_judgement"
             },
             {
                 "id": "VAL_REQ_25",
@@ -440,25 +467,30 @@
                     {
                         "id": "a",
                         "label": "Grado Aderenza",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "b",
                         "label": "Metodologia",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "c",
                         "label": "Numero Iniziative",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "d",
                         "label": "Strumenti",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     }
                 ],
-                "gara_weight": 14.84
+                "gara_weight": 14.84,
+                "scoring_formula": "qualitative_judgement"
             },
             {
                 "id": "VAL_REQ_26",
@@ -469,25 +501,30 @@
                     {
                         "id": "a",
                         "label": "Modello Governo",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "b",
                         "label": "Modello Operativo",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "c",
                         "label": "Startup",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "d",
                         "label": "Fine Fornitura",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     }
                 ],
-                "gara_weight": 12.9
+                "gara_weight": 12.9,
+                "scoring_formula": "qualitative_judgement"
             }
         ],
         "state": {
@@ -565,16 +602,19 @@
                 "max_points": 17,
                 "type": "reference",
                 "attestazione_score": 3,
+                "scoring_formula": "qualitative_judgement",
                 "sub_reqs": [
                     {
                         "id": "a",
                         "label": "Processi Operativi",
-                        "weight": 0.5
+                        "weight": 0.5,
+                        "max_value": 5
                     },
                     {
                         "id": "b",
                         "label": "Organizzazione",
-                        "weight": 0.5
+                        "weight": 0.5,
+                        "max_value": 5
                     }
                 ],
                 "gara_weight": 20.4
@@ -588,20 +628,24 @@
                     {
                         "id": "a",
                         "label": "Startup",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "b",
                         "label": "Governo e Qualità",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     },
                     {
                         "id": "c",
                         "label": "Fine Fornitura",
-                        "weight": 1
+                        "weight": 1,
+                        "max_value": 5
                     }
                 ],
-                "gara_weight": 18.0
+                "gara_weight": 18.0,
+                "scoring_formula": "qualitative_judgement"
             }
         ],
         "state": {

@@ -155,7 +155,7 @@ function AppContent() {
 
   // Debounced auto-save effect for simulation state
   useEffect(() => {
-    if (!config || !selectedLot || loading) return;
+    if (!config || !selectedLot || loading || authLoading || !isAuthenticated) return;
 
     const timer = setTimeout(() => {
       handleSaveState();
@@ -166,7 +166,7 @@ function AppContent() {
 
   // Main Calculation Effect
   useEffect(() => {
-    if (!config || !selectedLot) return;
+    if (!config || !selectedLot || authLoading || !isAuthenticated) return;
 
     const payload = {
       lot_key: selectedLot,
@@ -187,7 +187,7 @@ function AppContent() {
 
   // Simulation Effect (runs only when technical or economic results change)
   useEffect(() => {
-    if (!config || !selectedLot || !results) return; // Simulate for Chart
+    if (!config || !selectedLot || !results || authLoading || !isAuthenticated) return; // Simulate for Chart
 
     axios.post(`${API_URL}/simulate`, {
       lot_key: selectedLot,

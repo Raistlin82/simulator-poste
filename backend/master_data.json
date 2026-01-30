@@ -58,5 +58,14 @@
             "label": "Assente/Inadeguato",
             "value": 0
         }
+    ],
+    "scoring_formulas": [
+        {
+            "id": "qualitative_judgement",
+            "label": "Giudizio Discrezionale",
+            "description": "Valutazione qualitativa con scala predefinita",
+            "max_value": 5,
+            "levels_ref": "criteria_judgement_levels"
+        }
     ]
 }

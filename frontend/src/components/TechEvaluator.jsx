@@ -440,11 +440,11 @@ export default function TechEvaluator() {
                                                     <div className="flex justify-between items-center mb-2">
                                                         <div className="flex flex-col gap-1">
                                                             <span className="text-sm font-semibold text-slate-700">{sub.label}</span>
-                                                            <span className="text-xs text-slate-500">Peso: <span className="font-mono font-bold text-blue-600">{weight}</span></span>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className="text-[10px] text-slate-500 uppercase font-bold">Contribution</div>
-                                                            <div className="text-sm font-bold text-blue-600">{contribution.toFixed(2)}</div>
+                                                            <div className="flex gap-3">
+                                                                <span className="text-xs text-slate-500">Raw: <span className="font-mono font-bold text-slate-700">{subVal}</span></span>
+                                                                <span className="text-xs text-slate-500">Peso: <span className="font-mono font-bold text-blue-600">×{weight}</span></span>
+                                                                <span className="text-xs text-amber-600">Pesato: <span className="font-mono font-bold text-amber-700">{contribution.toFixed(2)}</span></span>
+                                                            </div>
                                                         </div>
                                                     </div>
 
