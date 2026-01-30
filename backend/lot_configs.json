@@ -83,8 +83,7 @@
                 "label": "Ref. IaC / Cloud Platforms",
                 "max_points": 28,
                 "type": "reference",
-                "bonus_label": "Attestazione Cliente (+3)",
-                "bonus_val": 3,
+                "attestazione_score": 3,
                 "sub_reqs": [
                     {
                         "id": "a",
@@ -124,8 +123,7 @@
                 "label": "Ref. Container & Microservizi",
                 "max_points": 58,
                 "type": "reference",
-                "bonus_label": "Attestazione Cliente (+3)",
-                "bonus_val": 3,
+                "attestazione_score": 3,
                 "sub_reqs": [
                     {
                         "id": "a",
@@ -412,8 +410,7 @@
                 "label": "Ref. Service Transition",
                 "max_points": 18,
                 "type": "reference",
-                "bonus_label": "Attestazione (+3)",
-                "bonus_val": 3,
+                "attestazione_score": 3,
                 "sub_reqs": [
                     {
                         "id": "a",
@@ -438,8 +435,7 @@
                 "label": "Ref. Secure DevOps",
                 "max_points": 23,
                 "type": "reference",
-                "bonus_label": "Attestazione (+3)",
-                "bonus_val": 3,
+                "attestazione_score": 3,
                 "sub_reqs": [
                     {
                         "id": "a",
@@ -568,8 +564,15 @@
                 "label": "Ref. Data Center Mgmt",
                 "max_points": 17,
                 "type": "reference",
-                "bonus_label": "Att. (+3) + Volumi (+9)",
-                "bonus_val": 12,
+                "attestazione_score": 3,
+                "custom_metrics": [
+                    {
+                        "id": "volumi",
+                        "label": "Volumi",
+                        "min_score": 0,
+                        "max_score": 9
+                    }
+                ],
                 "sub_reqs": [
                     {
                         "id": "a",
