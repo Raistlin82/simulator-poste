@@ -9,6 +9,8 @@ const simulationReducer = (state, action) => {
       return { ...state, selectedLot: action.payload };
     case 'SET_DISCOUNT':
       return { ...state, [action.key]: action.value };
+    case 'SET_COMPETITOR_PARAM':
+      return { ...state, [action.key]: action.value };
     case 'SET_TECH_INPUT':
       return {
         ...state,
@@ -45,6 +47,8 @@ export const SimulationProvider = ({ children }) => {
     selectedLot: null,
     myDiscount: 0.0,
     competitorDiscount: 30.0,
+    competitorTechScore: 60.0,
+    competitorEconDiscount: 30.0,
     techInputs: {},
     companyCerts: {}
   });
@@ -58,6 +62,10 @@ export const SimulationProvider = ({ children }) => {
 
   const setDiscount = (key, value) => {
     dispatch({ type: 'SET_DISCOUNT', key, value });
+  };
+
+  const setCompetitorParam = (key, value) => {
+    dispatch({ type: 'SET_COMPETITOR_PARAM', key, value });
   };
 
   const setTechInput = (reqId, value) => {
@@ -78,6 +86,7 @@ export const SimulationProvider = ({ children }) => {
     simulationData,
     setLot,
     setDiscount,
+    setCompetitorParam,
     setTechInput,
     setCompanyCert,
     resetState,

@@ -63,6 +63,8 @@ class SimulationState(BaseModel):
     """State of a simulation for a specific lot"""
     my_discount: float = 0.0
     competitor_discount: float = 30.0
+    competitor_tech_score: float = 60.0
+    competitor_econ_discount: float = 30.0
     tech_inputs: Dict[str, Any] = Field(default_factory=dict)
     company_certs: Dict[str, bool] = Field(default_factory=dict)
 

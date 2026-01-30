@@ -4,9 +4,18 @@ FROM python:3.10-slim
 # Imposta la directory di lavoro
 WORKDIR /app
 
+# Installa dipendenze di sistema necessarie per compilare psutil
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copia le dipendenze e installale
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && apt-get purge -y gcc python3-dev \
+    && apt-get autoremove -y
 
 # Copia il codice sorgente
 COPY . .

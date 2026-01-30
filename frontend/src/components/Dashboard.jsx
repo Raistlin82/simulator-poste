@@ -18,8 +18,11 @@ export default function Dashboard() {
         selectedLot,
         myDiscount,
         competitorDiscount,
+        competitorTechScore,
+        competitorEconDiscount,
         results,
-        simulationData
+        simulationData,
+        setCompetitorParam
     } = useSimulation();
 
     // Derive lotData and lotKey from contexts
@@ -29,9 +32,7 @@ export default function Dashboard() {
     const [mcLoading, setMcLoading] = useState(false);
     const [exportLoading, setExportLoading] = useState(false);
 
-    // Competitor inputs for discount optimizer
-    const [competitorTechScore, setCompetitorTechScore] = useState(lotData?.max_tech_score || 60);
-    const [competitorEconDiscount, setCompetitorEconDiscount] = useState(Math.min(30.0, competitorDiscount));
+    // Optimizer results state
     const [optimizerResults, setOptimizerResults] = useState(null);
     const [optimizerLoading, setOptimizerLoading] = useState(false);
 
@@ -62,13 +63,6 @@ export default function Dashboard() {
         const timer = setTimeout(runMC, 1000); // debounce
         return () => clearTimeout(timer);
     }, [myDiscount, competitorDiscount, results?.technical_score, lotKey]);
-
-    // Ensure competitor discount doesn't exceed Best Offer
-    useEffect(() => {
-        if (competitorEconDiscount > competitorDiscount) {
-            setCompetitorEconDiscount(competitorDiscount);
-        }
-    }, [competitorDiscount]);
 
     // Run optimizer when competitor inputs change
     useEffect(() => {
@@ -188,7 +182,7 @@ export default function Dashboard() {
                                         max={lotData?.max_tech_score || 60}
                                         step="0.5"
                                         value={competitorTechScore}
-                                        onChange={(e) => setCompetitorTechScore(parseFloat(e.target.value))}
+                                        onChange={(e) => setCompetitorParam('competitorTechScore', parseFloat(e.target.value))}
                                         className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                     />
                                     <span className="text-sm font-bold text-slate-800 w-12 text-right">
@@ -210,7 +204,7 @@ export default function Dashboard() {
                                         max={competitorDiscount}
                                         step="0.5"
                                         value={Math.min(competitorEconDiscount, competitorDiscount)}
-                                        onChange={(e) => setCompetitorEconDiscount(parseFloat(e.target.value))}
+                                        onChange={(e) => setCompetitorParam('competitorEconDiscount', parseFloat(e.target.value))}
                                         className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                     />
                                     <span className="text-sm font-bold text-slate-800 w-12 text-right">
@@ -271,9 +265,9 @@ export default function Dashboard() {
                                         </div>
                                         <div className="pt-1.5 border-t border-blue-200 mt-1.5">
                                             <div className="flex justify-between items-baseline">
-                                                <span className="text-[10px] text-slate-600">Costo Sconto</span>
-                                                <span className="text-xs font-semibold text-red-600">
-                                                    -{formatCurrency(lotData?.base_amount * (myDiscount / 100))}
+                                                <span className="text-[10px] text-slate-600">Valore Offerta</span>
+                                                <span className="text-xs font-semibold text-blue-600">
+                                                    {formatCurrency(lotData?.base_amount * (1 - myDiscount / 100))}
                                                 </span>
                                             </div>
                                         </div>
@@ -436,10 +430,11 @@ export default function Dashboard() {
                             </tr>
 
                             {/* Requirements */}
-                            {lotData && lotData.reqs.map(req => {
+                            {lotData?.reqs?.map(req => {
                                 const score = results.details[req.id] || 0;
                                 const weightedScore = results.weighted_scores?.[req.id] || 0;
                                 const isMax = score >= req.max_points;
+                                const percentage = req.max_points > 0 ? (score / req.max_points * 100) : 0;
                                 return (
                                     <tr key={req.id} className="bg-white border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-6 py-4 font-medium text-slate-900">
@@ -454,7 +449,7 @@ export default function Dashboard() {
                                             {isMax ?
                                                 <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">MAX</span>
                                                 :
-                                                <span className="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">{formatNumber(score / req.max_points * 100, 0)}%</span>
+                                                <span className="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">{formatNumber(percentage, 0)}%</span>
                                             }
                                         </td>
                                     </tr>

@@ -43,35 +43,42 @@ export const AuthProvider = ({ children }) => {
             });
 
             // Event handlers
-            manager.events.addUserLoaded((loadedUser) => {
+            const handleUserLoaded = (loadedUser) => {
                 logger.info('User loaded from session storage');
                 setUser(loadedUser);
                 setError(null);
-            });
+            };
 
-            manager.events.addUserUnloaded(() => {
+            const handleUserUnloaded = () => {
                 logger.info('User session ended');
                 setUser(null);
-            });
+            };
 
-            manager.events.addAccessTokenExpiring(() => {
+            const handleAccessTokenExpiring = () => {
                 logger.warn('Access token expiring');
-            });
+            };
 
-            manager.events.addAccessTokenExpired(() => {
+            const handleAccessTokenExpired = () => {
                 logger.warn('Access token expired');
                 setUser(null);
-            });
+            };
 
-            manager.events.addSilentRenewError((err) => {
+            const handleSilentRenewError = (err) => {
                 logger.error('Silent renew error:', err);
                 setError(getAuthErrorMessage(err));
-            });
+            };
 
-            manager.events.addUserSignedOut(() => {
+            const handleUserSignedOut = () => {
                 logger.info('User signed out');
                 setUser(null);
-            });
+            };
+
+            manager.events.addUserLoaded(handleUserLoaded);
+            manager.events.addUserUnloaded(handleUserUnloaded);
+            manager.events.addAccessTokenExpiring(handleAccessTokenExpiring);
+            manager.events.addAccessTokenExpired(handleAccessTokenExpired);
+            manager.events.addSilentRenewError(handleSilentRenewError);
+            manager.events.addUserSignedOut(handleUserSignedOut);
 
             setUserManager(manager);
 
@@ -85,6 +92,16 @@ export const AuthProvider = ({ children }) => {
                 logger.error('Failed to get user:', err);
                 setIsLoading(false);
             });
+
+            // Cleanup function
+            return () => {
+                manager.events.removeUserLoaded(handleUserLoaded);
+                manager.events.removeUserUnloaded(handleUserUnloaded);
+                manager.events.removeAccessTokenExpiring(handleAccessTokenExpiring);
+                manager.events.removeAccessTokenExpired(handleAccessTokenExpired);
+                manager.events.removeSilentRenewError(handleSilentRenewError);
+                manager.events.removeUserSignedOut(handleUserSignedOut);
+            };
         } catch (err) {
             logger.error('Failed to initialize UserManager:', err);
             setError(getAuthErrorMessage(err));

@@ -83,6 +83,10 @@ class OIDCMiddleware:
     async def __call__(self, request: Request, call_next):
         """Process request and validate JWT if required"""
 
+        # Skip authentication for OPTIONS requests (CORS preflight)
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # Skip authentication for public paths
         if any(request.url.path.startswith(path) for path in self.PUBLIC_PATHS):
             return await call_next(request)

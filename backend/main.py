@@ -406,14 +406,16 @@ def calculate_max_points_for_req(req):
         return (2 * R) + (R * C)
         
     elif req_type in ["reference", "project"]:
-        # Max RAW = (Number of criteria * 5) + Bonus + Attestazione + Custom Metrics
-        # Note: RAW score does NOT apply weights, only counts criteria
+        # Max RAW = Σ(internal_weight × max_value) + Bonus + Attestazione + Custom Metrics
+        # Note: RAW score DOES apply internal weights (peso_interno)
 
-        # 1. Sub-reqs (criteria) - RAW max (no weights)
+        # 1. Sub-reqs (criteria) - RAW max (WITH internal weights)
         criteria = req.get("criteria") or req.get("sub_reqs") or []
-        num_criteria = len(criteria)
-        # Max value for each criteria is 5 (tabulated judgement)
-        sub_score_max = num_criteria * 5.0
+        # Sum of (internal_weight × max_value) for each criterion
+        sub_score_max = sum(
+            float(c.get("weight", 1.0)) * float(c.get("max_value", 5.0))
+            for c in criteria
+        )
         
         # 2. Attestazione
         att_score = float(req.get("attestazione_score", 0.0))

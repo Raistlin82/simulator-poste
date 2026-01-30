@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
@@ -30,6 +30,8 @@ function AppContent() {
     selectedLot,
     myDiscount,
     competitorDiscount,
+    competitorTechScore,
+    competitorEconDiscount,
     techInputs,
     companyCerts,
     results,
@@ -108,6 +110,8 @@ function AppContent() {
         selectedLot,
         myDiscount: lot.state?.my_discount ?? 0.0,
         competitorDiscount: lot.state?.competitor_discount ?? 30.0,
+        competitorTechScore: lot.state?.competitor_tech_score ?? lot.max_tech_score ?? 60.0,
+        competitorEconDiscount: lot.state?.competitor_econ_discount ?? 30.0,
         techInputs: lot.state?.tech_inputs ?? {},
         companyCerts: lot.state?.company_certs ?? {}
       });
@@ -117,12 +121,14 @@ function AppContent() {
   }, [selectedLot, config, resetState]);
 
   // Manual save function for simulation state
-  const handleSaveState = async () => {
+  const handleSaveState = useCallback(async () => {
     if (!config || !selectedLot) return false;
     try {
       const statePayload = {
         my_discount: myDiscount,
         competitor_discount: competitorDiscount,
+        competitor_tech_score: competitorTechScore,
+        competitor_econ_discount: competitorEconDiscount,
         tech_inputs: techInputs,
         company_certs: companyCerts
       };
@@ -136,7 +142,7 @@ function AppContent() {
       logger.error("Failed to save state", err, { component: "App", lot: selectedLot });
       return false;
     }
-  };
+  }, [config, selectedLot, myDiscount, competitorDiscount, competitorTechScore, competitorEconDiscount, techInputs, companyCerts]);
 
   // Unified save function for top bar button
   const handleUnifiedSave = async () => {
@@ -162,11 +168,14 @@ function AppContent() {
     }, 1000); // 1 second debounce
 
     return () => clearTimeout(timer);
-  }, [myDiscount, competitorDiscount, techInputs, companyCerts, selectedLot]);
+  }, [handleSaveState, config, selectedLot, loading, authLoading, isAuthenticated]);
 
   // Main Calculation Effect
   useEffect(() => {
     if (!config || !selectedLot || authLoading || !isAuthenticated) return;
+
+    // Additional guard: ensure we have valid data from config
+    if (!config[selectedLot] || baseAmount <= 0) return;
 
     const payload = {
       lot_key: selectedLot,
@@ -183,11 +192,14 @@ function AppContent() {
     axios.post(`${API_URL}/calculate`, payload)
       .then(res => setResults(res.data))
       .catch(err => logger.error("Calculation failed", err, { component: "App", lot: selectedLot }));
-  }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config]);
+  }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config, authLoading, isAuthenticated]);
 
   // Simulation Effect (runs only when technical or economic results change)
   useEffect(() => {
     if (!config || !selectedLot || !results || authLoading || !isAuthenticated) return; // Simulate for Chart
+
+    // Additional guard: ensure we have valid data
+    if (!config[selectedLot] || baseAmount <= 0) return;
 
     axios.post(`${API_URL}/simulate`, {
       lot_key: selectedLot,
@@ -198,7 +210,7 @@ function AppContent() {
     })
       .then(res => setSimulationData(res.data))
       .catch(err => logger.error("Simulation failed", err, { component: "App", lot: selectedLot }));
-  }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config]);
+  }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config, authLoading, isAuthenticated]);
 
   if (loading) return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
 

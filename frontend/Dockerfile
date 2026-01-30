@@ -40,14 +40,23 @@ RUN mkdir -p /var/cache/nginx/client_temp \
 # Copia la build di Vite nella directory dei file statici di Nginx
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Aggiungi una configurazione Nginx per gestire il routing SPA
-# API routing is handled by Kyma APIRule, not nginx proxy
+# Aggiungi una configurazione Nginx per gestire il routing SPA e API proxy
 RUN echo 'server { \
     listen 80; \
+    location /api/ { \
+        proxy_pass http://backend:8000/api/; \
+        proxy_http_version 1.1; \
+        proxy_set_header Upgrade $http_upgrade; \
+        proxy_set_header Connection "upgrade"; \
+        proxy_set_header Host $host; \
+        proxy_set_header X-Real-IP $remote_addr; \
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
+        proxy_set_header X-Forwarded-Proto $scheme; \
+    } \
     location / { \
-    root /usr/share/nginx/html; \
-    index index.html index.htm; \
-    try_files $uri $uri/ /index.html; \
+        root /usr/share/nginx/html; \
+        index index.html index.htm; \
+        try_files $uri $uri/ /index.html; \
     } \
     }' > /etc/nginx/conf.d/default.conf
 

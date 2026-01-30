@@ -97,7 +97,13 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
             const C = Math.min(R, Math.max(0, parseInt(req.prof_C) || 0));
             req.max_points = (2 * R) + (R * C);
         } else if (req.type === 'reference' || req.type === 'project') {
-            const subSum = (req.sub_reqs?.reduce((s, r) => s + (parseFloat(r.weight) || 0), 0) || 0) * 5;
+            // Raw score = Sum of (internal_weight × max_value)
+            // The weights are INTERNAL to the requirement, used to calculate its raw score
+            const subSum = req.sub_reqs?.reduce((s, r) => {
+                const weight = parseFloat(r.weight) || 0;
+                const maxValue = parseFloat(r.max_value) || 5;
+                return s + (weight * maxValue);
+            }, 0) || 0;
             const attSum = parseFloat(req.attestazione_score) || 0;
             const customSum = req.custom_metrics?.reduce((s, m) => s + (parseFloat(m.max_score) || 0), 0) || 0;
             req.max_points = subSum + attSum + customSum;
@@ -111,8 +117,8 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
             max_points: 0,
             type,
             ...(type === 'resource' && { prof_R: 1, prof_C: 1, selected_prof_certs: [] }),
-            ...(type === 'reference' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0 }], attestazione_score: 0, custom_metrics: [] }),
-            ...(type === 'project' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0 }], attestazione_score: 0, custom_metrics: [] })
+            ...(type === 'reference' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5 }], attestazione_score: 0, custom_metrics: [] }),
+            ...(type === 'project' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5 }], attestazione_score: 0, custom_metrics: [] })
         };
         syncRequirementMaxPoints(newReq);
         currentLot.reqs.push(newReq);
@@ -138,7 +144,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
         if (req) {
             if (!req.sub_reqs) req.sub_reqs = [];
             const newId = String.fromCharCode(97 + req.sub_reqs.length); // a, b, c...
-            req.sub_reqs.push({ id: newId, label: t('tech.criteria') + ' ' + (req.sub_reqs.length + 1), weight: 1.0 });
+            req.sub_reqs.push({ id: newId, label: t('tech.criteria') + ' ' + (req.sub_reqs.length + 1), weight: 1.0, max_value: 5 });
             syncRequirementMaxPoints(req);
             setEditedConfig({ ...editedConfig });
         }
@@ -713,7 +719,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                     <div className="flex items-center gap-4">
                                                         <div>
                                                             <h4 className="font-semibold text-blue-800 text-sm">{t('tech.criteria')} e Pesi</h4>
-                                                            <p className="text-xs text-blue-600 mt-1">P_max = Σ(Peso × Valutazione)</p>
+                                                            <p className="text-xs text-blue-600 mt-1">Raw = Σ(Peso_Interno × Max_Punteggio)</p>
                                                         </div>
                                                         <div className="bg-white px-3 py-1 rounded border border-blue-200 text-center shadow-sm">
                                                             <div className="text-[9px] font-bold text-blue-400 uppercase leading-none mb-1">Max Req</div>
@@ -741,6 +747,19 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                                     className="flex-1 p-1.5 border border-slate-200 bg-white rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
                                                                 />
                                                                 <div className="flex items-center gap-1">
+                                                                    <span className="text-xs font-medium text-slate-500">Max</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        step="1"
+                                                                        min="0"
+                                                                        max="5"
+                                                                        value={sub.max_value || 5}
+                                                                        onChange={(e) => updateSubReq(req.id, sub.id, 'max_value', Math.max(0, Math.min(5, parseInt(e.target.value) || 5)))}
+                                                                        className="w-12 p-1.5 border border-purple-200 bg-purple-50 rounded text-xs font-bold text-center focus:ring-1 focus:ring-purple-500 outline-none"
+                                                                        title="Punteggio massimo (0-5)"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
                                                                     <span className="text-xs font-medium text-slate-500">Peso</span>
                                                                     <input
                                                                         type="number"
@@ -749,7 +768,11 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                                         value={sub.weight}
                                                                         onChange={(e) => updateSubReq(req.id, sub.id, 'weight', Math.max(0.1, parseFloat(e.target.value) || 0.1))}
                                                                         className="w-14 p-1.5 border border-slate-200 bg-white rounded text-xs font-bold text-center focus:ring-1 focus:ring-blue-500 outline-none"
+                                                                        title="Peso interno del criterio (distribuisce il raw score)"
                                                                     />
+                                                                </div>
+                                                                <div className="text-[9px] font-mono text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-200">
+                                                                    Raw: {((parseFloat(sub.weight) || 0) * (parseFloat(sub.max_value) || 5)).toFixed(1)}
                                                                 </div>
                                                                 <button
                                                                     onClick={() => deleteSubReq(req.id, sub.id)}

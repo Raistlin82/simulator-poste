@@ -3,11 +3,16 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - PORT=8000
       - DATABASE_URL=sqlite:///./simulator_poste.db
-      - ENVIRONMENT=${ENVIRONMENT:-production}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - OIDC_ISSUER=${OIDC_ISSUER}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE}
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready"]
@@ -20,9 +25,13 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_API_URL=http://localhost:8000
+        - VITE_API_URL=http://localhost:8000/api
+        - VITE_OIDC_AUTHORITY=https://asojzafbi.accounts.ondemand.com
+        - VITE_OIDC_CLIENT_ID=c763a5f1-287c-4115-93bc-61e06b1bd7a3
+        - VITE_OIDC_REDIRECT_URI=http://localhost:5173/callback
+        - VITE_OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:5173
     ports:
-      - "80:80"
+      - "5173:80"
     depends_on:
       backend:
         condition: service_healthy

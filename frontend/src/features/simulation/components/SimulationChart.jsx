@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Brush, ReferenceDot } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { Maximize2, Minimize2 } from 'lucide-react';
@@ -19,8 +19,43 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
   const chartRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showEconomic, setShowEconomic] = useState(true);
-  const [showTotal, setShowTotal] = useState(true);
+  const [showTotal, setShowTotal] = useState(false);  // Default OFF
+  const [showLutech, setShowLutech] = useState(true);
+  const [showCompetitor, setShowCompetitor] = useState(false);  // Default OFF
 
+  // Listen for fullscreen changes - MUST be before early return
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    const handleWebkitFullscreenChange = () => {
+      setIsFullscreen(!!document.webkitFullscreenElement);
+    };
+    const handleMozFullscreenChange = () => {
+      setIsFullscreen(!!document.mozFullScreenElement);
+    };
+    const handleMsFullscreenChange = () => {
+      setIsFullscreen(!!document.msFullscreenElement);
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      document.addEventListener('webkitfullscreenchange', handleWebkitFullscreenChange);
+      document.addEventListener('mozfullscreenchange', handleMozFullscreenChange);
+      document.addEventListener('msfullscreenchange', handleMsFullscreenChange);
+    }
+
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        document.removeEventListener('webkitfullscreenchange', handleWebkitFullscreenChange);
+        document.removeEventListener('mozfullscreenchange', handleMozFullscreenChange);
+        document.removeEventListener('msfullscreenchange', handleMsFullscreenChange);
+      }
+    };
+  }, []);
+
+  // Early return AFTER all hooks
   if (!simulationData || simulationData.length === 0) {
     return null;
   }
@@ -35,16 +70,6 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
   const competitorPoint = simulationData.find(p => Math.abs(p.discount - competitorDiscount) < 0.1);
   const competitorEconScore = competitorPoint?.economic_score || 0;
   const competitorTotalScore = monteCarlo?.competitor_threshold || competitorEconScore;
-
-  // Debug LUTECH points visibility
-  console.log('[SimulationChart] LUTECH Debug:', {
-    myDiscount,
-    economicScore: results?.economic_score,
-    totalScore: results?.total_score,
-    competitorDiscount,
-    competitorEconScore,
-    competitorTotalScore
-  });
 
   const toggleFullscreen = () => {
     const element = chartRef.current;
@@ -75,22 +100,6 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
     }
   };
 
-  // Listen for fullscreen changes
-  if (typeof document !== 'undefined') {
-    document.addEventListener('fullscreenchange', () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    });
-    document.addEventListener('webkitfullscreenchange', () => {
-      setIsFullscreen(!!document.webkitFullscreenElement);
-    });
-    document.addEventListener('mozfullscreenchange', () => {
-      setIsFullscreen(!!document.mozFullScreenElement);
-    });
-    document.addEventListener('msfullscreenchange', () => {
-      setIsFullscreen(!!document.msFullscreenElement);
-    });
-  }
-
   const chartHeight = isFullscreen ? window.innerHeight - 100 : 400;
 
   return (
@@ -116,14 +125,22 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
             </button>
           </div>
 
-          {/* Legend items */}
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 bg-black rounded-full"></div>
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Competitor</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">LUTECH</span>
+          {/* Point toggles */}
+          <div className="flex gap-3 border-r pr-4 border-slate-200">
+            <button
+              onClick={() => setShowCompetitor(!showCompetitor)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${showCompetitor ? 'bg-slate-100 border border-slate-300' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+            >
+              <div className="w-3 h-3 bg-black rounded-full"></div>
+              <span className="text-[10px] text-slate-700 font-bold uppercase tracking-tight">Competitor</span>
+            </button>
+            <button
+              onClick={() => setShowLutech(!showLutech)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${showLutech ? 'bg-red-50 border border-red-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+            >
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span className="text-[10px] text-slate-700 font-bold uppercase tracking-tight">LUTECH</span>
+            </button>
           </div>
 
           {/* Fullscreen button */}
@@ -139,7 +156,7 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
 
       <div className={`w-full ${isFullscreen ? 'flex-1' : ''}`} style={{ height: isFullscreen ? chartHeight : '400px' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 20, right: 100, left: 10, bottom: 40 }}>
+          <AreaChart data={chartData} margin={{ top: 20, right: 100, left: 10, bottom: 60 }}>
             <defs>
               <linearGradient id="colorEconomic" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -156,10 +173,11 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
             <XAxis
               dataKey="discount"
               tick={{ fontSize: 11, fill: '#475569' }}
+              ticks={chartData.filter((_, i) => i % 5 === 0).map(d => d.discount)}
               label={{
                 value: 'Sconto (%)',
                 position: 'insideBottom',
-                offset: -10,
+                offset: -35,
                 fontSize: 12,
                 fill: '#1e293b',
                 fontWeight: 600
@@ -203,10 +221,11 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
             {/* Brush for zoom functionality */}
             <Brush
               dataKey="discount"
-              height={30}
+              height={25}
               stroke="#3b82f6"
               fill="#eff6ff"
               travellerWidth={10}
+              y={10}
             />
 
             {/* Economic score line (green) */}
@@ -237,65 +256,109 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
 
             {/* 4 Key Points as Reference Dots */}
             {/* 1. Competitor Economic Point (black) */}
-            <ReferenceDot
-              x={competitorDiscount}
-              y={competitorEconScore}
-              r={8}
-              fill="#000000"
-              stroke="#ffffff"
-              strokeWidth={2}
-              label={{ value: 'Comp Econ', position: 'top', fontSize: 10, fill: '#000000' }}
-            />
-
-            {/* 2. Competitor Total Point (black) */}
-            <ReferenceDot
-              x={competitorDiscount}
-              y={competitorTotalScore}
-              r={8}
-              fill="#000000"
-              stroke="#ffffff"
-              strokeWidth={2}
-              label={{ value: 'Comp Tot', position: 'top', fontSize: 10, fill: '#000000' }}
-            />
-
-            {/* 3. LUTECH Economic Point (red) - Always visible */}
-            {results && typeof results.economic_score === 'number' && (
-              <ReferenceDot
-                x={myDiscount}
-                y={results.economic_score}
-                r={12}
-                fill="#dc2626"
-                stroke="#ffffff"
-                strokeWidth={4}
-                label={{
-                  value: `LUTECH (${formatNumber(myDiscount, 1)}%)`,
-                  position: 'top',
-                  fontSize: 11,
-                  fill: '#dc2626',
-                  fontWeight: 'bold',
-                  offset: 15
-                }}
-              />
+            {showCompetitor && (
+              <>
+                <ReferenceDot
+                  x={competitorDiscount}
+                  y={competitorEconScore}
+                  r={8}
+                  fill="#000000"
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  label={{ value: 'Comp Econ', position: 'top', fontSize: 10, fill: '#000000' }}
+                />
+                {/* Competitor Economic horizontal line */}
+                <ReferenceLine
+                  y={competitorEconScore}
+                  stroke="#000000"
+                  strokeWidth={1}
+                  strokeDasharray="5 5"
+                  label={{ position: 'right', value: `${competitorEconScore.toFixed(1)}`, fill: '#000000', fontSize: 9 }}
+                />
+              </>
             )}
 
-            {/* 4. LUTECH Total Point (red) - Always visible */}
-            {results && typeof results.total_score === 'number' && (
-              <ReferenceDot
-                x={myDiscount}
-                y={results.total_score}
-                r={12}
-                fill="#dc2626"
-                stroke="#ffffff"
-                strokeWidth={4}
-                label={{
-                  value: `LUTECH TOT (${formatNumber(myDiscount, 1)}%)`,
-                  position: 'bottom',
-                  fontSize: 11,
-                  fill: '#dc2626',
-                  fontWeight: 'bold',
-                  offset: 15
-                }}
-              />
+            {/* 2. Competitor Total Point (black) */}
+            {showCompetitor && (
+              <>
+                <ReferenceDot
+                  x={competitorDiscount}
+                  y={competitorTotalScore}
+                  r={8}
+                  fill="#000000"
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  label={{ value: 'Comp Tot', position: 'top', fontSize: 10, fill: '#000000' }}
+                />
+                {/* Competitor Total horizontal line */}
+                <ReferenceLine
+                  y={competitorTotalScore}
+                  stroke="#000000"
+                  strokeWidth={1}
+                  strokeDasharray="5 5"
+                  label={{ position: 'right', value: `${competitorTotalScore.toFixed(1)}`, fill: '#000000', fontSize: 9 }}
+                />
+              </>
+            )}
+
+            {/* 3. LUTECH Economic Point (red) - Toggleable */}
+            {showLutech && results && typeof results.economic_score === 'number' && (
+              <>
+                <ReferenceDot
+                  x={myDiscount}
+                  y={results.economic_score}
+                  r={12}
+                  fill="#dc2626"
+                  stroke="#ffffff"
+                  strokeWidth={4}
+                  label={{
+                    value: `LUTECH (${formatNumber(myDiscount, 1)}%)`,
+                    position: 'top',
+                    fontSize: 11,
+                    fill: '#dc2626',
+                    fontWeight: 'bold',
+                    offset: 15
+                  }}
+                />
+                {/* LUTECH Economic horizontal line */}
+                <ReferenceLine
+                  y={results.economic_score}
+                  stroke="#dc2626"
+                  strokeWidth={1}
+                  strokeDasharray="5 5"
+                  label={{ position: 'right', value: `${results.economic_score.toFixed(1)}`, fill: '#dc2626', fontSize: 9 }}
+                />
+              </>
+            )}
+
+            {/* 4. LUTECH Total Point (red) - Toggleable */}
+            {showLutech && results && typeof results.total_score === 'number' && (
+              <>
+                <ReferenceDot
+                  x={myDiscount}
+                  y={results.total_score}
+                  r={12}
+                  fill="#dc2626"
+                  stroke="#ffffff"
+                  strokeWidth={4}
+                  label={{
+                    value: `LUTECH TOT (${formatNumber(myDiscount, 1)}%)`,
+                    position: 'bottom',
+                    fontSize: 11,
+                    fill: '#dc2626',
+                    fontWeight: 'bold',
+                    offset: 15
+                  }}
+                />
+                {/* LUTECH Total horizontal line */}
+                <ReferenceLine
+                  y={results.total_score}
+                  stroke="#dc2626"
+                  strokeWidth={1}
+                  strokeDasharray="5 5"
+                  label={{ position: 'right', value: `${results.total_score.toFixed(1)}`, fill: '#dc2626', fontSize: 9 }}
+                />
+              </>
             )}
 
             {/* Safe Zone Marker */}
