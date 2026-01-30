@@ -694,7 +694,9 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
                 # 4. Bonus (legacy)
                 bonus = req.get("bonus_val", 0.0) if inp.bonus_active else 0.0
 
-                pts = min(sub_score_sum + att_score + custom_score + bonus, req["max_points"])
+                # Calculate dynamic max points to include custom_metrics
+                req_max = calculate_max_points_for_req(req)
+                pts = min(sub_score_sum + att_score + custom_score + bonus, req_max)
 
             raw_tech_score += pts
             details[inp.req_id] = pts

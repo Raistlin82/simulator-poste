@@ -24,14 +24,18 @@ def seed_initial_data(db: Session) -> None:
     """
     Seed database with initial data from JSON files
     Called on application startup
-    """
-    # Load lot configurations from JSON file
-    lot_configs_data = load_json_file("lot_configs.json")
 
-    # Seed lot configurations if they don't exist
-    for lot_name, lot_data in lot_configs_data.items():
-        existing = db.query(models.LotConfigModel).filter_by(name=lot_name).first()
-        if not existing:
+    NOTE: Only seeds if database is completely empty (first-time initialization).
+    If any lots exist, skips lot seeding to preserve user customizations.
+    """
+    # Check if database already has lots (user has customized)
+    existing_lots_count = db.query(models.LotConfigModel).count()
+
+    # Only seed lots if database is completely empty (first-time setup)
+    if existing_lots_count == 0:
+        lot_configs_data = load_json_file("lot_configs.json")
+
+        for lot_name, lot_data in lot_configs_data.items():
             db_lot = models.LotConfigModel(
                 name=lot_name,
                 base_amount=lot_data.get("base_amount", 0.0),
@@ -46,7 +50,7 @@ def seed_initial_data(db: Session) -> None:
             )
             db.add(db_lot)
 
-    # Load and seed master data
+    # Load and seed master data (always check, as it's global configuration)
     master_data_file = load_json_file("master_data.json")
     existing_master = db.query(models.MasterDataModel).filter_by(id="1").first()
     if not existing_master and master_data_file:
