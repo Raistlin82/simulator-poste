@@ -406,13 +406,14 @@ def calculate_max_points_for_req(req):
         return (2 * R) + (R * C)
         
     elif req_type in ["reference", "project"]:
-        # Max = (Sum of weights * 5) + Bonus + Attestazione + Custom Metrics
-        
-        # 1. Sub-reqs (criteria)
+        # Max RAW = (Number of criteria * 5) + Bonus + Attestazione + Custom Metrics
+        # Note: RAW score does NOT apply weights, only counts criteria
+
+        # 1. Sub-reqs (criteria) - RAW max (no weights)
         criteria = req.get("criteria") or req.get("sub_reqs") or []
-        weight_sum = sum(float(c.get("weight", 1)) for c in criteria)
-        # Max value for a criteria is 5 (tabulated judgement)
-        sub_score_max = weight_sum * 5.0
+        num_criteria = len(criteria)
+        # Max value for each criteria is 5 (tabulated judgement)
+        sub_score_max = num_criteria * 5.0
         
         # 2. Attestazione
         att_score = float(req.get("attestazione_score", 0.0))
@@ -661,7 +662,7 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
                 sub_score_sum = 0.0
                 criteria_list = req.get("criteria") or req.get("sub_reqs") or []
 
-                # 1. Standard Criteria/Sub-reqs
+                # 1. Standard Criteria/Sub-reqs (RAW - no weights)
                 if inp.sub_req_vals:
                     val_map = {}
                     for s in inp.sub_req_vals:
@@ -671,8 +672,8 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
                             val_map[s.sub_id] = s.val
                     for sub in criteria_list:
                         val = val_map.get(sub["id"], 0)
-                        weight = sub.get("weight", 1)
-                        sub_score_sum += weight * float(val)
+                        # RAW score: sum values WITHOUT applying weights
+                        sub_score_sum += float(val)
 
                 # 2. Attestazione Cliente
                 att_score = 0.0
@@ -724,18 +725,74 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
 
     for req in lot_cfg.reqs:
         raw_score_i = details.get(req["id"], 0.0)
-        # Use dynamic max calculation (same as used for capping raw score)
-        # This ensures consistency: max includes custom_metrics, attestazione, etc.
         req_dict = req if isinstance(req, dict) else req.dict()
-        max_raw_i = calculate_max_points_for_req(req_dict)
         gara_weight_i = req.get("gara_weight", 0.0)
         req_type = req.get("type", "")
 
-        # Formula: (raw_i / max_raw_i) × peso_gara_i
-        if max_raw_i > 0:
-            weighted_i = (raw_score_i / max_raw_i) * gara_weight_i
+        # For reference/project: need to recalculate WITH weights for weighted score
+        if req_type in ["reference", "project"]:
+            # Find input for this requirement
+            inp = next((i for i in data.tech_inputs if i.req_id == req["id"]), None)
+
+            if inp:
+                # 1. Recalculate sub-scores WITH weights
+                weighted_sub_sum = 0.0
+                criteria_list = req.get("criteria") or req.get("sub_reqs") or []
+
+                if inp.sub_req_vals:
+                    val_map = {}
+                    for s in inp.sub_req_vals:
+                        if isinstance(s, dict):
+                            val_map[s.get("sub_id")] = s.get("val", 0)
+                        else:
+                            val_map[s.sub_id] = s.val
+                    for sub in criteria_list:
+                        val = val_map.get(sub["id"], 0)
+                        weight = sub.get("weight", 1)
+                        # WEIGHTED calculation: apply weights
+                        weighted_sub_sum += weight * float(val)
+
+                # 2. Add attestazione, custom_metrics, bonus (no weights on these)
+                att_score = float(req.get("attestazione_score", 0.0)) if inp.attestazione_active else 0.0
+
+                custom_score = 0.0
+                if inp.custom_metric_vals:
+                    metrics_config = req.get("custom_metrics") or []
+                    for metric in metrics_config:
+                        m_id = metric.get("id")
+                        m_val = float(inp.custom_metric_vals.get(m_id, 0.0))
+                        m_min = float(metric.get("min_score", 0.0))
+                        m_max = float(metric.get("max_score", 0.0))
+                        custom_score += max(m_min, min(m_max, m_val))
+
+                bonus = req.get("bonus_val", 0.0) if inp.bonus_active else 0.0
+
+                weighted_raw_i = weighted_sub_sum + att_score + custom_score + bonus
+
+                # 3. Calculate max weighted raw
+                weight_sum = sum(float(c.get("weight", 1)) for c in criteria_list)
+                max_weighted_sub = weight_sum * 5.0
+                max_weighted_raw_i = max_weighted_sub + float(req.get("attestazione_score", 0.0)) + bonus
+
+                # Add custom metrics max
+                if "custom_metrics" in req:
+                    for m in req["custom_metrics"]:
+                        max_weighted_raw_i += float(m.get("max_score", 0.0))
+
+                # 4. Apply gara_weight
+                if max_weighted_raw_i > 0:
+                    weighted_i = (weighted_raw_i / max_weighted_raw_i) * gara_weight_i
+                else:
+                    weighted_i = 0.0
+            else:
+                weighted_i = 0.0
         else:
-            weighted_i = 0.0
+            # For resource type: use raw score directly (no sub-weights)
+            max_raw_i = calculate_max_points_for_req(req_dict)
+            if max_raw_i > 0:
+                weighted_i = (raw_score_i / max_raw_i) * gara_weight_i
+            else:
+                weighted_i = 0.0
 
         weighted_scores[req["id"]] = round(weighted_i, 2)
 

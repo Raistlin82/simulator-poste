@@ -85,9 +85,9 @@ export default function TechEvaluator() {
     const rawProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, req) => {
         const cur = inputs[req.id] || { sub_req_vals: [], bonus_active: false, attestazione_active: false, custom_metric_vals: {} };
 
-        // 1. Sub-reqs/Criteria raw
+        // 1. Sub-reqs/Criteria raw (NO WEIGHTS - direct sum of values)
         const subSum = cur.sub_req_vals?.reduce((subSum, sv) =>
-            subSum + (sv.val || 0) * ((req.sub_reqs || req.criteria)?.find(s => s.sub_id === sv.sub_id || s.id === sv.sub_id)?.weight || 1), 0) || 0;
+            subSum + (sv.val || 0), 0) || 0;
 
         // 2. Attestazione Cliente raw
         const attSum = cur.attestazione_active ? (req.attestazione_score || 0) : 0;
@@ -99,8 +99,13 @@ export default function TechEvaluator() {
         // 4. Legacy bonus raw
         const bonusSum = cur.bonus_active ? (req.bonus_val || 0) : 0;
 
-        // Final pts for this req (raw is capped at requirement max_points)
-        const reqPts = Math.min(subSum + attSum + customSum + bonusSum, req.max_points);
+        // Calculate max raw (number of criteria * 5, no weights)
+        const numCriteria = (req.sub_reqs || req.criteria || []).length;
+        const maxRaw = (numCriteria * 5) + (req.attestazione_score || 0) + bonusSum +
+            ((req.custom_metrics || []).reduce((sum, m) => sum + m.max_score, 0));
+
+        // Final pts for this req (raw is capped at max_raw)
+        const reqPts = Math.min(subSum + attSum + customSum + bonusSum, maxRaw);
 
         return sum + reqPts;
     }, 0) || 0;
@@ -385,15 +390,21 @@ export default function TechEvaluator() {
                                 { value: 5, label: "Ottimo", color: "bg-green-100 border-green-300 text-green-800" }
                             ];
 
-                            // Calculate raw score for this requirement
+                            // Calculate raw score for this requirement (NO WEIGHTS)
                             const reqRawScore = (() => {
                                 const subSum = cur.sub_req_vals?.reduce((subSum, sv) =>
-                                    subSum + (sv.val || 0) * ((req.sub_reqs || req.criteria)?.find(s => s.sub_id === sv.sub_id || s.id === sv.sub_id)?.weight || 1), 0) || 0;
+                                    subSum + (sv.val || 0), 0) || 0;
                                 const attSum = cur.attestazione_active ? (req.attestazione_score || 0) : 0;
                                 const customSum = Object.entries(cur.custom_metric_vals || {}).reduce((cSum, [mId, mVal]) =>
                                     cSum + (parseFloat(mVal) || 0), 0);
                                 const bonusSum = cur.bonus_active ? (req.bonus_val || 0) : 0;
-                                return Math.min(subSum + attSum + customSum + bonusSum, req.max_points);
+
+                                // Calculate max raw (number of criteria * 5, no weights)
+                                const numCriteria = (req.sub_reqs || req.criteria || []).length;
+                                const maxRaw = (numCriteria * 5) + (req.attestazione_score || 0) + bonusSum +
+                                    ((req.custom_metrics || []).reduce((sum, m) => sum + m.max_score, 0));
+
+                                return Math.min(subSum + attSum + customSum + bonusSum, maxRaw);
                             })();
 
                             const reqWeightedScore = results?.weighted_scores?.[req.id] || 0;

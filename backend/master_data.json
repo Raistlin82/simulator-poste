@@ -36,5 +36,27 @@
             "label": "Interpolazione (Fattore Alpha)",
             "desc": "P = $P_{max} \\\\times [ (P_{base} - P_{off}) / (P_{base} - P_{best}) ]^{alpha}"
         }
+    ],
+    "criteria_judgement_levels": [
+        {
+            "label": "Ottimo",
+            "value": 5
+        },
+        {
+            "label": "Più che adeguato",
+            "value": 4
+        },
+        {
+            "label": "Adeguato",
+            "value": 3
+        },
+        {
+            "label": "Parzialmente adeguato",
+            "value": 2
+        },
+        {
+            "label": "Assente/Inadeguato",
+            "value": 0
+        }
     ]
 }

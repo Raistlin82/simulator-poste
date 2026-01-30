@@ -565,14 +565,6 @@
                 "max_points": 17,
                 "type": "reference",
                 "attestazione_score": 3,
-                "custom_metrics": [
-                    {
-                        "id": "volumi",
-                        "label": "Volumi",
-                        "min_score": 0,
-                        "max_score": 9
-                    }
-                ],
                 "sub_reqs": [
                     {
                         "id": "a",
