@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Brush, ReferenceDot } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import { formatNumber } from '../../../utils/formatters';
 
 /**
  * SimulationChart - Display economic score simulation with current position and key points
@@ -34,6 +35,16 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
   const competitorPoint = simulationData.find(p => Math.abs(p.discount - competitorDiscount) < 0.1);
   const competitorEconScore = competitorPoint?.economic_score || 0;
   const competitorTotalScore = monteCarlo?.competitor_threshold || competitorEconScore;
+
+  // Debug LUTECH points visibility
+  console.log('[SimulationChart] LUTECH Debug:', {
+    myDiscount,
+    economicScore: results?.economic_score,
+    totalScore: results?.total_score,
+    competitorDiscount,
+    competitorEconScore,
+    competitorTotalScore
+  });
 
   const toggleFullscreen = () => {
     const element = chartRef.current;
@@ -247,29 +258,43 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
               label={{ value: 'Comp Tot', position: 'top', fontSize: 10, fill: '#000000' }}
             />
 
-            {/* 3. LUTECH Economic Point (red) - More visible */}
-            {results?.economic_score !== undefined && (
+            {/* 3. LUTECH Economic Point (red) - Always visible */}
+            {results && typeof results.economic_score === 'number' && (
               <ReferenceDot
-                x={myDiscount || 0}
+                x={myDiscount}
                 y={results.economic_score}
-                r={10}
+                r={12}
                 fill="#dc2626"
                 stroke="#ffffff"
-                strokeWidth={3}
-                label={{ value: 'LUTECH Econ', position: 'topRight', fontSize: 11, fill: '#dc2626', fontWeight: 'bold' }}
+                strokeWidth={4}
+                label={{
+                  value: `LUTECH (${formatNumber(myDiscount, 1)}%)`,
+                  position: 'top',
+                  fontSize: 11,
+                  fill: '#dc2626',
+                  fontWeight: 'bold',
+                  offset: 15
+                }}
               />
             )}
 
-            {/* 4. LUTECH Total Point (red) - More visible */}
-            {results?.total_score !== undefined && (
+            {/* 4. LUTECH Total Point (red) - Always visible */}
+            {results && typeof results.total_score === 'number' && (
               <ReferenceDot
-                x={myDiscount || 0}
+                x={myDiscount}
                 y={results.total_score}
-                r={10}
+                r={12}
                 fill="#dc2626"
                 stroke="#ffffff"
-                strokeWidth={3}
-                label={{ value: 'LUTECH TOT', position: 'topRight', fontSize: 11, fill: '#dc2626', fontWeight: 'bold' }}
+                strokeWidth={4}
+                label={{
+                  value: `LUTECH TOT (${formatNumber(myDiscount, 1)}%)`,
+                  position: 'bottom',
+                  fontSize: 11,
+                  fill: '#dc2626',
+                  fontWeight: 'bold',
+                  offset: 15
+                }}
               />
             )}
 
