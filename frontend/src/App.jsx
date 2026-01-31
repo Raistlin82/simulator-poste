@@ -146,9 +146,23 @@ function AppContent() {
 
   // Unified save function for top bar button
   const handleUnifiedSave = async () => {
+    if (!config || !selectedLot) {
+      showError('Nessuna configurazione da salvare');
+      return;
+    }
+
     try {
-      const saveSuccess = await handleSaveState();
-      if (saveSuccess) {
+      logger.info("Starting unified save", { lot: selectedLot });
+
+      // Save both state AND configuration
+      const [stateSuccess, configResult] = await Promise.all([
+        handleSaveState(),
+        updateConfig(config)
+      ]);
+
+      logger.info("Save results", { stateSuccess, configSuccess: configResult.success });
+
+      if (stateSuccess && configResult.success) {
         success(t('app.save_success') || 'Dati salvati con successo');
       } else {
         showError(t('app.save_error') || 'Errore durante il salvataggio');
