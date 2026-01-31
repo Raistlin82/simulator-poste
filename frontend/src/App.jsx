@@ -168,7 +168,7 @@ function AppContent() {
     }, 1000); // 1 second debounce
 
     return () => clearTimeout(timer);
-  }, [handleSaveState, config, selectedLot, loading, authLoading, isAuthenticated]);
+  }, [handleSaveState, config, selectedLot, loading, authLoading, isAuthenticated, myDiscount, competitorDiscount, competitorTechScore, competitorEconDiscount, techInputs, companyCerts]);
 
   // Main Calculation Effect
   useEffect(() => {

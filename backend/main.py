@@ -509,12 +509,18 @@ def update_master_data(data: schemas.MasterData, db: Session = Depends(get_db)):
 def update_lot_state(
     lot_key: str, state: schemas.SimulationState, db: Session = Depends(get_db)
 ):
+    logger.info(f"State update requested for lot: {lot_key}")
+    logger.debug(f"State data: {state.dict()}")
+
     lot = crud.get_lot_config(db, lot_key)
     if not lot:
+        logger.warning(f"Lot not found: {lot_key}")
         raise HTTPException(status_code=404, detail="Lot not found")
 
     lot.state = state.dict()
     db.commit()
+
+    logger.info(f"State saved successfully for lot: {lot_key}")
     return {"status": "success"}
 
 
