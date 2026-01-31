@@ -432,9 +432,10 @@ export default function Dashboard() {
                             {/* Requirements */}
                             {lotData?.reqs?.map(req => {
                                 const score = results.details[req.id] || 0;
+                                const maxRaw = results.max_raw_scores?.[req.id] || req.max_points; // Use API max_raw if available
                                 const weightedScore = results.weighted_scores?.[req.id] || 0;
-                                const isMax = score >= req.max_points;
-                                const percentage = req.max_points > 0 ? (score / req.max_points * 100) : 0;
+                                const isMax = score >= maxRaw;
+                                const percentage = maxRaw > 0 ? (score / maxRaw * 100) : 0;
                                 return (
                                     <tr key={req.id} className="bg-white border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-6 py-4 font-medium text-slate-900">
@@ -442,7 +443,7 @@ export default function Dashboard() {
                                             <div className="text-xs text-slate-400 font-normal">{req.id}</div>
                                         </td>
                                         <td className="px-6 py-4 text-right font-bold text-blue-600">{formatNumber(score, 2)}</td>
-                                        <td className="px-6 py-4 text-right text-slate-500">{formatNumber(req.max_points, 2)}</td>
+                                        <td className="px-6 py-4 text-right text-slate-500">{formatNumber(maxRaw, 2)}</td>
                                         <td className="px-6 py-4 text-right font-bold text-amber-600">{formatNumber(weightedScore, 2)}</td>
                                         <td className="px-6 py-4 text-right text-amber-500">{formatNumber(req.gara_weight || 0, 1)}</td>
                                         <td className="px-6 py-4 text-center">

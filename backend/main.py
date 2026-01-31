@@ -646,6 +646,7 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
     # Requirements (raw scores)
     req_map = {r["id"]: r for r in lot_cfg.reqs}
     details = {}  # Raw scores per requirement
+    max_raw_scores = {}  # Max raw scores per requirement
 
     for inp in data.tech_inputs:
         if inp.req_id in req_map:
@@ -703,6 +704,12 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
 
             raw_tech_score += pts
             details[inp.req_id] = pts
+
+    # Calculate max_raw for all requirements
+    for req in lot_cfg.reqs:
+        req_dict = req if isinstance(req, dict) else req.dict()
+        req_id = req_dict.get("id")
+        max_raw_scores[req_id] = calculate_max_points_for_req(req_dict)
 
     # === 2. CALCULATE WEIGHTED SCORES (WITH FORMULA) ===
 
@@ -826,6 +833,7 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
         "raw_technical_score": round(raw_tech_score, 2),
         "company_certs_score": round(company_certs_raw_score, 2),  # Raw score
         "details": details,  # RAW scores per requirement
+        "max_raw_scores": max_raw_scores,  # Max RAW scores per requirement (with internal weights applied)
         "weighted_scores": weighted_scores,  # Weighted scores per requirement
         # NEW: Category sums (weighted)
         "category_company_certs": category_company_certs,
