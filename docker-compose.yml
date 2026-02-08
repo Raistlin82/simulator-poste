@@ -3,6 +3,8 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/simulator_poste.db:/app/simulator_poste.db
     env_file:
       - .env
     environment:

@@ -624,10 +624,13 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
 
     lot_cfg = schemas.LotConfig.model_validate(lot_cfg_db)
 
-    p_best = data.base_amount * (1 - (data.competitor_discount / 100))
+    p_comp = data.base_amount * (1 - (data.competitor_discount / 100))
     p_off = data.base_amount * (1 - (data.my_discount / 100))
     econ_score = calculate_economic_score(
-        data.base_amount, p_off, p_best, lot_cfg.alpha, lot_cfg.max_econ_score
+        data.base_amount, p_off, p_comp, lot_cfg.alpha, lot_cfg.max_econ_score
+    )
+    competitor_econ_score = calculate_economic_score(
+        data.base_amount, p_comp, p_off, lot_cfg.alpha, lot_cfg.max_econ_score
     )
 
     # === 1. CALCULATE RAW SCORES ===
@@ -834,6 +837,7 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
     result = {
         "technical_score": round(tech_score, 2),
         "economic_score": round(econ_score, 2),
+        "competitor_economic_score": round(competitor_econ_score, 2),
         "total_score": round(tech_score + econ_score, 2),
         "raw_technical_score": round(raw_tech_score, 2),
         "company_certs_score": round(company_certs_raw_score, 2),  # Raw score
