@@ -7,7 +7,6 @@ import Dashboard from './components/Dashboard';
 import ConfigPage from './components/ConfigPage';
 import MasterDataConfig from './components/MasterDataConfig';
 import { Settings, Menu, X, Save } from 'lucide-react';
-import { formatCurrency, formatNumber } from './utils/formatters';
 import { logger } from './utils/logger';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -83,9 +82,10 @@ function AppContent() {
     handleOIDCCallback();
   }, [handleCallback, authLoading]);
 
-  // Update loading state when config loads
+  // Update loading state when config loads - intentional derived state sync
   useEffect(() => {
     if (config !== null || configLoading === false) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
     }
   }, [config, configLoading]);
@@ -157,7 +157,7 @@ function AppContent() {
   // Unified save function for top bar button
   const handleUnifiedSave = async () => {
     if (!config || !selectedLot) {
-      showError('Nessuna configurazione da salvare');
+      showError(t('app.no_config_to_save'));
       return;
     }
 
@@ -211,15 +211,15 @@ function AppContent() {
       my_discount: myDiscount,
       tech_inputs: Object.entries(techInputs).map(([k, v]) => ({ req_id: k, ...v })),
       selected_company_certs: Object.entries(companyCerts)
-        .filter(([_, checked]) => checked)
-        .map(([label, _]) => label)
+        .filter(([, checked]) => checked)
+        .map(([label]) => label)
     };
 
     // Calculate Scores
     axios.post(`${API_URL}/calculate`, payload)
       .then(res => setResults(res.data))
       .catch(err => logger.error("Calculation failed", err, { component: "App", lot: selectedLot }));
-  }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config, authLoading, isAuthenticated]);
+  }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config, authLoading, isAuthenticated, setResults]);
 
   // Simulation Effect (runs only when technical or economic results change)
   useEffect(() => {
@@ -237,7 +237,7 @@ function AppContent() {
     })
       .then(res => setSimulationData(res.data))
       .catch(err => logger.error("Simulation failed", err, { component: "App", lot: selectedLot }));
-  }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config, authLoading, isAuthenticated]);
+  }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config, authLoading, isAuthenticated, results, setSimulationData]);
 
   if (loading) return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
 
@@ -268,7 +268,7 @@ function AppContent() {
         {mockMode && (
           <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-center">
             <span className="text-sm font-medium text-yellow-800">
-              🎨 DEMO MODE - Frontend Only (Backend non disponibile)
+              🎨 {t('app.demo_mode')}
             </span>
           </div>
         )}
@@ -280,13 +280,13 @@ function AppContent() {
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="md:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                aria-label="Toggle menu"
+                aria-label={t('app.toggle_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600" />
               </button>
 
               <div className="flex items-center gap-3">
-                <img src="/poste-italiane-logo.svg" alt="Poste Italiane" className="h-6 md:h-8 object-contain" />
+                <img src="/poste-italiane-logo.svg" alt={t('app.poste_italiane_logo')} className="h-6 md:h-8 object-contain" />
                 <div className="hidden sm:block w-px h-8 bg-slate-200"></div>
                 <h1 className="text-base md:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   {t('app.title')}
@@ -303,7 +303,7 @@ function AppContent() {
               <button
                 onClick={() => setView('dashboard')}
                 className={`flex items-center gap-2 px-2 md:px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'dashboard' ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                aria-label="Home"
+                aria-label={t('common.home')}
               >
                 <span className="text-lg md:hidden">🏠</span>
                 <span className="hidden md:inline">🏠 {t('common.home')}</span>
@@ -311,7 +311,7 @@ function AppContent() {
               <button
                 onClick={() => setView('config')}
                 className={`flex items-center gap-2 px-2 md:px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'config' ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                aria-label="Configurazione"
+                aria-label={t('sidebar.config_btn')}
               >
                 <Settings className="w-4 h-4" />
                 <span className="hidden md:inline">{t('sidebar.config_btn')}</span>
@@ -319,7 +319,7 @@ function AppContent() {
               <button
                 onClick={() => setView('master')}
                 className={`hidden sm:flex items-center gap-2 px-2 md:px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'master' ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                aria-label="Master Data"
+                aria-label={t('common.master_data')}
               >
                 <Settings className="w-4 h-4" />
                 <span className="hidden md:inline">{t('common.master_data')}</span>
@@ -327,10 +327,10 @@ function AppContent() {
               <button
                 onClick={handleUnifiedSave}
                 className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl transition-all font-medium text-sm bg-green-500 text-white hover:bg-green-600 shadow-sm"
-                aria-label="Salva"
+                aria-label={t('common.save')}
               >
                 <Save className="w-4 h-4" />
-                <span className="hidden md:inline">Salva</span>
+                <span className="hidden md:inline">{t('common.save')}</span>
               </button>
               <LogoutButton />
             </div>

@@ -34,6 +34,7 @@ const simulationReducer = (state, action) => {
   }
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSimulation = () => {
   const context = useContext(SimulationContext);
   if (!context) {

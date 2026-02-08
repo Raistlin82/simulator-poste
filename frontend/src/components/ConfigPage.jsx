@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
-import { Plus, Trash2, Settings2, Building2, Users, DollarSign, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X } from 'lucide-react';
+import { Plus, Trash2, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X } from 'lucide-react';
 import LotSelector from '../features/config/components/LotSelector';
 import CompanyCertsEditor from '../features/config/components/CompanyCertsEditor';
 import { useConfig } from '../features/config/context/ConfigContext';
@@ -9,28 +9,28 @@ import { useConfig } from '../features/config/context/ConfigContext';
 export default function ConfigPage({ onAddLot, onDeleteLot }) {
     const { t } = useTranslation();
     const { config, setConfig, masterData } = useConfig();
-    const [editedConfig, setEditedConfig] = useState(JSON.parse(JSON.stringify(config)));
-    const [selectedLot, setSelectedLot] = useState(Object.keys(editedConfig)[0] || "");
+    const [editedConfig, setEditedConfig] = useState(() => JSON.parse(JSON.stringify(config)));
+    const [selectedLot, setSelectedLot] = useState(() => Object.keys(config)[0] || "");
     const [activeTab, setActiveTab] = useState('resource');
     const [certSearch, setCertSearch] = useState('');
 
     // Track last synced value to prevent infinite loops between context <-> local state
-    const lastSyncedToContext = useRef(JSON.stringify(config));
+    const lastSyncedToContextRef = useRef(JSON.stringify(config));
 
     // Sync FROM context when config changes externally (e.g. after onAddLot/onDeleteLot/refetch)
     useEffect(() => {
         const configStr = JSON.stringify(config);
-        if (configStr !== lastSyncedToContext.current) {
+        if (configStr !== lastSyncedToContextRef.current) {
             setEditedConfig(JSON.parse(configStr));
-            lastSyncedToContext.current = configStr;
+            lastSyncedToContextRef.current = configStr;
         }
     }, [config]);
 
     // Sync TO context whenever editedConfig changes (so unified save can access latest changes)
     useEffect(() => {
         const editedStr = JSON.stringify(editedConfig);
-        if (editedStr !== lastSyncedToContext.current) {
-            lastSyncedToContext.current = editedStr;
+        if (editedStr !== lastSyncedToContextRef.current) {
+            lastSyncedToContextRef.current = editedStr;
             setConfig(JSON.parse(editedStr));
         }
     }, [editedConfig, setConfig]);
@@ -76,43 +76,13 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
     const calculated_max_raw_score = calculateMaxRawScore();
     const calculated_max_econ_score = 100 - calculated_max_tech_score;
 
-    useEffect(() => {
-        if (currentLot.base_amount) {
-            setDisplayBase(formatNumber(currentLot.base_amount, 2));
-        }
-    }, [selectedLot]);
-
-    // Auto-calculate Raw Score & Sync Individual Max Points
-    useEffect(() => {
-        if (!currentLot) return;
-
-        // 1. Sync individual req max points
-        let changed = false;
-        currentLot.reqs?.forEach(r => {
-            const oldMax = r.max_points;
-            syncRequirementMaxPoints(r);
-            if (oldMax !== r.max_points) changed = true;
-        });
-
-        // 2. Calculate lot total
-        const reqsTotal = currentLot.reqs?.reduce((sum, r) => sum + (r.max_points || 0), 0) || 0;
-        const certsTotal = currentLot.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0;
-        const total = reqsTotal + certsTotal;
-
-        if (currentLot.max_raw_score !== total || changed) {
-            currentLot.max_raw_score = total;
-            setEditedConfig({ ...editedConfig });
-        }
-    }, [currentLot.reqs, currentLot.company_certs, selectedLot]);
-
-    const syncRequirementMaxPoints = (req) => {
+    // Helper to calculate max_points for a requirement (pure function, no mutation)
+    const calcRequirementMaxPoints = useCallback((req) => {
         if (req.type === 'resource') {
             const R = Math.max(0, parseInt(req.prof_R) || 0);
             const C = Math.min(R, Math.max(0, parseInt(req.prof_C) || 0));
-            req.max_points = (2 * R) + (R * C);
+            return (2 * R) + (R * C);
         } else if (req.type === 'reference' || req.type === 'project') {
-            // Raw score = Sum of (internal_weight × max_value)
-            // The weights are INTERNAL to the requirement, used to calculate its raw score
             const subSum = req.sub_reqs?.reduce((s, r) => {
                 const weight = parseFloat(r.weight) || 0;
                 const maxValue = parseFloat(r.max_value) || 5;
@@ -120,9 +90,59 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
             }, 0) || 0;
             const attSum = parseFloat(req.attestazione_score) || 0;
             const customSum = req.custom_metrics?.reduce((s, m) => s + (parseFloat(m.max_score) || 0), 0) || 0;
-            req.max_points = subSum + attSum + customSum;
+            return subSum + attSum + customSum;
         }
-    };
+        return req.max_points || 0;
+    }, []);
+
+    // Helper function to update current lot immutably
+    const updateLot = useCallback((updater) => {
+        setEditedConfig(prev => {
+            const newConfig = JSON.parse(JSON.stringify(prev));
+            const lot = newConfig[selectedLot];
+            if (lot) {
+                updater(lot);
+            }
+            return newConfig;
+        });
+    }, [selectedLot]);
+
+    // Update display when lot changes - this is intentional derived state for formatted input
+    useEffect(() => {
+        if (currentLot.base_amount) {
+            setDisplayBase(formatNumber(currentLot.base_amount, 2));
+        }
+    }, [selectedLot, currentLot.base_amount]);
+
+    // Auto-calculate Raw Score & Sync Individual Max Points
+    // This effect computes derived values that must stay in sync with the source data
+    useEffect(() => {
+        if (!currentLot || !currentLot.reqs) return;
+
+        // Check if any req needs max_points update
+        let needsUpdate = false;
+        const updatedReqs = currentLot.reqs.map(r => {
+            const calculatedMax = calcRequirementMaxPoints(r);
+            if (r.max_points !== calculatedMax) {
+                needsUpdate = true;
+                return { ...r, max_points: calculatedMax };
+            }
+            return r;
+        });
+
+        // Calculate totals
+        const reqsTotal = updatedReqs.reduce((sum, r) => sum + (r.max_points || 0), 0);
+        const certsTotal = currentLot.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0;
+        const total = reqsTotal + certsTotal;
+
+        if (needsUpdate || currentLot.max_raw_score !== total) {
+            updateLot(lot => {
+                lot.reqs = updatedReqs;
+                lot.max_raw_score = total;
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentLot.reqs, currentLot.company_certs, selectedLot, calcRequirementMaxPoints, updateLot, currentLot.max_raw_score]);
 
     const addRequirement = (type) => {
         const newReq = {
@@ -134,87 +154,97 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
             ...(type === 'reference' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5 }], attestazione_score: 0, custom_metrics: [] }),
             ...(type === 'project' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5 }], attestazione_score: 0, custom_metrics: [] })
         };
-        syncRequirementMaxPoints(newReq);
-        currentLot.reqs.push(newReq);
-        setEditedConfig({ ...editedConfig });
+        newReq.max_points = calcRequirementMaxPoints(newReq);
+        updateLot(lot => {
+            if (!lot.reqs) lot.reqs = [];
+            lot.reqs.push(newReq);
+        });
     };
 
     const deleteRequirement = (reqId) => {
-        currentLot.reqs = currentLot.reqs.filter(r => r.id !== reqId);
-        setEditedConfig({ ...editedConfig });
+        updateLot(lot => {
+            lot.reqs = lot.reqs.filter(r => r.id !== reqId);
+        });
     };
 
     const updateRequirement = (reqId, field, value) => {
-        const req = currentLot.reqs.find(r => r.id === reqId);
-        if (req) {
-            req[field] = value;
-            syncRequirementMaxPoints(req);
-            setEditedConfig({ ...editedConfig });
-        }
+        updateLot(lot => {
+            const req = lot.reqs?.find(r => r.id === reqId);
+            if (req) {
+                req[field] = value;
+                req.max_points = calcRequirementMaxPoints(req);
+            }
+        });
     };
 
     const addSubReq = (reqId) => {
-        const req = currentLot.reqs.find(r => r.id === reqId);
-        if (req) {
-            if (!req.sub_reqs) req.sub_reqs = [];
-            const newId = String.fromCharCode(97 + req.sub_reqs.length); // a, b, c...
-            req.sub_reqs.push({ id: newId, label: t('tech.criteria') + ' ' + (req.sub_reqs.length + 1), weight: 1.0, max_value: 5 });
-            syncRequirementMaxPoints(req);
-            setEditedConfig({ ...editedConfig });
-        }
+        updateLot(lot => {
+            const req = lot.reqs?.find(r => r.id === reqId);
+            if (req) {
+                if (!req.sub_reqs) req.sub_reqs = [];
+                const newId = String.fromCharCode(97 + req.sub_reqs.length);
+                req.sub_reqs.push({ id: newId, label: t('tech.criteria') + ' ' + (req.sub_reqs.length + 1), weight: 1.0, max_value: 5 });
+                req.max_points = calcRequirementMaxPoints(req);
+            }
+        });
     };
 
     const updateSubReq = (reqId, subId, field, value) => {
-        const req = currentLot.reqs.find(r => r.id === reqId);
-        if (req && req.sub_reqs) {
-            const sub = req.sub_reqs.find(s => s.id === subId);
-            if (sub) {
-                sub[field] = value;
-                syncRequirementMaxPoints(req);
-                setEditedConfig({ ...editedConfig });
+        updateLot(lot => {
+            const req = lot.reqs?.find(r => r.id === reqId);
+            if (req && req.sub_reqs) {
+                const sub = req.sub_reqs.find(s => s.id === subId);
+                if (sub) {
+                    sub[field] = value;
+                    req.max_points = calcRequirementMaxPoints(req);
+                }
             }
-        }
+        });
     };
 
     const deleteSubReq = (reqId, subId) => {
-        const req = currentLot.reqs.find(r => r.id === reqId);
-        if (req && req.sub_reqs) {
-            req.sub_reqs = req.sub_reqs.filter(s => s.id !== subId);
-            syncRequirementMaxPoints(req);
-            setEditedConfig({ ...editedConfig });
-        }
+        updateLot(lot => {
+            const req = lot.reqs?.find(r => r.id === reqId);
+            if (req && req.sub_reqs) {
+                req.sub_reqs = req.sub_reqs.filter(s => s.id !== subId);
+                req.max_points = calcRequirementMaxPoints(req);
+            }
+        });
     };
 
     const addCustomMetric = (reqId) => {
-        const req = currentLot.reqs.find(r => r.id === reqId);
-        if (req) {
-            if (!req.custom_metrics) req.custom_metrics = [];
-            const newId = `M${req.custom_metrics.length + 1}`;
-            req.custom_metrics.push({ id: newId, label: 'Nuova Voce Tabellare', min_score: 0.0, max_score: 5.0 });
-            syncRequirementMaxPoints(req);
-            setEditedConfig({ ...editedConfig });
-        }
+        updateLot(lot => {
+            const req = lot.reqs?.find(r => r.id === reqId);
+            if (req) {
+                if (!req.custom_metrics) req.custom_metrics = [];
+                const newId = `M${req.custom_metrics.length + 1}`;
+                req.custom_metrics.push({ id: newId, label: 'Nuova Voce Tabellare', min_score: 0.0, max_score: 5.0 });
+                req.max_points = calcRequirementMaxPoints(req);
+            }
+        });
     };
 
     const updateCustomMetric = (reqId, metricId, field, value) => {
-        const req = currentLot.reqs.find(r => r.id === reqId);
-        if (req && req.custom_metrics) {
-            const metric = req.custom_metrics.find(m => m.id === metricId);
-            if (metric) {
-                metric[field] = value;
-                syncRequirementMaxPoints(req);
-                setEditedConfig({ ...editedConfig });
+        updateLot(lot => {
+            const req = lot.reqs?.find(r => r.id === reqId);
+            if (req && req.custom_metrics) {
+                const metric = req.custom_metrics.find(m => m.id === metricId);
+                if (metric) {
+                    metric[field] = value;
+                    req.max_points = calcRequirementMaxPoints(req);
+                }
             }
-        }
+        });
     };
 
     const deleteCustomMetric = (reqId, metricId) => {
-        const req = currentLot.reqs.find(r => r.id === reqId);
-        if (req && req.custom_metrics) {
-            req.custom_metrics = req.custom_metrics.filter(m => m.id !== metricId);
-            syncRequirementMaxPoints(req);
-            setEditedConfig({ ...editedConfig });
-        }
+        updateLot(lot => {
+            const req = lot.reqs?.find(r => r.id === reqId);
+            if (req && req.custom_metrics) {
+                req.custom_metrics = req.custom_metrics.filter(m => m.id !== metricId);
+                req.max_points = calcRequirementMaxPoints(req);
+            }
+        });
     };
 
     // Calculate professional certification score using formula: P = (2 * R) + (R * C)
@@ -222,33 +252,48 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
         if (!R || !C) return 0;
         R = Math.max(0, parseInt(R) || 0);
         C = Math.max(0, parseInt(C) || 0);
-        // Enforce constraint: C must be <= R
         if (C > R) C = R;
         return (2 * R) + (R * C);
     };
 
     const addCompanyCert = () => {
-        if (!currentLot.company_certs) currentLot.company_certs = [];
-        // Use first available cert as default if possible, or empty string
         const defaultLabel = knownCerts.length > 0 ? knownCerts[0] : "";
-        currentLot.company_certs.push({ label: defaultLabel, points: 2.0 });
-        setEditedConfig({ ...editedConfig });
+        updateLot(lot => {
+            if (!lot.company_certs) lot.company_certs = [];
+            lot.company_certs.push({ label: defaultLabel, points: 2.0, gara_weight: 0 });
+        });
     };
+
     const updateCompanyCert = (idx, label) => {
-        currentLot.company_certs[idx].label = label;
-        setEditedConfig({ ...editedConfig });
+        updateLot(lot => {
+            if (lot.company_certs && lot.company_certs[idx]) {
+                lot.company_certs[idx].label = label;
+            }
+        });
     };
+
     const updateCompanyCertPoints = (idx, pts) => {
-        currentLot.company_certs[idx].points = pts;
-        setEditedConfig({ ...editedConfig });
+        updateLot(lot => {
+            if (lot.company_certs && lot.company_certs[idx]) {
+                lot.company_certs[idx].points = pts;
+            }
+        });
     };
+
     const updateCompanyCertGaraWeight = (idx, weight) => {
-        currentLot.company_certs[idx].gara_weight = weight;
-        setEditedConfig({ ...editedConfig });
+        updateLot(lot => {
+            if (lot.company_certs && lot.company_certs[idx]) {
+                lot.company_certs[idx].gara_weight = weight;
+            }
+        });
     };
+
     const deleteCompanyCert = (idx) => {
-        currentLot.company_certs.splice(idx, 1);
-        setEditedConfig({ ...editedConfig });
+        updateLot(lot => {
+            if (lot.company_certs) {
+                lot.company_certs.splice(idx, 1);
+            }
+        });
     };
 
     const filteredReqs = currentLot.reqs?.filter(r => r.type === activeTab) || [];

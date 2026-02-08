@@ -71,8 +71,6 @@ export default function TechEvaluator() {
     const rawCompanyCerts = lotData.company_certs?.reduce((sum, cert) =>
         sum + (certs[cert.label] ? cert.points : 0), 0) || 0;
 
-    const weightedProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) =>
-        sum + (results?.details[r.id] || 0), 0) || 0;
 
     const rawProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, req) => {
         const cur = inputs[req.id] || { r_val: 0, c_val: 0 };
@@ -96,7 +94,7 @@ export default function TechEvaluator() {
         const attSum = cur.attestazione_active ? (req.attestazione_score || 0) : 0;
 
         // 3. Custom Metrics raw
-        const customSum = Object.entries(cur.custom_metric_vals || {}).reduce((cSum, [mId, mVal]) =>
+        const customSum = Object.entries(cur.custom_metric_vals || {}).reduce((cSum, [, mVal]) =>
             cSum + (parseFloat(mVal) || 0), 0);
 
         // 4. Legacy bonus raw
@@ -401,7 +399,7 @@ export default function TechEvaluator() {
                                 }, 0) || 0;
 
                                 const attSum = cur.attestazione_active ? (req.attestazione_score || 0) : 0;
-                                const customSum = Object.entries(cur.custom_metric_vals || {}).reduce((cSum, [mId, mVal]) =>
+                                const customSum = Object.entries(cur.custom_metric_vals || {}).reduce((cSum, [, mVal]) =>
                                     cSum + (parseFloat(mVal) || 0), 0);
                                 const bonusSum = cur.bonus_active ? (req.bonus_val || 0) : 0;
 

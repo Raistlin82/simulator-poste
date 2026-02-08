@@ -1,20 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { Save, Plus, Trash2, ShieldCheck, Award, Tag, Info } from 'lucide-react';
-import { useToast } from '../shared/components/ui/Toast';
+import { Plus, Trash2, ShieldCheck, Award, Info } from 'lucide-react';
 import { API_URL } from '../utils/api';
 
 export default function MasterDataConfig() {
     const { t } = useTranslation();
-    const { success, error: showError } = useToast();
     const [data, setData] = useState({
         company_certs: [],
         prof_certs: [],
         requirement_labels: []
     });
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [activeSection, setActiveSection] = useState('company_certs');
 
     useEffect(() => {
@@ -38,30 +35,9 @@ export default function MasterDataConfig() {
         fetchData();
     }, []);
 
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            // De-duplicate arrays before saving
-            const cleanedData = {
-                ...data,
-                company_certs: [...new Set(data.company_certs)],
-                prof_certs: [...new Set(data.prof_certs)],
-                requirement_labels: data.requirement_labels ? [...new Set(data.requirement_labels)] : [],
-            };
-            await axios.post(`${API_URL}/master-data`, cleanedData);
-            setData(cleanedData); // Update local state with deduplicated version
-            success(t('master.save_success') || 'Master Data salvati con successo');
-        } catch (error) {
-            console.error("Error saving master data:", error);
-            showError(t('common.error') || 'Errore durante il salvataggio');
-        } finally {
-            setSaving(false);
-        }
-    };
-
     const addItem = (section) => {
         const newItem = section === 'economic_formulas'
-            ? { id: `formula_${Date.now()}`, label: "Nuova Formula", desc: "P = $P_{max} \\times ..." }
+            ? { id: `formula_${Date.now()}`, label: t('master.new_formula'), desc: "P = $P_{max} \\times ..." }
             : "";
         setData(prev => ({
             ...prev,
@@ -151,7 +127,7 @@ export default function MasterDataConfig() {
                                                 {activeSection === 'economic_formulas' ? (
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Etichetta</label>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{t('master.label')}</label>
                                                             <input
                                                                 type="text"
                                                                 value={item.label}
@@ -160,7 +136,7 @@ export default function MasterDataConfig() {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Descrizione Formula</label>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{t('master.formula_description')}</label>
                                                             <input
                                                                 type="text"
                                                                 value={item.desc}
@@ -193,7 +169,7 @@ export default function MasterDataConfig() {
                                         <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                             <Info className="w-6 h-6 text-slate-400" />
                                         </div>
-                                        <p className="text-slate-500 text-sm">Nessun elemento presente.</p>
+                                        <p className="text-slate-500 text-sm">{t('master.no_items')}</p>
                                     </div>
                                 )}
                             </div>

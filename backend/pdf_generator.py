@@ -26,6 +26,118 @@ from reportlab.platypus import (
 )
 from reportlab.pdfgen import canvas
 
+# Translations
+translations = {
+    "strategic_report": "Report Strategico",
+    "confidential_document": "Documento riservato - Lutech S.p.A.",
+    "page": "Pag.",
+    "your_score": "Il Tuo Score:",
+    "estimated_competitor": "Competitor Stimato:",
+    "mean": "Media:",
+    "win_zone": "Zona Vittoria",
+    "risk_zone": "Zona Rischio",
+    "loss_zone": "Zona Perdita",
+    "total_score": "Punteggio Totale",
+    "frequency": "Frequenza",
+    "monte_carlo_distribution": "Distribuzione Monte Carlo",
+    "simulations": "simulazioni",
+    "weighted_score": "Punteggio Pesato",
+    "contribution_by_category": "Contributo per Categoria",
+    "points_short": "pt",
+    "discount_offered_percent": "Sconto Offerto (%)",
+    "win_probability_percent": "Probabilità Vittoria (%)",
+    "current_discount": "Sconto Attuale:",
+    "win_probability": "Probabilità Vittoria",
+    "discount_scenario_analysis": "Analisi Scenari di Sconto",
+    "lutech_logo_alt": "LUTECH",
+    "poste_logo_alt": "POSTE",
+    "strategic_report_title": "REPORT STRATEGICO",
+    "tender_evaluation": "Valutazione Gara d'Appalto",
+    "auction_base": "Base d'Asta",
+    "generated_on": "Generato il",
+    "executive_summary": "Sintesi Esecutiva",
+    "win_probability_label": "Probabilità di Vittoria:",
+    "discount_offered": "Sconto Offerto",
+    "favorable": "favorevole",
+    "favorable_recommendation": "Si consiglia di procedere con l'offerta mantenendo lo sconto proposto.",
+    "balanced": "equilibrata",
+    "balanced_recommendation": "Valutare un incremento dello sconto per aumentare la competitività.",
+    "challenging": "sfidante",
+    "challenging_recommendation": "Considerare un significativo aumento dello sconto o il miglioramento del profilo tecnico.",
+    "simulation_for_lot": "La simulazione per il lotto",
+    "shows_a_situation": "evidenzia una situazione",
+    "with_a_total_score_of": "Con un punteggio totale di",
+    "points_technical": "punti (tecnico:",
+    "economic": "economico:",
+    "and_a_discount_of": ") e uno sconto del",
+    "the_estimated_win_probability_is": ", la probabilità stimata di vittoria è del",
+    "percent_compared_to_a_competitor": "% rispetto a un competitor con sconto medio del",
+    "recommendation": "Raccomandazione:",
+    "technical_score": "Punteggio Tecnico",
+    "economic_score": "Punteggio Economico",
+    "technical_score_analysis": "Analisi Punteggio Tecnico",
+    "company_certifications": "Certificazioni Aziendali",
+    "professional_certifications": "Certificazioni Professionali",
+    "references": "Referenze",
+    "technical_projects": "Progetti Tecnici",
+    "category": "Categoria",
+    "score": "Punteggio",
+    "contribution_percent": "Contributo %",
+    "total_technical": "TOTALE TECNICO",
+    "areas_for_improvement": "Aree di Miglioramento",
+    "increase_company_certifications": "• Incrementare le certificazioni aziendali per migliorare il profilo qualitativo",
+    "enhance_professional_certifications": "• Valorizzare maggiormente le certificazioni professionali del team",
+    "add_relevant_references": "• Aggiungere referenze rilevanti per dimostrare esperienza nel settore",
+    "highlight_successful_projects": "• Evidenziare progetti tecnici completati con successo",
+    "solid_technical_profile": "• Profilo tecnico solido - mantenere gli attuali punti di forza",
+    "economic_and_competitive_analysis": "Analisi Economica e Competitiva",
+    "the_economic_offer_includes_a_discount_of": "L'offerta economica prevede uno sconto del",
+    "on_an_auction_base_of": "sulla base d'asta di",
+    "generating_an_economic_score_of": ", generando un punteggio economico di",
+    "points_out_of_a_maximum_of": "punti su un massimo di",
+    "simulation_statistics": "Statistiche Simulazione",
+    "metric": "Metrica",
+    "value": "Valore",
+    "iterations": "Iterazioni",
+    "mean_score": "Score Medio",
+    "minimum_score": "Score Minimo",
+    "maximum_score": "Score Massimo",
+    "standard_deviation": "Deviazione Standard",
+    "percentile_25": "Percentile 25°",
+    "percentile_75": "Percentile 75°",
+    "strategic_recommendations": "Raccomandazioni Strategiche",
+    "suggested_optimal_discount": "Sconto Ottimale Suggerito:",
+    "compared_to_the_current_discount_of": "Rispetto allo sconto attuale del",
+    "an_increase_of": ", si suggerisce un aumento di",
+    "a_decrease_of": ", si suggerisce un decremento di",
+    "percentage_points_to_maximize": "punti percentuali per massimizzare la probabilità di vittoria mantenendo un equilibrio economico.",
+    "current_discount_is_optimal": "Sconto Attuale Ottimale",
+    "the_current_discount_of": "Lo sconto attuale del",
+    "is_in_line_with_the_suggested_optimization": "è in linea con l'ottimizzazione suggerita. Non sono necessarie modifiche significative.",
+    "discount_evaluation": "Valutazione Sconto:",
+    "consider_the_impact_of_discount_variations": "Considerare l'impatto di variazioni dello sconto sulla probabilità di vittoria in base al contesto competitivo.",
+    "simplified_swot_analysis": "Analisi SWOT Semplificata",
+    "strengths": "PUNTI DI FORZA",
+    "areas_of_attention": "AREE DI ATTENZIONE",
+    "solid_technical_profile_strength": "Solido profilo tecnico",
+    "improvable_technical_profile_weakness": "Profilo tecnico migliorabile",
+    "competitive_economic_offer_strength": "Offerta economica competitiva",
+    "limited_economic_margin_weakness": "Margine economico limitato",
+    "high_probability_of_success_strength": "Alta probabilità di successo",
+    "limited_win_probability_weakness": "Probabilità di vittoria contenuta",
+    "relevant_company_certifications_strength": "Certificazioni aziendali rilevanti",
+    "consolidated_references_strength": "Referenze consolidate",
+    "references_to_be_strengthened_weakness": "Referenze da potenziare",
+    "strategic_participation_strength": "Partecipazione strategica",
+    "monitor_competitive_evolution_weakness": "Monitorare l'evoluzione competitiva",
+    "next_steps": "Prossimi Passi",
+    "validate_technical_data": "1. Validare i dati tecnici inseriti con il team di prevendita",
+    "verify_documentation_completeness": "2. Verificare la completezza della documentazione richiesta",
+    "confirm_final_discount": "3. Confermare lo sconto finale con la direzione commerciale",
+    "prepare_tender_documentation": "4. Preparare la documentazione di gara entro i termini previsti",
+    "evaluate_options_to_improve_technical_score": "2b. Valutare opzioni per migliorare il punteggio tecnico"
+}
+
 
 # Brand Colors
 COLORS = {
@@ -83,7 +195,7 @@ class NumberedCanvas(canvas.Canvas):
         # Header text
         self.setFont('Helvetica', 8)
         self.setFillColor(COLORS['muted'])
-        self.drawString(2*cm, height - 1.3*cm, f"Report Strategico - {self.lot_name}")
+        self.drawString(2*cm, height - 1.3*cm, f"{translations['strategic_report']} - {self.lot_name}")
         self.drawRightString(width - 2*cm, height - 1.3*cm,
                             datetime.now().strftime("%d/%m/%Y"))
 
@@ -91,8 +203,8 @@ class NumberedCanvas(canvas.Canvas):
         self.line(2*cm, 1.5*cm, width - 2*cm, 1.5*cm)
 
         # Footer text
-        self.drawString(2*cm, 1*cm, "Documento riservato - Lutech S.p.A.")
-        self.drawRightString(width - 2*cm, 1*cm, f"Pag. {page_num}/{page_count}")
+        self.drawString(2*cm, 1*cm, translations['confidential_document'])
+        self.drawRightString(width - 2*cm, 1*cm, f"{translations['page']} {page_num}/{page_count}")
 
 
 class KPIBox(Flowable):
@@ -226,24 +338,24 @@ def create_monte_carlo_chart(score_distribution: np.ndarray,
 
     # My score line
     ax.axvline(my_score, color='#003366', linestyle='-', linewidth=3,
-               label=f'Il Tuo Score: {my_score:.1f}')
+               label=f"{translations['your_score']} {my_score:.1f}")
 
     # Competitor score line (estimated)
     ax.axvline(competitor_score, color='#dc3545', linestyle='--', linewidth=2,
-               label=f'Competitor Stimato: {competitor_score:.1f}')
+               label=f"{translations['estimated_competitor']} {competitor_score:.1f}")
 
     # Mean line
     ax.axvline(mean_score, color='#6c757d', linestyle=':', linewidth=1.5,
-               label=f'Media: {mean_score:.1f}')
+               label=f"{translations['mean']} {mean_score:.1f}")
 
     # Fill zones legend
-    win_patch = mpatches.Patch(color='#28a74580', label='Zona Vittoria')
-    risk_patch = mpatches.Patch(color='#ffc10780', label='Zona Rischio')
-    loss_patch = mpatches.Patch(color='#dc354580', label='Zona Perdita')
+    win_patch = mpatches.Patch(color='#28a74580', label=translations['win_zone'])
+    risk_patch = mpatches.Patch(color='#ffc10780', label=translations['risk_zone'])
+    loss_patch = mpatches.Patch(color='#dc354580', label=translations['loss_zone'])
 
-    ax.set_xlabel('Punteggio Totale', fontsize=11)
-    ax.set_ylabel('Frequenza', fontsize=11)
-    ax.set_title(f'Distribuzione Monte Carlo ({iterations} simulazioni)',
+    ax.set_xlabel(translations['total_score'], fontsize=11)
+    ax.set_ylabel(translations['frequency'], fontsize=11)
+    ax.set_title(f"{translations['monte_carlo_distribution']} ({iterations} {translations['simulations']})",
                  fontsize=12, fontweight='bold')
 
     # Legend
@@ -286,12 +398,12 @@ def create_category_breakdown_chart(categories: Dict[str, float],
     for i, (bar, val) in enumerate(zip(bars, values)):
         width = bar.get_width()
         ax.text(width + 0.5, bar.get_y() + bar.get_height()/2,
-                f'{val:.1f} pt', va='center', fontsize=9, color='#333333')
+                f"{val:.1f} {translations['points_short']}", va='center', fontsize=9, color='#333333')
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(labels, fontsize=10)
-    ax.set_xlabel('Punteggio Pesato', fontsize=10)
-    ax.set_title('Contributo per Categoria', fontsize=11, fontweight='bold')
+    ax.set_xlabel(translations['weighted_score'], fontsize=10)
+    ax.set_title(translations['contribution_by_category'], fontsize=11, fontweight='bold')
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -317,10 +429,10 @@ def create_scenarios_chart(scenarios: List[Dict], my_discount: float) -> io.Byte
 
     # Primary axis: Probability
     color1 = '#003366'
-    ax1.set_xlabel('Sconto Offerto (%)', fontsize=10)
-    ax1.set_ylabel('Probabilità Vittoria (%)', color=color1, fontsize=10)
+    ax1.set_xlabel(translations['discount_offered_percent'], fontsize=10)
+    ax1.set_ylabel(translations['win_probability_percent'], color=color1, fontsize=10)
     line1, = ax1.plot(discounts, probabilities, color=color1, linewidth=2,
-                      marker='o', markersize=4, label='Probabilità')
+                      marker='o', markersize=4, label=translations['win_probability'])
     ax1.tick_params(axis='y', labelcolor=color1)
     ax1.set_ylim(0, 100)
 
@@ -330,21 +442,21 @@ def create_scenarios_chart(scenarios: List[Dict], my_discount: float) -> io.Byte
     # Secondary axis: Total Score
     ax2 = ax1.twinx()
     color2 = '#28a745'
-    ax2.set_ylabel('Punteggio Totale', color=color2, fontsize=10)
+    ax2.set_ylabel(translations['total_score'], color=color2, fontsize=10)
     line2, = ax2.plot(discounts, scores, color=color2, linewidth=2,
-                      linestyle='--', marker='s', markersize=4, label='Punteggio')
+                      linestyle='--', marker='s', markersize=4, label=translations['total_score'])
     ax2.tick_params(axis='y', labelcolor=color2)
 
     # Current discount line
     ax1.axvline(my_discount, color='#dc3545', linestyle=':', linewidth=2,
-                label=f'Sconto Attuale: {my_discount}%')
+                label=f"{translations['current_discount']} {my_discount}%")
 
     # Legend
     lines = [line1, line2]
-    labels = ['Probabilità Vittoria', 'Punteggio Totale']
+    labels = [translations['win_probability'], translations['total_score']]
     ax1.legend(lines, labels, loc='upper left', fontsize=8)
 
-    ax1.set_title('Analisi Scenari di Sconto', fontsize=11, fontweight='bold')
+    ax1.set_title(translations['discount_scenario_analysis'], fontsize=11, fontweight='bold')
     ax1.grid(alpha=0.3, linestyle='--')
     ax1.spines['top'].set_visible(False)
 
@@ -476,14 +588,14 @@ def generate_pdf_report(
     if os.path.exists(LOGO_LUTECH):
         logo_table_data[0].append(RLImage(LOGO_LUTECH, width=4*cm, height=2*cm))
     else:
-        logo_table_data[0].append(Paragraph("LUTECH", styles['Heading2']))
+        logo_table_data[0].append(Paragraph(translations['lutech_logo_alt'], styles['Heading2']))
 
     logo_table_data[0].append(Spacer(1, 1))
 
     if os.path.exists(LOGO_POSTE):
         logo_table_data[0].append(RLImage(LOGO_POSTE, width=4*cm, height=2*cm))
     else:
-        logo_table_data[0].append(Paragraph("POSTE", styles['Heading2']))
+        logo_table_data[0].append(Paragraph(translations['poste_logo_alt'], styles['Heading2']))
 
     logo_table = Table(logo_table_data, colWidths=[6*cm, 5*cm, 6*cm])
     logo_table.setStyle(TableStyle([
@@ -495,8 +607,8 @@ def generate_pdf_report(
     story.append(Spacer(1, 3*cm))
 
     # Title
-    story.append(Paragraph("REPORT STRATEGICO", styles['CoverTitle']))
-    story.append(Paragraph("Valutazione Gara d'Appalto", styles['CoverSubtitle']))
+    story.append(Paragraph(translations['strategic_report_title'], styles['CoverTitle']))
+    story.append(Paragraph(translations['tender_evaluation'], styles['CoverSubtitle']))
     story.append(Spacer(1, 1*cm))
 
     # Lot name in a box
@@ -519,9 +631,9 @@ def generate_pdf_report(
 
     # Quick summary stats
     summary_data = [
-        ['Base d\'Asta', f'€ {base_amount:,.2f}'.replace(',', '.')],
-        ['Punteggio Totale', f'{total_score:.2f} / 100'],
-        ['Probabilità Vittoria', f'{win_probability:.1f}%'],
+        [translations['auction_base'], f'€ {base_amount:,.2f}'.replace(',', '.')],
+        [translations['total_score'], f'{total_score:.2f} / 100'],
+        [translations['win_probability'], f'{win_probability:.1f}%'],
     ]
     summary_table = Table(summary_data, colWidths=[8*cm, 6*cm])
     summary_table.setStyle(TableStyle([
@@ -538,14 +650,14 @@ def generate_pdf_report(
 
     # Generation date
     date_str = datetime.now().strftime("%d %B %Y - %H:%M")
-    story.append(Paragraph(f"<i>Generato il {date_str}</i>",
+    story.append(Paragraph(f"<i>{translations['generated_on']} {date_str}</i>",
                           ParagraphStyle('DateStyle', fontSize=10,
                                         textColor=COLORS['muted'],
                                         alignment=TA_CENTER)))
 
     # Footer
     story.append(Spacer(1, 2*cm))
-    story.append(Paragraph("Documento riservato - Lutech S.p.A.",
+    story.append(Paragraph(translations['confidential_document'],
                           ParagraphStyle('FooterStyle', fontSize=9,
                                         textColor=COLORS['muted'],
                                         alignment=TA_CENTER)))
@@ -556,7 +668,7 @@ def generate_pdf_report(
     # PAGE 2: EXECUTIVE SUMMARY
     # =========================================================================
 
-    story.append(Paragraph("Sintesi Esecutiva", styles['SectionTitle']))
+    story.append(Paragraph(translations['executive_summary'], styles['SectionTitle']))
     story.append(Spacer(1, 0.5*cm))
 
     # Verdict box
@@ -571,7 +683,7 @@ def generate_pdf_report(
         verdict_style = 'VerdictLow'
 
     verdict_data = [[
-        Paragraph(f"Probabilità di Vittoria: <b>{prob_label}</b>",
+        Paragraph(f"{translations['win_probability_label']} <b>{prob_label}</b>",
                  styles[verdict_style])
     ]]
     verdict_table = Table(verdict_data, colWidths=[17*cm])
@@ -587,11 +699,11 @@ def generate_pdf_report(
 
     # KPI Summary Table
     kpi_data = [[
-        Paragraph(f"<b>{total_score:.1f}</b><br/><font size='9' color='gray'>Punteggio Totale</font>",
+        Paragraph(f"<b>{total_score:.1f}</b><br/><font size='9' color='gray'>{translations['total_score']}</font>",
                  ParagraphStyle('KPI', fontSize=18, alignment=TA_CENTER)),
-        Paragraph(f"<b>{win_probability:.0f}%</b><br/><font size='9' color='gray'>Probabilità Vittoria</font>",
+        Paragraph(f"<b>{win_probability:.0f}%</b><br/><font size='9' color='gray'>{translations['win_probability']}</font>",
                  ParagraphStyle('KPI', fontSize=18, alignment=TA_CENTER, textColor=prob_color)),
-        Paragraph(f"<b>{my_discount:.1f}%</b><br/><font size='9' color='gray'>Sconto Offerto</font>",
+        Paragraph(f"<b>{my_discount:.1f}%</b><br/><font size='9' color='gray'>{translations['discount_offered']}</font>",
                  ParagraphStyle('KPI', fontSize=18, alignment=TA_CENTER)),
     ]]
     kpi_table = Table(kpi_data, colWidths=[5.5*cm, 5.5*cm, 5.5*cm])
@@ -610,30 +722,28 @@ def generate_pdf_report(
 
     # Summary text
     if win_probability >= 60:
-        situation = "favorevole"
-        recommendation = "Si consiglia di procedere con l'offerta mantenendo lo sconto proposto."
+        situation = translations['favorable']
+        recommendation = translations['favorable_recommendation']
     elif win_probability >= 40:
-        situation = "equilibrata"
-        recommendation = "Valutare un incremento dello sconto per aumentare la competitività."
+        situation = translations['balanced']
+        recommendation = translations['balanced_recommendation']
     else:
-        situation = "sfidante"
-        recommendation = "Considerare un significativo aumento dello sconto o il miglioramento del profilo tecnico."
+        situation = translations['challenging']
+        recommendation = translations['challenging_recommendation']
 
     summary_text = f"""
-    La simulazione per il lotto <b>{lot_key}</b> evidenzia una situazione <b>{situation}</b>.
-    Con un punteggio totale di <b>{total_score:.2f}</b> punti (tecnico: {technical_score:.2f},
-    economico: {economic_score:.2f}) e uno sconto del <b>{my_discount}%</b>, la probabilità
-    stimata di vittoria è del <b>{win_probability:.1f}%</b> rispetto a un competitor con sconto
-    medio del {competitor_discount}%.
+    {translations['simulation_for_lot']} <b>{lot_key}</b> {translations['shows_a_situation']} <b>{situation}</b>.
+    {translations['with_a_total_score_of']} <b>{total_score:.2f}</b> {translations['points_technical']} {technical_score:.2f},
+    {translations['economic']} {economic_score:.2f}{translations['and_a_discount_of']} <b>{my_discount}%</b>, {translations['the_estimated_win_probability_is']} <b>{win_probability:.1f}%</b> {translations['percent_compared_to_a_competitor']}{competitor_discount}%.
     <br/><br/>
-    <b>Raccomandazione:</b> {recommendation}
+    <b>{translations['recommendation']}</b> {recommendation}
     """
     story.append(Paragraph(summary_text, styles['BodyTextJustify']))
     story.append(Spacer(1, 0.5*cm))
 
     # Score gauges
-    tech_gauge = create_gauge_chart(technical_score, max_tech_score, "Punteggio Tecnico")
-    econ_gauge = create_gauge_chart(economic_score, max_econ_score, "Punteggio Economico")
+    tech_gauge = create_gauge_chart(technical_score, max_tech_score, translations['technical_score'])
+    econ_gauge = create_gauge_chart(economic_score, max_econ_score, translations['economic_score'])
 
     gauge_data = [[
         RLImage(tech_gauge, width=6*cm, height=4*cm),
@@ -652,18 +762,18 @@ def generate_pdf_report(
     # PAGE 3: TECHNICAL SCORE BREAKDOWN
     # =========================================================================
 
-    story.append(Paragraph("Analisi Punteggio Tecnico", styles['SectionTitle']))
+    story.append(Paragraph(translations['technical_score_analysis'], styles['SectionTitle']))
     story.append(Spacer(1, 0.5*cm))
 
     # Category breakdown table
     category_labels = {
-        'company_certs': 'Certificazioni Aziendali',
-        'resource': 'Certificazioni Professionali',
-        'reference': 'Referenze',
-        'project': 'Progetti Tecnici'
+        'company_certs': translations['company_certifications'],
+        'resource': translations['professional_certifications'],
+        'reference': translations['references'],
+        'project': translations['technical_projects']
     }
 
-    breakdown_data = [['Categoria', 'Punteggio', 'Contributo %']]
+    breakdown_data = [[translations['category'], translations['score'], translations['contribution_percent']]]
     total_cat_score = sum(category_scores.values())
 
     for cat_key, cat_label in category_labels.items():
@@ -671,7 +781,7 @@ def generate_pdf_report(
         pct = (score / technical_score * 100) if technical_score > 0 else 0
         breakdown_data.append([cat_label, f'{score:.2f}', f'{pct:.1f}%'])
 
-    breakdown_data.append(['TOTALE TECNICO', f'{technical_score:.2f}', '100%'])
+    breakdown_data.append([translations['total_technical'], f'{technical_score:.2f}', '100%'])
 
     breakdown_table = Table(breakdown_data, colWidths=[8*cm, 4*cm, 4*cm])
     breakdown_table.setStyle(TableStyle([
@@ -701,22 +811,22 @@ def generate_pdf_report(
     story.append(Spacer(1, 0.8*cm))
 
     # Improvement suggestions
-    story.append(Paragraph("Aree di Miglioramento", styles['SectionTitle']))
+    story.append(Paragraph(translations['areas_for_improvement'], styles['SectionTitle']))
 
     improvements = []
     tech_pct = (technical_score / max_tech_score * 100) if max_tech_score > 0 else 0
 
     if tech_pct < 70:
-        improvements.append("• Incrementare le certificazioni aziendali per migliorare il profilo qualitativo")
+        improvements.append(translations['increase_company_certifications'])
     if category_scores.get('resource', 0) < category_scores.get('company_certs', 0):
-        improvements.append("• Valorizzare maggiormente le certificazioni professionali del team")
+        improvements.append(translations['enhance_professional_certifications'])
     if category_scores.get('reference', 0) < 5:
-        improvements.append("• Aggiungere referenze rilevanti per dimostrare esperienza nel settore")
+        improvements.append(translations['add_relevant_references'])
     if category_scores.get('project', 0) < 5:
-        improvements.append("• Evidenziare progetti tecnici completati con successo")
+        improvements.append(translations['highlight_successful_projects'])
 
     if not improvements:
-        improvements.append("• Profilo tecnico solido - mantenere gli attuali punti di forza")
+        improvements.append(translations['solid_technical_profile'])
 
     for imp in improvements:
         story.append(Paragraph(imp, styles['BodyTextJustify']))
@@ -727,14 +837,14 @@ def generate_pdf_report(
     # PAGE 4: ECONOMIC ANALYSIS
     # =========================================================================
 
-    story.append(Paragraph("Analisi Economica e Competitiva", styles['SectionTitle']))
+    story.append(Paragraph(translations['economic_and_competitive_analysis'], styles['SectionTitle']))
     story.append(Spacer(1, 0.5*cm))
 
     # Economic summary
     econ_summary = f"""
-    L'offerta economica prevede uno sconto del <b>{my_discount}%</b> sulla base d'asta di
-    <b>€ {base_amount:,.2f}</b>, generando un punteggio economico di <b>{economic_score:.2f}</b>
-    punti su un massimo di {max_econ_score:.0f}.
+    {translations['the_economic_offer_includes_a_discount_of']} <b>{my_discount}%</b> {translations['on_an_auction_base_of']}
+    <b>€ {base_amount:,.2f}</b>, {translations['generating_an_economic_score_of']} <b>{economic_score:.2f}</b>
+    {translations['points_out_of_a_maximum_of']} {max_econ_score:.0f}.
     """
     story.append(Paragraph(econ_summary.replace(',', '.'), styles['BodyTextJustify']))
     story.append(Spacer(1, 0.5*cm))
@@ -747,17 +857,17 @@ def generate_pdf_report(
     story.append(Spacer(1, 0.5*cm))
 
     # Statistics table
-    story.append(Paragraph("Statistiche Simulazione", styles['SectionTitle']))
+    story.append(Paragraph(translations['simulation_statistics'], styles['SectionTitle']))
 
     stats_data = [
-        ['Metrica', 'Valore'],
-        ['Iterazioni', f'{iterations}'],
-        ['Score Medio', f'{np.mean(score_distribution):.2f}'],
-        ['Score Minimo', f'{np.min(score_distribution):.2f}'],
-        ['Score Massimo', f'{np.max(score_distribution):.2f}'],
-        ['Deviazione Standard', f'{np.std(score_distribution):.2f}'],
-        ['Percentile 25°', f'{np.percentile(score_distribution, 25):.2f}'],
-        ['Percentile 75°', f'{np.percentile(score_distribution, 75):.2f}'],
+        [translations['metric'], translations['value']],
+        [translations['iterations'], f'{iterations}'],
+        [translations['mean_score'], f'{np.mean(score_distribution):.2f}'],
+        [translations['minimum_score'], f'{np.min(score_distribution):.2f}'],
+        [translations['maximum_score'], f'{np.max(score_distribution):.2f}'],
+        [translations['standard_deviation'], f'{np.std(score_distribution):.2f}'],
+        [translations['percentile_25'], f'{np.percentile(score_distribution, 25):.2f}'],
+        [translations['percentile_75'], f'{np.percentile(score_distribution, 75):.2f}'],
     ]
 
     stats_table = Table(stats_data, colWidths=[8*cm, 6*cm])
@@ -780,7 +890,7 @@ def generate_pdf_report(
     # PAGE 5: STRATEGIC RECOMMENDATIONS
     # =========================================================================
 
-    story.append(Paragraph("Raccomandazioni Strategiche", styles['SectionTitle']))
+    story.append(Paragraph(translations['strategic_recommendations'], styles['SectionTitle']))
     story.append(Spacer(1, 0.5*cm))
 
     # Optimal discount recommendation
@@ -788,22 +898,19 @@ def generate_pdf_report(
         opt_diff = optimal_discount - my_discount
         if abs(opt_diff) > 1:
             opt_text = f"""
-            <b>Sconto Ottimale Suggerito: {optimal_discount:.1f}%</b><br/><br/>
-            Rispetto allo sconto attuale del {my_discount}%, si suggerisce un
-            {'aumento' if opt_diff > 0 else 'decremento'} di {abs(opt_diff):.1f} punti percentuali
-            per massimizzare la probabilità di vittoria mantenendo un equilibrio economico.
+            <b>{translations['suggested_optimal_discount']} {optimal_discount:.1f}%</b><br/><br/>
+            {translations['compared_to_the_current_discount_of']} {my_discount}%, si suggerisce un
+            {'aumento' if opt_diff > 0 else 'decremento'} di {abs(opt_diff):.1f} {translations['percentage_points_to_maximize']}
             """
         else:
             opt_text = f"""
-            <b>Sconto Attuale Ottimale</b><br/><br/>
-            Lo sconto attuale del {my_discount}% è in linea con l'ottimizzazione suggerita.
-            Non sono necessarie modifiche significative.
+            <b>{translations['current_discount_is_optimal']}</b><br/><br/>
+            {translations['the_current_discount_of']} {my_discount}% {translations['is_in_line_with_the_suggested_optimization']}.
             """
     else:
         opt_text = f"""
-        <b>Valutazione Sconto: {my_discount}%</b><br/><br/>
-        Considerare l'impatto di variazioni dello sconto sulla probabilità di vittoria
-        in base al contesto competitivo.
+        <b>{translations['discount_evaluation']} {my_discount}%</b><br/><br/>
+        {translations['consider_the_impact_of_discount_variations']}.
         """
 
     opt_box_data = [[Paragraph(opt_text, styles['BodyTextJustify'])]]
@@ -820,46 +927,46 @@ def generate_pdf_report(
     story.append(Spacer(1, 0.8*cm))
 
     # Pros and Cons
-    story.append(Paragraph("Analisi SWOT Semplificata", styles['SectionTitle']))
+    story.append(Paragraph(translations['simplified_swot_analysis'], styles['SectionTitle']))
 
     # Generate dynamic pros/cons based on scores
     pros = []
     cons = []
 
     if technical_score >= max_tech_score * 0.7:
-        pros.append("Solido profilo tecnico")
+        pros.append(translations['solid_technical_profile_strength'])
     else:
-        cons.append("Profilo tecnico migliorabile")
+        cons.append(translations['improvable_technical_profile_weakness'])
 
     if economic_score >= max_econ_score * 0.7:
-        pros.append("Offerta economica competitiva")
+        pros.append(translations['competitive_economic_offer_strength'])
     else:
-        cons.append("Margine economico limitato")
+        cons.append(translations['limited_economic_margin_weakness'])
 
     if win_probability >= 60:
-        pros.append("Alta probabilità di successo")
+        pros.append(translations['high_probability_of_success_strength'])
     elif win_probability < 40:
-        cons.append("Probabilità di vittoria contenuta")
+        cons.append(translations['limited_win_probability_weakness'])
 
     if category_scores.get('company_certs', 0) > 5:
-        pros.append("Certificazioni aziendali rilevanti")
+        pros.append(translations['relevant_company_certifications_strength'])
 
     if category_scores.get('reference', 0) > 5:
-        pros.append("Referenze consolidate")
+        pros.append(translations['consolidated_references_strength'])
     else:
-        cons.append("Referenze da potenziare")
+        cons.append(translations['references_to_be_strengthened_weakness'])
 
     # Ensure at least one item per column
     if not pros:
-        pros.append("Partecipazione strategica")
+        pros.append(translations['strategic_participation_strength'])
     if not cons:
-        cons.append("Monitorare l'evoluzione competitiva")
+        cons.append(translations['monitor_competitive_evolution_weakness'])
 
     swot_data = [
-        [Paragraph("<b>PUNTI DI FORZA</b>",
+        [Paragraph(f"<b>{translations['strengths']}</b>",
                   ParagraphStyle('SWOTHeader', textColor=COLORS['success'],
                                 alignment=TA_CENTER, fontSize=11)),
-         Paragraph("<b>AREE DI ATTENZIONE</b>",
+         Paragraph(f"<b>{translations['areas_of_attention']}</b>",
                   ParagraphStyle('SWOTHeader', textColor=COLORS['danger'],
                                 alignment=TA_CENTER, fontSize=11))],
         [Paragraph('<br/>'.join([f"• {p}" for p in pros]), styles['BodyTextJustify']),
@@ -884,17 +991,17 @@ def generate_pdf_report(
     story.append(Spacer(1, 0.8*cm))
 
     # Next Steps
-    story.append(Paragraph("Prossimi Passi", styles['SectionTitle']))
+    story.append(Paragraph(translations['next_steps'], styles['SectionTitle']))
 
     next_steps = [
-        "1. Validare i dati tecnici inseriti con il team di prevendita",
-        "2. Verificare la completezza della documentazione richiesta",
-        "3. Confermare lo sconto finale con la direzione commerciale",
-        "4. Preparare la documentazione di gara entro i termini previsti",
+        translations['validate_technical_data'],
+        translations['verify_documentation_completeness'],
+        translations['confirm_final_discount'],
+        translations['prepare_tender_documentation'],
     ]
 
     if win_probability < 50:
-        next_steps.insert(2, "2b. Valutare opzioni per migliorare il punteggio tecnico")
+        next_steps.insert(2, translations['evaluate_options_to_improve_technical_score'])
 
     for step in next_steps:
         story.append(Paragraph(step, styles['BodyTextJustify']))

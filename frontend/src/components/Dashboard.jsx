@@ -28,7 +28,6 @@ export default function Dashboard() {
     const lotKey = selectedLot;
     const lotData = config?.[selectedLot];
     const [monteCarlo, setMonteCarlo] = useState(null);
-    const [mcLoading, setMcLoading] = useState(false);
     const [exportLoading, setExportLoading] = useState(false);
 
     // Optimizer results state
@@ -40,7 +39,6 @@ export default function Dashboard() {
         if (!results || !lotData) return;
 
         const runMC = async () => {
-            setMcLoading(true);
             try {
                 const res = await axios.post(`${API_URL}/monte-carlo`, {
                     lot_key: lotKey,
@@ -56,14 +54,13 @@ export default function Dashboard() {
                 setMonteCarlo(res.data);
             } catch (err) {
                 console.error("MC Error", err);
-            } finally {
-                setMcLoading(false);
             }
         };
 
         const timer = setTimeout(runMC, 1000); // debounce
         return () => clearTimeout(timer);
-    }, [myDiscount, competitorDiscount, results?.technical_score, lotKey]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [myDiscount, competitorDiscount, results?.technical_score, lotKey, lotData, competitorTechScore]);
 
     // Run optimizer when competitor inputs change
     useEffect(() => {
@@ -90,7 +87,7 @@ export default function Dashboard() {
 
         const timer = setTimeout(runOptimizer, 1000); // debounce
         return () => clearTimeout(timer);
-    }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount]);
+    }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount, lotData, results]);
 
     const handleExport = async () => {
         setExportLoading(true);
@@ -169,12 +166,12 @@ export default function Dashboard() {
                     <div className="mb-6 pb-6 border-b border-slate-100">
                         <div className="flex items-center gap-2 mb-4">
                             <Target className="w-4 h-4 text-indigo-500" />
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Competitor da Battere</span>
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('dashboard.competitor_to_beat')}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-semibold text-slate-600 mb-2 block">
-                                    Punteggio Tecnico Competitor
+                                    {t('dashboard.competitor_tech_score')}
                                 </label>
                                 <div className="flex items-center gap-3">
                                     <input
@@ -191,12 +188,12 @@ export default function Dashboard() {
                                     </span>
                                 </div>
                                 <div className="text-[10px] text-slate-500 mt-1">
-                                    Max: {lotData?.max_tech_score || 60}
+                                    {t('dashboard.max')}: {lotData?.max_tech_score || 60}
                                 </div>
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-slate-600 mb-2 block">
-                                    Sconto Economico Competitor
+                                    {t('dashboard.competitor_econ_discount')}
                                 </label>
                                 <div className="flex items-center gap-3">
                                     <input
@@ -213,7 +210,7 @@ export default function Dashboard() {
                                     </span>
                                 </div>
                                 <div className="text-[10px] text-slate-500 mt-1">
-                                    Max: Best Offer {formatNumber(competitorDiscount, 2)}%
+                                    {t('dashboard.max_best_offer', { discount: formatNumber(competitorDiscount, 2) })}
                                 </div>
                             </div>
                         </div>
@@ -227,46 +224,46 @@ export default function Dashboard() {
                             <div className="mt-4 space-y-3">
                                 {/* Competitor Summary */}
                                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Competitor Totale</div>
+                                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">{t('dashboard.competitor_total')}</div>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-xl font-bold text-slate-800">{formatNumber(optimizerResults.competitor_total_score, 2)}</span>
                                         <span className="text-xs text-slate-500">
-                                            (Tech: {formatNumber(optimizerResults.competitor_tech_score, 2)} + Econ: {formatNumber(optimizerResults.competitor_econ_score, 2)})
+                                            ({t('dashboard.tech')}: {formatNumber(optimizerResults.competitor_tech_score, 2)} + {t('dashboard.econ')}: {formatNumber(optimizerResults.competitor_econ_score, 2)})
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Current Scenario */}
                                 <div className="p-3 bg-blue-50 rounded-lg border-2 border-blue-300">
-                                    <div className="text-[10px] text-blue-700 uppercase font-bold mb-2">Scenario Attuale</div>
+                                    <div className="text-[10px] text-blue-700 uppercase font-bold mb-2">{t('dashboard.current_scenario')}</div>
                                     <div className="space-y-1.5">
                                         <div className="flex justify-between items-baseline">
-                                            <span className="text-[10px] text-slate-600">Sconto</span>
+                                            <span className="text-[10px] text-slate-600">{t('dashboard.discount')}</span>
                                             <span className="text-lg font-bold text-slate-800">
                                                 {formatNumber(myDiscount, 2)}%
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-baseline">
-                                            <span className="text-[10px] text-slate-600">Score Totale</span>
+                                            <span className="text-[10px] text-slate-600">{t('dashboard.total_score')}</span>
                                             <span className="text-sm font-bold text-slate-700">
                                                 {formatNumber(results.total_score, 2)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-baseline">
-                                            <span className="text-[10px] text-slate-600">Win Prob</span>
+                                            <span className="text-[10px] text-slate-600">{t('dashboard.win_prob')}</span>
                                             <span className={`text-sm font-bold ${monteCarlo?.win_probability >= 90 ? 'text-green-600' : monteCarlo?.win_probability >= 80 ? 'text-blue-600' : monteCarlo?.win_probability >= 70 ? 'text-orange-600' : 'text-red-600'}`}>
                                                 {monteCarlo?.win_probability || 0}%
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-baseline">
-                                            <span className="text-[10px] text-slate-600">Delta vs Comp</span>
+                                            <span className="text-[10px] text-slate-600">{t('dashboard.delta_vs_comp')}</span>
                                             <span className={`text-xs font-bold ${(results.total_score - optimizerResults.competitor_total_score) > 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                 {(results.total_score - optimizerResults.competitor_total_score) > 0 ? '+' : ''}{formatNumber(results.total_score - optimizerResults.competitor_total_score, 2)}
                                             </span>
                                         </div>
                                         <div className="pt-1.5 border-t border-blue-200 mt-1.5">
                                             <div className="flex justify-between items-baseline">
-                                                <span className="text-[10px] text-slate-600">Valore Offerta</span>
+                                                <span className="text-[10px] text-slate-600">{t('dashboard.offer_value')}</span>
                                                 <span className="text-xs font-semibold text-blue-600">
                                                     {formatCurrency(lotData?.base_amount * (1 - myDiscount / 100))}
                                                 </span>
@@ -277,35 +274,35 @@ export default function Dashboard() {
 
                                 {/* Discount Impact Calculator */}
                                 <div className="mt-4 mb-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-                                    <div className="text-xs font-bold text-purple-900 mb-3 uppercase tracking-wide">📊 Calcolatore Impatto Sconto</div>
+                                    <div className="text-xs font-bold text-purple-900 mb-3 uppercase tracking-wide">📊 {t('dashboard.discount_impact_calculator')}</div>
                                     <div className="grid grid-cols-3 gap-3 text-center">
                                         <div>
-                                            <div className="text-[10px] text-slate-600 mb-1">Sconto Attuale</div>
+                                            <div className="text-[10px] text-slate-600 mb-1">{t('dashboard.current_discount')}</div>
                                             <div className="text-lg font-bold text-slate-900">{formatNumber(myDiscount, 1)}%</div>
-                                            <div className="text-xs text-slate-600">{formatNumber(results?.economic_score || 0, 2)} pt</div>
+                                            <div className="text-xs text-slate-600">{formatNumber(results?.economic_score || 0, 2)} {t('dashboard.points_short')}</div>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] text-slate-600 mb-1">Best Offer</div>
+                                            <div className="text-[10px] text-slate-600 mb-1">{t('dashboard.best_offer')}</div>
                                             <div className="text-lg font-bold text-orange-600">{formatNumber(competitorDiscount, 1)}%</div>
                                             <div className="text-xs text-slate-600">
-                                                {formatNumber(simulationData?.find(p => Math.abs(p.discount - competitorDiscount) < 0.1)?.economic_score || 0, 2)} pt
+                                                {formatNumber(simulationData?.find(p => Math.abs(p.discount - competitorDiscount) < 0.1)?.economic_score || 0, 2)} {t('dashboard.points_short')}
                                             </div>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] text-slate-600 mb-1">Diff Punti Econ.</div>
+                                            <div className="text-[10px] text-slate-600 mb-1">{t('dashboard.econ_points_diff')}</div>
                                             <div className={`text-lg font-bold ${(results?.economic_score || 0) - (simulationData?.find(p => Math.abs(p.discount - competitorDiscount) < 0.1)?.economic_score || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                 {formatNumber((results?.economic_score || 0) - (simulationData?.find(p => Math.abs(p.discount - competitorDiscount) < 0.1)?.economic_score || 0), 2)}
                                             </div>
-                                            <div className="text-[10px] text-slate-500">vs competitor</div>
+                                            <div className="text-[10px] text-slate-500">{t('dashboard.vs_competitor')}</div>
                                         </div>
                                     </div>
                                     <div className="mt-3 text-[10px] text-purple-700 text-center">
-                                        💡 Ogni +1% sconto ≈ {formatNumber(((simulationData?.find(p => p.discount === myDiscount + 1)?.economic_score || 0) - (results?.economic_score || 0)), 2)} punti economici
+                                        💡 {t('dashboard.discount_impact_tip', { value: formatNumber(((simulationData?.find(p => p.discount === myDiscount + 1)?.economic_score || 0) - (results?.economic_score || 0)), 2) })}
                                     </div>
                                 </div>
 
                                 {/* Scenarios Grid */}
-                                <div className="text-[10px] text-slate-600 uppercase font-bold mb-2">Scenari Sconto</div>
+                                <div className="text-[10px] text-slate-600 uppercase font-bold mb-2">{t('dashboard.discount_scenarios')}</div>
                                 <div className="grid grid-cols-2 gap-3">
                                     {optimizerResults.scenarios?.map((scenario) => {
                                         const colorClasses = {
@@ -327,36 +324,36 @@ export default function Dashboard() {
                                                 className={`p-3 rounded-lg border-2 ${colorClasses[scenario.name] || 'border-slate-200 bg-slate-50'} transition-all hover:shadow-md cursor-pointer`}
                                             >
                                                 <div className={`text-xs font-bold mb-2 ${textColorClasses[scenario.name] || 'text-slate-700'}`}>
-                                                    {scenario.name}
+                                                    {t(`dashboard.scenarios.${scenario.name.toLowerCase()}`)}
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <div className="flex justify-between items-baseline">
-                                                        <span className="text-[10px] text-slate-500">Sconto</span>
+                                                        <span className="text-[10px] text-slate-500">{t('dashboard.discount')}</span>
                                                         <span className="text-lg font-bold text-slate-800">
                                                             {formatNumber(scenario.suggested_discount, 2)}%
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between items-baseline">
-                                                        <span className="text-[10px] text-slate-500">Score Totale</span>
+                                                        <span className="text-[10px] text-slate-500">{t('dashboard.total_score')}</span>
                                                         <span className="text-sm font-bold text-slate-700">
                                                             {formatNumber(scenario.resulting_total_score, 2)}
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between items-baseline">
-                                                        <span className="text-[10px] text-slate-500">Win Prob</span>
+                                                        <span className="text-[10px] text-slate-500">{t('dashboard.win_prob')}</span>
                                                         <span className={`text-sm font-bold ${scenario.win_probability >= 90 ? 'text-green-600' : scenario.win_probability >= 80 ? 'text-blue-600' : 'text-orange-600'}`}>
                                                             {formatNumber(scenario.win_probability, 2)}%
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between items-baseline">
-                                                        <span className="text-[10px] text-slate-500">Delta vs Comp</span>
+                                                        <span className="text-[10px] text-slate-500">{t('dashboard.delta_vs_comp')}</span>
                                                         <span className={`text-xs font-bold ${scenario.delta_vs_competitor > 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                             {scenario.delta_vs_competitor > 0 ? '+' : ''}{formatNumber(scenario.delta_vs_competitor, 2)}
                                                         </span>
                                                     </div>
                                                     <div className="pt-1.5 border-t border-slate-200 mt-1.5">
                                                         <div className="flex justify-between items-baseline">
-                                                            <span className="text-[10px] text-slate-500 font-bold">Valore Offerta</span>
+                                                            <span className="text-[10px] text-slate-500 font-bold">{t('dashboard.offer_value')}</span>
                                                             <span className="text-sm font-bold text-slate-900">
                                                                 {formatCurrency(lotData?.base_amount * (1 - scenario.suggested_discount / 100))}
                                                             </span>
@@ -390,11 +387,11 @@ export default function Dashboard() {
                     <h3 className="font-semibold text-slate-800">{t('dashboard.detail_table')}</h3>
                     <div className="flex gap-2">
                         <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100 shadow-sm">
-                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Weighted:</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{t('dashboard.weighted')}:</span>
                             <span className="text-sm font-bold">{formatNumber(results.technical_score, 2)} / {lotData?.max_tech_score || 60}</span>
                         </div>
                         <div className="flex items-center gap-1.5 bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200">
-                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Raw:</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{t('dashboard.raw')}:</span>
                             <span className="text-sm font-bold">{formatNumber(results.raw_technical_score || 0, 2)} / {lotData?.max_raw_score || 0}</span>
                         </div>
                     </div>
@@ -404,10 +401,10 @@ export default function Dashboard() {
                         <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-100">
                             <tr>
                                 <th scope="col" className="px-6 py-3">{t('dashboard.requirement')}</th>
-                                <th scope="col" className="px-6 py-3 text-right">Raw</th>
-                                <th scope="col" className="px-6 py-3 text-right">Max Raw</th>
-                                <th scope="col" className="px-6 py-3 text-right text-amber-700">Pesato</th>
-                                <th scope="col" className="px-6 py-3 text-right text-amber-700">Peso Gara</th>
+                                <th scope="col" className="px-6 py-3 text-right">{t('dashboard.raw')}</th>
+                                <th scope="col" className="px-6 py-3 text-right">{t('dashboard.max_raw')}</th>
+                                <th scope="col" className="px-6 py-3 text-right text-amber-700">{t('dashboard.weighted')}</th>
+                                <th scope="col" className="px-6 py-3 text-right text-amber-700">{t('dashboard.tender_weight')}</th>
                                 <th scope="col" className="px-6 py-3 text-center">{t('dashboard.status')}</th>
                             </tr>
                         </thead>
@@ -424,7 +421,7 @@ export default function Dashboard() {
                                 <td className="px-6 py-4 text-right text-amber-500">{formatNumber(lotData.company_certs?.reduce((sum, c) => sum + (c.gara_weight || 0), 0) || 0, 1)}</td>
                                 <td className="px-6 py-4 text-center">
                                     {((results.company_certs_score || 0) >= (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0.001) && (results.company_certs_score || 0) > 0) ?
-                                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">MAX</span> :
+                                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">{t('dashboard.max_status')}</span> :
                                         <span className="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">{formatNumber((results.company_certs_score || 0) / (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 1) * 100, 0)}%</span>
                                     }
                                 </td>
@@ -449,7 +446,7 @@ export default function Dashboard() {
                                         <td className="px-6 py-4 text-right text-amber-500">{formatNumber(req.gara_weight || 0, 1)}</td>
                                         <td className="px-6 py-4 text-center">
                                             {isMax ?
-                                                <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">MAX</span>
+                                                <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">{t('dashboard.max_status')}</span>
                                                 :
                                                 <span className="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">{formatNumber(percentage, 0)}%</span>
                                             }

@@ -5,6 +5,7 @@ import { API_URL } from '../../../utils/api';
 
 const ConfigContext = createContext(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useConfig = () => {
   const context = useContext(ConfigContext);
   if (!context) {
@@ -51,7 +52,7 @@ export const ConfigProvider = ({ children }) => {
 
   useEffect(() => {
     fetchConfig();
-  }, []);
+  }, [fetchConfig]);
 
   const value = {
     config,

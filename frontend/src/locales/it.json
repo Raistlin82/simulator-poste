@@ -31,7 +31,11 @@
         "add_prompt": "Nome della nuova Gara/Lotto:",
         "best_price_badge": "🔥 MIGLIOR PREZZO!",
         "save_success": "Dati salvati con successo",
-        "save_error": "Errore durante il salvataggio"
+        "save_error": "Errore durante il salvataggio",
+        "no_config_to_save": "Nessuna configurazione da salvare",
+        "demo_mode": "DEMO MODE - Frontend Only (Backend non disponibile)",
+        "toggle_menu": "Toggle menu",
+        "poste_italiane_logo": "Poste Italiane"
     },
     "dashboard": {
         "strategic_report": "Report Strategico",
@@ -66,7 +70,38 @@
         "avg": "AVG",
         "max_label": "MAX",
         "threshold_win": "Competitor",
-        "chart_description": "Il grafico proietta il tuo punteggio al variare dello sconto, calcolato sulla base dei tuoi requisiti tecnici attuali."
+        "chart_description": "Il grafico proietta il tuo punteggio al variare dello sconto, calcolato sulla base dei tuoi requisiti tecnici attuali.",
+        "competitor_to_beat": "Competitor da Battere",
+        "competitor_tech_score": "Punteggio Tecnico Competitor",
+        "competitor_econ_discount": "Sconto Economico Competitor",
+        "max_best_offer": "Max: Best Offer {{discount}}%",
+        "competitor_total": "Competitor Totale",
+        "tech": "Tech",
+        "econ": "Econ",
+        "current_scenario": "Scenario Attuale",
+        "discount": "Sconto",
+        "total_score": "Score Totale",
+        "delta_vs_comp": "Delta vs Comp",
+        "offer_value": "Valore Offerta",
+        "discount_impact_calculator": "Calcolatore Impatto Sconto",
+        "current_discount": "Sconto Attuale",
+        "points_short": "pt",
+        "best_offer": "Best Offer",
+        "econ_points_diff": "Diff Punti Econ.",
+        "vs_competitor": "vs competitor",
+        "discount_impact_tip": "Ogni +1% sconto ≈ {{value}} punti economici",
+        "discount_scenarios": "Scenari Sconto",
+        "scenarios": {
+            "conservativo": "Conservativo",
+            "bilanciato": "Bilanciato",
+            "aggressivo": "Aggressivo",
+            "max": "Max"
+        },
+        "weighted": "Pesato",
+        "raw": "Raw",
+        "max_raw": "Max Raw",
+        "tender_weight": "Peso Gara",
+        "max_status": "MAX"
     },
     "tech_evaluator": {
         "title": "Valutazione Tecnica",
@@ -152,7 +187,11 @@
         "req_labels": "Etichette Requisiti Globali",
         "add_item": "Aggiungi Elemento",
         "save_success": "Master Data salvati con successo",
-        "item_placeholder": "es. ISO 9001 o PMP"
+        "item_placeholder": "es. ISO 9001 o PMP",
+        "new_formula": "Nuova Formula",
+        "label": "Etichetta",
+        "formula_description": "Descrizione Formula",
+        "no_items": "Nessun elemento presente."
     },
     "simulation": {
         "title": "Parametri Simulazione",

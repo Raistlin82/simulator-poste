@@ -1,11 +1,10 @@
 import { Sliders, Settings, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { formatCurrency, formatNumber } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
 
 export default function Sidebar({
-    isOpen,
     onClose
 }) {
     const { t } = useTranslation();

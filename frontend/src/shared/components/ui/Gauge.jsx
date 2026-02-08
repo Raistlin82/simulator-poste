@@ -18,9 +18,6 @@ export default function Gauge({ value, max, color, label, raw, weighted }) {
     { name: 'Empty', value: max - value }
   ];
 
-  // Calculate percentage for needle or just filled arc
-  const percent = (value / max) * 100;
-
   return (
     <div className="h-40 w-full relative flex flex-col items-center justify-center">
       <ResponsiveContainer width="100%" height={160} minWidth={100}>

@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 
 const AuthContext = createContext(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -23,6 +24,7 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (!isOIDCConfigured()) {
             logger.warn('OIDC not configured - running in dev mode without authentication');
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsLoading(false);
             // Set mock user for development
             setUser({
