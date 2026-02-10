@@ -897,6 +897,9 @@ def simulate(data: schemas.SimulationRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Lot not found")
     lot_cfg = schemas.LotConfig.model_validate(lot_cfg_db)
 
+    # Clamp tech score to lot maximum to prevent invalid totals
+    clamped_tech_score = min(data.current_tech_score, lot_cfg.max_tech_score)
+
     p_base = data.base_amount
     p_best_comp = p_base * (1 - (data.competitor_discount / 100))
     results = []
@@ -909,7 +912,7 @@ def simulate(data: schemas.SimulationRequest, db: Session = Depends(get_db)):
         results.append(
             {
                 "discount": d,
-                "total_score": round(data.current_tech_score + e_s, 2),
+                "total_score": round(clamped_tech_score + e_s, 2),
                 "economic_score": round(e_s, 2),
             }
         )

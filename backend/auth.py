@@ -93,7 +93,14 @@ class OIDCMiddleware:
 
         # Skip authentication if OIDC not configured (dev mode)
         if not self.config.client_id:
-            logger.warning("OIDC not configured - bypassing authentication")
+            # In production, OIDC must be configured - fail fast
+            if os.getenv("ENVIRONMENT") == "production":
+                logger.error("OIDC not configured in production environment")
+                return JSONResponse(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    content={"detail": "Authentication service not configured"},
+                )
+            logger.warning("OIDC not configured - bypassing authentication (dev mode)")
             request.state.user = {"sub": "dev-user", "email": "dev@example.com"}
             return await call_next(request)
 

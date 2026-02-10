@@ -1,73 +1,100 @@
 # Simulator Poste - Tender Evaluation System
 
-Enterprise-ready simulator for technical and economic evaluation of multi-lot public tenders. Built with React + FastAPI.
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-Proprietary-red.svg)
+![Python](https://img.shields.io/badge/python-3.12+-green.svg)
+![React](https://img.shields.io/badge/react-19.x-61dafb.svg)
 
-## Features
+Sistema enterprise per la simulazione e valutazione di gare d'appalto pubbliche multi-lotto. Calcola punteggi tecnici ed economici, esegue analisi Monte Carlo per probabilità di vittoria, e genera report PDF professionali.
 
-- **Multi-lot Configuration**: Configure multiple tender lots with different requirements and weights
-- **Technical Scoring**: Evaluate proposals based on configurable criteria and sub-criteria
-- **Economic Scoring**: Progressive discount formula with alpha exponent
-- **Monte Carlo Simulation**: Win probability analysis with 500+ iterations
-- **Discount Optimizer**: Find optimal discount for maximum win probability
-- **PDF Export**: Generate detailed evaluation reports
-- **OIDC Authentication**: Secure access with SAP IAS integration
-- **Internationalization**: Italian language support (i18n)
+## 📋 Indice
 
-## Project Structure
+- [Caratteristiche](#-caratteristiche)
+- [Architettura](#-architettura)
+- [Quick Start](#-quick-start)
+- [Documentazione](#-documentazione)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
+- [Tech Stack](#-tech-stack)
+
+## ✨ Caratteristiche
+
+| Funzionalità | Descrizione |
+|-------------|-------------|
+| **Configurazione Multi-lotto** | Gestione di più lotti di gara con requisiti e pesi differenti |
+| **Scoring Tecnico** | Valutazione basata su criteri configurabili con pesi interni |
+| **Scoring Economico** | Formula di interpolazione con esponente alpha progressivo |
+| **Monte Carlo Simulation** | Analisi probabilità di vittoria con 500+ iterazioni |
+| **Discount Optimizer** | Suggerisce lo sconto ottimale per massimizzare la probabilità di vittoria |
+| **Export PDF** | Report professionali con grafici e analisi strategica |
+| **Autenticazione OIDC** | Integrazione sicura con SAP Identity Authentication Service |
+| **Internazionalizzazione** | Supporto lingua italiana (i18n) |
+
+## 🏗 Architettura
 
 ```
 simulator-poste/
-├── backend/                    # FastAPI Backend
-│   ├── main.py                # API endpoints & business logic
+├── backend/                      # FastAPI Backend (Python 3.12+)
+│   ├── main.py                   # Endpoint API e logica di business
 │   ├── services/
-│   │   └── scoring_service.py # Scoring calculations
-│   ├── models.py              # SQLAlchemy ORM models
-│   ├── schemas.py             # Pydantic request/response schemas
-│   ├── crud.py                # Database CRUD operations
-│   ├── auth.py                # OIDC authentication
-│   └── database.py            # SQLite database config
+│   │   └── scoring_service.py    # Calcolo punteggi (estratto per testabilità)
+│   ├── models.py                 # Modelli SQLAlchemy ORM
+│   ├── schemas.py                # Schemi Pydantic per validazione
+│   ├── crud.py                   # Operazioni CRUD database
+│   ├── auth.py                   # Middleware autenticazione OIDC
+│   ├── database.py               # Configurazione SQLite
+│   ├── pdf_generator.py          # Generatore report PDF
+│   └── logging_config.py         # Logging strutturato
 │
-├── frontend/                   # React Frontend
+├── frontend/                     # React Frontend (Vite)
 │   ├── src/
-│   │   ├── App.jsx            # Main application component
-│   │   ├── components/        # UI components
-│   │   │   ├── Dashboard.jsx  # Score gauges & charts
-│   │   │   ├── ConfigPage.jsx # Lot configuration
-│   │   │   ├── TechEvaluator.jsx # Technical evaluation
-│   │   │   └── Sidebar.jsx    # Navigation & controls
+│   │   ├── App.jsx               # Componente principale applicazione
+│   │   ├── components/           # Componenti UI
+│   │   │   ├── Dashboard.jsx     # Gauge, grafici, analisi strategica
+│   │   │   ├── ConfigPage.jsx    # Configurazione lotti e requisiti
+│   │   │   ├── TechEvaluator.jsx # Valutazione tecnica interattiva
+│   │   │   └── Sidebar.jsx       # Navigazione e controlli sconto
 │   │   ├── features/
-│   │   │   ├── config/        # Configuration context
-│   │   │   └── simulation/    # Simulation context
-│   │   └── shared/            # Shared components & hooks
+│   │   │   ├── config/           # Context configurazione
+│   │   │   └── simulation/       # Context simulazione
+│   │   ├── shared/               # Componenti condivisi (Gauge, Toast)
+│   │   └── locales/              # File traduzioni (it.json)
 │   └── package.json
 │
-├── k8s/                       # Kubernetes/Kyma manifests
-├── docker-compose.yml         # Local Docker deployment
-├── start-all.sh              # Docker-based startup
-├── start-backend.sh          # Backend-only startup
-└── start-frontend.sh         # Frontend-only startup
+├── k8s/                          # Manifesti Kubernetes/Kyma
+├── docs/                         # Documentazione dettagliata
+│   ├── api.md                    # Reference API completa
+│   ├── user-guide.md             # Guida utente
+│   └── technical.md              # Documentazione tecnica
+│
+├── docker-compose.yml            # Deployment Docker locale
+└── render.yaml                   # Configurazione Render.com
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
-### Option 1: Docker (Recommended)
+### Opzione 1: Docker (Consigliato)
 
 ```bash
+# Avvia frontend e backend con Docker
 ./start-all.sh
+
+# Oppure con docker-compose direttamente
+docker-compose up --build
 ```
 
-This starts both services:
-- Frontend: http://localhost:5173
-- Backend: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+Servizi disponibili:
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8000
+- **API Docs (Swagger)**: http://localhost:8000/docs
 
-### Option 2: Manual Development
+### Opzione 2: Sviluppo Manuale
 
 **Backend:**
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -79,49 +106,7 @@ npm install
 npm run dev
 ```
 
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/config` | Get all lot configurations |
-| POST | `/config` | Update lot configuration |
-| POST | `/config/add` | Add new lot |
-| DELETE | `/config/{lot_key}` | Delete lot |
-| POST | `/config/state` | Save simulation state |
-| GET | `/master-data` | Get master data (certs, labels) |
-| POST | `/calculate` | Calculate technical & economic scores |
-| POST | `/simulate` | Generate discount simulation curve |
-| POST | `/monte-carlo` | Run Monte Carlo win probability |
-| POST | `/optimize-discount` | Find optimal discount |
-| POST | `/export-pdf` | Generate PDF report |
-| GET | `/health` | Health check with DB status |
-| GET | `/metrics` | System metrics (CPU, RAM) |
-
-## Scoring Formulas
-
-### Technical Score
-
-```
-Raw Score = Σ(criterion_weight × judgment_value) + bonus_points
-Technical Score = (Raw Score / Max Raw Score) × Max Tech Score
-```
-
-Where judgment values are: 0 (Inadequate), 2 (Partial), 3 (Adequate), 4 (Good), 5 (Excellent)
-
-### Economic Score
-
-```
-ratio = (P_base - P_offered) / (P_base - P_actual_best)
-Economic Score = Max Econ × (ratio ^ alpha)
-```
-
-Where:
-- `P_actual_best = min(P_offered, P_competitor)`
-- `alpha` controls discount reward curve (default: 0.3)
-
-## Configuration
-
-### Environment Variables
+### Variabili d'Ambiente
 
 ```bash
 # Backend
@@ -131,36 +116,74 @@ OIDC_CLIENT_ID=your-client-id
 OIDC_AUDIENCE=your-audience
 FRONTEND_URL=http://localhost:5173
 
-# Frontend (via Vite)
+# Frontend (.env)
 VITE_API_URL=/api
 VITE_OIDC_ISSUER=...
 VITE_OIDC_CLIENT_ID=...
 ```
 
-### Database
+## 📚 Documentazione
 
-SQLite database stored at `backend/simulator_poste.db`. Seeded automatically from `lot_configs.json` on first startup.
+| Documento | Descrizione |
+|-----------|-------------|
+| [API Reference](docs/api.md) | Documentazione completa di tutti gli endpoint REST |
+| [Guida Utente](docs/user-guide.md) | Come utilizzare l'applicazione passo-passo |
+| [Documentazione Tecnica](docs/technical.md) | Architettura, formule, schema database |
 
-## Testing
+### Endpoint Principali
+
+| Metodo | Endpoint | Descrizione |
+|--------|----------|-------------|
+| GET | `/api/config` | Recupera tutte le configurazioni lotto |
+| POST | `/api/calculate` | Calcola punteggi tecnici ed economici |
+| POST | `/api/simulate` | Genera curva simulazione sconto |
+| POST | `/api/monte-carlo` | Esegue simulazione Monte Carlo |
+| POST | `/api/optimize-discount` | Trova lo sconto ottimale |
+| POST | `/api/export-pdf` | Genera report PDF |
+| GET | `/health` | Health check con stato database |
+
+### Formule di Scoring
+
+**Punteggio Economico:**
+```
+ratio = (P_base - P_offerto) / (P_base - P_migliore_effettivo)
+Punteggio_Economico = Max_Econ × (ratio ^ alpha)
+```
+
+**Punteggio Professionale (Certificazioni):**
+```
+Punteggio = (2 × R) + (R × C)
+```
+Dove: R = risorse, C = certificazioni (C ≤ R)
+
+## 🧪 Testing
 
 ```bash
-# Backend tests
+# Test backend
 cd backend
 pip install -r requirements-test.txt
 pytest test_main.py -v
 
-# Frontend tests
-cd frontend
-npm run test
+# Test con coverage
+pytest --cov=. --cov-report=html
+
+# Test specifici
+pytest test_main.py::TestEconomicScore -v
+pytest test_main.py::TestProfScore -v
 ```
 
-## Deployment
+**Test Suite:**
+- 13 test unitari
+- Coverage formule di scoring
+- Test endpoint API
 
-### Kubernetes/Kyma
+## 🚢 Deployment
 
-Manifests in `k8s/` folder:
+### Kubernetes/Kyma (SAP BTP)
+
 ```bash
 kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secrets.yaml    # Da template
 kubectl apply -f k8s/backend/
 kubectl apply -f k8s/frontend/
 kubectl apply -f k8s/apirule.yaml
@@ -168,35 +191,54 @@ kubectl apply -f k8s/apirule.yaml
 
 ### Render.com
 
-Configuration in `render.yaml` for automatic deployment.
+Il file `render.yaml` contiene la configurazione Blueprint per deployment automatico.
 
-## Tech Stack
+### Docker Compose (Production)
 
-**Backend:**
-- FastAPI 0.128.0
-- SQLAlchemy 2.0.46
-- Pydantic 2.12.5
-- NumPy 2.2.6
-- ReportLab 4.4.9
+```bash
+./start-prod.sh
+```
 
-**Frontend:**
-- React 19.2.0
-- Vite 7.2.4
-- Tailwind CSS 4.1.18
-- Recharts 3.6.0
-- i18next 25.7.4
-- Axios 1.13.2
+## 🛠 Tech Stack
 
-## Performance
+### Backend
+| Tecnologia | Versione | Scopo |
+|------------|----------|-------|
+| FastAPI | 0.128.0 | Framework API REST |
+| SQLAlchemy | 2.0.46 | ORM database |
+| Pydantic | 2.12.5 | Validazione dati |
+| NumPy | 2.2.6 | Calcoli numerici, Monte Carlo |
+| ReportLab | 4.4.9 | Generazione PDF |
+| python-jose | 3.3.0 | Validazione JWT |
 
-- Backend: ~54MB RAM, <1% CPU idle
-- Frontend: HMR in <100ms
-- API: <500ms p95 response time
+### Frontend
+| Tecnologia | Versione | Scopo |
+|------------|----------|-------|
+| React | 19.2.0 | Framework UI |
+| Vite | 7.2.4 | Build tool |
+| Tailwind CSS | 4.1.18 | Styling |
+| Recharts | 3.6.0 | Grafici |
+| i18next | 25.7.4 | Internazionalizzazione |
+| Axios | 1.13.2 | HTTP client |
 
-## Author
+### Database
+- **SQLite** in sviluppo/staging
+- Migrabile a PostgreSQL per produzione
 
-Gabriele Rendina
+## 📊 Performance
 
-## License
+| Metrica | Valore |
+|---------|--------|
+| RAM Backend | ~54MB |
+| CPU Idle | <1% |
+| API Response (p95) | <500ms |
+| Frontend HMR | <100ms |
+| Monte Carlo (500 iter) | <200ms |
 
-Proprietary - All rights reserved
+## 👤 Autore
+
+**Gabriele Rendina**
+
+## 📄 Licenza
+
+Proprietario - Tutti i diritti riservati
