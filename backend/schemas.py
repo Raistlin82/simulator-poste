@@ -105,10 +105,10 @@ class MonteCarloRequest(BaseModel):
     base_amount: float = Field(gt=0, description="Base amount must be greater than 0")
     my_discount: float = Field(ge=0, le=100, description="Discount must be between 0 and 100")
     competitor_discount_mean: float = Field(ge=0, le=100, description="Discount must be between 0 and 100")
-    competitor_discount_std: float = Field(ge=0, default=3.5, description="Standard deviation must be non-negative")
+    competitor_discount_std: float = Field(ge=0, default=3.5, description="Standard deviation of competitor discount (default: 3.5% based on typical market variance)")
     current_tech_score: float = Field(ge=0, description="Technical score must be non-negative")
     competitor_tech_score_mean: Optional[float] = Field(default=None, ge=0, description="Competitor tech score mean (if None, uses 90% of max)")
-    competitor_tech_score_std: float = Field(default=3.0, ge=0, description="Competitor tech score standard deviation")
+    competitor_tech_score_std: float = Field(default=3.0, ge=0, description="Standard deviation of competitor tech score (default: 3.0 points based on typical variance)")
     iterations: int = Field(ge=1, le=10000, default=500, description="Iterations must be between 1 and 10000")
 
 
@@ -131,6 +131,7 @@ class ExportPDFRequest(BaseModel):
     total_score: float
     my_discount: float
     competitor_discount: float
+    competitor_tech_score: Optional[float] = None  # Actual competitor tech score (if None, uses 90% of max)
     avg_total_score: float = 0.0
     details: Dict[str, float] = Field(default_factory=dict)
     weighted_scores: Dict[str, float] = Field(default_factory=dict)  # Weighted scores per requirement

@@ -100,6 +100,7 @@ export default function Dashboard() {
                 total_score: results.total_score,
                 my_discount: myDiscount,
                 competitor_discount: competitorDiscount,
+                competitor_tech_score: competitorTechScore, // Pass actual competitor tech score
                 win_probability: monteCarlo?.win_probability || 0,
                 avg_total_score: monteCarlo?.avg_total_score || 0,
                 details: results.details,

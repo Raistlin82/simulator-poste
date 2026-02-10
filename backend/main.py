@@ -391,10 +391,15 @@ def calculate_prof_score(R, C, max_res, max_points, max_certs=5):
     Returns:
         Score capped at max_points
     """
-    # Use user provided values directly without capping R or C based on defaults
+    # Clamp R and C to their maximums to prevent unrealistic scores
+    R = min(R, max_res)
+    C = min(C, max_certs)
+    
+    # Ensure C doesn't exceed R (can't have more certs than resources)
+    if R < C:
+        C = R
+    
     # Logic: (2 * R) + (R * C)
-
-    # However, we still respect the explicit max_points if provided in config (which we set to 1000 now)
     score = (2 * R) + (R * C)
 
     # Cap at maximum points allowed
@@ -1043,13 +1048,15 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
     # If can't beat: show progressive discounts to minimize loss
     # If can beat: show discounts around the threshold
     if not can_beat:
-        # Show 4 levels of high discounts to minimize damage
-        scenarios_config = [
-            {"name": "Conservativo", "discount": 40},
-            {"name": "Bilanciato", "discount": 50},
-            {"name": "Aggressivo", "discount": 60},
-            {"name": "Max", "discount": 70},
-        ]
+        # Ancoriamo gli scenari al best price di mercato per evitare proposte irrealistiche
+        base = data.best_offer_discount
+        deltas = [0, 2, 5, 8]  # step progressivi ma vicini al mercato
+        scenario_names = ["Conservativo", "Bilanciato", "Aggressivo", "Max"]
+
+        scenarios_config = []
+        for name, d in zip(scenario_names, deltas):
+            disc = min(70, max(0, base + d))
+            scenarios_config.append({"name": name, "discount": disc})
     else:
         # Show discounts around minimum needed
         scenarios_config = [
@@ -1174,6 +1181,9 @@ def export_pdf(data: schemas.ExportPDFRequest, db: Session = Depends(get_db)):
     score_distribution = np.array(score_distribution)
 
     # Calculate win probability
+    # Use actual competitor tech score if provided, otherwise estimate at 90% of max
+    competitor_tech = data.competitor_tech_score if hasattr(data, 'competitor_tech_score') and data.competitor_tech_score is not None else (data.max_tech_score * 0.9)
+    
     competitor_econ = calculate_economic_score(
         data.base_amount,
         data.base_amount * (1 - data.competitor_discount / 100),
@@ -1181,7 +1191,7 @@ def export_pdf(data: schemas.ExportPDFRequest, db: Session = Depends(get_db)):
         lot_cfg.alpha,
         lot_cfg.max_econ_score
     )
-    competitor_total = (data.max_tech_score * 0.9) + competitor_econ
+    competitor_total = competitor_tech + competitor_econ
     wins = np.sum(score_distribution >= competitor_total)
     win_probability = (wins / iterations) * 100
 
