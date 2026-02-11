@@ -191,8 +191,14 @@ function AppContent() {
     // Skip auto-save during state loading to prevent overwriting loaded data
     if (isLoadingState.current) return;
 
+    // Capture current lot to prevent race condition when switching lots
+    const currentLot = selectedLot;
+
     const timer = setTimeout(() => {
-      handleSaveState();
+      // Double-check lot hasn't changed during debounce period
+      if (currentLot === selectedLot) {
+        handleSaveState();
+      }
     }, 1000); // 1 second debounce
 
     return () => clearTimeout(timer);

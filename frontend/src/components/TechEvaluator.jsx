@@ -113,8 +113,7 @@ export default function TechEvaluator() {
     if (!lotData || !Array.isArray(lotData.reqs)) {
         return (
             <div className="text-center text-red-500 font-bold p-8">
-                Errore: dati del lotto non disponibili o corrotti.<br />
-                Controlla la configurazione e riprova.
+                {t('errors.lot_data_unavailable')}
             </div>
         );
     }
@@ -188,8 +187,7 @@ export default function TechEvaluator() {
                     <div className="p-6 space-y-6">
                         {lotData.reqs.filter(r => r.type === 'resource').length === 0 ? (
                             <div className="text-center text-slate-400 text-sm italic py-4">
-                                ⚠️ Nessuna certificazione professionale configurata per questo lotto.<br />
-                                Verifica la configurazione in <b>ConfigPage</b> o la sincronizzazione dei dati.
+                                ⚠️ {t('errors.no_prof_certs_configured')}
                             </div>
                         ) : (
                             lotData.reqs.filter(r => r.type === 'resource').map(req => {
@@ -214,7 +212,7 @@ export default function TechEvaluator() {
                                                     </span>
                                                 </div>
                                                 <p className="text-xs text-purple-600 font-semibold mb-1">
-                                                    📋 Configurazione richiesta: R={maxR}, C={maxC} | Max {req.max_points}pt
+                                                    📋 {t('tech.config_required')}: R={maxR}, C={maxC} | Max {req.max_points}pt
                                                 </p>
                                             </div>
                                             <div className="text-right">
@@ -245,14 +243,14 @@ export default function TechEvaluator() {
                                                     }}
                                                     className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                                                 />
-                                                <div className="text-[10px] text-slate-500 mt-1">Max configurato: {maxR}</div>
+                                                <div className="text-[10px] text-slate-500 mt-1">{t('tech.max_configured')}: {maxR}</div>
                                             </div>
 
                                             <div className="bg-white p-4 rounded-lg border border-slate-200">
                                                 <div className="flex justify-between items-center mb-4">
                                                     <span className="text-xs font-bold text-slate-700 uppercase tracking-tight">{t('common.certificates')} (C)</span>
                                                     <span className={`text-xs font-bold px-2 py-0.5 rounded ${cur.c_val > cur.r_val ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                                                        TOTALE C: {cur.c_val || 0}
+                                                        {t('tech.total_c')}: {cur.c_val || 0}
                                                     </span>
                                                 </div>
 
@@ -283,7 +281,7 @@ export default function TechEvaluator() {
                                                                         <button
                                                                             onClick={() => updateCount(-1)}
                                                                             className="p-2.5 min-w-[40px] min-h-[40px] rounded-md hover:bg-slate-200 active:bg-slate-300 text-slate-500 transition-colors flex items-center justify-center"
-                                                                            aria-label="Diminuisci"
+                                                                            aria-label={t('common.decrease')}
                                                                         >
                                                                             <Minus className="w-4 h-4" />
                                                                         </button>
@@ -292,9 +290,9 @@ export default function TechEvaluator() {
                                                                             min="0"
                                                                             value={count}
                                                                             onChange={(e) => {
-                                                                                const val = parseInt(e.target.value) || 0;
+                                                                                const val = Math.min(maxC, Math.max(0, parseInt(e.target.value) || 0));
                                                                                 const counts = { ...(cur.cert_counts || {}) };
-                                                                                counts[cert] = Math.max(0, val);
+                                                                                counts[cert] = val;
                                                                                 const newTotalC = req.selected_prof_certs.reduce((s, c) => s + (counts[c] || 0), 0);
                                                                                 // Single update to avoid race condition
                                                                                 const currentInput = inputs[req.id] || {};
@@ -309,7 +307,7 @@ export default function TechEvaluator() {
                                                                         <button
                                                                             onClick={() => updateCount(1)}
                                                                             className="p-2.5 min-w-[40px] min-h-[40px] rounded-md hover:bg-slate-200 active:bg-slate-300 text-slate-500 transition-colors flex items-center justify-center"
-                                                                            aria-label="Aumenta"
+                                                                            aria-label={t('common.increase')}
                                                                         >
                                                                             <Plus className="w-4 h-4" />
                                                                         </button>
@@ -319,7 +317,7 @@ export default function TechEvaluator() {
                                                         })
                                                     ) : (
                                                         <div className="text-[10px] text-slate-400 italic text-center py-2">
-                                                            Nessuna certificazione specifica selezionata in configurazione.
+                                                            {t('tech.no_certs_selected')}
                                                         </div>
                                                     )}
                                                 </div>
@@ -327,7 +325,7 @@ export default function TechEvaluator() {
                                                 {(!req.selected_prof_certs || req.selected_prof_certs.length === 0) && (
                                                     <div className="mt-4 pt-3 border-t border-slate-100">
                                                         <div className="flex justify-between mb-1">
-                                                            <span className="text-xs font-semibold text-slate-500">Regolazione Manuale C</span>
+                                                            <span className="text-xs font-semibold text-slate-500">{t('tech.manual_adjustment')} C</span>
                                                             <span className="text-xs font-bold">{cur.c_val || 0}</span>
                                                         </div>
                                                         <input
@@ -345,8 +343,7 @@ export default function TechEvaluator() {
                                                     <div className="mt-3 p-2 bg-amber-50 rounded border border-amber-200 flex items-start gap-2">
                                                         <Info className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
                                                         <p className="text-[9px] text-amber-700 leading-tight">
-                                                            <b>Attenzione:</b> Il numero totale di certificazioni (C={cur.c_val}) è superiore al numero di risorse (R={cur.r_val}).
-                                                            Assicurati che sia corretto per la formula (2 × R) + (R × C).
+                                                            <b>{t('common.warning')}:</b> {t('tech.certs_exceed_resources', { c: cur.c_val, r: cur.r_val })}
                                                         </p>
                                                     </div>
                                                 )}
@@ -521,7 +518,7 @@ export default function TechEvaluator() {
                                                                         updateInput(req.id, 'custom_metric_vals', { ...prev, [metric.id]: val });
                                                                     }}
                                                                     className="p-2 min-w-[40px] min-h-[40px] hover:bg-white rounded-lg border border-transparent hover:border-slate-300 active:bg-slate-100 transition-all text-slate-500 flex items-center justify-center"
-                                                                    aria-label="Diminuisci"
+                                                                    aria-label={t('common.decrease')}
                                                                 >
                                                                     <Minus className="w-5 h-5" />
                                                                 </button>
@@ -536,7 +533,7 @@ export default function TechEvaluator() {
                                                                         updateInput(req.id, 'custom_metric_vals', { ...prev, [metric.id]: val });
                                                                     }}
                                                                     className="p-2 min-w-[40px] min-h-[40px] hover:bg-white rounded-lg border border-transparent hover:border-slate-300 active:bg-slate-100 transition-all text-slate-500 flex items-center justify-center"
-                                                                    aria-label="Aumenta"
+                                                                    aria-label={t('common.increase')}
                                                                 >
                                                                     <Plus className="w-5 h-5" />
                                                                 </button>

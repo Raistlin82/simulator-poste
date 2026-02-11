@@ -77,6 +77,19 @@ def load_json_file(filename: str) -> Dict[str, Any]:
     return {}
 
 
+def save_json_file(filename: str, data: Dict[str, Any]) -> bool:
+    """Save data to JSON configuration file in backend directory"""
+    file_path = Path(__file__).parent / filename
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to save {filename}: {e}")
+        return False
+
+
 def seed_initial_data(db: Session) -> None:
     """
     Seed database with initial data from JSON files
@@ -206,7 +219,7 @@ def get_master_data(db: Session) -> Optional[models.MasterDataModel]:
 def update_master_data(
     db: Session, master_data: schemas.MasterData
 ) -> models.MasterDataModel:
-    """Update master data, creating if it doesn't exist"""
+    """Update master data, creating if it doesn't exist. Also syncs to master_data.json."""
     db_master = get_master_data(db)
     if not db_master:
         db_master = models.MasterDataModel(id="1")
@@ -220,6 +233,19 @@ def update_master_data(
 
     db.commit()
     db.refresh(db_master)
+    
+    # Auto-sync to JSON file for backup/seed purposes
+    # Preserve static fields (criteria_judgement_levels, scoring_formulas) by reading existing file first
+    existing_json = load_json_file("master_data.json")
+    json_data = {
+        **existing_json,  # Preserve static fields
+        "company_certs": db_master.company_certs or [],
+        "prof_certs": db_master.prof_certs or [],
+        "requirement_labels": db_master.requirement_labels or [],
+        "economic_formulas": db_master.economic_formulas or []
+    }
+    save_json_file("master_data.json", json_data)
+    
     return db_master
 
 

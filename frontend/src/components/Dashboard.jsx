@@ -8,6 +8,8 @@ import ScoreGauges from '../features/simulation/components/ScoreGauges';
 import SimulationChart from '../features/simulation/components/SimulationChart';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
+import { useToast } from '../shared/components/ui/Toast';
+import { logger } from '../utils/logger';
 import { API_URL } from '../utils/api';
 
 export default function Dashboard({ onNavigate }) {
@@ -34,9 +36,14 @@ export default function Dashboard({ onNavigate }) {
     const [optimizerResults, setOptimizerResults] = useState(null);
     const [optimizerLoading, setOptimizerLoading] = useState(false);
 
+    // Toast notifications
+    const { error: showError } = useToast();
+
     // Run Monte Carlo when params change
     useEffect(() => {
         if (!results || !lotData) return;
+
+        let isMounted = true;
 
         const runMC = async () => {
             try {
@@ -51,14 +58,20 @@ export default function Dashboard({ onNavigate }) {
                     competitor_tech_score_std: 3.0, // assumed volatility
                     iterations: 500
                 });
-                setMonteCarlo(res.data);
+                if (isMounted) setMonteCarlo(res.data);
             } catch (err) {
-                console.error("MC Error", err);
+                if (isMounted) {
+                    logger.error("Monte Carlo simulation failed", err, { component: "Dashboard" });
+                    showError(t('errors.monte_carlo_failed'));
+                }
             }
         };
 
         const timer = setTimeout(runMC, 1000); // debounce
-        return () => clearTimeout(timer);
+        return () => {
+            isMounted = false;
+            clearTimeout(timer);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [myDiscount, competitorDiscount, results?.technical_score, lotKey, lotData, competitorTechScore]);
 
@@ -66,8 +79,10 @@ export default function Dashboard({ onNavigate }) {
     useEffect(() => {
         if (!results || !lotData) return;
 
+        let isMounted = true;
+
         const runOptimizer = async () => {
-            setOptimizerLoading(true);
+            if (isMounted) setOptimizerLoading(true);
             try {
                 const res = await axios.post(`${API_URL}/optimize-discount`, {
                     lot_key: lotKey,
@@ -77,17 +92,23 @@ export default function Dashboard({ onNavigate }) {
                     competitor_discount: competitorEconDiscount,
                     best_offer_discount: competitorDiscount
                 });
-                setOptimizerResults(res.data);
+                if (isMounted) setOptimizerResults(res.data);
             } catch (err) {
-                console.error("Optimizer Error", err);
+                if (isMounted) {
+                    logger.error("Optimizer failed", err, { component: "Dashboard" });
+                    showError(t('errors.optimizer_failed'));
+                }
             } finally {
-                setOptimizerLoading(false);
+                if (isMounted) setOptimizerLoading(false);
             }
         };
 
         const timer = setTimeout(runOptimizer, 1000); // debounce
-        return () => clearTimeout(timer);
-    }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount, lotData, results]);
+        return () => {
+            isMounted = false;
+            clearTimeout(timer);
+        };
+    }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount, lotData, results, showError, t]);
 
     const handleExport = async () => {
         setExportLoading(true);

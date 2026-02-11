@@ -15,7 +15,10 @@
         "home": "Home",
         "certificates": "Certificazioni",
         "points": "Punti",
-        "formula": "Formula"
+        "formula": "Formula",
+        "decrease": "Diminuisci",
+        "increase": "Aumenta",
+        "warning": "Attenzione"
     },
     "sidebar": {
         "title": "Seleziona Gara/Lotto",
@@ -214,6 +217,12 @@
         "criteria": "Criterio",
         "formula": "Formula",
         "weight": "Peso",
+        "config_required": "Configurazione richiesta",
+        "max_configured": "Max configurato",
+        "no_certs_selected": "Nessuna certificazione specifica selezionata in configurazione.",
+        "manual_adjustment": "Regolazione Manuale",
+        "total_c": "TOTALE C",
+        "certs_exceed_resources": "Il numero totale di certificazioni (C={{c}}) è superiore al numero di risorse (R={{r}}). Assicurati che sia corretto per la formula (2 × R) + (R × C).",
         "qual_options": {
             "absent": "Assente",
             "partial": "Parziale",
@@ -285,5 +294,11 @@
         "valid_from": "Da",
         "valid_until": "A",
         "retry_tooltip": "Riprova elaborazione"
+    },
+    "errors": {
+        "lot_data_unavailable": "Errore: dati del lotto non disponibili o corrotti. Controlla la configurazione e riprova.",
+        "no_prof_certs_configured": "Nessuna certificazione professionale configurata per questo lotto. Verifica la configurazione in ConfigPage o la sincronizzazione dei dati.",
+        "monte_carlo_failed": "Errore durante l'analisi Monte Carlo",
+        "optimizer_failed": "Errore durante l'ottimizzazione"
     }
 }
