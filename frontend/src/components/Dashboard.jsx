@@ -182,7 +182,8 @@ export default function Dashboard({ onNavigate }) {
                                         step="0.5"
                                         value={competitorTechScore}
                                         onChange={(e) => setCompetitorParam('competitorTechScore', parseFloat(e.target.value))}
-                                        className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                        className="flex-1 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 touch-pan-x"
+                                        style={{ minHeight: '44px' }}
                                     />
                                     <span className="text-sm font-bold text-slate-800 w-12 text-right">
                                         {formatNumber(competitorTechScore, 2)}
@@ -204,7 +205,8 @@ export default function Dashboard({ onNavigate }) {
                                         step="0.5"
                                         value={Math.min(competitorEconDiscount, competitorDiscount)}
                                         onChange={(e) => setCompetitorParam('competitorEconDiscount', parseFloat(e.target.value))}
-                                        className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                        className="flex-1 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 touch-pan-x"
+                                        style={{ minHeight: '44px' }}
                                     />
                                     <span className="text-sm font-bold text-slate-800 w-12 text-right">
                                         {formatNumber(competitorEconDiscount, 2)}%

@@ -106,50 +106,59 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
     <div ref={chartRef} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 ${isFullscreen ? 'fixed inset-0 z-50 flex flex-col' : ''}`}>
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-semibold text-slate-800">{t('dashboard.bid_to_win')}</h3>
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-2 md:gap-4 items-center flex-wrap">
           {/* Line toggles */}
-          <div className="flex gap-3 border-r pr-4 border-slate-200">
+          <div className="flex gap-2 md:gap-3 border-r pr-2 md:pr-4 border-slate-200">
             <button
               onClick={() => setShowEconomic(!showEconomic)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${showEconomic ? 'bg-green-50 border border-green-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded transition-all ${showEconomic ? 'bg-green-50 border border-green-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              aria-label="Mostra punteggio economico"
+              aria-pressed={showEconomic}
             >
               <div className="w-3 h-3 bg-green-500 rounded"></div>
-              <span className="text-[10px] text-slate-700 font-bold uppercase tracking-tight">Economico</span>
+              <span className="hidden sm:inline text-xs text-slate-700 font-bold uppercase tracking-tight">Economico</span>
             </button>
             <button
               onClick={() => setShowTotal(!showTotal)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${showTotal ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded transition-all ${showTotal ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              aria-label="Mostra punteggio totale"
+              aria-pressed={showTotal}
             >
               <div className="w-3 h-3 bg-blue-500 rounded"></div>
-              <span className="text-[10px] text-slate-700 font-bold uppercase tracking-tight">Totale</span>
+              <span className="hidden sm:inline text-xs text-slate-700 font-bold uppercase tracking-tight">Totale</span>
             </button>
           </div>
 
           {/* Point toggles */}
-          <div className="flex gap-3 border-r pr-4 border-slate-200">
+          <div className="flex gap-2 md:gap-3 border-r pr-2 md:pr-4 border-slate-200">
             <button
               onClick={() => setShowCompetitor(!showCompetitor)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${showCompetitor ? 'bg-slate-100 border border-slate-300' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded transition-all ${showCompetitor ? 'bg-slate-100 border border-slate-300' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              aria-label="Mostra competitor"
+              aria-pressed={showCompetitor}
             >
               <div className="w-3 h-3 bg-black rounded-full"></div>
-              <span className="text-[10px] text-slate-700 font-bold uppercase tracking-tight">Competitor</span>
+              <span className="hidden sm:inline text-xs text-slate-700 font-bold uppercase tracking-tight">Competitor</span>
             </button>
             <button
               onClick={() => setShowLutech(!showLutech)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${showLutech ? 'bg-red-50 border border-red-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded transition-all ${showLutech ? 'bg-red-50 border border-red-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              aria-label="Mostra LUTECH"
+              aria-pressed={showLutech}
             >
               <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-[10px] text-slate-700 font-bold uppercase tracking-tight">LUTECH</span>
+              <span className="hidden sm:inline text-xs text-slate-700 font-bold uppercase tracking-tight">LUTECH</span>
             </button>
           </div>
 
           {/* Fullscreen button */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-3 min-w-[44px] min-h-[44px] hover:bg-slate-100 rounded-lg transition-colors"
             title={isFullscreen ? "Esci da fullscreen" : "Fullscreen"}
+            aria-label={isFullscreen ? "Esci da fullscreen" : "Fullscreen"}
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4 text-slate-600" /> : <Maximize2 className="w-4 h-4 text-slate-600" />}
+            {isFullscreen ? <Minimize2 className="w-5 h-5 text-slate-600" /> : <Maximize2 className="w-5 h-5 text-slate-600" />}
           </button>
         </div>
       </div>

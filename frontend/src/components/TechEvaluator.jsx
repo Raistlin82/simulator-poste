@@ -279,12 +279,13 @@ export default function TechEvaluator() {
                                                             return (
                                                                 <div key={cert} className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
                                                                     <span className="text-[11px] font-semibold text-slate-700 truncate mr-2" title={cert}>{cert}</span>
-                                                                    <div className="flex items-center gap-2 shrink-0">
+                                                                    <div className="flex items-center gap-1 shrink-0">
                                                                         <button
                                                                             onClick={() => updateCount(-1)}
-                                                                            className="p-1 rounded-md hover:bg-slate-200 text-slate-500 transition-colors"
+                                                                            className="p-2.5 min-w-[40px] min-h-[40px] rounded-md hover:bg-slate-200 active:bg-slate-300 text-slate-500 transition-colors flex items-center justify-center"
+                                                                            aria-label="Diminuisci"
                                                                         >
-                                                                            <Minus className="w-3.5 h-3.5" />
+                                                                            <Minus className="w-4 h-4" />
                                                                         </button>
                                                                         <input
                                                                             type="number"
@@ -303,13 +304,14 @@ export default function TechEvaluator() {
                                                                                     c_val: newTotalC
                                                                                 });
                                                                             }}
-                                                                            className="w-10 text-center bg-white border border-slate-200 rounded text-xs font-bold py-1 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                                            className="w-12 text-center bg-white border border-slate-200 rounded text-sm font-bold py-2 focus:ring-1 focus:ring-indigo-500 outline-none"
                                                                         />
                                                                         <button
                                                                             onClick={() => updateCount(1)}
-                                                                            className="p-1 rounded-md hover:bg-slate-200 text-slate-500 transition-colors"
+                                                                            className="p-2.5 min-w-[40px] min-h-[40px] rounded-md hover:bg-slate-200 active:bg-slate-300 text-slate-500 transition-colors flex items-center justify-center"
+                                                                            aria-label="Aumenta"
                                                                         >
-                                                                            <Plus className="w-3.5 h-3.5" />
+                                                                            <Plus className="w-4 h-4" />
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -450,7 +452,7 @@ export default function TechEvaluator() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-5 gap-2">
+                                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                                                         {JUDGMENT_OPTIONS.map(option => (
                                                             <button
                                                                 key={option.value}
@@ -461,10 +463,11 @@ export default function TechEvaluator() {
                                                                     updatedSubVals.push({ sub_id: sub.id, val: newVal });
                                                                     updateInput(req.id, 'sub_req_vals', updatedSubVals);
                                                                 }}
-                                                                className={`px-2 py-2 rounded-lg border text-[10px] font-bold transition-all ${subVal === option.value
+                                                                className={`px-2 py-3 min-h-[44px] rounded-lg border text-xs sm:text-[10px] font-bold transition-all ${subVal === option.value
                                                                     ? `${option.color} ring-2 ring-offset-1 ring-blue-500 shadow-sm`
-                                                                    : 'bg-white border-slate-200 text-slate-500 hover:border-blue-400 hover:bg-slate-50'
+                                                                    : 'bg-white border-slate-200 text-slate-500 hover:border-blue-400 hover:bg-slate-50 active:bg-slate-100'
                                                                     }`}
+                                                                aria-pressed={subVal === option.value}
                                                             >
                                                                 <div className="truncate">{option.label}</div>
                                                                 <div className="text-xs">{option.value}</div>
@@ -517,9 +520,10 @@ export default function TechEvaluator() {
                                                                         const val = Math.max(metric.min_score, (prev[metric.id] ?? metric.min_score) - 0.5);
                                                                         updateInput(req.id, 'custom_metric_vals', { ...prev, [metric.id]: val });
                                                                     }}
-                                                                    className="p-1.5 hover:bg-white rounded-lg border border-transparent hover:border-slate-300 transition-all text-slate-500"
+                                                                    className="p-2 min-w-[40px] min-h-[40px] hover:bg-white rounded-lg border border-transparent hover:border-slate-300 active:bg-slate-100 transition-all text-slate-500 flex items-center justify-center"
+                                                                    aria-label="Diminuisci"
                                                                 >
-                                                                    <Minus className="w-4 h-4" />
+                                                                    <Minus className="w-5 h-5" />
                                                                 </button>
                                                                 <div className="w-16 text-center">
                                                                     <div className="text-sm font-black text-blue-700">{formatNumber(mVal, 1)}</div>
@@ -531,9 +535,10 @@ export default function TechEvaluator() {
                                                                         const val = Math.min(metric.max_score, (prev[metric.id] ?? metric.min_score) + 0.5);
                                                                         updateInput(req.id, 'custom_metric_vals', { ...prev, [metric.id]: val });
                                                                     }}
-                                                                    className="p-1.5 hover:bg-white rounded-lg border border-transparent hover:border-slate-300 transition-all text-slate-500"
+                                                                    className="p-2 min-w-[40px] min-h-[40px] hover:bg-white rounded-lg border border-transparent hover:border-slate-300 active:bg-slate-100 transition-all text-slate-500 flex items-center justify-center"
+                                                                    aria-label="Aumenta"
                                                                 >
-                                                                    <Plus className="w-4 h-4" />
+                                                                    <Plus className="w-5 h-5" />
                                                                 </button>
                                                             </div>
                                                         </div>

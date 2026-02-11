@@ -9,7 +9,72 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Custom Range Slider Styling (Optional) */
+/* Custom Range Slider Styling - Touch Friendly */
 input[type="range"] {
   @apply accent-blue-600 cursor-pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Range slider thumb - larger for touch */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: currentColor;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: currentColor;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Mobile scroll indicators */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Horizontal scroll shadow indicators */
+.scroll-shadow-x {
+  background:
+    linear-gradient(to right, white 30%, rgba(255,255,255,0)),
+    linear-gradient(to left, white 30%, rgba(255,255,255,0)),
+    linear-gradient(to right, rgba(0,0,0,0.1) 0%, transparent 30%),
+    linear-gradient(to left, rgba(0,0,0,0.1) 0%, transparent 30%);
+  background-position: left, right, left, right;
+  background-repeat: no-repeat;
+  background-size: 40px 100%, 40px 100%, 20px 100%, 20px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* iOS Safari input appearance fix */
+input, button, select, textarea {
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Minimum touch target size helper */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Responsive text sizes */
+@media (max-width: 640px) {
+  .text-responsive-xs {
+    font-size: 0.75rem;
+  }
+  .text-responsive-sm {
+    font-size: 0.875rem;
+  }
 }

@@ -29,7 +29,7 @@ export default function Sidebar({
     const isBest = p_my < p_best;
 
     return (
-        <div className="w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg z-20">
+        <div className="w-[85vw] max-w-80 md:w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg z-20">
             {/* Lutech Logo Banner */}
             <div className="p-4 bg-gradient-to-br from-slate-50 to-white border-b border-slate-200 flex justify-between items-center">
                 <img src="/logo-lutech.png" alt="Lutech" className="h-10 object-contain" />
@@ -97,7 +97,8 @@ export default function Sidebar({
                             type="range" min="0" max="100" step="0.1"
                             value={competitorDiscount}
                             onChange={(e) => setDiscount('competitorDiscount', parseFloat(e.target.value))}
-                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                            className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-500 touch-pan-x"
+                            style={{ minHeight: '44px' }}
                         />
                         <p className="text-xs text-slate-400 mt-1 text-right">{t('simulation.best_price')}: {formatCurrency(p_best)}</p>
                     </div>
@@ -120,7 +121,8 @@ export default function Sidebar({
                             type="range" min="0" max="100" step="0.1"
                             value={myDiscount}
                             onChange={(e) => setDiscount('myDiscount', parseFloat(e.target.value))}
-                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 touch-pan-x"
+                            style={{ minHeight: '44px' }}
                         />
                         <p className="text-xs text-slate-500 mt-1 text-right">{t('simulation.your_price')}: {formatCurrency(p_my)}</p>
                         {isBest && <p className="text-xs text-green-600 font-bold mt-2">{t('app.best_price_badge')}</p>}

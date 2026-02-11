@@ -31,7 +31,7 @@ export default function ScoreGauges({ results, lotData, onExport, exportLoading 
           {t('dashboard.export_pdf')}
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Gauge
           value={results.technical_score}
           max={lotData.max_tech_score || 60}
@@ -59,7 +59,7 @@ export default function ScoreGauges({ results, lotData, onExport, exportLoading 
         results.category_project !== undefined) && (
         <div className="mt-6 pt-6 border-t border-slate-200">
           <h4 className="font-semibold text-slate-700 mb-4 text-sm">Punteggi Pesati per Categoria</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
               <div className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-1">Cert. Aziendali</div>
               <div className="text-2xl font-black text-purple-700">{(results.category_company_certs || 0).toFixed(2)}</div>
