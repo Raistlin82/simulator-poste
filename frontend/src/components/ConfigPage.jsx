@@ -77,8 +77,13 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
     const calculated_max_econ_score = 100 - calculated_max_tech_score;
 
     // Helper to calculate max_points for a requirement (pure function, no mutation)
+    // For 'resource' type: respects max_points_manual flag for manual override
     const calcRequirementMaxPoints = useCallback((req) => {
         if (req.type === 'resource') {
+            // If manual override is set, return the existing max_points
+            if (req.max_points_manual) {
+                return req.max_points || 0;
+            }
             const R = Math.max(0, parseInt(req.prof_R) || 0);
             const C = Math.min(R, Math.max(0, parseInt(req.prof_C) || 0));
             return (2 * R) + (R * C);
@@ -150,7 +155,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
             label: t('config.new_requirement'),
             max_points: 0,
             type,
-            ...(type === 'resource' && { prof_R: 1, prof_C: 1, selected_prof_certs: [] }),
+            ...(type === 'resource' && { prof_R: 1, prof_C: 1, selected_prof_certs: [], max_points_manual: false }),
             ...(type === 'reference' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5 }], attestazione_score: 0, custom_metrics: [] }),
             ...(type === 'project' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5 }], attestazione_score: 0, custom_metrics: [] })
         };
@@ -645,12 +650,19 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                         onChange={(e) => {
                                                             const newR = parseInt(e.target.value) || 1;
                                                             const newC = req.prof_C || 1;
-                                                            if (newC > newR) {
-                                                                updateRequirement(req.id, 'prof_C', newR);
-                                                            }
-                                                            updateRequirement(req.id, 'prof_R', newR);
-                                                            const score = calculateProfCertScore(newR, newC > newR ? newR : newC);
-                                                            updateRequirement(req.id, 'max_points', score);
+                                                            updateLot(lot => {
+                                                                const r = lot.reqs?.find(x => x.id === req.id);
+                                                                if (r) {
+                                                                    if (newC > newR) {
+                                                                        r.prof_C = newR;
+                                                                    }
+                                                                    r.prof_R = newR;
+                                                                    // Only update max_points if not manually set
+                                                                    if (!r.max_points_manual) {
+                                                                        r.max_points = calculateProfCertScore(newR, Math.min(newC, newR));
+                                                                    }
+                                                                }
+                                                            });
                                                         }}
                                                         className="w-full p-2 border border-purple-200 bg-white rounded text-sm font-bold text-center focus:ring-2 focus:ring-purple-500 outline-none"
                                                     />
@@ -666,25 +678,69 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                         onChange={(e) => {
                                                             const newC = parseInt(e.target.value) || 1;
                                                             const newR = req.prof_R || 1;
-                                                            if (newC > newR) {
-                                                                updateRequirement(req.id, 'prof_C', newR);
-                                                                const score = calculateProfCertScore(newR, newR);
-                                                                updateRequirement(req.id, 'max_points', score);
-                                                            } else {
-                                                                updateRequirement(req.id, 'prof_C', newC);
-                                                                const score = calculateProfCertScore(newR, newC);
-                                                                updateRequirement(req.id, 'max_points', score);
-                                                            }
+                                                            updateLot(lot => {
+                                                                const r = lot.reqs?.find(x => x.id === req.id);
+                                                                if (r) {
+                                                                    r.prof_C = newC > newR ? newR : newC;
+                                                                    // Only update max_points if not manually set
+                                                                    if (!r.max_points_manual) {
+                                                                        r.max_points = calculateProfCertScore(newR, r.prof_C);
+                                                                    }
+                                                                }
+                                                            });
                                                         }}
                                                         className="w-full p-2 border border-purple-200 bg-white rounded text-sm font-bold text-center focus:ring-2 focus:ring-purple-500 outline-none"
                                                     />
                                                 </div>
 
-                                                <div className="bg-white p-2 rounded border border-purple-200 text-center">
-                                                    <div className="text-xs font-medium text-purple-700 mb-1">Punteggio Max</div>
-                                                    <div className="text-2xl font-bold text-purple-600">
-                                                        {calculateProfCertScore(req.prof_R || 1, Math.min(req.prof_C || 1, req.prof_R || 1))}
+                                                <div className={`p-2 rounded border text-center ${req.max_points_manual ? 'bg-amber-50 border-amber-300' : 'bg-white border-purple-200'}`}>
+                                                    <div className="text-xs font-medium text-purple-700 mb-1 flex items-center justify-center gap-1">
+                                                        Punteggio Max
+                                                        {req.max_points_manual && (
+                                                            <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-1 rounded">(manuale)</span>
+                                                        )}
                                                     </div>
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="1"
+                                                            value={req.max_points || calculateProfCertScore(req.prof_R || 1, Math.min(req.prof_C || 1, req.prof_R || 1))}
+                                                            onChange={(e) => {
+                                                                const newValue = parseInt(e.target.value) || 0;
+                                                                const calculatedValue = calculateProfCertScore(req.prof_R || 1, Math.min(req.prof_C || 1, req.prof_R || 1));
+                                                                updateLot(lot => {
+                                                                    const r = lot.reqs?.find(x => x.id === req.id);
+                                                                    if (r) {
+                                                                        r.max_points = newValue;
+                                                                        r.max_points_manual = newValue !== calculatedValue;
+                                                                    }
+                                                                });
+                                                            }}
+                                                            className={`w-16 text-xl font-bold text-center border rounded focus:ring-2 focus:ring-purple-500 outline-none ${req.max_points_manual ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-purple-200 bg-white text-purple-600'}`}
+                                                        />
+                                                        {req.max_points_manual && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    const calculatedValue = calculateProfCertScore(req.prof_R || 1, Math.min(req.prof_C || 1, req.prof_R || 1));
+                                                                    updateLot(lot => {
+                                                                        const r = lot.reqs?.find(x => x.id === req.id);
+                                                                        if (r) {
+                                                                            r.max_points = calculatedValue;
+                                                                            r.max_points_manual = false;
+                                                                        }
+                                                                    });
+                                                                }}
+                                                                className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded transition-colors"
+                                                                title="Ripristina calcolo automatico"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {!req.max_points_manual && (
+                                                        <div className="text-[9px] text-purple-500 mt-1">(2×{req.prof_R || 1}) + ({req.prof_R || 1}×{Math.min(req.prof_C || 1, req.prof_R || 1)})</div>
+                                                    )}
                                                 </div>
                                             </div>
 

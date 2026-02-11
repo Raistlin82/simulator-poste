@@ -24,7 +24,9 @@ import {
   BarChart3,
   FileText,
   Clock,
-  X
+  X,
+  Upload,
+  FolderOpen
 } from 'lucide-react';
 
 // Status badge colors
@@ -33,6 +35,8 @@ const STATUS_COLORS = {
   expired: 'bg-yellow-100 text-yellow-800',
   mismatch: 'bg-orange-100 text-orange-800',
   unreadable: 'bg-gray-100 text-gray-600',
+  not_downloaded: 'bg-purple-100 text-purple-800',
+  too_large: 'bg-indigo-100 text-indigo-800',
   error: 'bg-red-100 text-red-800',
   unprocessed: 'bg-gray-100 text-gray-500',
 };
@@ -42,6 +46,8 @@ const STATUS_LABELS = {
   expired: 'status_expired',
   mismatch: 'status_mismatch',
   unreadable: 'status_unreadable',
+  not_downloaded: 'status_not_downloaded',
+  too_large: 'status_too_large',
   error: 'status_error',
   unprocessed: 'unprocessed',
 };
@@ -52,8 +58,16 @@ const STATUS_LABELS_EXPORT = {
   expired: 'Scaduto',
   mismatch: 'Mismatch',
   unreadable: 'Non leggibile',
+  not_downloaded: 'Non scaricato',
+  too_large: 'File troppo grande',
   error: 'Errore',
   unprocessed: 'Non elaborato',
+};
+
+// Input mode options
+const INPUT_MODES = {
+  FOLDER: 'folder',
+  UPLOAD: 'upload',
 };
 
 // Default column widths
@@ -97,7 +111,10 @@ const normalizeDate = (dateStr) => {
 export default function CertVerificationPage() {
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
+  const [inputMode, setInputMode] = useState(INPUT_MODES.UPLOAD); // Default to upload for remote compatibility
   const [folderPath, setFolderPath] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
@@ -115,6 +132,7 @@ export default function CertVerificationPage() {
   
   // Refs for abort and resize handling
   const abortControllerRef = useRef(null);
+  const fileInputRef = useRef(null);
   useEffect(() => {
     const fetchLots = async () => {
       try {
@@ -245,8 +263,35 @@ export default function CertVerificationPage() {
     }
   }, []);
 
+  // Handle file selection
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.toLowerCase().endsWith('.zip')) {
+        setError(t('cert_verification.select_zip_error') || 'Seleziona un file ZIP');
+        setSelectedFile(null);
+        return;
+      }
+      setSelectedFile(file);
+      setError(null);
+    }
+  };
+
+  // Clear selected file
+  const clearFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Check if verify button should be enabled
+  const canVerify = inputMode === INPUT_MODES.FOLDER 
+    ? folderPath.trim() !== ''
+    : selectedFile !== null;
+
   // Verify certificates in folder using SSE for progress
-  const handleVerify = async () => {
+  const handleVerifyFolder = async () => {
     if (!folderPath.trim()) {
       setError(t('cert_verification.enter_path'));
       return;
@@ -328,6 +373,63 @@ export default function CertVerificationPage() {
     } finally {
       setLoading(false);
       abortControllerRef.current = null;
+    }
+  };
+
+  // Verify certificates from ZIP upload
+  const handleVerifyUpload = async () => {
+    if (!selectedFile) {
+      setError(t('cert_verification.select_zip_error') || 'Seleziona un file ZIP');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setResults(null);
+    setProgress({ current: 0, total: 0, filename: '' });
+    setUploadProgress({ phase: 'uploading', percent: 0 });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      // Build query params
+      const params = new URLSearchParams();
+      if (selectedLot) {
+        params.append('lot_key', selectedLot);
+      }
+
+      const token = getAccessToken();
+      const url = `${API_URL}/verify-certs/upload${params.toString() ? '?' + params.toString() : ''}`;
+
+      const res = await axios.post(url, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress({ phase: 'uploading', percent: percentCompleted });
+        },
+      });
+
+      setResults(res.data);
+      setUploadProgress(null);
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || err.message || 'Errore sconosciuto';
+      setError(errorMsg);
+      setUploadProgress(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Main verify handler - routes to appropriate method based on input mode
+  const handleVerify = () => {
+    if (inputMode === INPUT_MODES.FOLDER) {
+      handleVerifyFolder();
+    } else {
+      handleVerifyUpload();
     }
   };
 
@@ -486,19 +588,105 @@ export default function CertVerificationPage() {
             )}
           </div>
 
+          {/* Input Mode Toggle */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              {t('cert_verification.input_mode') || 'Modalità input'}
+            </label>
+            <div className="flex rounded-lg border border-slate-300 overflow-hidden w-fit">
+              <button
+                onClick={() => setInputMode(INPUT_MODES.UPLOAD)}
+                className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                  inputMode === INPUT_MODES.UPLOAD
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                {t('cert_verification.upload_zip') || 'Upload ZIP'}
+              </button>
+              <button
+                onClick={() => setInputMode(INPUT_MODES.FOLDER)}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-l border-slate-300 flex items-center gap-2 ${
+                  inputMode === INPUT_MODES.FOLDER
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <FolderOpen className="w-4 h-4" />
+                {t('cert_verification.local_folder') || 'Cartella locale'}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              {inputMode === INPUT_MODES.UPLOAD 
+                ? (t('cert_verification.upload_hint') || 'Carica un file ZIP contenente i PDF delle certificazioni')
+                : (t('cert_verification.folder_mode_hint') || 'Inserisci il percorso di una cartella locale (solo per esecuzione locale)')}
+            </p>
+          </div>
+
           {/* Input Form */}
           <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t('cert_verification.folder_label')}
-              </label>
-              <input
-                type="text"
-                value={folderPath}
-                onChange={(e) => setFolderPath(e.target.value)}
-                placeholder={t('cert_verification.folder_placeholder')}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
-              />
+              {inputMode === INPUT_MODES.FOLDER ? (
+                /* Folder Path Input */
+                <>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {t('cert_verification.folder_label')}
+                  </label>
+                  <input
+                    type="text"
+                    value={folderPath}
+                    onChange={(e) => setFolderPath(e.target.value)}
+                    placeholder={t('cert_verification.folder_placeholder')}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
+                  />
+                </>
+              ) : (
+                /* ZIP Upload Input */
+                <>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {t('cert_verification.zip_label') || 'File ZIP certificazioni'}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".zip"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="zip-upload"
+                    />
+                    <label
+                      htmlFor="zip-upload"
+                      className="flex-1 px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-center"
+                    >
+                      {selectedFile ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <FileText className="w-5 h-5 text-green-600" />
+                          <span className="text-slate-700 font-medium">{selectedFile.name}</span>
+                          <span className="text-slate-500 text-sm">
+                            ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-slate-500">
+                          <Upload className="w-8 h-8 mx-auto mb-1 text-slate-400" />
+                          <p className="text-sm">{t('cert_verification.click_to_select') || 'Clicca per selezionare un file ZIP'}</p>
+                        </div>
+                      )}
+                    </label>
+                    {selectedFile && (
+                      <button
+                        onClick={clearFile}
+                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                        title={t('cert_verification.remove_file') || 'Rimuovi file'}
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
               <p className="mt-1 text-xs text-slate-500">
                 {t('cert_verification.folder_hint')}
               </p>
@@ -525,9 +713,9 @@ export default function CertVerificationPage() {
 
           <button
             onClick={handleVerify}
-            disabled={loading || !folderPath.trim()}
+            disabled={loading || !canVerify}
             className={`w-full lg:w-auto px-6 py-2.5 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
-              loading || !folderPath.trim()
+              loading || !canVerify
                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                 : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
             }`}
@@ -535,7 +723,9 @@ export default function CertVerificationPage() {
             {loading ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
-                {t('cert_verification.processing')}
+                {uploadProgress?.phase === 'uploading' 
+                  ? `${t('cert_verification.uploading') || 'Caricamento'}... ${uploadProgress.percent || 0}%`
+                  : t('cert_verification.processing')}
               </>
             ) : (
               <>

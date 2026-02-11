@@ -26,6 +26,12 @@ try:
 except ImportError:
     OCR_AVAILABLE = False
 
+try:
+    import fitz  # PyMuPDF for embedded text extraction
+    PYMUPDF_AVAILABLE = True
+except ImportError:
+    PYMUPDF_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # Import default vendors from shared module (avoids duplication with crud.py)
@@ -66,6 +72,9 @@ DEFAULT_DATE_PATTERNS = [
     r"(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})",  # ISO format
     r"((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4})",  # Month DD, YYYY
     r"(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})",  # DD Month YYYY
+    # Italian month patterns
+    r"(\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+\d{4})",  # DD mese YYYY
+    r"((?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+\d{1,2},?\s+\d{4})",  # mese DD, YYYY
 ]
 
 DEFAULT_TECH_TERMS = {
@@ -323,8 +332,7 @@ class CertVerificationService:
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """
-        Extract text from PDF using OCR
-        Tries rotating images if initial OCR doesn't extract useful text
+        Extract text from PDF - first tries embedded text, then falls back to OCR
         
         Args:
             pdf_path: Path to the PDF file
@@ -332,6 +340,22 @@ class CertVerificationService:
         Returns:
             Extracted text
         """
+        # First, try to extract embedded text using PyMuPDF (much faster and more accurate)
+        if PYMUPDF_AVAILABLE:
+            try:
+                embedded_text = self._extract_embedded_text(pdf_path)
+                if embedded_text and len(embedded_text.strip()) > 50:
+                    # Check if text contains meaningful content
+                    score = self._score_ocr_text(embedded_text)
+                    if score >= 5:
+                        logger.debug(f"Using embedded text extraction (score={score}, length={len(embedded_text)})")
+                        return embedded_text
+                    else:
+                        logger.debug(f"Embedded text score too low ({score}), falling back to OCR")
+            except Exception as e:
+                logger.debug(f"Embedded text extraction failed: {e}, falling back to OCR")
+        
+        # Fall back to OCR if embedded text extraction fails or is insufficient
         try:
             # Convert PDF to images using configurable DPI
             images = pdf2image.convert_from_path(pdf_path, dpi=self.ocr_dpi)
@@ -347,6 +371,24 @@ class CertVerificationService:
         except Exception as e:
             logger.error(f"Error extracting text from PDF {pdf_path}: {e}")
             raise
+    
+    def _extract_embedded_text(self, pdf_path: str) -> str:
+        """
+        Extract embedded text from PDF using PyMuPDF (fitz)
+        
+        Args:
+            pdf_path: Path to the PDF file
+            
+        Returns:
+            Extracted embedded text
+        """
+        text_parts = []
+        with fitz.open(pdf_path) as doc:
+            for page in doc:
+                text = page.get_text()
+                if text:
+                    text_parts.append(text)
+        return "\n".join(text_parts)
     
     def _ocr_with_rotation(self, image: "PILImage.Image") -> str:
         """
@@ -559,8 +601,23 @@ class CertVerificationService:
         
         return valid_from, valid_until
     
+    # Italian month name mapping
+    ITALIAN_MONTHS = {
+        'gennaio': 'january', 'febbraio': 'february', 'marzo': 'march',
+        'aprile': 'april', 'maggio': 'may', 'giugno': 'june',
+        'luglio': 'july', 'agosto': 'august', 'settembre': 'september',
+        'ottobre': 'october', 'novembre': 'november', 'dicembre': 'december'
+    }
+    
     def _parse_date(self, date_str: str) -> Optional[date]:
         """Parse a date string into a date object"""
+        # First, convert Italian month names to English
+        date_str_normalized = date_str.strip().lower()
+        for it_month, en_month in self.ITALIAN_MONTHS.items():
+            if it_month in date_str_normalized:
+                date_str_normalized = date_str_normalized.replace(it_month, en_month)
+                break
+        
         date_formats = [
             "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d",
             "%d-%m-%Y", "%m-%d-%Y", "%Y-%m-%d",
@@ -572,7 +629,7 @@ class CertVerificationService:
         
         for fmt in date_formats:
             try:
-                return datetime.strptime(date_str.strip(), fmt).date()
+                return datetime.strptime(date_str_normalized, fmt).date()
             except ValueError:
                 continue
         
@@ -711,11 +768,13 @@ class CertVerificationService:
             
             logger.debug(f"Extracted: vendor={result.vendor_detected}, code={result.cert_code_detected}, cert_name={result.cert_name_detected}, person={result.resource_name_detected}")
             logger.debug(f"OCR text first 200 chars: {text[:200] if text else 'EMPTY'}")
+            logger.debug(f"OCR text FULL length: {len(text) if text else 0}")
             
             # Extract dates
             valid_from, valid_until = self.extract_dates(text)
             result.valid_from = valid_from
             result.valid_until = valid_until
+            logger.debug(f"Dates extracted: from={valid_from}, until={valid_until}")
             
             # Determine status based on extraction success
             extraction_success = bool(result.vendor_detected or result.cert_code_detected or result.cert_name_detected)
@@ -772,12 +831,23 @@ class CertVerificationService:
         text_normalized = re.sub(r'\n+', ' ', text)
         text_normalized = re.sub(r'\s+', ' ', text_normalized)
         
+        logger.debug(f"extract_cert_name: normalized text = {repr(text_normalized[:200] if text_normalized else 'EMPTY')}")
+        
+        # Month names for date terminators
+        months = r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
+        
         # Common certification title patterns - order matters, more specific first
         cert_patterns = [
+            # Cisco patterns - must be before generic ones (include months as terminators for expiration dates)
+            rf'Cisco\s+Certified\s+Specialist\s*[-–]\s*([A-Za-z][A-Za-z\s\-]+?)(?:\s+Issued|\s+Date|\s+Cisco|\s+Expir|\s+{months}|\s+CSCO|\s+\d{{4}}|\s*$)',
+            rf'Cisco\s+Certified\s+([A-Za-z][A-Za-z\s\-]+?)(?:\s+Issued|\s+Date|\s+Cisco|\s+Expir|\s+{months}|\s+CSCO|\s+\d{{4}}|\s*$)',
+            r'(CCNA|CCNP|CCIE|CCDA|CCDP)\s*[-–]?\s*([A-Za-z][A-Za-z\s\-]*?)(?:\s+Issued|\s+Date|\s+Cisco|\s*$)',
             # Microsoft patterns (English)
             r'Microsoft\s+Certified[:\s]+([A-Za-z][A-Za-z\s\-]+?(?:Expert|Associate|Fundamentals))',
-            # Microsoft Italian - capture everything after colon until end or linebreak chars
-            r'Certificazione\s+Microsoft[:\s]+([A-Za-z][A-Za-z\s\-]+(?:Expert|Associate|Fundamentals))',
+            # Microsoft Italian - "Certificato Microsoft:" pattern (Italian cert names)
+            r'Certificat[oi]\s+Microsoft[:\s]+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\-]+?)(?:\s+ID\s+della|\s+Numero|\s+Verifica|\s+Credential|\s*$)',
+            # Microsoft Italian - "Certificazione Microsoft:" alternate pattern  
+            r'Certificazione\s+Microsoft[:\s]+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\-]+?)(?:\s+ID|\s+Numero|\s+Verifica|\s*$)',
             # ServiceNow - capture full cert name (greedy until Issued/line-end)
             r'requirements\s+for\s+(.+?)(?:\s+Issued|\s+Certification)',
             r'requirements\s+for\s+([A-Za-z][A-Za-z\s\-]+(?:Administrator|Developer|Specialist|Manager|Expert))',
@@ -811,6 +881,7 @@ class CertVerificationService:
             match = re.search(pattern, text_normalized, re.IGNORECASE)
             if match:
                 cert_name = match.group(1).strip() if match.group(1) else None
+                logger.debug(f"extract_cert_name: pattern matched, raw cert_name = {repr(cert_name)}")
                 if not cert_name:
                     continue
                     

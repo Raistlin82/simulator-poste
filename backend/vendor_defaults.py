@@ -35,6 +35,12 @@ DEFAULT_VENDORS = {
             r"ms-\d+",
             r"dp-\d+",
             r"ai-\d+",
+            # Italian patterns
+            r"esperto\s*architetto",
+            r"soluzioni\s*azure",
+            r"amministratore\s*azure",
+            r"sviluppatore\s*azure",
+            r"certificat[oi]\s*microsoft",
         ]
     },
     "sap": {
@@ -76,6 +82,18 @@ DEFAULT_VENDORS = {
             r"devnet",
             r"network\s*associate",
             r"network\s*professional",
+            r"certified\s*specialist",
+            r"enterprise\s*core",
+            r"enterprise\s*advanced",
+            r"infrastructure\s*implementation",
+            r"collaboration",
+            r"security\s*core",
+            r"data\s*center",
+            r"service\s*provider",
+            r"enarsi",
+            r"encor",
+            r"ensld",
+            r"ensdwi",
         ]
     },
     "redhat": {

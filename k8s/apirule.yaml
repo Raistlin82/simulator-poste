@@ -10,7 +10,7 @@ metadata:
 spec:
   # Host for the application
   hosts:
-    - simulator-poste.b66a502.kyma.ondemand.com
+    - simulator-poste.c-6dc1be8.kyma.ondemand.com
 
   # The Kyma gateway to use
   gateway: kyma-system/kyma-gateway

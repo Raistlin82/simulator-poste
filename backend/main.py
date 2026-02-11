@@ -1,11 +1,11 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, status
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, status, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 import uvicorn
@@ -13,6 +13,9 @@ import numpy as np
 import io
 import os
 import time
+import zipfile
+import tempfile
+import shutil
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -1521,6 +1524,325 @@ def verify_single_certificate(pdf_path: str, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Certificate verification error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/verify-certs/upload")
+async def verify_certs_upload(
+    file: UploadFile = File(...),
+    req_filter: Optional[str] = None,
+    lot_key: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Verify certificates from an uploaded ZIP file.
+    
+    The ZIP can contain PDF files directly or a folder structure with PDFs.
+    Files are extracted to a temporary directory, processed, then cleaned up.
+    
+    Args:
+        file: ZIP file containing PDF certificates
+        req_filter: Optional requirement code filter
+        lot_key: Optional lot key to load expected certifications
+    
+    Returns:
+        Verification results with summary
+    """
+    logger.info(f"ZIP upload verification requested: {file.filename}")
+    
+    # Validate file type
+    if not file.filename or not file.filename.lower().endswith('.zip'):
+        raise HTTPException(
+            status_code=400,
+            detail="Il file deve essere un archivio ZIP"
+        )
+    
+    try:
+        from services.cert_verification_service import CertVerificationService, OCR_AVAILABLE
+        
+        if not OCR_AVAILABLE:
+            raise HTTPException(
+                status_code=503,
+                detail="OCR dependencies not available on this server"
+            )
+        
+        # Create temporary directory for extraction
+        temp_dir = tempfile.mkdtemp(prefix="cert_verify_")
+        logger.info(f"Created temp directory: {temp_dir}")
+        
+        try:
+            # Save uploaded file to temp location
+            zip_path = os.path.join(temp_dir, "upload.zip")
+            with open(zip_path, "wb") as f:
+                content = await file.read()
+                f.write(content)
+            
+            # Extract ZIP
+            extract_dir = os.path.join(temp_dir, "extracted")
+            os.makedirs(extract_dir, exist_ok=True)
+            
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    # Security: check for path traversal attacks
+                    for member in zip_ref.namelist():
+                        member_path = os.path.realpath(os.path.join(extract_dir, member))
+                        if not member_path.startswith(os.path.realpath(extract_dir)):
+                            raise HTTPException(
+                                status_code=400,
+                                detail="ZIP file contains unsafe paths"
+                            )
+                    zip_ref.extractall(extract_dir)
+            except zipfile.BadZipFile:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Il file ZIP non è valido o è corrotto"
+                )
+            
+            # Remove __MACOSX folder if present (macOS artifact)
+            macosx_dir = os.path.join(extract_dir, "__MACOSX")
+            if os.path.exists(macosx_dir):
+                shutil.rmtree(macosx_dir)
+            
+            # Check if there's a single folder inside, if so use that as root
+            items = [f for f in os.listdir(extract_dir) if not f.startswith('.')]
+            if len(items) == 1:
+                single_item = os.path.join(extract_dir, items[0])
+                if os.path.isdir(single_item):
+                    extract_dir = single_item
+            
+            # Load vendors and settings from database
+            vendors = CertVerificationService.load_vendors_from_db(db)
+            settings = CertVerificationService.load_settings_from_db(db)
+            service = CertVerificationService(vendors=vendors, settings=settings)
+            
+            # Build expected certs map if lot_key provided
+            expected_certs_map = {}
+            if lot_key:
+                from models import LotConfigModel
+                lot_config = db.query(LotConfigModel).filter(LotConfigModel.key == lot_key).first()
+                if lot_config and lot_config.requirements_config:
+                    for req in lot_config.requirements_config:
+                        req_code = req.get("codice_requisito", "")
+                        cert_names = req.get("certificazione", "")
+                        if req_code and cert_names:
+                            expected_certs_map[req_code] = [c.strip() for c in cert_names.split(",")]
+            
+            # Verify folder
+            result = service.verify_folder(extract_dir, req_filter=req_filter)
+            
+            # Enrich results with expected cert names
+            if expected_certs_map and result.get("results"):
+                for r in result["results"]:
+                    req_code = r.get("req_code", "")
+                    if req_code in expected_certs_map:
+                        r["expected_cert_names"] = expected_certs_map[req_code]
+            
+            # Add upload info to result
+            result["upload_filename"] = file.filename
+            
+            logger.info(f"ZIP verification complete: {result.get('summary', {}).get('total', 0)} files processed")
+            return result
+            
+        finally:
+            # Always cleanup temp directory
+            try:
+                shutil.rmtree(temp_dir)
+                logger.info(f"Cleaned up temp directory: {temp_dir}")
+            except Exception as cleanup_err:
+                logger.warning(f"Failed to cleanup temp directory {temp_dir}: {cleanup_err}")
+    
+    except HTTPException:
+        raise
+    except ImportError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error(f"ZIP verification error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/verify-certs/upload/stream")
+async def verify_certs_upload_stream(
+    file: UploadFile = File(...),
+    req_filter: Optional[str] = None,
+    lot_key: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Verify certificates from uploaded ZIP with streaming progress (SSE).
+    
+    Returns Server-Sent Events with progress updates during processing.
+    """
+    logger.info(f"ZIP upload streaming verification: {file.filename}")
+    
+    # Validate file type
+    if not file.filename or not file.filename.lower().endswith('.zip'):
+        raise HTTPException(
+            status_code=400,
+            detail="Il file deve essere un archivio ZIP"
+        )
+    
+    try:
+        from services.cert_verification_service import CertVerificationService, OCR_AVAILABLE
+        
+        if not OCR_AVAILABLE:
+            raise HTTPException(
+                status_code=503,
+                detail="OCR dependencies not available"
+            )
+    except ImportError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    
+    # Read file content upfront (can't read inside generator)
+    file_content = await file.read()
+    upload_filename = file.filename
+    
+    # Load DB data upfront
+    vendors = CertVerificationService.load_vendors_from_db(db)
+    settings = CertVerificationService.load_settings_from_db(db)
+    
+    expected_certs_map = {}
+    if lot_key:
+        from models import LotConfigModel
+        lot_config = db.query(LotConfigModel).filter(LotConfigModel.key == lot_key).first()
+        if lot_config and lot_config.requirements_config:
+            for req in lot_config.requirements_config:
+                req_code = req.get("codice_requisito", "")
+                cert_names = req.get("certificazione", "")
+                if req_code and cert_names:
+                    expected_certs_map[req_code] = [c.strip() for c in cert_names.split(",")]
+    
+    import json
+    from pathlib import Path
+    
+    def generate():
+        temp_dir = None
+        results = []
+        cancelled = False
+        
+        try:
+            # Create temp directory
+            temp_dir = tempfile.mkdtemp(prefix="cert_verify_stream_")
+            
+            # Save and extract ZIP
+            zip_path = os.path.join(temp_dir, "upload.zip")
+            with open(zip_path, "wb") as f:
+                f.write(file_content)
+            
+            extract_dir = os.path.join(temp_dir, "extracted")
+            os.makedirs(extract_dir)
+            
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    for member in zip_ref.namelist():
+                        member_path = os.path.realpath(os.path.join(extract_dir, member))
+                        if not member_path.startswith(os.path.realpath(extract_dir)):
+                            yield f"data: {json.dumps({'type': 'error', 'message': 'ZIP contains unsafe paths'})}\n\n"
+                            return
+                    zip_ref.extractall(extract_dir)
+            except zipfile.BadZipFile:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Invalid or corrupted ZIP file'})}\n\n"
+                return
+            
+            # Remove macOS artifacts
+            macosx_dir = os.path.join(extract_dir, "__MACOSX")
+            if os.path.exists(macosx_dir):
+                shutil.rmtree(macosx_dir)
+            
+            # Check for single root folder
+            items = [f for f in os.listdir(extract_dir) if not f.startswith('.')]
+            if len(items) == 1:
+                single_item = os.path.join(extract_dir, items[0])
+                if os.path.isdir(single_item):
+                    extract_dir = single_item
+            
+            folder = Path(extract_dir)
+            pdf_files = list(folder.rglob("*.pdf")) + list(folder.rglob("*.PDF"))
+            total = len(pdf_files)
+            
+            if total == 0:
+                yield f"data: {json.dumps({'type': 'done', 'results': {'success': True, 'warning': 'No PDF files found in ZIP', 'results': [], 'summary': {'total': 0}}})}\n\n"
+                return
+            
+            yield f"data: {json.dumps({'type': 'start', 'total': total, 'filename': upload_filename})}\n\n"
+            
+            service = CertVerificationService(vendors=vendors, settings=settings)
+            
+            for i, pdf_path in enumerate(pdf_files):
+                yield f"data: {json.dumps({'type': 'progress', 'current': i + 1, 'total': total, 'filename': pdf_path.name})}\n\n"
+                
+                result = service.verify_certificate(str(pdf_path))
+                result_dict = result.to_dict()
+                
+                req_code = result_dict.get("req_code", "")
+                if req_code and req_code in expected_certs_map:
+                    result_dict["expected_cert_names"] = expected_certs_map[req_code]
+                
+                # Apply filter
+                if req_filter and result_dict.get("req_code") != req_filter:
+                    continue
+                
+                results.append(result_dict)
+            
+            # Build summary
+            summary = {
+                "total": len(results),
+                "valid": sum(1 for r in results if r["status"] == "valid"),
+                "expired": sum(1 for r in results if r["status"] == "expired"),
+                "mismatch": sum(1 for r in results if r["status"] == "mismatch"),
+                "unreadable": sum(1 for r in results if r["status"] == "unreadable"),
+                "error": sum(1 for r in results if r["status"] == "error"),
+                "by_requirement": {},
+                "by_resource": {},
+            }
+            
+            for r in results:
+                req = r["req_code"]
+                if req not in summary["by_requirement"]:
+                    summary["by_requirement"][req] = {"total": 0, "valid": 0}
+                summary["by_requirement"][req]["total"] += 1
+                if r["status"] == "valid":
+                    summary["by_requirement"][req]["valid"] += 1
+                
+                res = r["resource_name"]
+                if res not in summary["by_resource"]:
+                    summary["by_resource"][res] = {"total": 0, "valid": 0}
+                summary["by_resource"][res]["total"] += 1
+                if r["status"] == "valid":
+                    summary["by_resource"][res]["valid"] += 1
+            
+            final_result = {
+                "success": True,
+                "upload_filename": upload_filename,
+                "results": results,
+                "summary": summary
+            }
+            
+            yield f"data: {json.dumps({'type': 'done', 'results': final_result})}\n\n"
+            
+        except GeneratorExit:
+            cancelled = True
+            logger.info(f"SSE client disconnected during ZIP verification (processed {len(results)} files)")
+        except Exception as e:
+            logger.error(f"Streaming ZIP verification error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        finally:
+            # Cleanup temp directory
+            if temp_dir:
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+            if cancelled:
+                logger.debug("SSE stream cancelled by client")
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 # --- VENDOR CONFIG ENDPOINTS ---
