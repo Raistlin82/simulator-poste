@@ -173,6 +173,13 @@ jobs:
           kubectl rollout status deployment/simulator-poste-backend -n simulator-poste --timeout=300s
           kubectl rollout status deployment/simulator-poste-frontend -n simulator-poste --timeout=300s
 
+      - name: Force rollout restart to pull latest images
+        run: |
+          kubectl rollout restart deployment/simulator-poste-backend -n simulator-poste
+          kubectl rollout restart deployment/simulator-poste-frontend -n simulator-poste
+          kubectl rollout status deployment/simulator-poste-backend -n simulator-poste --timeout=300s
+          kubectl rollout status deployment/simulator-poste-frontend -n simulator-poste --timeout=300s
+
       - name: Verify deployment
         run: |
           echo "=== Pods ==="
