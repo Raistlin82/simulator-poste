@@ -155,13 +155,13 @@ export default function Sidebar({
                         if (onNavigate) onNavigate('certs');
                         if (window.innerWidth < 768 && onClose) onClose();
                     }}
-                    className={`w-full flex items-center gap-2 px-4 py-3 rounded-lg font-medium text-sm transition-all ${
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm ${
                         currentView === 'certs'
-                            ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200'
+                            ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm'
                             : 'text-slate-600 hover:bg-slate-100'
                     }`}
                 >
-                    <FileSearch className="w-5 h-5" />
+                    <FileSearch className="w-4 h-4" />
                     <span>Verifica Certificazioni</span>
                 </button>
             </div>

@@ -1306,7 +1306,10 @@ def verify_certificates(
                 detail="OCR dependencies not available. Install with: pip install pytesseract pdf2image Pillow"
             )
         
-        service = CertVerificationService()
+        # Load vendors and settings from database
+        vendors = CertVerificationService.load_vendors_from_db(db)
+        settings = CertVerificationService.load_settings_from_db(db)
+        service = CertVerificationService(vendors=vendors, settings=settings)
         results = service.verify_folder(folder_path, req_filter=None)
         
         # Enrich results with expected cert names from lot config
@@ -1376,10 +1379,15 @@ def verify_certificates_stream(
                 if selected_certs:
                     expected_certs_map[req_id] = selected_certs
     
+    # Load vendors and settings from DB before generator (captured in closure)
+    from services.cert_verification_service import CertVerificationService, OCR_AVAILABLE
+    vendors = CertVerificationService.load_vendors_from_db(db)
+    settings = CertVerificationService.load_settings_from_db(db)
+    
     def generate():
+        cancelled = False
+        results = []  # Initialize early for GeneratorExit handling
         try:
-            from services.cert_verification_service import CertVerificationService, OCR_AVAILABLE
-            
             if not OCR_AVAILABLE:
                 yield f"data: {json.dumps({'type': 'error', 'message': 'OCR not available'})}\n\n"
                 return
@@ -1400,8 +1408,7 @@ def verify_certificates_stream(
             # Send initial progress
             yield f"data: {json.dumps({'type': 'start', 'total': total})}\n\n"
             
-            service = CertVerificationService()
-            results = []
+            service = CertVerificationService(vendors=vendors, settings=settings)
             
             for i, pdf_path in enumerate(pdf_files):
                 # Send progress update
@@ -1454,9 +1461,16 @@ def verify_certificates_stream(
             
             yield f"data: {json.dumps({'type': 'done', 'results': final_result})}\n\n"
             
+        except GeneratorExit:
+            # Client disconnected - this is expected behavior
+            cancelled = True
+            logger.info(f"SSE client disconnected during cert verification (processed {len(results)} files)")
         except Exception as e:
             logger.error(f"Streaming cert verification error: {e}", exc_info=True)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        finally:
+            if cancelled:
+                logger.debug("SSE stream cancelled by client")
     
     return StreamingResponse(
         generate(),
@@ -1470,7 +1484,7 @@ def verify_certificates_stream(
 
 
 @api_router.post("/verify-certs/single")
-def verify_single_certificate(pdf_path: str):
+def verify_single_certificate(pdf_path: str, db: Session = Depends(get_db)):
     """
     Verify a single PDF certificate using OCR.
     
@@ -1495,7 +1509,9 @@ def verify_single_certificate(pdf_path: str):
         if not os.path.exists(pdf_path):
             raise HTTPException(status_code=404, detail=f"File not found: {pdf_path}")
         
-        service = CertVerificationService()
+        vendors = CertVerificationService.load_vendors_from_db(db)
+        settings = CertVerificationService.load_settings_from_db(db)
+        service = CertVerificationService(vendors=vendors, settings=settings)
         result = service.verify_certificate(pdf_path)
         
         return result.to_dict()
@@ -1505,6 +1521,138 @@ def verify_single_certificate(pdf_path: str):
     except Exception as e:
         logger.error(f"Certificate verification error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- VENDOR CONFIG ENDPOINTS ---
+
+@api_router.get("/vendor-configs", response_model=List[schemas.VendorConfig])
+def get_vendor_configs(
+    enabled_only: bool = False, 
+    skip: int = 0,
+    limit: int = None,
+    db: Session = Depends(get_db)
+):
+    """Get all vendor configurations for certificate verification with optional pagination."""
+    vendors = crud.get_vendor_configs(db, enabled_only=enabled_only, skip=skip, limit=limit)
+    return [
+        schemas.VendorConfig(
+            key=v.key,
+            name=v.name,
+            aliases=v.aliases or [],
+            cert_patterns=v.cert_patterns or [],
+            enabled=v.enabled == "1"
+        )
+        for v in vendors
+    ]
+
+
+@api_router.get("/vendor-configs/{key}", response_model=schemas.VendorConfig)
+def get_vendor_config(key: str, db: Session = Depends(get_db)):
+    """Get a specific vendor configuration."""
+    vendor = crud.get_vendor_config(db, key.lower())
+    if not vendor:
+        raise HTTPException(status_code=404, detail=f"Vendor '{key}' not found")
+    return schemas.VendorConfig(
+        key=vendor.key,
+        name=vendor.name,
+        aliases=vendor.aliases or [],
+        cert_patterns=vendor.cert_patterns or [],
+        enabled=vendor.enabled == "1"
+    )
+
+
+@api_router.post("/vendor-configs", response_model=schemas.VendorConfig)
+def create_vendor_config(vendor: schemas.VendorConfig, db: Session = Depends(get_db)):
+    """Create a new vendor configuration."""
+    existing = crud.get_vendor_config(db, vendor.key.lower())
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Vendor '{vendor.key}' already exists")
+    db_vendor = crud.create_vendor_config(db, vendor)
+    return schemas.VendorConfig(
+        key=db_vendor.key,
+        name=db_vendor.name,
+        aliases=db_vendor.aliases or [],
+        cert_patterns=db_vendor.cert_patterns or [],
+        enabled=db_vendor.enabled == "1"
+    )
+
+
+@api_router.put("/vendor-configs/{key}", response_model=schemas.VendorConfig)
+def update_vendor_config(key: str, vendor_update: schemas.VendorConfigUpdate, db: Session = Depends(get_db)):
+    """Update an existing vendor configuration."""
+    db_vendor = crud.update_vendor_config(db, key.lower(), vendor_update)
+    if not db_vendor:
+        raise HTTPException(status_code=404, detail=f"Vendor '{key}' not found")
+    return schemas.VendorConfig(
+        key=db_vendor.key,
+        name=db_vendor.name,
+        aliases=db_vendor.aliases or [],
+        cert_patterns=db_vendor.cert_patterns or [],
+        enabled=db_vendor.enabled == "1"
+    )
+
+
+@api_router.delete("/vendor-configs/{key}")
+def delete_vendor_config(key: str, db: Session = Depends(get_db)):
+    """Delete a vendor configuration."""
+    if not crud.delete_vendor_config(db, key.lower()):
+        raise HTTPException(status_code=404, detail=f"Vendor '{key}' not found")
+    return {"status": "success", "message": f"Vendor '{key}' deleted"}
+
+
+# --- OCR SETTINGS ENDPOINTS ---
+
+@api_router.get("/ocr-settings", response_model=List[schemas.OCRSetting])
+def get_ocr_settings(db: Session = Depends(get_db)):
+    """Get all OCR settings."""
+    settings = crud.get_ocr_settings(db)
+    return [schemas.OCRSetting(key=s.key, value=s.value, description=s.description) for s in settings]
+
+
+@api_router.get("/ocr-settings/{key}", response_model=schemas.OCRSetting)
+def get_ocr_setting(key: str, db: Session = Depends(get_db)):
+    """Get a specific OCR setting."""
+    setting = crud.get_ocr_setting(db, key)
+    if not setting:
+        raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
+    return schemas.OCRSetting(key=setting.key, value=setting.value, description=setting.description)
+
+
+@api_router.put("/ocr-settings/{key}", response_model=schemas.OCRSetting)
+def update_ocr_setting(key: str, setting: schemas.OCRSetting, db: Session = Depends(get_db)):
+    """Create or update an OCR setting."""
+    setting.key = key  # Ensure key matches path
+    db_setting = crud.upsert_ocr_setting(db, setting)
+    return schemas.OCRSetting(key=db_setting.key, value=db_setting.value, description=db_setting.description)
+
+
+@api_router.delete("/ocr-settings/{key}")
+def delete_ocr_setting(key: str, db: Session = Depends(get_db)):
+    """Delete an OCR setting."""
+    if not crud.delete_ocr_setting(db, key):
+        raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
+    return {"status": "success", "message": f"Setting '{key}' deleted"}
+
+
+@api_router.get("/cert-verification-config", response_model=schemas.CertVerificationConfig)
+def get_cert_verification_config(db: Session = Depends(get_db)):
+    """Get complete certificate verification configuration (vendors + settings)."""
+    vendors = crud.get_vendor_configs(db)
+    settings = crud.get_ocr_settings(db)
+    
+    return schemas.CertVerificationConfig(
+        vendors=[
+            schemas.VendorConfig(
+                key=v.key,
+                name=v.name,
+                aliases=v.aliases or [],
+                cert_patterns=v.cert_patterns or [],
+                enabled=v.enabled == "1"
+            )
+            for v in vendors
+        ],
+        settings={s.key: s.value for s in settings}
+    )
 
 
 # Register API router

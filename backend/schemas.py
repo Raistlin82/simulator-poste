@@ -152,3 +152,37 @@ class MasterData(BaseModel):
     economic_formulas: Optional[List[Dict[str, Any]]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class VendorConfig(BaseModel):
+    """Configuration for a certification vendor"""
+    key: str = Field(..., description="Unique identifier e.g. 'uipath', 'aws'")
+    name: str = Field(..., description="Display name e.g. 'UiPath', 'Amazon Web Services'")
+    aliases: List[str] = Field(default_factory=list, description="Alternative names for OCR matching")
+    cert_patterns: List[str] = Field(default_factory=list, description="Regex patterns for cert names")
+    enabled: bool = Field(default=True, description="Whether this vendor is active")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class VendorConfigUpdate(BaseModel):
+    """Update schema for vendor config (all fields optional)"""
+    name: Optional[str] = None
+    aliases: Optional[List[str]] = None
+    cert_patterns: Optional[List[str]] = None
+    enabled: Optional[bool] = None
+
+
+class OCRSetting(BaseModel):
+    """OCR configuration setting"""
+    key: str = Field(..., description="Setting key")
+    value: Optional[str] = Field(None, description="Setting value (JSON string for complex values)")
+    description: Optional[str] = Field(None, description="Human readable description")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CertVerificationConfig(BaseModel):
+    """Full certification verification configuration"""
+    vendors: List[VendorConfig] = Field(default_factory=list)
+    settings: Dict[str, Any] = Field(default_factory=dict)

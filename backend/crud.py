@@ -4,11 +4,68 @@ Handles creation, retrieval, and updating of lot configurations and master data
 """
 
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 import json
+import re
 from pathlib import Path
 
 import models, schemas
+from vendor_defaults import DEFAULT_VENDORS
+
+
+def validate_regex_pattern(pattern: str) -> bool:
+    """Validate that a string is a valid regex pattern."""
+    try:
+        re.compile(pattern)
+        return True
+    except re.error:
+        return False
+
+
+def validate_regex_patterns(patterns: List[str]) -> List[str]:
+    """
+    Validate a list of regex patterns and return only valid ones.
+    Logs invalid patterns.
+    """
+    valid, _ = validate_regex_patterns_detailed(patterns)
+    return valid
+
+
+def validate_regex_patterns_detailed(patterns: List[str]) -> Tuple[List[str], List[Dict[str, str]]]:
+    """
+    Validate a list of regex patterns and return both valid and invalid.
+    
+    Returns:
+        Tuple of (valid_patterns, invalid_patterns_with_errors)
+        where invalid_patterns_with_errors is a list of {"pattern": str, "error": str}
+    """
+    valid_patterns = []
+    invalid_patterns = []
+    
+    for pattern in patterns:
+        try:
+            re.compile(pattern)
+            valid_patterns.append(pattern)
+        except re.error as e:
+            invalid_patterns.append({"pattern": pattern, "error": str(e)})
+            import logging
+            logging.getLogger(__name__).warning(f"Invalid regex pattern skipped: {pattern} - {e}")
+    
+    return valid_patterns, invalid_patterns
+
+
+def deduplicate_aliases(aliases: List[str]) -> List[str]:
+    """
+    De-duplicate aliases (case-insensitive) while preserving order.
+    """
+    seen = set()
+    result = []
+    for alias in aliases:
+        lower_alias = alias.lower().strip()
+        if lower_alias and lower_alias not in seen:
+            seen.add(lower_alias)
+            result.append(lower_alias)
+    return result
 
 
 def load_json_file(filename: str) -> Dict[str, Any]:
@@ -66,6 +123,10 @@ def seed_initial_data(db: Session) -> None:
         db.add(db_master)
 
     db.commit()
+    
+    # Seed vendor configs and OCR settings
+    seed_vendor_configs(db)
+    seed_ocr_settings(db)
 
 
 def get_lot_configs(db: Session) -> List[models.LotConfigModel]:
@@ -160,3 +221,198 @@ def update_master_data(
     db.commit()
     db.refresh(db_master)
     return db_master
+
+
+# ============================================================================
+# Vendor Config CRUD Operations
+# ============================================================================
+
+def get_vendor_configs(
+    db: Session, 
+    enabled_only: bool = False,
+    skip: int = 0,
+    limit: Optional[int] = None
+) -> List[models.VendorConfigModel]:
+    """Retrieve all vendor configurations with optional pagination"""
+    query = db.query(models.VendorConfigModel)
+    if enabled_only:
+        query = query.filter(models.VendorConfigModel.enabled == "1")
+    query = query.order_by(models.VendorConfigModel.name)
+    if skip > 0:
+        query = query.offset(skip)
+    if limit is not None and limit > 0:
+        query = query.limit(limit)
+    return query.all()
+
+
+def get_vendor_config(db: Session, key: str) -> Optional[models.VendorConfigModel]:
+    """Retrieve a specific vendor configuration by key"""
+    return db.query(models.VendorConfigModel).filter(
+        models.VendorConfigModel.key == key
+    ).first()
+
+
+def create_vendor_config(
+    db: Session, vendor: schemas.VendorConfig
+) -> models.VendorConfigModel:
+    """Create a new vendor configuration with validation"""
+    # Validate and clean inputs
+    validated_patterns = validate_regex_patterns(vendor.cert_patterns or [])
+    deduplicated_aliases = deduplicate_aliases(vendor.aliases or [])
+    
+    db_vendor = models.VendorConfigModel(
+        key=vendor.key.lower(),
+        name=vendor.name,
+        aliases=deduplicated_aliases,
+        cert_patterns=validated_patterns,
+        enabled="1" if vendor.enabled else "0",
+    )
+    db.add(db_vendor)
+    db.commit()
+    db.refresh(db_vendor)
+    return db_vendor
+
+
+def update_vendor_config(
+    db: Session, key: str, vendor_update: schemas.VendorConfigUpdate
+) -> Optional[models.VendorConfigModel]:
+    """Update an existing vendor configuration with validation"""
+    db_vendor = get_vendor_config(db, key)
+    if db_vendor:
+        if vendor_update.name is not None:
+            db_vendor.name = vendor_update.name
+        if vendor_update.aliases is not None:
+            db_vendor.aliases = deduplicate_aliases(vendor_update.aliases)
+        if vendor_update.cert_patterns is not None:
+            db_vendor.cert_patterns = validate_regex_patterns(vendor_update.cert_patterns)
+        if vendor_update.enabled is not None:
+            db_vendor.enabled = "1" if vendor_update.enabled else "0"
+        db.commit()
+        db.refresh(db_vendor)
+    return db_vendor
+
+
+def delete_vendor_config(db: Session, key: str) -> bool:
+    """Delete a vendor configuration"""
+    db_vendor = get_vendor_config(db, key)
+    if db_vendor:
+        db.delete(db_vendor)
+        db.commit()
+        return True
+    return False
+
+
+def seed_vendor_configs(db: Session) -> None:
+    """
+    Seed database with default vendor configurations from shared vendor_defaults module.
+    Only seeds vendors that don't already exist.
+    """
+    for key, vendor_data in DEFAULT_VENDORS.items():
+        existing = get_vendor_config(db, key)
+        if not existing:
+            db_vendor = models.VendorConfigModel(
+                key=key,
+                name=vendor_data["name"],
+                aliases=vendor_data["aliases"],
+                cert_patterns=vendor_data["cert_patterns"],
+                enabled="1",
+            )
+            db.add(db_vendor)
+    
+    db.commit()
+
+
+# ============================================================================
+# OCR Settings CRUD Operations
+# ============================================================================
+
+def get_ocr_settings(db: Session) -> List[models.OCRSettingsModel]:
+    """Retrieve all OCR settings"""
+    return db.query(models.OCRSettingsModel).all()
+
+
+def get_ocr_setting(db: Session, key: str) -> Optional[models.OCRSettingsModel]:
+    """Retrieve a specific OCR setting by key"""
+    return db.query(models.OCRSettingsModel).filter(
+        models.OCRSettingsModel.key == key
+    ).first()
+
+
+def upsert_ocr_setting(
+    db: Session, setting: schemas.OCRSetting
+) -> models.OCRSettingsModel:
+    """Create or update an OCR setting"""
+    db_setting = get_ocr_setting(db, setting.key)
+    if not db_setting:
+        db_setting = models.OCRSettingsModel(key=setting.key)
+        db.add(db_setting)
+    
+    db_setting.value = setting.value
+    if setting.description:
+        db_setting.description = setting.description
+    
+    db.commit()
+    db.refresh(db_setting)
+    return db_setting
+
+
+def delete_ocr_setting(db: Session, key: str) -> bool:
+    """Delete an OCR setting"""
+    db_setting = get_ocr_setting(db, key)
+    if db_setting:
+        db.delete(db_setting)
+        db.commit()
+        return True
+    return False
+
+
+def seed_ocr_settings(db: Session) -> None:
+    """Seed default OCR settings"""
+    default_settings = [
+        {
+            "key": "date_patterns",
+            "value": json.dumps([
+                r"valid\s*(?:from|since|until|thru|through|to)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+                r"expir(?:es?|ation|y)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+                r"issue[d]?\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+                r"date\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+                r"(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+                r"(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})",
+                r"((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4})",
+                r"(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})",
+            ]),
+            "description": "Regex patterns to extract dates from OCR text (JSON array)"
+        },
+        {
+            "key": "tech_terms",
+            "value": json.dumps([
+                "architect", "developer", "engineer", "manager", "administrator",
+                "consultant", "analyst", "specialist", "expert", "professional",
+                "associate", "practitioner", "certificate", "certification", "certified",
+                "solutions", "cloud", "data", "security", "network", "systems",
+                "project", "program", "product", "technical", "senior", "junior",
+                "lead", "principal", "staff", "full", "stack", "frontend", "backend",
+                "devops", "sysops", "azure", "aws", "google", "oracle", "sap",
+                "cisco", "microsoft", "redhat", "vmware", "kubernetes", "docker",
+                "java", "python", "javascript", "scrum", "agile", "pmi", "pmbok",
+            ]),
+            "description": "Technical terms that should NOT be considered as person names (JSON array)"
+        },
+        {
+            "key": "ocr_dpi",
+            "value": "200",
+            "description": "DPI resolution for PDF to image conversion"
+        },
+    ]
+    
+    for setting_data in default_settings:
+        existing = get_ocr_setting(db, setting_data["key"])
+        if not existing:
+            db_setting = models.OCRSettingsModel(
+                key=setting_data["key"],
+                value=setting_data["value"],
+                description=setting_data["description"],
+            )
+            db.add(db_setting)
+    
+    db.commit()

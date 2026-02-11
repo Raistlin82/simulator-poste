@@ -7,6 +7,8 @@ services:
       - ./backend/simulator_poste.db:/app/simulator_poste.db
       # Mount user home for certificate verification (read-only)
       - /Users/gabriele.rendina:/host_home:ro
+      # Mount CloudStorage (OneDrive/SharePoint synced folders)
+      - /Users/gabriele.rendina/Library/CloudStorage:/host_home/Library/CloudStorage:ro
     env_file:
       - .env
     environment:

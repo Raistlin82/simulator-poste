@@ -9,9 +9,8 @@ import SimulationChart from '../features/simulation/components/SimulationChart';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
 import { API_URL } from '../utils/api';
-import CertVerification from './CertVerification';
 
-export default function Dashboard() {
+export default function Dashboard({ onNavigate }) {
     const { t } = useTranslation();
     const { config } = useConfig();
     const {
@@ -30,9 +29,6 @@ export default function Dashboard() {
     const lotData = config?.[selectedLot];
     const [monteCarlo, setMonteCarlo] = useState(null);
     const [exportLoading, setExportLoading] = useState(false);
-    
-    // Certificate verification dialog
-    const [showCertVerification, setShowCertVerification] = useState(false);
 
     // Optimizer results state
     const [optimizerResults, setOptimizerResults] = useState(null);
@@ -439,11 +435,25 @@ export default function Dashboard() {
                                 const weightedScore = results.weighted_scores?.[req.id] || 0;
                                 const isMax = score >= maxRaw;
                                 const percentage = maxRaw > 0 ? (score / maxRaw * 100) : 0;
+                                const isResourceType = req.type === 'resource';
                                 return (
                                     <tr key={req.id} className="bg-white border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-6 py-4 font-medium text-slate-900">
-                                            {req.label}
-                                            <div className="text-xs text-slate-400 font-normal">{req.id}</div>
+                                            <div className="flex items-center gap-2">
+                                                <div>
+                                                    {req.label}
+                                                    <div className="text-xs text-slate-400 font-normal">{req.id}</div>
+                                                </div>
+                                                {isResourceType && (
+                                                    <button
+                                                        onClick={() => onNavigate && onNavigate('certs')}
+                                                        className="p-1.5 rounded-md text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                                                        title={t('dashboard.verify_certifications') || 'Verifica Certificazioni PDF'}
+                                                    >
+                                                        <FileSearch className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-right font-bold text-blue-600">{formatNumber(score, 2)}</td>
                                         <td className="px-6 py-4 text-right text-slate-500">{formatNumber(maxRaw, 2)}</td>
@@ -463,22 +473,6 @@ export default function Dashboard() {
                     </table>
                 </div>
             </div>
-
-            {/* Certificate Verification Button */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                <button
-                    onClick={() => setShowCertVerification(true)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors font-medium"
-                >
-                    <FileSearch className="w-5 h-5" />
-                    {t('dashboard.verify_certifications') || 'Verifica Certificazioni PDF'}
-                </button>
-            </div>
-
-            {/* Certificate Verification Dialog */}
-            {showCertVerification && (
-                <CertVerification onClose={() => setShowCertVerification(false)} />
-            )}
 
         </div>
     );

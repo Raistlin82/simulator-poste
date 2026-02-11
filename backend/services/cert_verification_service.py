@@ -6,11 +6,17 @@ Verifies PDF certificates against lot requirements using OCR
 import os
 import re
 import logging
+import unicodedata
+import json
 from pathlib import Path
 from datetime import datetime, date
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
+from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
+from dataclasses import dataclass, asdict, field
 from difflib import SequenceMatcher
+
+# Type-only import for PIL Image (avoids runtime error if PIL not installed)
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
 
 try:
     import pytesseract
@@ -22,169 +28,9 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Known certification vendors with their common cert patterns
-KNOWN_VENDORS = {
-    "aws": {
-        "name": "Amazon Web Services",
-        "aliases": ["amazon", "aws", "amazon web services"],
-        "cert_patterns": [
-            r"solutions?\s*architect",
-            r"developer\s*associate",
-            r"sysops\s*administrator",
-            r"devops\s*engineer",
-            r"cloud\s*practitioner",
-            r"database\s*specialty",
-            r"security\s*specialty",
-            r"saa-c\d+",  # Solutions Architect code
-            r"dva-c\d+",  # Developer Associate code
-            r"soa-c\d+",  # SysOps code
-        ]
-    },
-    "microsoft": {
-        "name": "Microsoft",
-        "aliases": ["microsoft", "azure", "ms"],
-        "cert_patterns": [
-            r"azure\s*administrator",
-            r"azure\s*developer",
-            r"azure\s*solutions?\s*architect",
-            r"azure\s*devops\s*engineer",
-            r"azure\s*security\s*engineer",
-            r"azure\s*data\s*engineer",
-            r"az-\d+",  # Azure cert codes (AZ-104, AZ-204, etc.)
-            r"ms-\d+",  # MS cert codes
-            r"dp-\d+",  # Data Platform codes
-            r"ai-\d+",  # AI cert codes
-        ]
-    },
-    "sap": {
-        "name": "SAP",
-        "aliases": ["sap", "sap se"],
-        "cert_patterns": [
-            r"s/4hana",
-            r"abap",
-            r"fiori",
-            r"btp",
-            r"business\s*technology\s*platform",
-            r"hana",
-            r"successfactors",
-            r"ariba",
-            r"c_\w+_\d+",  # SAP cert codes (C_TS4CO_2021, etc.)
-            r"e_\w+_\d+",  # SAP Enterprise codes
-            r"p_\w+_\d+",  # SAP Professional codes
-        ]
-    },
-    "oracle": {
-        "name": "Oracle",
-        "aliases": ["oracle", "oci"],
-        "cert_patterns": [
-            r"oracle\s*cloud\s*infrastructure",
-            r"java\s*(se|ee)",
-            r"database\s*administrator",
-            r"sql\s*expert",
-            r"1z0-\d+",  # Oracle cert codes
-        ]
-    },
-    "cisco": {
-        "name": "Cisco",
-        "aliases": ["cisco", "cisco systems"],
-        "cert_patterns": [
-            r"ccna",
-            r"ccnp",
-            r"ccie",
-            r"ccde",
-            r"devnet",
-            r"network\s*associate",
-            r"network\s*professional",
-        ]
-    },
-    "redhat": {
-        "name": "Red Hat",
-        "aliases": ["red hat", "redhat", "rh"],
-        "cert_patterns": [
-            r"rhcsa",
-            r"rhce",
-            r"rhca",
-            r"openshift",
-            r"ansible",
-            r"system\s*administrator",
-            r"ex\d+",  # Red Hat exam codes
-        ]
-    },
-    "google": {
-        "name": "Google Cloud",
-        "aliases": ["google", "gcp", "google cloud"],
-        "cert_patterns": [
-            r"cloud\s*architect",
-            r"cloud\s*engineer",
-            r"data\s*engineer",
-            r"machine\s*learning\s*engineer",
-            r"associate\s*cloud\s*engineer",
-        ]
-    },
-    "pmi": {
-        "name": "Project Management Institute",
-        "aliases": ["pmi", "project management institute"],
-        "cert_patterns": [
-            r"pmp",
-            r"capm",
-            r"pgmp",
-            r"pmi-acp",
-            r"pmi-rmp",
-            r"project\s*management\s*professional",
-        ]
-    },
-    "itil": {
-        "name": "ITIL",
-        "aliases": ["itil", "axelos"],
-        "cert_patterns": [
-            r"itil\s*foundation",
-            r"itil\s*practitioner",
-            r"itil\s*intermediate",
-            r"itil\s*expert",
-            r"itil\s*v\d",
-        ]
-    },
-    "scrum": {
-        "name": "Scrum Alliance / Scrum.org",
-        "aliases": ["scrum", "scrum alliance", "scrum.org"],
-        "cert_patterns": [
-            r"csm",
-            r"cspo",
-            r"psm",
-            r"pspo",
-            r"scrum\s*master",
-            r"product\s*owner",
-        ]
-    },
-    "servicenow": {
-        "name": "ServiceNow",
-        "aliases": ["servicenow", "service now", "service-now"],
-        "cert_patterns": [
-            r"certified\s*system\s*administrator",
-            r"certified\s*application\s*developer",
-            r"certified\s*implementation\s*specialist",
-            r"csa",
-            r"cad",
-            r"cis",
-            r"itsm",
-            r"hrsd",
-            r"csm",
-            r"now\s*platform",
-        ]
-    },
-}
-
-# Date patterns to extract validity dates
-DATE_PATTERNS = [
-    r"valid\s*(?:from|since|until|thru|through|to)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
-    r"expir(?:es?|ation|y)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
-    r"issue[d]?\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
-    r"date\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
-    r"(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
-    r"(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})",  # ISO format
-    r"((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4})",  # Month DD, YYYY
-    r"(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})",  # DD Month YYYY
-]
+# Import default vendors from shared module (avoids duplication with crud.py)
+from vendor_defaults import DEFAULT_VENDORS
+KNOWN_VENDORS = DEFAULT_VENDORS
 
 
 @dataclass
@@ -201,28 +47,65 @@ class CertVerificationResult:
     resource_name_detected: Optional[str] = None  # Person name from OCR
     valid_from: Optional[str] = None
     valid_until: Optional[str] = None
-    status: str = "unprocessed"  # valid, expired, mismatch, unreadable, error
+    status: str = "unprocessed"  # valid, expired, mismatch, unreadable, not_downloaded, error
     confidence: float = 0.0
     ocr_text_preview: Optional[str] = None
-    errors: List[str] = None
-    
-    def __post_init__(self):
-        if self.errors is None:
-            self.errors = []
+    errors: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
 
+# Default settings (used as fallback if DB settings not available)
+DEFAULT_DATE_PATTERNS = [
+    r"valid\s*(?:from|since|until|thru|through|to)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+    r"expir(?:es?|ation|y)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+    r"issue[d]?\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+    r"date\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+    r"(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+    r"(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})",  # ISO format
+    r"((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4})",  # Month DD, YYYY
+    r"(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})",  # DD Month YYYY
+]
+
+DEFAULT_TECH_TERMS = {
+    'architect', 'developer', 'engineer', 'manager', 'administrator',
+    'consultant', 'analyst', 'specialist', 'expert', 'professional',
+    'associate', 'practitioner', 'certificate', 'certification', 'certified',
+    'solutions', 'cloud', 'data', 'security', 'network', 'systems',
+    'project', 'program', 'product', 'technical', 'senior', 'junior',
+    'lead', 'principal', 'staff', 'full', 'stack', 'frontend', 'backend',
+    'devops', 'sysops', 'azure', 'aws', 'google', 'oracle', 'sap',
+    'cisco', 'microsoft', 'redhat', 'vmware', 'kubernetes', 'docker',
+    'java', 'python', 'javascript', 'scrum', 'agile', 'pmi', 'pmbok',
+    'itil', 'prince', 'togaf', 'cobit', 'iso', 'audit', 'governance',
+    'programmatore', 'sviluppatore', 'progettista', 'responsabile',
+    'coordinatore', 'direttore', 'capo', 'tecnico', 'funzionale',
+}
+
+DEFAULT_OCR_DPI = 200
+DEFAULT_MAX_FILE_SIZE_MB = 20  # Skip OCR for files larger than this (fix #5)
+
+
 class CertVerificationService:
     """Service to verify certification PDFs"""
     
-    def __init__(self, tesseract_cmd: Optional[str] = None):
+    def __init__(
+        self, 
+        tesseract_cmd: Optional[str] = None, 
+        vendors: Optional[Dict[str, Any]] = None,
+        settings: Optional[Dict[str, Any]] = None
+    ):
         """
         Initialize the service
         
         Args:
             tesseract_cmd: Path to tesseract executable (optional)
+            vendors: Optional dict of vendor configs to use instead of default KNOWN_VENDORS.
+                     If None, uses the hardcoded KNOWN_VENDORS.
+                     Format: {key: {name, aliases, cert_patterns}}
+            settings: Optional dict of OCR settings from database.
+                      Keys: date_patterns (list), tech_terms (list), ocr_dpi (int)
         """
         if not OCR_AVAILABLE:
             raise ImportError(
@@ -232,6 +115,76 @@ class CertVerificationService:
         
         if tesseract_cmd:
             pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+        
+        # Use provided vendors or fallback to hardcoded defaults
+        self.vendors = vendors if vendors is not None else KNOWN_VENDORS
+        
+        # Load OCR settings with defaults
+        self.settings = settings or {}
+        self.date_patterns = self._load_setting('date_patterns', DEFAULT_DATE_PATTERNS)
+        self.tech_terms = set(self._load_setting('tech_terms', list(DEFAULT_TECH_TERMS)))
+        self.ocr_dpi = int(self._load_setting('ocr_dpi', DEFAULT_OCR_DPI))
+        self.max_file_size_mb = float(self._load_setting('max_file_size_mb', DEFAULT_MAX_FILE_SIZE_MB))
+    
+    def _load_setting(self, key: str, default: Any) -> Any:
+        """Load a setting from the settings dict, parsing JSON if needed."""
+        value = self.settings.get(key)
+        if value is None:
+            return default
+        
+        # If value is a string, try to parse as JSON (for list/dict settings)
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return value
+        return value
+    
+    @staticmethod
+    def load_vendors_from_db(db_session) -> Dict[str, Any]:
+        """
+        Load vendor configurations from database.
+        
+        Args:
+            db_session: SQLAlchemy database session
+            
+        Returns:
+            Dict of vendor configs in KNOWN_VENDORS format
+        """
+        from models import VendorConfigModel
+        
+        vendors = {}
+        db_vendors = db_session.query(VendorConfigModel).filter(VendorConfigModel.enabled == "1").all()
+        
+        for v in db_vendors:
+            vendors[v.key] = {
+                "name": v.name,
+                "aliases": v.aliases or [],
+                "cert_patterns": v.cert_patterns or [],
+            }
+        
+        return vendors if vendors else KNOWN_VENDORS  # Fallback to defaults if DB is empty
+    
+    @staticmethod
+    def load_settings_from_db(db_session) -> Dict[str, Any]:
+        """
+        Load OCR settings from database.
+        
+        Args:
+            db_session: SQLAlchemy database session
+            
+        Returns:
+            Dict of settings {key: value}
+        """
+        from models import OCRSettingsModel
+        
+        settings = {}
+        db_settings = db_session.query(OCRSettingsModel).all()
+        
+        for s in db_settings:
+            settings[s.key] = s.value
+        
+        return settings
     
     def parse_filename(self, filename: str) -> Tuple[str, str, str]:
         """
@@ -250,24 +203,15 @@ class CertVerificationService:
         Returns:
             Tuple of (req_code, cert_name, resource_name)
         """
+        # Normalize Unicode to NFC (composed form) - macOS uses NFD (decomposed)
+        # e.g., 'ò' (decomposed: o + combining accent) -> 'ò' (single character)
+        filename = unicodedata.normalize('NFC', filename)
+        
         # Remove extension
         name = Path(filename).stem
         
-        # Technical terms that are NOT person names
-        tech_terms = {
-            'architect', 'developer', 'engineer', 'manager', 'administrator',
-            'consultant', 'analyst', 'specialist', 'expert', 'professional',
-            'associate', 'practitioner', 'certificate', 'certification', 'certified',
-            'solutions', 'cloud', 'data', 'security', 'network', 'systems',
-            'project', 'program', 'product', 'technical', 'senior', 'junior',
-            'lead', 'principal', 'staff', 'full', 'stack', 'frontend', 'backend',
-            'devops', 'sysops', 'azure', 'aws', 'google', 'oracle', 'sap',
-            'cisco', 'microsoft', 'redhat', 'vmware', 'kubernetes', 'docker',
-            'java', 'python', 'javascript', 'scrum', 'agile', 'pmi', 'pmbok',
-            'itil', 'prince', 'togaf', 'cobit', 'iso', 'audit', 'governance',
-            'programmatore', 'sviluppatore', 'progettista', 'responsabile',
-            'coordinatore', 'direttore', 'capo', 'tecnico', 'funzionale',
-        }
+        # Use configurable tech_terms from settings
+        tech_terms = self.tech_terms
         
         # Normalize: keep spaces within parts, split only by underscore
         # First, let's identify segments (underscore-separated)
@@ -281,6 +225,7 @@ class CertVerificationService:
         req_patterns = [
             r'^(GOV[_\s]*REQ[_\s]*\d+)',  # GOV_REQ_125, GOV REQ 125
             r'^([A-Z]{2,5}[_\s]*REQ[_\s]*\d+)',  # XXX_REQ_NNN
+            r'^(REQ[_\s]*[A-Z]+[_\s]*\d+)',  # REQ_VALTEC_6, REQ_ABC_123
             r'^(REQ[_\s-]*\d+)',  # REQ01, REQ_01, REQ-01
             r'^(LOTTO?[_\s]*\d+[_\s]*\d+)',  # LOTTO_2_125, LOT2_125
             r'^(\d{2,4}[_\s]+\d{2,4})',  # Numeric codes like 125_01
@@ -307,11 +252,28 @@ class CertVerificationService:
         
         # Find person name: look for the LAST segment that contains 2+ capitalized words
         # that are NOT technical terms
+        def split_camelcase(text: str) -> list:
+            """Split CamelCase into separate words: BenedettoFrancesco -> ['Benedetto', 'Francesco']
+            Also handles accented characters like RodonòGabriele -> ['Rodonò', 'Gabriele']
+            """
+            # Insert space before each uppercase letter that follows a lowercase letter
+            # Use Unicode-aware pattern to include accented lowercase letters (à, è, ì, ò, ù, etc.)
+            result = re.sub(r'([a-zàèéìòùáéíóú])([A-Z])', r'\1 \2', text)
+            return result.split()
+        
         def is_person_name(text: str) -> bool:
-            """Check if text looks like a person name (Nome Cognome)"""
+            """Check if text looks like a person name (Nome Cognome or NomeCognome)"""
+            # First try splitting by space
             words = text.split()
-            if len(words) < 2:
-                return False
+            
+            # If single word, check for CamelCase pattern (e.g., BenedettoFrancesco)
+            if len(words) == 1:
+                camel_words = split_camelcase(words[0])
+                if len(camel_words) >= 2:
+                    words = camel_words
+                else:
+                    return False
+            
             # All words should be capitalized and not be tech terms
             name_words = []
             for w in words:
@@ -329,7 +291,8 @@ class CertVerificationService:
         for i in range(len(parts) - 1, -1, -1):
             part = parts[i]
             if is_person_name(part):
-                resource_name = part
+                # Expand CamelCase if present
+                resource_name = " ".join(split_camelcase(part))
                 parts = parts[:i]
                 break
         
@@ -337,7 +300,8 @@ class CertVerificationService:
         if not resource_name and len(parts) >= 2:
             last_two = parts[-2] + " " + parts[-1]
             if is_person_name(last_two):
-                resource_name = last_two.strip()
+                # Expand CamelCase in each part
+                resource_name = " ".join(split_camelcase(last_two))
                 parts = parts[:-2]
         
         # Everything remaining is the certification name
@@ -369,8 +333,8 @@ class CertVerificationService:
             Extracted text
         """
         try:
-            # Convert PDF to images
-            images = pdf2image.convert_from_path(pdf_path, dpi=200)
+            # Convert PDF to images using configurable DPI
+            images = pdf2image.convert_from_path(pdf_path, dpi=self.ocr_dpi)
             
             text_parts = []
             for i, image in enumerate(images):
@@ -384,7 +348,7 @@ class CertVerificationService:
             logger.error(f"Error extracting text from PDF {pdf_path}: {e}")
             raise
     
-    def _ocr_with_rotation(self, image: Image.Image) -> str:
+    def _ocr_with_rotation(self, image: "PILImage.Image") -> str:
         """
         Try OCR on image, rotating up to 3 times; test multiple Tesseract configs per rotation
         """
@@ -392,6 +356,7 @@ class CertVerificationService:
         configs = ["", "--oem 3 --psm 6", "--oem 3 --psm 4"]
         best_text = ""
         best_score = 0
+        best_rotation = 0
         
         for rotation in rotations:
             rotated = image.rotate(-rotation, expand=True) if rotation > 0 else image
@@ -404,14 +369,17 @@ class CertVerificationService:
                 if score > best_score:
                     best_score = score
                     best_text = text
+                    best_rotation = rotation
                     if score >= 10:
-                        logger.debug(f"Good OCR result at rotation {rotation}° config '{cfg}'")
                         break
             if best_score >= 10:
                 break
         
+        # Log only once with the final result (reduced verbosity)
         if best_score == 0:
-            logger.warning("Could not extract meaningful text from image at any rotation/config")
+            logger.debug("Could not extract meaningful text from image at any rotation/config")
+        elif best_score >= 10:
+            logger.debug(f"Good OCR result at rotation {best_rotation}° (score={best_score})")
         
         return best_text
     
@@ -445,7 +413,7 @@ class CertVerificationService:
                 score += 2
         
         # Check for vendor names
-        for vendor_info in KNOWN_VENDORS.values():
+        for vendor_info in self.vendors.values():
             for alias in vendor_info['aliases']:
                 if alias in text_lower:
                     score += 3
@@ -476,7 +444,7 @@ class CertVerificationService:
         best_vendor = None
         best_score = 0.0
         
-        for vendor_key, vendor_info in KNOWN_VENDORS.items():
+        for vendor_key, vendor_info in self.vendors.items():
             score = 0.0
             
             # Check for vendor name/aliases
@@ -502,7 +470,7 @@ class CertVerificationService:
     
     def extract_cert_code(self, text: str, vendor: Optional[str]) -> Optional[str]:
         """
-        Extract certification code from text based on vendor
+        Extract certification code from text based on vendor patterns
         
         Args:
             text: OCR extracted text
@@ -511,13 +479,30 @@ class CertVerificationService:
         Returns:
             Certification code if found
         """
-        if not vendor or vendor not in KNOWN_VENDORS:
+        if not vendor or vendor not in self.vendors:
             return None
         
         text_upper = text.upper()
         
-        # Vendor-specific code patterns
-        code_patterns = {
+        # Use vendor's configured cert_patterns to find codes
+        # Look for patterns that look like codes (contain numbers/dashes)
+        vendor_patterns = self.vendors[vendor].get("cert_patterns", [])
+        
+        for pattern in vendor_patterns:
+            try:
+                # Check if pattern contains code-like elements (digits, specific formats)
+                if re.search(r'\\d|[A-Z]{2,}[-_]\\d', pattern, re.IGNORECASE):
+                    match = re.search(pattern, text_upper, re.IGNORECASE)
+                    if match:
+                        code = match.group(0) if match.group(0) else None
+                        if code and len(code) >= 4 and re.search(r'\d', code):
+                            return code.upper()
+            except re.error:
+                # Skip invalid regex patterns
+                continue
+        
+        # Fallback: vendor-specific code patterns (for common formats)
+        fallback_patterns = {
             "aws": r"(SAA-C\d+|DVA-C\d+|SOA-C\d+|CLF-C\d+)",
             "microsoft": r"(AZ-\d+|MS-\d+|DP-\d+|AI-\d+|PL-\d+)",
             "sap": r"(C_\w+_\d+|E_\w+_\d+|P_\w+_\d+)",
@@ -525,8 +510,8 @@ class CertVerificationService:
             "redhat": r"(EX\d+)",
         }
         
-        if vendor in code_patterns:
-            match = re.search(code_patterns[vendor], text_upper)
+        if vendor in fallback_patterns:
+            match = re.search(fallback_patterns[vendor], text_upper)
             if match:
                 return match.group(1)
         
@@ -545,7 +530,8 @@ class CertVerificationService:
         text_lower = text.lower()
         dates_found = []
         
-        for pattern in DATE_PATTERNS:
+        # Use configurable date patterns
+        for pattern in self.date_patterns:
             matches = re.findall(pattern, text_lower, re.IGNORECASE)
             dates_found.extend(matches)
         
@@ -639,15 +625,15 @@ class CertVerificationService:
         
         # Check if vendor name is in filename
         if vendor_detected:
-            vendor_info = KNOWN_VENDORS.get(vendor_detected, {})
+            vendor_info = self.vendors.get(vendor_detected, {})
             for alias in vendor_info.get("aliases", []):
                 if alias in file_name_lower:
                     score += 0.4
                     break
         
         # Check certification pattern match
-        if vendor_detected and vendor_detected in KNOWN_VENDORS:
-            for pattern in KNOWN_VENDORS[vendor_detected]["cert_patterns"]:
+        if vendor_detected and vendor_detected in self.vendors:
+            for pattern in self.vendors[vendor_detected]["cert_patterns"]:
                 if re.search(pattern, file_name_lower):
                     score += 0.3
                     break
@@ -684,6 +670,22 @@ class CertVerificationService:
         )
         
         try:
+            # Check if file exists and has content (cloud-synced files may be 0 bytes if not downloaded)
+            file_size = os.path.getsize(pdf_path)
+            if file_size == 0:
+                result.status = "not_downloaded"
+                result.errors.append("File non scaricato: il file è vuoto (0 bytes). Scarica il file localmente da OneDrive/SharePoint prima di verificare.")
+                logger.warning(f"File {filename} has 0 bytes - likely a cloud placeholder not downloaded locally")
+                return result
+            
+            # Check if file is too large for OCR (fix #5 - prevent timeout on huge files)
+            file_size_mb = file_size / (1024 * 1024)
+            if file_size_mb > self.max_file_size_mb:
+                result.status = "too_large"
+                result.errors.append(f"File troppo grande ({file_size_mb:.1f} MB > {self.max_file_size_mb} MB max). Ridurre dimensione o aumentare limite.")
+                logger.warning(f"File {filename} is {file_size_mb:.1f} MB, exceeds max {self.max_file_size_mb} MB")
+                return result
+            
             # Extract text via OCR
             text = self.extract_text_from_pdf(pdf_path)
             result.ocr_text_preview = text[:500] if text else None
@@ -695,7 +697,7 @@ class CertVerificationService:
             
             # Detect vendor
             vendor, vendor_conf = self.detect_vendor(text)
-            result.vendor_detected = KNOWN_VENDORS[vendor]["name"] if vendor else None
+            result.vendor_detected = self.vendors.get(vendor, {}).get("name") if vendor else None
             result.vendor_confidence = vendor_conf
             
             # Extract cert code
@@ -854,8 +856,17 @@ class CertVerificationService:
         if not text:
             return None
         
+        def remove_accents(s: str) -> str:
+            """Remove accents for fuzzy matching (Rodonò -> Rodono)"""
+            import unicodedata
+            # Decompose to NFD (separate base + combining accents), then remove combining marks
+            return ''.join(c for c in unicodedata.normalize('NFD', s) 
+                          if unicodedata.category(c) != 'Mn')
+        
         text_upper = text.upper()
         text_normalized = re.sub(r'\s+', ' ', text_upper)
+        # Also create accent-free version for matching
+        text_no_accents = remove_accents(text_normalized)
         
         # If we have a reference name from filename, search for it in OCR
         if reference_name and len(reference_name) >= 3:
@@ -869,10 +880,10 @@ class CertVerificationService:
                 ]
                 
                 for ordering in orderings:
-                    # Build pattern to find all parts in sequence (with flexibility)
-                    # Each part can be separated by spaces/newlines
-                    search_pattern = r'\b' + r'\s+'.join(re.escape(p.upper()) for p in ordering) + r'\b'
-                    match = re.search(search_pattern, text_normalized)
+                    # Build pattern with accent-normalized parts
+                    parts_no_accents = [remove_accents(p.upper()) for p in ordering]
+                    search_pattern = r'\b' + r'\s+'.join(re.escape(p) for p in parts_no_accents) + r'\b'
+                    match = re.search(search_pattern, text_no_accents)
                     if match:
                         # Found the name in OCR, return in title case
                         return ' '.join(p.capitalize() for p in ordering)
@@ -882,8 +893,8 @@ class CertVerificationService:
                     positions = []
                     all_found = True
                     for part in ordering:
-                        part_upper = part.upper()
-                        pos = text_upper.find(part_upper)
+                        part_no_accent = remove_accents(part.upper())
+                        pos = text_no_accents.find(part_no_accent)
                         if pos >= 0:
                             positions.append(pos)
                         else:
@@ -914,7 +925,8 @@ class CertVerificationService:
     def verify_folder(
         self, 
         folder_path: str,
-        req_filter: Optional[str] = None
+        req_filter: Optional[str] = None,
+        max_files: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Verify all PDF certificates in a folder
@@ -922,6 +934,7 @@ class CertVerificationService:
         Args:
             folder_path: Path to the folder containing PDFs
             req_filter: Optional requirement code to filter by
+            max_files: Optional maximum number of files to process (fix #9)
             
         Returns:
             Dictionary with verification results and summary
@@ -946,6 +959,13 @@ class CertVerificationService:
                 "results": [],
                 "summary": {"total": 0}
             }
+        
+        # Apply max_files limit if specified (fix #9)
+        truncated = False
+        total_found = len(pdf_files)
+        if max_files and len(pdf_files) > max_files:
+            pdf_files = pdf_files[:max_files]
+            truncated = True
         
         results = []
         for pdf_path in pdf_files:
@@ -986,12 +1006,20 @@ class CertVerificationService:
             if r["status"] == "valid":
                 summary["by_resource"][res]["valid"] += 1
         
-        return {
+        result_dict = {
             "success": True,
             "folder": folder_path,
             "results": results,
             "summary": summary
         }
+        
+        # Add truncation info if max_files was applied (fix #9)
+        if truncated:
+            result_dict["warning"] = f"Risultati troncati: processati {len(pdf_files)} di {total_found} file"
+            result_dict["truncated"] = True
+            result_dict["total_files_found"] = total_found
+        
+        return result_dict
 
 
 def check_ocr_available() -> Dict[str, Any]:

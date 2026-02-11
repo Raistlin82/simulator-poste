@@ -383,7 +383,7 @@ function AppContent() {
               <TechEvaluator />
             </div>
             <div className="lg:col-span-5 space-y-4 md:space-y-6">
-              <Dashboard />
+              <Dashboard onNavigate={setView} />
             </div>
           </div>
         )}
