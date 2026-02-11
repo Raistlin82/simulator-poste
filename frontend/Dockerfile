@@ -44,7 +44,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 RUN echo 'server { \
     listen 80; \
     location /api/ { \
-        proxy_pass http://backend:8000/api/; \
+        proxy_pass http://backend-service:8000/api/; \
         proxy_http_version 1.1; \
         proxy_set_header Upgrade $http_upgrade; \
         proxy_set_header Connection "upgrade"; \
