@@ -199,6 +199,7 @@ class OIDCMiddleware:
             decode_kwargs = {
                 "algorithms": ["RS256"],
                 "options": decode_options,
+                "audience": None,  # Explicitly disable audience check
             }
 
             # Issuer validation: be flexible with trailing slashes
