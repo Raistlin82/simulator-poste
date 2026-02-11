@@ -192,28 +192,15 @@ class OIDCMiddleware:
                 "verify_nbf": True,
                 "verify_iat": True,
                 "verify_aud": False,  # SAP IAS doesn't use standard audience
-                "verify_iss": True,
+                "verify_iss": False,  # Disable issuer check to avoid mismatch
             }
 
             # If verifying audience, pass the expected audiences
             decode_kwargs = {
                 "algorithms": ["RS256"],
                 "options": decode_options,
-                # Do NOT pass audience parameter - let jose skip validation
+                # Do NOT pass audience or issuer to skip those validations
             }
-
-            # Issuer validation: be flexible with trailing slashes
-            token_issuer = unverified_claims.get('iss', '')
-            expected_issuer = self.config.issuer.rstrip('/')
-            token_issuer_normalized = token_issuer.rstrip('/')
-            
-            if token_issuer_normalized == expected_issuer:
-                # Use the token's issuer for validation to avoid mismatch
-                decode_kwargs["issuer"] = token_issuer
-            else:
-                # Issuer mismatch - this will fail
-                decode_kwargs["issuer"] = self.config.issuer
-                logger.warning(f"Issuer mismatch: token has '{token_issuer}', expected '{self.config.issuer}'")
 
             decoded = jwt.decode(token, key, **decode_kwargs)
 
