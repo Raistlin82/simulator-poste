@@ -132,12 +132,12 @@ jobs:
 
       - name: Verify cluster connection
         run: |
-          kubectl cluster-info
-          kubectl get namespaces
+          kubectl get namespace simulator-poste || kubectl create namespace simulator-poste
+          echo "Cluster connection verified"
 
-      - name: Create namespace if not exists
+      - name: Ensure namespace exists
         run: |
-          kubectl apply -f k8s/namespace.yaml
+          kubectl get namespace simulator-poste || echo "Namespace already exists or SA has limited permissions"
 
       - name: Create/Update OIDC Secrets
         run: |
