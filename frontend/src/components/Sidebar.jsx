@@ -32,7 +32,16 @@ export default function Sidebar({
         <div className="w-[85vw] max-w-80 md:w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg z-20">
             {/* Lutech Logo Banner */}
             <div className="p-4 bg-gradient-to-br from-slate-50 to-white border-b border-slate-200 flex justify-between items-center">
-                <img src="/logo-lutech.png" alt="Lutech" className="h-10 object-contain" />
+                <button
+                    onClick={() => {
+                        if (onNavigate) onNavigate('dashboard');
+                        if (window.innerWidth < 768 && onClose) onClose();
+                    }}
+                    className="hover:opacity-80 transition-opacity cursor-pointer"
+                    aria-label="Vai alla Home"
+                >
+                    <img src="/logo-lutech.png" alt="Lutech" className="h-10 object-contain" />
+                </button>
                 {/* Close button - mobile only */}
                 <button
                     onClick={onClose}
