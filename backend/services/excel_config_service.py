@@ -55,6 +55,216 @@ class ExcelConfigService:
         return None
 
     @staticmethod
+    def export_lot_config(lot_config: Dict[str, Any], master_data: Dict[str, Any]) -> io.BytesIO:
+        """
+        Export a lot configuration to a populated Excel file.
+        
+        Args:
+            lot_config: The lot configuration dict to export
+            master_data: Master data dict with company_certs, prof_certs, economic_formulas
+            
+        Returns:
+            BytesIO object containing the Excel file
+        """
+        wb = Workbook()
+        
+        # Remove default sheet
+        wb.remove(wb.active)
+        
+        # Create master data sheets first (for named ranges)
+        ExcelConfigService._create_md_sheets(wb, master_data)
+        
+        # Create and populate input sheets
+        ExcelConfigService._export_lotto_sheet(wb, lot_config, master_data)
+        ExcelConfigService._export_cert_aziendali_sheet(wb, lot_config)
+        ExcelConfigService._export_cert_professionali_sheet(wb, lot_config)
+        ExcelConfigService._export_referenze_progetti_sheet(wb, lot_config)
+        ExcelConfigService._export_criteri_sheet(wb, lot_config)
+        ExcelConfigService._export_voci_tabellari_sheet(wb, lot_config)
+        
+        # Save to BytesIO
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return output
+
+    @staticmethod
+    def _export_lotto_sheet(wb: Workbook, lot_config: Dict[str, Any], master_data: Dict[str, Any]):
+        """Create and populate Lotto sheet with lot config data."""
+        ws = wb.create_sheet(SHEET_LOTTO, 0)
+        headers = ["Nome", "Importo Base", "Alpha", "Formula Economica"]
+        ws.append(headers)
+        ExcelConfigService._style_header(ws, 1, len(headers))
+        
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 18
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 25
+        
+        # Add data validation for formula_economica
+        formulas = master_data.get("economic_formulas", [])
+        if formulas:
+            dv = DataValidation(type="list", formula1="MD_Formule", allow_blank=False)
+            ws.add_data_validation(dv)
+            dv.add("D2:D100")
+        
+        # Populate with lot data
+        ws.append([
+            lot_config.get("name", ""),
+            lot_config.get("base_amount", 0),
+            lot_config.get("alpha", 0.3),
+            lot_config.get("economic_formula", "interp_alpha")
+        ])
+
+    @staticmethod
+    def _export_cert_aziendali_sheet(wb: Workbook, lot_config: Dict[str, Any]):
+        """Create and populate company certifications sheet."""
+        ws = wb.create_sheet(SHEET_CERT_AZIENDALI, 1)
+        headers = ["Nome Certificazione", "Punti", "Punti Parziale RTI", "Peso Gara"]
+        ws.append(headers)
+        ExcelConfigService._style_header(ws, 1, len(headers))
+        
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 18
+        ws.column_dimensions['D'].width = 12
+        
+        # Populate with company certs
+        for cert in lot_config.get("company_certs", []):
+            ws.append([
+                cert.get("label", ""),
+                cert.get("points", 0),
+                cert.get("points_partial", 0),
+                cert.get("gara_weight", 0)
+            ])
+
+    @staticmethod
+    def _export_cert_professionali_sheet(wb: Workbook, lot_config: Dict[str, Any]):
+        """Create and populate professional certifications sheet."""
+        ws = wb.create_sheet(SHEET_CERT_PROFESSIONALI, 2)
+        headers = [
+            "Codice", "Nome", "Peso Gara", "Max Punti Raw", 
+            "Risorse Richieste", "Cert per Risorsa", "Certificazioni (sep. ;)"
+        ]
+        ws.append(headers)
+        ExcelConfigService._style_header(ws, 1, len(headers))
+        
+        ws.column_dimensions['A'].width = 15
+        ws.column_dimensions['B'].width = 35
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 18
+        ws.column_dimensions['F'].width = 16
+        ws.column_dimensions['G'].width = 60
+        
+        # Populate resource-type requirements
+        for req in lot_config.get("reqs", []):
+            if req.get("type") == "resource":
+                certs_str = ";".join(req.get("selected_prof_certs", []))
+                ws.append([
+                    req.get("id", ""),
+                    req.get("label", ""),
+                    req.get("gara_weight", 0),
+                    req.get("max_points", 0),
+                    req.get("prof_R", 0),
+                    req.get("prof_C", 0),
+                    certs_str
+                ])
+
+    @staticmethod
+    def _export_referenze_progetti_sheet(wb: Workbook, lot_config: Dict[str, Any]):
+        """Create and populate references/projects sheet."""
+        ws = wb.create_sheet(SHEET_REFERENZE_PROGETTI, 3)
+        headers = ["Codice", "Tipo", "Nome", "Peso Gara", "Attestazione Cliente"]
+        ws.append(headers)
+        ExcelConfigService._style_header(ws, 1, len(headers))
+        
+        ws.column_dimensions['A'].width = 15
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 40
+        ws.column_dimensions['D'].width = 12
+        ws.column_dimensions['E'].width = 20
+        
+        # Data validation for tipo
+        dv = DataValidation(type="list", formula1="MD_Tipi", allow_blank=False)
+        ws.add_data_validation(dv)
+        dv.add("B2:B100")
+        
+        # Populate reference/project type requirements
+        for req in lot_config.get("reqs", []):
+            if req.get("type") in ("reference", "project"):
+                ws.append([
+                    req.get("id", ""),
+                    req.get("type", "reference"),
+                    req.get("label", ""),
+                    req.get("gara_weight", 0),
+                    req.get("attestazione_score", 0)
+                ])
+
+    @staticmethod
+    def _export_criteri_sheet(wb: Workbook, lot_config: Dict[str, Any]):
+        """Create and populate criteria sheet."""
+        ws = wb.create_sheet(SHEET_CRITERI, 4)
+        headers = [
+            "Codice Requisito", "Nome Criterio", "Peso",
+            "Assente/Inadeguato", "Parzialmente Adeguato", "Adeguato", 
+            "Più che Adeguato", "Ottimo"
+        ]
+        ws.append(headers)
+        ExcelConfigService._style_header(ws, 1, len(headers))
+        
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 40
+        ws.column_dimensions['C'].width = 10
+        ws.column_dimensions['D'].width = 18
+        ws.column_dimensions['E'].width = 22
+        ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 18
+        ws.column_dimensions['H'].width = 10
+        
+        # Populate criteria from reference/project requirements
+        for req in lot_config.get("reqs", []):
+            if req.get("type") in ("reference", "project"):
+                for sub_req in req.get("sub_reqs", []):
+                    judgement = sub_req.get("judgement_levels", {})
+                    ws.append([
+                        req.get("id", ""),
+                        sub_req.get("label", ""),
+                        sub_req.get("weight", 1.0),
+                        judgement.get("assente_inadeguato", 0),
+                        judgement.get("parzialmente_adeguato", 2),
+                        judgement.get("adeguato", 3),
+                        judgement.get("piu_che_adeguato", 4),
+                        judgement.get("ottimo", 5)
+                    ])
+
+    @staticmethod
+    def _export_voci_tabellari_sheet(wb: Workbook, lot_config: Dict[str, Any]):
+        """Create and populate tabular metrics sheet."""
+        ws = wb.create_sheet(SHEET_VOCI_TABELLARI, 5)
+        headers = ["Codice Requisito", "ID Voce", "Nome Voce", "Min Score", "Max Score"]
+        ws.append(headers)
+        ExcelConfigService._style_header(ws, 1, len(headers))
+        
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 40
+        ws.column_dimensions['D'].width = 12
+        ws.column_dimensions['E'].width = 12
+        
+        # Populate custom metrics from reference/project requirements
+        for req in lot_config.get("reqs", []):
+            if req.get("type") in ("reference", "project"):
+                for metric in req.get("custom_metrics", []):
+                    ws.append([
+                        req.get("id", ""),
+                        metric.get("id", ""),
+                        metric.get("label", ""),
+                        metric.get("min_score", 0),
+                        metric.get("max_score", 5)
+                    ])
+
+    @staticmethod
     def generate_template(master_data: Dict[str, Any]) -> io.BytesIO:
         """
         Generate an Excel template for lot configuration.

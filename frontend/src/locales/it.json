@@ -182,7 +182,11 @@
         "min_points": "Punti Min",
         "max_points_label": "Punti Max",
         "no_custom_metrics": "Nessuna voce tabellare configurata.",
-        "add_custom_metric": "voce tabellare"
+        "add_custom_metric": "voce tabellare",
+        "export_lot": "Esporta Lotto",
+        "export_error": "Errore durante l'export del lotto",
+        "import_excel": "Importa Excel",
+        "download_template": "Scarica Template"
     },
     "master": {
         "title": "Configurazioni Globali (Master Data)",

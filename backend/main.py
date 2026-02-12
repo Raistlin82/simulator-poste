@@ -670,6 +670,57 @@ def download_config_template(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.get("/lots/{lot_key}/export")
+def export_lot_config(lot_key: str, db: Session = Depends(get_db)):
+    """
+    Export a lot configuration to an Excel file.
+    Creates a populated template with all the lot's configuration data.
+    """
+    from services.excel_config_service import ExcelConfigService
+    
+    # Get lot config from database
+    lot_obj = crud.get_lot_config(db, lot_key)
+    if not lot_obj or not lot_obj.config:
+        raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
+    
+    lot_config = lot_obj.config
+    
+    # Get master data for dropdowns
+    master_data_obj = crud.get_master_data(db)
+    if not master_data_obj:
+        master_data = {
+            "company_certs": [],
+            "prof_certs": [],
+            "economic_formulas": [{"id": "interp_alpha", "label": "Interpolazione (Fattore Alpha)"}]
+        }
+    else:
+        master_data = {
+            "company_certs": master_data_obj.company_certs or [],
+            "prof_certs": master_data_obj.prof_certs or [],
+            "economic_formulas": master_data_obj.economic_formulas or [
+                {"id": "interp_alpha", "label": "Interpolazione (Fattore Alpha)"}
+            ]
+        }
+    
+    try:
+        excel_bytes = ExcelConfigService.export_lot_config(lot_config, master_data)
+        
+        # Sanitize filename
+        safe_name = lot_config.get("name", lot_key).replace("/", "_").replace("\\", "_")
+        filename = f"export_{safe_name}.xlsx"
+        
+        return StreamingResponse(
+            excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error exporting lot config: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/config/import")
 async def import_config_from_excel(
     file: UploadFile = File(...),

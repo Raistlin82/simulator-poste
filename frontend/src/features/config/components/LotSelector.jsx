@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Trash2, ChevronDown, Download, Upload, Loader2, X } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Download, Upload, Loader2, X, FileDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_URL } from '../../../utils/api';
@@ -29,6 +29,31 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
   const handleAddLot = () => {
     const name = prompt(t('config.prompt_new_lot'));
     if (name) onAddLot(name);
+  };
+
+  const handleExportLot = async () => {
+    if (!selectedLot) return;
+    
+    try {
+      const token = getAccessToken();
+      const response = await axios.get(`${API_URL}/lots/${encodeURIComponent(selectedLot)}/export`, {
+        responseType: 'blob',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `export_${selectedLot}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export lot error:', err);
+      alert(t('config.export_error', 'Errore durante l\'export del lotto'));
+    }
   };
 
   const handleDownloadTemplate = async () => {
@@ -184,6 +209,14 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
               <Upload className="w-4 h-4" />
             )}
             <span className="hidden lg:inline">Importa</span>
+          </button>
+          <button
+            onClick={handleExportLot}
+            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-colors font-medium text-sm"
+            title={t('config.export_lot', 'Esporta Lotto')}
+          >
+            <FileDown className="w-4 h-4" />
+            <span className="hidden lg:inline">Esporta</span>
           </button>
           <input
             ref={fileInputRef}
