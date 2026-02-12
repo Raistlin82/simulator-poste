@@ -41,6 +41,43 @@ from pdf_generator import generate_pdf_report
 setup_logging()
 logger = get_logger(__name__)
 
+
+def run_migrations():
+    """
+    Run database migrations to add columns that may be missing in existing databases.
+    This is necessary because SQLAlchemy's create_all() doesn't add new columns to existing tables.
+    """
+    from sqlalchemy import inspect
+    
+    inspector = inspect(engine)
+    
+    # Migration for master_data table - add rti_partners column
+    if "master_data" in inspector.get_table_names():
+        columns = [col["name"] for col in inspector.get_columns("master_data")]
+        if "rti_partners" not in columns:
+            logger.info("Migrating: Adding rti_partners column to master_data table")
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE master_data ADD COLUMN rti_partners TEXT DEFAULT '[]'"))
+                conn.commit()
+    
+    # Migration for lot_configs table - add RTI columns
+    if "lot_configs" in inspector.get_table_names():
+        columns = [col["name"] for col in inspector.get_columns("lot_configs")]
+        with engine.connect() as conn:
+            if "rti_enabled" not in columns:
+                logger.info("Migrating: Adding rti_enabled column to lot_configs table")
+                conn.execute(text("ALTER TABLE lot_configs ADD COLUMN rti_enabled INTEGER DEFAULT 0"))
+            if "rti_companies" not in columns:
+                logger.info("Migrating: Adding rti_companies column to lot_configs table")
+                conn.execute(text("ALTER TABLE lot_configs ADD COLUMN rti_companies TEXT DEFAULT '[]'"))
+            conn.commit()
+    
+    logger.info("Database migrations completed")
+
+
+# Run migrations before create_all to add missing columns
+run_migrations()
+
 models.Base.metadata.create_all(bind=engine)
 
 matplotlib.use("Agg")
