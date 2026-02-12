@@ -122,19 +122,20 @@ export default function Dashboard({ onNavigate }) {
                 total_score: results.total_score,
                 my_discount: myDiscount,
                 competitor_discount: competitorDiscount,
-                competitor_tech_score: competitorTechScore, // Pass actual competitor tech score
-                win_probability: monteCarlo?.win_probability || 0,
-                avg_total_score: monteCarlo?.avg_total_score || 0,
+                alpha: lotData.alpha || 0.3,
+                win_probability: monteCarlo?.win_probability || 50,
                 details: results.details,
                 weighted_scores: results.weighted_scores || {},
-                category_company_certs: results.category_company_certs || 0,
-                category_resource: results.category_resource || 0,
-                category_reference: results.category_reference || 0,
-                category_project: results.category_project || 0,
+                category_scores: {
+                    company_certs: results.category_company_certs || 0,
+                    resource: results.category_resource || 0,
+                    reference: results.category_reference || 0,
+                    project: results.category_project || 0
+                },
                 max_tech_score: results?.calculated_max_tech_score || lotData.max_tech_score || 60,
                 max_econ_score: lotData.max_econ_score || 40,
-                max_raw_score: lotData.max_raw_score || 0,
-                monte_carlo_data: monteCarlo // Pass Monte Carlo data for PDF
+                tech_inputs_full: techInputs || {},
+                rti_quotas: lotData.rti_quotas || {}
             }, { responseType: 'blob' });
 
             const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
