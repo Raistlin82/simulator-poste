@@ -527,10 +527,39 @@ def calculate_lot_max_tech_score(lot_cfg: schemas.LotConfig):
 
     return total
 
+
+def normalize_sub_req_ids(lot_config: schemas.LotConfig) -> schemas.LotConfig:
+    """
+    Normalize sub_req IDs to sequential letters (a, b, c, ...).
+    Fixes legacy IDs like 'SOAR_REQ_43_1' to 'a', 'SOAR_REQ_43_2' to 'b', etc.
+    """
+    config_dict = lot_config.model_dump()
+    
+    for req in config_dict.get("reqs", []):
+        sub_reqs = req.get("sub_reqs") or req.get("criteria") or []
+        for i, sub in enumerate(sub_reqs):
+            # Convert index to letter (0='a', 1='b', etc.)
+            new_id = chr(97 + i) if i < 26 else f"c{i + 1}"
+            sub["id"] = new_id
+        
+        # Update the key used
+        if "sub_reqs" in req:
+            req["sub_reqs"] = sub_reqs
+        elif "criteria" in req:
+            req["criteria"] = sub_reqs
+    
+    return schemas.LotConfig.model_validate(config_dict)
+
+
 @api_router.get("/config", response_model=Dict[str, schemas.LotConfig])
 def get_config(db: Session = Depends(get_db)):
     configs = crud.get_lot_configs(db)
-    return {c.name: schemas.LotConfig.model_validate(c) for c in configs}
+    result = {}
+    for c in configs:
+        lot_config = schemas.LotConfig.model_validate(c)
+        lot_config = normalize_sub_req_ids(lot_config)
+        result[c.name] = lot_config
+    return result
 
 
 @api_router.get("/master-data", response_model=schemas.MasterData)
