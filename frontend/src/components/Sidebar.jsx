@@ -152,79 +152,89 @@ export default function Sidebar({
                 )}
             </div>
 
-            <div className="p-6 flex-1 overflow-y-auto space-y-8">
+            <div className="p-6 flex-1 overflow-y-auto space-y-4">
 
                 {/* Economic Inputs */}
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">{t('config.base_amount')}</label>
-                        <div className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-slate-600 font-mono text-sm shadow-sm ring-1 ring-slate-100 italic">
-                            {formatCurrency(baseAmount)}
-                        </div>
+                <div className="space-y-3">
+                    {/* Base Amount - compact */}
+                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                        <label className="text-xs font-medium text-slate-600">{t('config.base_amount')}</label>
+                        <span className="text-sm font-mono font-semibold text-slate-700">{formatCurrency(baseAmount)}</span>
                     </div>
 
-                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
-                        <div className="flex justify-between items-center mb-2">
-                            <label className="text-xs font-bold text-slate-600 uppercase">{t('simulation.competitor_discount')}</label>
-                            <div className="flex items-center gap-1 bg-white border rounded px-2 py-0.5">
-                                <input
-                                    type="number"
-                                    step="0.1"
-                                    value={competitorDiscount}
-                                    onChange={(e) => setDiscount('competitorDiscount', Math.round(parseFloat(e.target.value) * 10) / 10 || 0)}
-                                    className="w-12 text-sm font-mono focus:outline-none text-right"
-                                />
-                                <span className="text-xs text-slate-400">%</span>
+                    {/* Discount inputs - unified compact style */}
+                    <div className="rounded-xl border border-slate-200 overflow-hidden">
+                        {/* Best Offer row */}
+                        <div className="relative">
+                            <div 
+                                className="absolute inset-y-0 left-0 bg-orange-50 transition-all duration-300"
+                                style={{ width: `${Math.min(competitorDiscount, 100)}%` }}
+                            />
+                            <div className="relative px-4 py-3 flex items-center gap-3 border-b border-slate-100">
+                                <div className="w-1 h-8 rounded-full bg-orange-500" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-semibold text-slate-700 uppercase">{t('simulation.competitor_discount')}</div>
+                                    <div className="text-[11px] text-slate-500 font-mono">{formatCurrency(p_best)}</div>
+                                </div>
+                                <div className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        min="0"
+                                        max="100"
+                                        value={competitorDiscount.toFixed(1)}
+                                        onChange={(e) => setDiscount('competitorDiscount', Math.round(parseFloat(e.target.value) * 10) / 10 || 0)}
+                                        className="w-14 text-sm font-mono text-right px-2 py-1.5 focus:outline-none focus:bg-orange-50"
+                                    />
+                                    <span className="text-xs text-slate-400 pr-2 bg-slate-50 py-1.5 pl-0.5">%</span>
+                                </div>
                             </div>
                         </div>
-                        <input
-                            type="range" min="0" max="100" step="0.1"
-                            value={competitorDiscount}
-                            onChange={(e) => setDiscount('competitorDiscount', parseFloat(e.target.value))}
-                            className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-500 touch-pan-x"
-                            style={{ minHeight: '44px' }}
-                        />
-                        <p className="text-xs text-slate-400 mt-1 text-right">{t('simulation.best_price')}: {formatCurrency(p_best)}</p>
-                    </div>
 
-                    <div className={`p-4 rounded-lg border transition-colors ${isBest ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
-                        <div className="flex justify-between items-center mb-2">
-                            <label className="text-xs font-bold text-slate-600 uppercase">
-                                {isRti ? t('simulation.my_discount_rti') : t('simulation.my_discount')}
-                            </label>
-                            <div className="flex items-center gap-1 bg-white border rounded px-2 py-0.5">
-                                <input
-                                    type="number"
-                                    step="0.1"
-                                    value={myDiscount}
-                                    onChange={(e) => setDiscount('myDiscount', Math.round(parseFloat(e.target.value) * 10) / 10 || 0)}
-                                    className="w-12 text-sm font-mono focus:outline-none text-right text-blue-600 font-bold"
-                                />
-                                <span className="text-xs text-slate-400">%</span>
+                        {/* My Discount row */}
+                        <div className="relative">
+                            <div 
+                                className={`absolute inset-y-0 left-0 ${isBest ? 'bg-green-50' : 'bg-blue-50'} transition-all duration-300`}
+                                style={{ width: `${Math.min(myDiscount, 100)}%` }}
+                            />
+                            <div className="relative px-4 py-3 flex items-center gap-3">
+                                <div className={`w-1 h-8 rounded-full ${isBest ? 'bg-green-500' : 'bg-blue-500'}`} />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-semibold text-slate-700 uppercase">
+                                        {isRti ? t('simulation.my_discount_rti') : t('simulation.my_discount')}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 font-mono">
+                                        {formatCurrency(p_my)}
+                                        {isBest && <span className="ml-2 text-green-600 font-bold">🔥 BEST</span>}
+                                    </div>
+                                </div>
+                                <div className={`flex items-center bg-white border rounded-lg shadow-sm overflow-hidden ${isBest ? 'border-green-300' : 'border-slate-200'}`}>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        min="0"
+                                        max="100"
+                                        value={myDiscount.toFixed(1)}
+                                        onChange={(e) => setDiscount('myDiscount', Math.round(parseFloat(e.target.value) * 10) / 10 || 0)}
+                                        className={`w-14 text-sm font-mono text-right px-2 py-1.5 focus:outline-none font-bold ${isBest ? 'text-green-600 focus:bg-green-50' : 'text-blue-600 focus:bg-blue-50'}`}
+                                    />
+                                    <span className="text-xs text-slate-400 pr-2 bg-slate-50 py-1.5 pl-0.5">%</span>
+                                </div>
                             </div>
                         </div>
-                        <input
-                            type="range" min="0" max="100" step="0.1"
-                            value={myDiscount}
-                            onChange={(e) => setDiscount('myDiscount', parseFloat(e.target.value))}
-                            className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 touch-pan-x"
-                            style={{ minHeight: '44px' }}
-                        />
-                        <p className="text-xs text-slate-500 mt-1 text-right">{t('simulation.your_price')}: {formatCurrency(p_my)}</p>
-                        {isBest && <p className="text-xs text-green-600 font-bold mt-2">{t('app.best_price_badge')}</p>}
                     </div>
 
                     {/* RTI Quota Breakdown */}
                     {isRti && allRtiCompanies.length > 0 && (
                         <div className="rounded-xl border border-indigo-200 overflow-hidden">
                             {/* Header */}
-                            <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                    <Building2 className="w-4 h-4 text-white" />
-                                    <span className="text-sm font-semibold text-white">{t('simulation.rti_breakdown')}</span>
-                                </div>
-                                <div className="text-[10px] text-indigo-200 mt-0.5">
-                                    {t('simulation.your_price')}: <span className="font-mono font-semibold text-white">{formatCurrency(p_my)}</span>
+                            <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2.5">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Building2 className="w-4 h-4 text-white" />
+                                        <span className="text-sm font-semibold text-white">{t('simulation.rti_breakdown')}</span>
+                                    </div>
+                                    <span className="font-mono text-sm font-semibold text-white">{formatCurrency(p_my)}</span>
                                 </div>
                             </div>
                             
@@ -252,9 +262,9 @@ export default function Sidebar({
                                                 style={{ width: `${Math.min(quota, 100)}%` }}
                                             />
                                             
-                                            <div className="relative px-4 py-3 flex items-center gap-3">
+                                            <div className="relative px-4 py-2.5 flex items-center gap-3">
                                                 {/* Company indicator */}
-                                                <div className={`w-1 h-8 rounded-full ${barColor}`} />
+                                                <div className={`w-1 h-7 rounded-full ${barColor}`} />
                                                 
                                                 {/* Company name */}
                                                 <div className="flex-1 min-w-0">
@@ -270,12 +280,12 @@ export default function Sidebar({
                                                 <div className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                                                     <input
                                                         type="number"
-                                                        step="0.5"
+                                                        step="0.1"
                                                         min="0"
                                                         max="100"
-                                                        value={quota}
+                                                        value={quota.toFixed(1)}
                                                         onChange={(e) => handleQuotaChange(company, e.target.value)}
-                                                        className="w-12 text-sm font-mono text-right px-2 py-1.5 focus:outline-none focus:bg-indigo-50"
+                                                        className="w-14 text-sm font-mono text-right px-2 py-1.5 focus:outline-none focus:bg-indigo-50"
                                                     />
                                                     <span className="text-xs text-slate-400 pr-2 bg-slate-50 py-1.5 pl-0.5">%</span>
                                                 </div>
@@ -286,16 +296,16 @@ export default function Sidebar({
                             </div>
 
                             {/* Footer with total */}
-                            <div className="bg-slate-50 px-4 py-2.5 border-t border-slate-200">
+                            <div className="bg-slate-50 px-4 py-2 border-t border-slate-200">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">{t('simulation.rti_total')}</span>
-                                    <div className="flex items-center gap-3">
-                                        <span className={`text-sm font-bold ${isQuotaValid ? 'text-green-600' : 'text-red-500'}`}>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-sm font-mono font-bold ${isQuotaValid ? 'text-green-600' : 'text-red-500'}`}>
                                             {totalQuota.toFixed(1)}%
                                         </span>
                                         {!isQuotaValid && (
-                                            <span className="text-[10px] text-red-500">
-                                                {totalQuota < 100 ? `+${(100 - totalQuota).toFixed(1)}%` : `-${(totalQuota - 100).toFixed(1)}%`}
+                                            <span className="text-[10px] text-red-500 font-mono">
+                                                ({totalQuota < 100 ? `+${(100 - totalQuota).toFixed(1)}` : `-${(totalQuota - 100).toFixed(1)}`})
                                             </span>
                                         )}
                                     </div>
