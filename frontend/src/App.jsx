@@ -124,10 +124,10 @@ function AppContent() {
 
       lastLoadedLot.current = selectedLot;
 
-      // Re-enable auto-save after state has stabilized
+      // Re-enable auto-save and trigger recalculation after state has stabilized
       setTimeout(() => {
         isLoadingState.current = false;
-      }, 2000);
+      }, 500);
     }
   }, [selectedLot, config, resetState]);
 
@@ -204,12 +204,14 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [handleSaveState, config, selectedLot, loading, authLoading, isAuthenticated, myDiscount, competitorDiscount, competitorTechScore, competitorEconDiscount, techInputs, companyCerts]);
 
-  // Main Calculation Effect
+  // Main Calculation Effect - with AbortController to prevent race conditions
   useEffect(() => {
     if (!config || !selectedLot || authLoading || !isAuthenticated) return;
 
     // Additional guard: ensure we have valid data from config
     if (!config[selectedLot] || baseAmount <= 0) return;
+
+    const controller = new AbortController();
 
     const payload = {
       lot_key: selectedLot,
@@ -222,18 +224,28 @@ function AppContent() {
         .map(([label]) => label)
     };
 
-    // Calculate Scores
-    axios.post(`${API_URL}/calculate`, payload)
+    // Calculate Scores with abort signal
+    axios.post(`${API_URL}/calculate`, payload, { signal: controller.signal })
       .then(res => setResults(res.data))
-      .catch(err => logger.error("Calculation failed", err, { component: "App", lot: selectedLot }));
+      .catch(err => {
+        // Ignore abort errors
+        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
+          logger.error("Calculation failed", err, { component: "App", lot: selectedLot });
+        }
+      });
+
+    // Cleanup: abort previous request when dependencies change
+    return () => controller.abort();
   }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config, authLoading, isAuthenticated, setResults]);
 
-  // Simulation Effect (runs only when technical or economic results change)
+  // Simulation Effect (runs only when technical or economic results change) - with AbortController
   useEffect(() => {
-    if (!config || !selectedLot || !results || authLoading || !isAuthenticated) return; // Simulate for Chart
+    if (!config || !selectedLot || !results || authLoading || !isAuthenticated) return;
 
     // Additional guard: ensure we have valid data
     if (!config[selectedLot] || baseAmount <= 0) return;
+
+    const controller = new AbortController();
 
     axios.post(`${API_URL}/simulate`, {
       lot_key: selectedLot,
@@ -241,9 +253,15 @@ function AppContent() {
       competitor_discount: competitorDiscount,
       my_discount: myDiscount,
       current_tech_score: results.technical_score
-    })
+    }, { signal: controller.signal })
       .then(res => setSimulationData(res.data))
-      .catch(err => logger.error("Simulation failed", err, { component: "App", lot: selectedLot }));
+      .catch(err => {
+        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
+          logger.error("Simulation failed", err, { component: "App", lot: selectedLot });
+        }
+      });
+
+    return () => controller.abort();
   }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config, authLoading, isAuthenticated, results, setSimulationData]);
 
   if (loading) return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
