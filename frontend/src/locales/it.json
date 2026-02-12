@@ -106,7 +106,12 @@
         "max_raw": "Max Raw",
         "tender_weight": "Peso Gara",
         "max_status": "MAX",
-        "verify_certifications": "Verifica Certificazioni PDF"
+        "verify_certifications": "Verifica Certificazioni PDF",
+        "rti_contributions": "Contributi per Azienda RTI",
+        "shared_rti_certs": "Certificazioni Aziendali (condivise RTI)",
+        "shared_rti_desc": "Questo punteggio è condiviso da tutte le aziende RTI",
+        "no_contribution": "Nessun contributo assegnato",
+        "total_attributable": "Totale Attribuibile"
     },
     "tech_evaluator": {
         "title": "Valutazione Tecnica",

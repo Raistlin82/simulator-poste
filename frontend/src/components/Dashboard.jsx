@@ -14,13 +14,14 @@ import { API_URL } from '../utils/api';
 
 export default function Dashboard({ onNavigate }) {
     const { t } = useTranslation();
-    const { config } = useConfig();
+    const { config, masterData } = useConfig();
     const {
         selectedLot,
         myDiscount,
         competitorDiscount,
         competitorTechScore,
         competitorEconDiscount,
+        techInputs,
         results,
         simulationData,
         setCompetitorParam
@@ -177,6 +178,8 @@ export default function Dashboard({ onNavigate }) {
             <ScoreGauges
                 results={results}
                 lotData={lotData}
+                techInputs={techInputs}
+                masterData={masterData}
                 onExport={handleExport}
                 exportLoading={exportLoading}
             />
