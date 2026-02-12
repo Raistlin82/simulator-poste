@@ -870,13 +870,14 @@ class CertVerificationService:
             # PMI/PMP / ITIL
             r'(Project\s+Management\s+Professional)',
             r'ITIL\s+(?:v\d\s+)?([A-Za-z][A-Za-z\s\-]+?)(?:\s+ITIL|\s+Axelos|\s+Issued)',
-            # PRINCE2 / PeopleCert / Axelos
-            r'PRINCE2?\s+(Foundation|Practitioner|Agile)\s*(?:Certificate|Certification)?(?:\s+in\s+[A-Za-z\s]+)?',
-            r'(PRINCE2?\s+Foundation\s+Certificate(?:\s+in\s+Project\s+Management)?)',
-            r'(PRINCE2?\s+Practitioner\s+Certificate(?:\s+in\s+Project\s+Management)?)',
-            r'(PRINCE2?\s+Agile\s+(?:Foundation|Practitioner))',
+            # PRINCE2 / PeopleCert / Axelos - full name patterns FIRST
+            r'(PRINCE2®?\s+Foundation\s+Certificate(?:\s+in\s+Project\s+Management)?)',
+            r'(PRINCE2®?\s+Practitioner\s+Certificate(?:\s+in\s+Project\s+Management)?)',
+            r'(PRINCE2®?\s+Agile\s+(?:Foundation|Practitioner)(?:\s+Certificate)?)',
             r'PeopleCert[:\s]+([A-Za-z][A-Za-z\s\-0-9]+?)(?:\s+Certificate|\s+Issued|\s+Valid|\s*$)',
             r'Axelos[:\s]+([A-Za-z][A-Za-z\s\-0-9]+?)(?:\s+Certificate|\s+Issued|\s+Valid|\s*$)',
+            # PRINCE2 fallback - only level name if full pattern didn't match
+            r'(PRINCE2®?\s+(?:Foundation|Practitioner|Agile))',
             # Generic patterns
             r'Certificate\s+of\s+([A-Za-z][A-Za-z\s\-]+?)(?:\s+Issued|\s+Date|\s+This)',
             r'certified\s+as\s+(?:a|an)?\s*([A-Za-z][A-Za-z\s\-]+?)(?:\s+on|\s+by|\s+Issued|\s+Date)',
