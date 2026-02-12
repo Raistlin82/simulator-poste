@@ -62,12 +62,11 @@ DEFAULT_VENDORS = {
     },
     "oracle": {
         "name": "Oracle",
-        "aliases": ["oracle", "oci"],
+        "aliases": ["oracle", "oracle cloud"],
         "cert_patterns": [
             r"oracle\s*cloud\s*infrastructure",
+            r"oracle\s*certified",
             r"java\s*(se|ee)",
-            r"database\s*administrator",
-            r"sql\s*expert",
             r"1z0-\d+",
         ]
     },
@@ -217,7 +216,7 @@ DEFAULT_VENDORS = {
     },
     "iapp": {
         "name": "IAPP",
-        "aliases": ["iapp", "international association of privacy professionals"],
+        "aliases": ["iapp", "international association of privacy professionals", "privacy professional"],
         "cert_patterns": [
             r"cipp",
             r"cipm",
@@ -225,7 +224,7 @@ DEFAULT_VENDORS = {
             r"certified\s*information\s*privacy\s*professional",
             r"certified\s*information\s*privacy\s*manager",
             r"certified\s*information\s*privacy\s*technologist",
-            r"information\s*privacy\s*management",
+            r"information\s*privacy",
             r"fellow\s*of\s*information\s*privacy",
             r"fip",
         ]
@@ -265,10 +264,11 @@ DEFAULT_VENDORS = {
     },
     "apmg": {
         "name": "APMG International",
-        "aliases": ["apmg", "apmg international"],
+        "aliases": ["apmg", "apmg international", "agilepm"],
         "cert_patterns": [
             r"agile\s*project\s*management",
             r"agile\s*pm",
+            r"agilepm",
             r"change\s*management",
             r"msP",
             r"managing\s*successful\s*programmes",

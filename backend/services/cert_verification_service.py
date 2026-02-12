@@ -392,22 +392,37 @@ class CertVerificationService:
     
     def _preprocess_image(self, image: "PILImage.Image") -> "PILImage.Image":
         """
-        Preprocess image for better OCR on certificates with colored backgrounds
+        Preprocess image for better OCR on certificates with colored backgrounds.
+        Uses less aggressive processing to avoid destroying text.
         """
         # Convert to grayscale
         gray = image.convert('L')
-        # Apply autocontrast to enhance contrast
+        # Apply autocontrast to enhance contrast (lighter cutoff)
         enhanced = ImageOps.autocontrast(gray, cutoff=2)
         # Apply slight sharpening
         sharpened = enhanced.filter(ImageFilter.SHARPEN)
         return sharpened
+    
+    def _preprocess_image_aggressive(self, image: "PILImage.Image") -> "PILImage.Image":
+        """
+        Aggressive preprocessing for certificates with heavy background patterns.
+        Used only as last resort.
+        """
+        # Convert to grayscale
+        gray = image.convert('L')
+        # Apply autocontrast
+        enhanced = ImageOps.autocontrast(gray, cutoff=5)
+        # Apply binarization (threshold) to remove colored backgrounds
+        threshold = 180
+        binarized = enhanced.point(lambda x: 255 if x > threshold else 0, '1')
+        return binarized.convert('L')
     
     def _ocr_with_rotation(self, image: "PILImage.Image") -> str:
         """
         Try OCR on image with limited rotation attempts for performance.
         Only try preprocessing if original fails.
         """
-        configs = ["--oem 3 --psm 6"]  # Single best config for speed
+        configs = ["--oem 3 --psm 6"]
         best_text = ""
         best_score = 0
         best_rotation = 0
@@ -426,7 +441,7 @@ class CertVerificationService:
                     logger.debug(f"Good OCR result at rotation 0° (score={best_score})")
                     return best_text
         
-        # If original failed, try preprocessed image
+        # If original has low score, try light preprocessing
         if best_score < 10:
             preprocessed = self._preprocess_image(image)
             for cfg in configs:
@@ -439,12 +454,28 @@ class CertVerificationService:
                     best_score = score
                     best_text = text
                     if score >= 10:
-                        logger.debug(f"Good OCR result with preprocessing (score={best_score})")
+                        logger.debug(f"Good OCR result with light preprocessing (score={best_score})")
+                        return best_text
+        
+        # If still failing badly, try aggressive binarization (for patterned backgrounds)
+        if best_score < 5:
+            preprocessed_aggr = self._preprocess_image_aggressive(image)
+            for cfg in configs:
+                try:
+                    text = pytesseract.image_to_string(preprocessed_aggr, lang='eng+ita', config=cfg)
+                except Exception:
+                    continue
+                score = self._score_ocr_text(text)
+                if score > best_score:
+                    best_score = score
+                    best_text = text
+                    if score >= 10:
+                        logger.debug(f"Good OCR result with aggressive preprocessing (score={best_score})")
                         return best_text
         
         # Only try rotation if still failing (rare case)
         if best_score < 5:
-            for rotation in [180]:  # Only try 180° flip
+            for rotation in [180]:
                 rotated = image.rotate(-rotation, expand=True)
                 for cfg in configs:
                     try:
@@ -464,8 +495,8 @@ class CertVerificationService:
         # Log result
         if best_score == 0:
             logger.debug("Could not extract meaningful text from image")
-        elif best_score >= 10:
-            logger.debug(f"Good OCR result at rotation {best_rotation}° (score={best_score})")
+        elif best_score >= 5:
+            logger.debug(f"OCR result at rotation {best_rotation}° (score={best_score})")
         
         return best_text
     
