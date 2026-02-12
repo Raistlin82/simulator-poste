@@ -70,6 +70,9 @@ def run_migrations():
             if "rti_companies" not in columns:
                 logger.info("Migrating: Adding rti_companies column to lot_configs table")
                 conn.execute(text("ALTER TABLE lot_configs ADD COLUMN rti_companies TEXT DEFAULT '[]'"))
+            if "rti_quotas" not in columns:
+                logger.info("Migrating: Adding rti_quotas column to lot_configs table")
+                conn.execute(text("ALTER TABLE lot_configs ADD COLUMN rti_quotas TEXT DEFAULT '{}'"))
             conn.commit()
     
     logger.info("Database migrations completed")

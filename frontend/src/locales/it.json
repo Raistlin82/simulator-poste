@@ -219,11 +219,17 @@
     "simulation": {
         "title": "Parametri Simulazione",
         "my_discount": "Sconto Lutech (%)",
+        "my_discount_rti": "Sconto RTI (%)",
         "competitor_discount": "Best Offer (%)",
         "competitor_avg": "Media Market Attesa",
         "best_price": "Miglior Prezzo",
         "your_price": "Prezzo",
-        "base_value": "Valore"
+        "base_value": "Valore",
+        "rti_breakdown": "Ripartizione Quote RTI",
+        "rti_quota": "Quota (%)",
+        "rti_amount": "Importo",
+        "rti_total_must_100": "La somma delle quote deve essere 100%",
+        "rti_total": "Totale"
     },
     "tech": {
         "prof_certs": "Certificazioni Professionali",

@@ -203,6 +203,23 @@ def update_lot_config(
             db_lot.rti_companies = [c for c in lot_config.rti_companies if c in valid_partners]
         else:
             db_lot.rti_companies = []
+        
+        # Handle RTI quotas
+        if lot_config.rti_quotas:
+            db_lot.rti_quotas = lot_config.rti_quotas
+        else:
+            # Initialize default quotas if RTI is enabled but no quotas provided
+            if lot_config.rti_enabled and db_lot.rti_companies:
+                # Default: Lutech 70%, rest split evenly among partners
+                partner_count = len(db_lot.rti_companies)
+                remaining = 30.0
+                per_partner = round(remaining / partner_count, 2) if partner_count > 0 else 0
+                db_lot.rti_quotas = {"Lutech": 70.0}
+                for company in db_lot.rti_companies:
+                    db_lot.rti_quotas[company] = per_partner
+            else:
+                db_lot.rti_quotas = {}
+        
         # NOTE: state is NOT updated here - it is saved separately via POST /config/state
         # to prevent POST /config from overwriting simulation state with stale data
 
