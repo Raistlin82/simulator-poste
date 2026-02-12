@@ -711,25 +711,25 @@ class ExcelReportGenerator:
         self.named_ranges['BaseAsta'] = f"'Economico'!$C${row}"
         row += 1
         
-        ws[f'B{row}'] = 'Sconto (%)'
+        ws[f'B{row}'] = 'Sconto'
         ws[f'B{row}'].font = LABEL_FONT
         ws[f'B{row}'].border = THIN_BORDER
-        ws[f'C{row}'] = self.my_discount
+        ws[f'C{row}'] = self.my_discount / 100  # Store as decimal
         ws[f'C{row}'].fill = INPUT_FILL
         ws[f'C{row}'].border = THIN_BORDER
-        ws[f'C{row}'].number_format = '0.0'
+        ws[f'C{row}'].number_format = '0.0%'
         sconto_mio_row = row
         self.econ_sconto_row = row
         self.named_ranges['Sconto'] = f"'Economico'!$C${row}"
         row += 1
         
-        ws[f'B{row}'] = 'Sconto Best Offer (%)'
+        ws[f'B{row}'] = 'Sconto Best Offer'
         ws[f'B{row}'].font = LABEL_FONT
         ws[f'B{row}'].border = THIN_BORDER
-        ws[f'C{row}'] = self.competitor_discount
+        ws[f'C{row}'] = self.competitor_discount / 100  # Store as decimal
         ws[f'C{row}'].fill = INPUT_FILL
         ws[f'C{row}'].border = THIN_BORDER
-        ws[f'C{row}'].number_format = '0.0'
+        ws[f'C{row}'].number_format = '0.0%'
         sconto_best_row = row
         self.econ_sconto_best_row = row
         self.named_ranges['ScontoBest'] = f"'Economico'!$C${row}"
@@ -766,7 +766,7 @@ class ExcelReportGenerator:
         ws[f'B{row}'] = 'Prezzo Offerto'
         ws[f'B{row}'].font = LABEL_FONT
         ws[f'B{row}'].border = THIN_BORDER
-        ws[f'C{row}'] = f'=C{base_row}*(1-C{sconto_mio_row}/100)'
+        ws[f'C{row}'] = f'=C{base_row}*(1-C{sconto_mio_row})'  # sconto is now decimal
         ws[f'C{row}'].fill = FORMULA_FILL
         ws[f'C{row}'].border = THIN_BORDER
         ws[f'C{row}'].number_format = '€ #,##0.00'
@@ -777,7 +777,7 @@ class ExcelReportGenerator:
         ws[f'B{row}'] = 'Prezzo Best Offer'
         ws[f'B{row}'].font = LABEL_FONT
         ws[f'B{row}'].border = THIN_BORDER
-        ws[f'C{row}'] = f'=C{base_row}*(1-C{sconto_best_row}/100)'
+        ws[f'C{row}'] = f'=C{base_row}*(1-C{sconto_best_row})'  # sconto is now decimal
         ws[f'C{row}'].fill = FORMULA_FILL
         ws[f'C{row}'].border = THIN_BORDER
         ws[f'C{row}'].number_format = '€ #,##0.00'
@@ -844,19 +844,19 @@ class ExcelReportGenerator:
         scenario_end = row - 1
         
         # Conditional formatting: highlight current discount row dynamically
-        # When B{row} (discount %) equals C{sconto_mio_row}/100
+        # When B{row} (discount %) equals C{sconto_mio_row} (both as decimals)
         from openpyxl.formatting.rule import FormulaRule
         highlight_fill = PatternFill(start_color='FFF9C4', end_color='FFF9C4', fill_type='solid')
         highlight_rule = FormulaRule(
-            formula=[f'$B{scenario_start}=$C${sconto_mio_row}/100'],
+            formula=[f'$B{scenario_start}=$C${sconto_mio_row}'],
             fill=highlight_fill
         )
         ws.conditional_formatting.add(f'B{scenario_start}:G{scenario_end}', highlight_rule)
         
-        # Conditional formatting: gray out rows where Score Econ >= Max (using ratio >= 1)
+        # Conditional formatting: gray out rows AFTER max score (ratio > 1, not >= 1)
         gray_fill = PatternFill(start_color='E0E0E0', end_color='E0E0E0', fill_type='solid')
         gray_rule = FormulaRule(
-            formula=[f'$D{scenario_start}>=1'],
+            formula=[f'$D{scenario_start}>1'],
             fill=gray_fill
         )
         ws.conditional_formatting.add(f'B{scenario_start}:G{scenario_end}', gray_rule)
@@ -873,27 +873,28 @@ class ExcelReportGenerator:
         
         # Add chart: Score curve (Sconto vs Score Economico and Totale)
         from openpyxl.chart import LineChart, Reference as ChartRef
+        from openpyxl.chart.series import SeriesLabel
         
         chart = LineChart()
         chart.title = 'Curva Punteggio'
         chart.style = 10
         chart.x_axis.title = 'Sconto %'
         chart.y_axis.title = 'Punteggio'
-        chart.y_axis.crossAx = 500
         chart.width = 18
         chart.height = 10
         
+        # Data for chart - Score Economico (column E) without header
+        econ_data = ChartRef(ws, min_col=5, min_row=scenario_start, max_col=5, max_row=scenario_end)
+        chart.add_data(econ_data)
+        chart.series[0].title = SeriesLabel(v='Score Econ.')
+        
+        # Data for chart - Score Totale (column G) without header
+        total_data = ChartRef(ws, min_col=7, min_row=scenario_start, max_col=7, max_row=scenario_end)
+        chart.add_data(total_data)
+        chart.series[1].title = SeriesLabel(v='TOTALE')
+        
         # X-axis: Sconto % (column B)
         x_values = ChartRef(ws, min_col=2, min_row=scenario_start, max_col=2, max_row=scenario_end)
-        
-        # Series 1: Score Economico (column E)
-        econ_data = ChartRef(ws, min_col=5, min_row=scenario_headers_row, max_col=5, max_row=scenario_end)
-        chart.add_data(econ_data, titles_from_data=True)
-        
-        # Series 2: Score Totale (column G)
-        total_data = ChartRef(ws, min_col=7, min_row=scenario_headers_row, max_col=7, max_row=scenario_end)
-        chart.add_data(total_data, titles_from_data=True)
-        
         chart.set_categories(x_values)
         
         # Style the series
