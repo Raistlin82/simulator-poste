@@ -5,14 +5,30 @@ import { Plus, Trash2, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X 
 import LotSelector from '../features/config/components/LotSelector';
 import CompanyCertsEditor from '../features/config/components/CompanyCertsEditor';
 import { useConfig } from '../features/config/context/ConfigContext';
+import { useSimulation } from '../features/simulation/context/SimulationContext';
 
 export default function ConfigPage({ onAddLot, onDeleteLot }) {
     const { t } = useTranslation();
-    const { config, setConfig, masterData } = useConfig();
+    const { config, setConfig, masterData, refetch } = useConfig();
+    const { selectedLot: globalSelectedLot, setLot: setGlobalLot } = useSimulation();
     const [editedConfig, setEditedConfig] = useState(() => JSON.parse(JSON.stringify(config)));
-    const [selectedLot, setSelectedLot] = useState(() => Object.keys(config)[0] || "");
+    // Initialize from global selected lot if available, otherwise first lot
+    const [selectedLot, setSelectedLotLocal] = useState(() => globalSelectedLot || Object.keys(config)[0] || "");
     const [activeTab, setActiveTab] = useState('resource');
     const [certSearch, setCertSearch] = useState('');
+
+    // Sync local selectedLot with global selectedLot when switching tabs
+    useEffect(() => {
+        if (globalSelectedLot && globalSelectedLot !== selectedLot && config[globalSelectedLot]) {
+            setSelectedLotLocal(globalSelectedLot);
+        }
+    }, [globalSelectedLot, config, selectedLot]);
+
+    // Update both local and global when user changes lot in ConfigPage
+    const setSelectedLot = useCallback((lotKey) => {
+        setSelectedLotLocal(lotKey);
+        setGlobalLot(lotKey);
+    }, [setGlobalLot]);
 
     // Track last synced value to prevent infinite loops between context <-> local state
     const lastSyncedToContextRef = useRef(JSON.stringify(config));
@@ -156,8 +172,8 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
             max_points: 0,
             type,
             ...(type === 'resource' && { prof_R: 1, prof_C: 1, selected_prof_certs: [], max_points_manual: false }),
-            ...(type === 'reference' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5 }], attestazione_score: 0, custom_metrics: [] }),
-            ...(type === 'project' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5 }], attestazione_score: 0, custom_metrics: [] })
+            ...(type === 'reference' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5, judgement_levels: { ...defaultJudgementLevels } }], attestazione_score: 0, custom_metrics: [] }),
+            ...(type === 'project' && { sub_reqs: [{ id: 'a', label: `${t('tech.criteria')} 1`, weight: 1.0, max_value: 5, judgement_levels: { ...defaultJudgementLevels } }], attestazione_score: 0, custom_metrics: [] })
         };
         newReq.max_points = calcRequirementMaxPoints(newReq);
         updateLot(lot => {
@@ -182,13 +198,27 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
         });
     };
 
+    const defaultJudgementLevels = {
+        assente_inadeguato: 0,
+        parzialmente_adeguato: 2,
+        adeguato: 3,
+        piu_che_adeguato: 4,
+        ottimo: 5
+    };
+
     const addSubReq = (reqId) => {
         updateLot(lot => {
             const req = lot.reqs?.find(r => r.id === reqId);
             if (req) {
                 if (!req.sub_reqs) req.sub_reqs = [];
                 const newId = String.fromCharCode(97 + req.sub_reqs.length);
-                req.sub_reqs.push({ id: newId, label: t('tech.criteria') + ' ' + (req.sub_reqs.length + 1), weight: 1.0, max_value: 5 });
+                req.sub_reqs.push({ 
+                    id: newId, 
+                    label: t('tech.criteria') + ' ' + (req.sub_reqs.length + 1), 
+                    weight: 1.0, 
+                    max_value: 5,
+                    judgement_levels: { ...defaultJudgementLevels }
+                });
                 req.max_points = calcRequirementMaxPoints(req);
             }
         });
@@ -201,6 +231,24 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                 const sub = req.sub_reqs.find(s => s.id === subId);
                 if (sub) {
                     sub[field] = value;
+                    req.max_points = calcRequirementMaxPoints(req);
+                }
+            }
+        });
+    };
+
+    const updateSubReqJudgementLevel = (reqId, subId, levelKey, value) => {
+        updateLot(lot => {
+            const req = lot.reqs?.find(r => r.id === reqId);
+            if (req && req.sub_reqs) {
+                const sub = req.sub_reqs.find(s => s.id === subId);
+                if (sub) {
+                    if (!sub.judgement_levels) {
+                        sub.judgement_levels = { ...defaultJudgementLevels };
+                    }
+                    sub.judgement_levels[levelKey] = value;
+                    // max_value derived from ottimo
+                    sub.max_value = sub.judgement_levels.ottimo;
                     req.max_points = calcRequirementMaxPoints(req);
                 }
             }
@@ -324,6 +372,10 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                         onSelectLot={setSelectedLot}
                         onAddLot={onAddLot}
                         onDeleteLot={onDeleteLot}
+                        onImportSuccess={async (lotKey) => {
+                            await refetch();
+                            setSelectedLot(lotKey);
+                        }}
                     />
 
                     {/* Datalists for suggestions from Master Data */}
@@ -849,54 +901,111 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                         {t('common.add')}
                                                     </button>
                                                 </div>
-                                                <div className="space-y-2">
+                                                <div className="space-y-3">
                                                     {req.sub_reqs && req.sub_reqs.length > 0 ? (
-                                                        req.sub_reqs.map((sub) => (
-                                                            <div key={sub.id} className="flex gap-3 items-center bg-white p-2 rounded border border-blue-200">
-                                                                <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-700 rounded font-mono text-xs font-bold shrink-0">{sub.id}</span>
-                                                                <input
-                                                                    type="text"
-                                                                    value={sub.label}
-                                                                    onChange={(e) => updateSubReq(req.id, sub.id, 'label', e.target.value)}
-                                                                    placeholder={t('tech.criteria') + ' label'}
-                                                                    className="flex-1 p-1.5 border border-slate-200 bg-white rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
-                                                                />
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-xs font-medium text-slate-500">Max</span>
+                                                        req.sub_reqs.map((sub) => {
+                                                            const levels = sub.judgement_levels || defaultJudgementLevels;
+                                                            return (
+                                                            <div key={sub.id} className="bg-white p-3 rounded border border-blue-200 space-y-2">
+                                                                {/* Row 1: ID, Label, Weight, Raw, Delete */}
+                                                                <div className="flex gap-3 items-center">
+                                                                    <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-700 rounded font-mono text-xs font-bold shrink-0">{sub.id}</span>
                                                                     <input
-                                                                        type="number"
-                                                                        step="1"
-                                                                        min="0"
-                                                                        max="5"
-                                                                        value={sub.max_value || 5}
-                                                                        onChange={(e) => updateSubReq(req.id, sub.id, 'max_value', Math.max(0, Math.min(5, parseInt(e.target.value) || 5)))}
-                                                                        className="w-12 p-1.5 border border-purple-200 bg-purple-50 rounded text-xs font-bold text-center focus:ring-1 focus:ring-purple-500 outline-none"
-                                                                        title="Punteggio massimo (0-5)"
+                                                                        type="text"
+                                                                        value={sub.label}
+                                                                        onChange={(e) => updateSubReq(req.id, sub.id, 'label', e.target.value)}
+                                                                        placeholder={t('tech.criteria') + ' label'}
+                                                                        className="flex-1 p-1.5 border border-slate-200 bg-white rounded text-xs focus:ring-1 focus:ring-blue-500 outline-none"
                                                                     />
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-xs font-medium text-slate-500">Peso</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.1"
+                                                                            min="0.1"
+                                                                            value={sub.weight}
+                                                                            onChange={(e) => updateSubReq(req.id, sub.id, 'weight', Math.max(0.1, parseFloat(e.target.value) || 0.1))}
+                                                                            className="w-14 p-1.5 border border-slate-200 bg-white rounded text-xs font-bold text-center focus:ring-1 focus:ring-blue-500 outline-none"
+                                                                            title="Peso interno del criterio"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="text-[9px] font-mono text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-200">
+                                                                        Raw: {((parseFloat(sub.weight) || 0) * (parseFloat(levels.ottimo) || 5)).toFixed(1)}
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => deleteSubReq(req.id, sub.id)}
+                                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors shrink-0"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </button>
                                                                 </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-xs font-medium text-slate-500">Peso</span>
-                                                                    <input
-                                                                        type="number"
-                                                                        step="0.1"
-                                                                        min="0.1"
-                                                                        value={sub.weight}
-                                                                        onChange={(e) => updateSubReq(req.id, sub.id, 'weight', Math.max(0.1, parseFloat(e.target.value) || 0.1))}
-                                                                        className="w-14 p-1.5 border border-slate-200 bg-white rounded text-xs font-bold text-center focus:ring-1 focus:ring-blue-500 outline-none"
-                                                                        title="Peso interno del criterio (distribuisce il raw score)"
-                                                                    />
+                                                                {/* Row 2: 5 Judgement Level inputs */}
+                                                                <div className="flex gap-2 items-center pl-9">
+                                                                    <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0">Punteggi:</span>
+                                                                    <div className="flex gap-1 items-center">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.5"
+                                                                            min="0"
+                                                                            value={levels.assente_inadeguato ?? 0}
+                                                                            onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'assente_inadeguato', parseFloat(e.target.value) || 0)}
+                                                                            className="w-10 p-1 border border-red-200 bg-red-50 rounded text-[10px] font-bold text-center focus:ring-1 focus:ring-red-400 outline-none"
+                                                                            title="Assente/Inadeguato"
+                                                                        />
+                                                                        <span className="text-[8px] text-red-600 font-medium">Ass.</span>
+                                                                    </div>
+                                                                    <div className="flex gap-1 items-center">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.5"
+                                                                            min="0"
+                                                                            value={levels.parzialmente_adeguato ?? 2}
+                                                                            onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'parzialmente_adeguato', parseFloat(e.target.value) || 0)}
+                                                                            className="w-10 p-1 border border-orange-200 bg-orange-50 rounded text-[10px] font-bold text-center focus:ring-1 focus:ring-orange-400 outline-none"
+                                                                            title="Parzialmente Adeguato"
+                                                                        />
+                                                                        <span className="text-[8px] text-orange-600 font-medium">Parz.</span>
+                                                                    </div>
+                                                                    <div className="flex gap-1 items-center">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.5"
+                                                                            min="0"
+                                                                            value={levels.adeguato ?? 3}
+                                                                            onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'adeguato', parseFloat(e.target.value) || 0)}
+                                                                            className="w-10 p-1 border border-yellow-300 bg-yellow-50 rounded text-[10px] font-bold text-center focus:ring-1 focus:ring-yellow-400 outline-none"
+                                                                            title="Adeguato"
+                                                                        />
+                                                                        <span className="text-[8px] text-yellow-600 font-medium">Adeg.</span>
+                                                                    </div>
+                                                                    <div className="flex gap-1 items-center">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.5"
+                                                                            min="0"
+                                                                            value={levels.piu_che_adeguato ?? 4}
+                                                                            onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'piu_che_adeguato', parseFloat(e.target.value) || 0)}
+                                                                            className="w-10 p-1 border border-lime-300 bg-lime-50 rounded text-[10px] font-bold text-center focus:ring-1 focus:ring-lime-400 outline-none"
+                                                                            title="Più che Adeguato"
+                                                                        />
+                                                                        <span className="text-[8px] text-lime-600 font-medium">+Adeg.</span>
+                                                                    </div>
+                                                                    <div className="flex gap-1 items-center">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.5"
+                                                                            min="0"
+                                                                            value={levels.ottimo ?? 5}
+                                                                            onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'ottimo', parseFloat(e.target.value) || 0)}
+                                                                            className="w-10 p-1 border border-green-300 bg-green-50 rounded text-[10px] font-bold text-center focus:ring-1 focus:ring-green-400 outline-none"
+                                                                            title="Ottimo (= Max)"
+                                                                        />
+                                                                        <span className="text-[8px] text-green-600 font-medium">Ott.</span>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-[9px] font-mono text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-200">
-                                                                    Raw: {((parseFloat(sub.weight) || 0) * (parseFloat(sub.max_value) || 5)).toFixed(1)}
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => deleteSubReq(req.id, sub.id)}
-                                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors shrink-0"
-                                                                >
-                                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                                </button>
                                                             </div>
-                                                        ))
+                                                        );
+                                                        })
                                                     ) : (
                                                         <div className="text-center py-3 text-blue-900/50 text-xs italic">
                                                             {t('config.no_subreqs', 'Nessun criterio definito.')}

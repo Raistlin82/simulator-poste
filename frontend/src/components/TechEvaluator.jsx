@@ -64,8 +64,11 @@ export default function TechEvaluator() {
 
     // Dynamic Category Totals
     const maxCompanyCerts = lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0;
-    const maxProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) => sum + (r.max_points || 0), 0) || 0;
-    const maxProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) => sum + (r.max_points || 0), 0) || 0;
+    // Use backend-calculated max_raw_scores when available (respects max_points_manual)
+    const maxProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) => 
+        sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0;
+    const maxProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) => 
+        sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0;
 
     // Calculate raw scores for each category
     const rawCompanyCerts = lotData.company_certs?.reduce((sum, cert) =>
@@ -73,8 +76,8 @@ export default function TechEvaluator() {
 
 
     const rawProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, req) => {
-        const cur = inputs[req.id] || { r_val: 0, c_val: 0 };
-        return sum + (2 * cur.r_val + cur.r_val * cur.c_val);
+        // Use backend-calculated score from results?.details instead of recalculating locally
+        return sum + (results?.details?.[req.id] || 0);
     }, 0) || 0;
 
     const weightedProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) =>
@@ -380,13 +383,27 @@ export default function TechEvaluator() {
                             const cur = inputs[req.id] || { qual_val: 'Adeguato', bonus_active: false };
                             const pts = results?.details[req.id] || 0;
 
-                            const JUDGMENT_OPTIONS = [
-                                { value: 0, label: "Assente/Inadeguato", color: "bg-red-100 border-red-300 text-red-800" },
-                                { value: 2, label: "Parzialmente adeguato", color: "bg-orange-100 border-orange-300 text-orange-800" },
-                                { value: 3, label: "Adeguato", color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
-                                { value: 4, label: "Più che adeguato", color: "bg-lime-100 border-lime-300 text-lime-800" },
-                                { value: 5, label: "Ottimo", color: "bg-green-100 border-green-300 text-green-800" }
-                            ];
+                            // Function to build judgement options from criterion's levels
+                            const getJudgementOptions = (criterion) => {
+                                const levels = criterion?.judgement_levels;
+                                if (levels) {
+                                    return [
+                                        { value: levels.assente_inadeguato ?? 0, label: "Assente/Inadeguato", color: "bg-red-100 border-red-300 text-red-800" },
+                                        { value: levels.parzialmente_adeguato ?? 2, label: "Parzialmente adeguato", color: "bg-orange-100 border-orange-300 text-orange-800" },
+                                        { value: levels.adeguato ?? 3, label: "Adeguato", color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
+                                        { value: levels.piu_che_adeguato ?? 4, label: "Più che adeguato", color: "bg-lime-100 border-lime-300 text-lime-800" },
+                                        { value: levels.ottimo ?? 5, label: "Ottimo", color: "bg-green-100 border-green-300 text-green-800" }
+                                    ];
+                                }
+                                // Default values for backwards compatibility
+                                return [
+                                    { value: 0, label: "Assente/Inadeguato", color: "bg-red-100 border-red-300 text-red-800" },
+                                    { value: 2, label: "Parzialmente adeguato", color: "bg-orange-100 border-orange-300 text-orange-800" },
+                                    { value: 3, label: "Adeguato", color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
+                                    { value: 4, label: "Più che adeguato", color: "bg-lime-100 border-lime-300 text-lime-800" },
+                                    { value: 5, label: "Ottimo", color: "bg-green-100 border-green-300 text-green-800" }
+                                ];
+                            };
 
                             // Calculate raw score for this requirement (WITH INTERNAL WEIGHTS)
                             const reqRawScore = (() => {
@@ -450,7 +467,7 @@ export default function TechEvaluator() {
                                                     </div>
 
                                                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                                                        {JUDGMENT_OPTIONS.map(option => (
+                                                        {getJudgementOptions(sub).map(option => (
                                                             <button
                                                                 key={option.value}
                                                                 onClick={() => {
@@ -477,15 +494,24 @@ export default function TechEvaluator() {
 
                                         {/* 2. Attestazione Cliente */}
                                         {req.attestazione_score > 0 && (
-                                            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100/50">
+                                            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
                                                 <div className="flex justify-between items-center">
                                                     <label className="flex items-center gap-3 cursor-pointer group">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={cur.attestazione_active || false}
-                                                            onChange={(e) => updateInput(req.id, 'attestazione_active', e.target.checked)}
-                                                            className="w-5 h-5 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500 transition-all cursor-pointer"
-                                                        />
+                                                        <div className="relative">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={cur.attestazione_active || false}
+                                                                onChange={(e) => updateInput(req.id, 'attestazione_active', e.target.checked)}
+                                                                className="sr-only"
+                                                            />
+                                                            <div className={`w-6 h-6 border-2 rounded flex items-center justify-center transition-all ${cur.attestazione_active ? 'bg-emerald-500 border-emerald-600' : 'bg-white border-emerald-500'}`}>
+                                                                {cur.attestazione_active && (
+                                                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                         <div>
                                                             <span className="text-sm font-bold text-emerald-900 group-hover:text-emerald-700 block transition-colors">{t('tech_evaluator.attestazione_label')}</span>
                                                         </div>

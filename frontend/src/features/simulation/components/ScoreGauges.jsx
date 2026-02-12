@@ -34,7 +34,7 @@ export default function ScoreGauges({ results, lotData, onExport, exportLoading 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Gauge
           value={results.technical_score}
-          max={lotData.max_tech_score || 60}
+          max={results?.calculated_max_tech_score || lotData.max_tech_score || 60}
           color="#3b82f6"
           label={t('dashboard.technical')}
         />

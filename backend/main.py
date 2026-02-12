@@ -380,16 +380,19 @@ def calculate_economic_score(p_base, p_offered, p_best_competitor, alpha=0.3, ma
     return ScoringService.calculate_economic_score(p_base, p_offered, p_best_competitor, alpha, max_econ)
 
 
-def calculate_prof_score(R, C, max_res, max_points, max_certs=5):
+def calculate_prof_score(R, C, max_res, max_points, max_certs=5, max_points_manual=False, prof_R=None, prof_C=None):
     """
     Calculate professional score for a requirement.
 
     Args:
         R: Number of resources
         C: Number of certifications
-        max_res: Maximum expected resources
+        max_res: Maximum expected resources (slider max)
         max_points: Maximum points achievable
-        max_certs: Maximum certifications to count
+        max_certs: Maximum certifications to count (slider max)
+        max_points_manual: If True, scale score proportionally to max_points
+        prof_R: Required resources for full score (used for proportional calc)
+        prof_C: Required certs per resource for full score
 
     Returns:
         Score capped at max_points
@@ -404,6 +407,15 @@ def calculate_prof_score(R, C, max_res, max_points, max_certs=5):
     
     # Logic: (2 * R) + (R * C)
     score = (2 * R) + (R * C)
+
+    if max_points_manual:
+        # Use prof_R/prof_C as theoretical max (required values for full score)
+        req_R = prof_R if prof_R and prof_R > 0 else max_res
+        req_C = prof_C if prof_C and prof_C > 0 else max_certs
+        theoretical_max = (2 * req_R) + (req_R * req_C)
+        if theoretical_max > 0:
+            return min((score / theoretical_max) * max_points, max_points)
+        return 0.0
 
     # Cap at maximum points allowed
     return min(score, max_points)
@@ -420,6 +432,10 @@ def calculate_max_points_for_req(req):
     req_type = req.get("type")
     
     if req_type == "resource":
+        # If max_points_manual is True, use the max_points value directly
+        if req.get("max_points_manual"):
+            return float(req.get("max_points", 0))
+        
         # Formula: (2 * R) + (R * C)
         # We use 'max_res' and 'max_certs' from config. 
         # Fallback to 'prof_R'/'prof_C' if max not explicit, but ideally should be explicit.
@@ -585,6 +601,157 @@ def delete_lot(lot_key: str, db: Session = Depends(get_db)):
     return {"status": "success", "message": f"Gara/Lotto {lot_key} eliminato"}
 
 
+@api_router.get("/config/template")
+def download_config_template(db: Session = Depends(get_db)):
+    """
+    Download Excel template for lot configuration.
+    Template includes master data sheets with data validation dropdowns.
+    """
+    from services.excel_config_service import ExcelConfigService
+    
+    # Get master data
+    master_data_obj = crud.get_master_data(db)
+    if not master_data_obj:
+        master_data = {
+            "company_certs": [],
+            "prof_certs": [],
+            "economic_formulas": [{"id": "interp_alpha", "label": "Interpolazione (Fattore Alpha)"}]
+        }
+    else:
+        master_data = {
+            "company_certs": master_data_obj.company_certs or [],
+            "prof_certs": master_data_obj.prof_certs or [],
+            "economic_formulas": master_data_obj.economic_formulas or [
+                {"id": "interp_alpha", "label": "Interpolazione (Fattore Alpha)"}
+            ]
+        }
+    
+    try:
+        excel_bytes = ExcelConfigService.generate_template(master_data)
+        
+        return StreamingResponse(
+            excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": "attachment; filename=template_configurazione_lotto.xlsx"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error generating config template: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/config/import")
+async def import_config_from_excel(
+    file: UploadFile = File(...),
+    target_lot: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Import lot configuration from an uploaded Excel file.
+    
+    The Excel file should follow the template structure with sheets:
+    - Lotto: lot metadata (name, base_amount, alpha, formula)
+    - Cert_Aziendali: company certifications
+    - Cert_Professionali: resource requirements with professional certs
+    - Referenze_Progetti: reference/project requirements
+    - Criteri: evaluation criteria for references/projects
+    - Voci_Tabellari: tabular scoring items
+    
+    Args:
+        file: Excel file (.xlsx) with lot configuration
+        target_lot: Optional lot key to overwrite. If None, creates new lot from Excel name.
+    
+    Returns:
+        Dict with success status, lot_key, counts, and any warnings
+    """
+    from services.excel_config_service import ExcelConfigService
+    
+    # Validate file type
+    if not file.filename or not file.filename.lower().endswith('.xlsx'):
+        raise HTTPException(
+            status_code=400,
+            detail="Il file deve essere in formato Excel (.xlsx)"
+        )
+    
+    try:
+        # Read file content
+        content = await file.read()
+        
+        # Get master data for validation
+        master_data_obj = crud.get_master_data(db)
+        if not master_data_obj:
+            master_data = {"company_certs": [], "prof_certs": [], "economic_formulas": []}
+        else:
+            master_data = {
+                "company_certs": master_data_obj.company_certs or [],
+                "prof_certs": master_data_obj.prof_certs or [],
+                "economic_formulas": master_data_obj.economic_formulas or []
+            }
+        
+        # Parse Excel
+        lot_config, warnings = ExcelConfigService.parse_upload(content, master_data)
+        
+        if lot_config is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Impossibile leggere la configurazione dal file Excel"
+            )
+        
+        # Determine lot_key: use target_lot if provided, otherwise generate from Excel name
+        if target_lot:
+            # Override existing lot
+            lot_key = target_lot
+            existing = crud.get_lot_config(db, lot_key)
+            if not existing:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Lotto '{lot_key}' non trovato per sovrascrittura"
+                )
+        else:
+            # Create new lot from Excel name - use the name directly as key
+            lot_name = lot_config.get("name", "Lotto_Import")
+            lot_key = lot_name  # Use the exact name from Excel as the lot key
+            existing = crud.get_lot_config(db, lot_key)
+        
+        # lot_config["name"] already has the correct name from Excel parsing
+        
+        # Convert dict to LotConfig schema
+        lot_config_schema = schemas.LotConfig(**lot_config)
+        
+        # Create or update
+        if existing:
+            # Update existing lot
+            crud.update_lot_config(db, lot_key, lot_config_schema)
+            action = "aggiornato"
+        else:
+            # Create new lot
+            crud.create_lot_config(db, lot_config_schema)
+            action = "creato"
+        
+        # Count imported items
+        imported = {
+            "cert_aziendali": len(lot_config.get("company_certs", [])),
+            "requisiti": len(lot_config.get("reqs", [])),
+        }
+        
+        logger.info(f"Imported lot config '{lot_key}': {imported}, warnings: {len(warnings)}")
+        
+        return {
+            "success": True,
+            "lot_key": lot_key,
+            "action": action,
+            "imported": imported,
+            "warnings": warnings
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing config from Excel: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/config/{lot_key}/req/{req_id}/criteria")
 def update_requirement_criteria(
     lot_key: str,
@@ -689,6 +856,9 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
                     req.get("max_res", 10),
                     req["max_points"],
                     req.get("max_certs", 5),
+                    req.get("max_points_manual", False),
+                    req.get("prof_R", 0),
+                    req.get("prof_C", 0),
                 )
             elif req["type"] in ["reference", "project"]:
                 sub_score_sum = 0.0

@@ -130,7 +130,7 @@ export default function Dashboard({ onNavigate }) {
                 category_resource: results.category_resource || 0,
                 category_reference: results.category_reference || 0,
                 category_project: results.category_project || 0,
-                max_tech_score: lotData.max_tech_score || 60,
+                max_tech_score: results?.calculated_max_tech_score || lotData.max_tech_score || 60,
                 max_econ_score: lotData.max_econ_score || 40,
                 max_raw_score: lotData.max_raw_score || 0,
                 monte_carlo_data: monteCarlo // Pass Monte Carlo data for PDF
@@ -199,7 +199,7 @@ export default function Dashboard({ onNavigate }) {
                                     <input
                                         type="range"
                                         min="0"
-                                        max={lotData?.max_tech_score || 60}
+                                        max={results?.calculated_max_tech_score || lotData?.max_tech_score || 60}
                                         step="0.5"
                                         value={competitorTechScore}
                                         onChange={(e) => setCompetitorParam('competitorTechScore', parseFloat(e.target.value))}
@@ -211,7 +211,7 @@ export default function Dashboard({ onNavigate }) {
                                     </span>
                                 </div>
                                 <div className="text-[10px] text-slate-500 mt-1">
-                                    {t('dashboard.max')}: {lotData?.max_tech_score || 60}
+                                    {t('dashboard.max')}: {formatNumber(results?.calculated_max_tech_score || lotData?.max_tech_score || 60, 2)}
                                 </div>
                             </div>
                             <div>
@@ -412,7 +412,7 @@ export default function Dashboard({ onNavigate }) {
                     <div className="flex gap-2">
                         <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100 shadow-sm">
                             <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{t('dashboard.weighted')}:</span>
-                            <span className="text-sm font-bold">{formatNumber(results.technical_score, 2)} / {lotData?.max_tech_score || 60}</span>
+                            <span className="text-sm font-bold">{formatNumber(results.technical_score, 2)} / {results?.calculated_max_tech_score || lotData?.max_tech_score || 60}</span>
                         </div>
                         <div className="flex items-center gap-1.5 bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200">
                             <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{t('dashboard.raw')}:</span>

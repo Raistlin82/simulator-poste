@@ -75,7 +75,7 @@ const DEFAULT_COLUMN_WIDTHS = {
   file: 200,
   requisito: 100,
   certFile: 160,
-  certAttesa: 180,
+  certAttesa: 220,
   risorsa: 140,
   risorsaOcr: 140,
   vendor: 120,
@@ -979,10 +979,17 @@ export default function CertVerificationPage() {
                           <td style={{ width: columnWidths.certFile }} className="px-4 py-3 text-sm text-purple-600 overflow-hidden" title={r.cert_name_from_file || ''}>
                             <div className="truncate">{r.cert_name_from_file || '-'}</div>
                           </td>
-                          <td style={{ width: columnWidths.certAttesa }} className="px-4 py-3 text-sm text-indigo-600 overflow-hidden">
+                          <td style={{ width: columnWidths.certAttesa }} className="px-4 py-3 text-sm text-indigo-600">
                             {r.expected_cert_names && r.expected_cert_names.length > 0 ? (
-                              <div className="truncate" title={r.expected_cert_names.join(', ')}>
-                                {r.expected_cert_names.join(', ')}
+                              <div className="flex flex-wrap gap-1" title={r.expected_cert_names.join(', ')}>
+                                {r.expected_cert_names.map((cert, certIdx) => (
+                                  <span
+                                    key={`${r.req_code || 'req'}-${certIdx}-${cert}`}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs break-words"
+                                  >
+                                    {cert}
+                                  </span>
+                                ))}
                               </div>
                             ) : '-'}
                           </td>
