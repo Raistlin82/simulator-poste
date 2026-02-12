@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2 } from 'lucide-react';
 import { API_URL } from '../utils/api';
+import { useConfig } from '../features/config/context/ConfigContext';
 
 export default function MasterDataConfig() {
     const { t } = useTranslation();
+    const { refetch: refetchConfig } = useConfig();
     const [data, setData] = useState({
         company_certs: [],
         prof_certs: [],
@@ -29,6 +31,39 @@ export default function MasterDataConfig() {
         setToast({ type, message });
         setTimeout(() => setToast(null), 3000);
     };
+
+    // Auto-save master data when it changes (debounced)
+    const saveTimeoutRef = useRef(null);
+    const saveMasterData = useCallback(async (newData) => {
+        try {
+            await axios.post(`${API_URL}/master-data`, newData);
+            showToast('success', 'Salvato');
+            // Refresh ConfigContext so other components (TechEvaluator) get updated masterData
+            if (refetchConfig) refetchConfig();
+        } catch (error) {
+            console.error('Error saving master data:', error);
+            showToast('error', `Errore: ${error.response?.data?.detail || error.message}`);
+        }
+    }, [refetchConfig]);
+
+    useEffect(() => {
+        // Skip initial load
+        if (loading) return;
+        
+        // Debounce save
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+            saveMasterData(data);
+        }, 500);
+        
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [data, loading, saveMasterData]);
 
     useEffect(() => {
         const fetchData = async () => {

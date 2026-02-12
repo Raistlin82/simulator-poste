@@ -187,7 +187,10 @@
         "export_lot": "Esporta Lotto",
         "export_error": "Errore durante l'export del lotto",
         "import_excel": "Importa Excel",
-        "download_template": "Scarica Template"
+        "download_template": "Scarica Template",
+        "rti_companies_lot": "Aziende RTI per questo Lotto",
+        "rti_companies_lot_desc": "Seleziona quali aziende RTI partecipano a questa gara/lotto. Se non ne selezioni nessuna, verranno usate tutte le aziende RTI definite globalmente.",
+        "rti_companies_empty_warning": "Nessuna azienda RTI selezionata per questo lotto. Verranno usate le aziende RTI globali."
     },
     "master": {
         "title": "Configurazioni Globali (Master Data)",

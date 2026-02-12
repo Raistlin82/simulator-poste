@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
-import { Plus, Trash2, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X } from 'lucide-react';
+import { Plus, Trash2, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X, Building2 } from 'lucide-react';
 import LotSelector from '../features/config/components/LotSelector';
 import CompanyCertsEditor from '../features/config/components/CompanyCertsEditor';
 import { useConfig } from '../features/config/context/ConfigContext';
@@ -485,6 +485,49 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                             </div>
                         </div>
                     </div>
+
+                    {/* RTI Companies for this lot */}
+                    {masterData?.rti_companies && masterData.rti_companies.length > 1 && (
+                        <div className="mt-6 pt-6 border-t border-slate-200">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Building2 className="w-4 h-4 text-indigo-600" />
+                                <label className="text-sm font-medium text-slate-700">{t('config.rti_companies_lot')}</label>
+                            </div>
+                            <p className="text-xs text-slate-500 mb-3">{t('config.rti_companies_lot_desc')}</p>
+                            <div className="flex flex-wrap gap-2">
+                                {masterData.rti_companies.map((company, idx) => {
+                                    const lotRtiCompanies = currentLot.rti_companies || [];
+                                    const isSelected = lotRtiCompanies.includes(company);
+                                    return (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => {
+                                                updateLot(lot => {
+                                                    if (!lot.rti_companies) lot.rti_companies = [];
+                                                    if (isSelected) {
+                                                        lot.rti_companies = lot.rti_companies.filter(c => c !== company);
+                                                    } else {
+                                                        lot.rti_companies.push(company);
+                                                    }
+                                                });
+                                            }}
+                                            className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                                                isSelected
+                                                    ? 'bg-indigo-100 border-indigo-400 text-indigo-800 font-semibold'
+                                                    : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-indigo-400 hover:bg-indigo-50'
+                                            }`}
+                                        >
+                                            {company}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {(!currentLot.rti_companies || currentLot.rti_companies.length === 0) && (
+                                <p className="text-xs text-amber-600 mt-2">{t('config.rti_companies_empty_warning')}</p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Company Certifications */}

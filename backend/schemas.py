@@ -56,6 +56,7 @@ class LotConfig(BaseModel):
     company_certs: List[Dict[str, Any]] = Field(default_factory=list)
     reqs: List[Dict[str, Any]] = Field(default_factory=list)
     state: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    rti_companies: List[str] = Field(default_factory=list)  # RTI companies for this lot (subset of master data)
 
     model_config = ConfigDict(from_attributes=True)
 
