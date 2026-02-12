@@ -2,8 +2,8 @@
 Pydantic schemas for request/response validation
 """
 
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+from typing import List, Dict, Any, Optional, Union
 
 
 class CompanyCert(BaseModel):
@@ -67,7 +67,24 @@ class SimulationState(BaseModel):
     competitor_tech_score: float = 60.0
     competitor_econ_discount: float = 30.0
     tech_inputs: Dict[str, Any] = Field(default_factory=dict)
-    company_certs: Dict[str, str] = Field(default_factory=dict)  # label -> "all"|"partial"|"none"
+    company_certs: Dict[str, Any] = Field(default_factory=dict)  # label -> "all"|"partial"|"none" or legacy bool
+
+    @field_validator('company_certs', mode='before')
+    @classmethod
+    def convert_legacy_certs(cls, v):
+        """Convert legacy boolean format to new string format"""
+        if not v:
+            return {}
+        result = {}
+        for label, value in v.items():
+            if isinstance(value, bool):
+                # Convert old boolean to new string: True -> "all", False -> "none"
+                result[label] = "all" if value else "none"
+            elif isinstance(value, str):
+                result[label] = value
+            else:
+                result[label] = "none"
+        return result
 
 
 class TechInput(BaseModel):
@@ -88,7 +105,24 @@ class CalculateRequest(BaseModel):
     competitor_discount: float = Field(ge=0, le=100, description="Discount must be between 0 and 100")
     my_discount: float = Field(ge=0, le=100, description="Discount must be between 0 and 100")
     tech_inputs: List[TechInput]
-    company_certs_status: Dict[str, str] = Field(default_factory=dict)  # label -> "all"|"partial"|"none"
+    company_certs_status: Dict[str, Any] = Field(default_factory=dict)  # label -> "all"|"partial"|"none" or legacy bool
+
+    @field_validator('company_certs_status', mode='before')
+    @classmethod
+    def convert_legacy_certs_status(cls, v):
+        """Convert legacy boolean format to new string format"""
+        if not v:
+            return {}
+        result = {}
+        for label, value in v.items():
+            if isinstance(value, bool):
+                # Convert old boolean to new string: True -> "all", False -> "none"
+                result[label] = "all" if value else "none"
+            elif isinstance(value, str):
+                result[label] = value
+            else:
+                result[label] = "none"
+        return result
 
 
 class SimulationRequest(BaseModel):
