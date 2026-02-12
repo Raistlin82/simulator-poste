@@ -1071,6 +1071,7 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
         "total_score": round(tech_score + econ_score, 2),
         "raw_technical_score": round(raw_tech_score, 2),
         "company_certs_score": round(company_certs_raw_score, 2),  # Raw score
+        "max_company_certs_raw": round(company_certs_max_raw, 2),  # Max raw for company certs
         "details": details,  # RAW scores per requirement
         "max_raw_scores": max_raw_scores,  # Max RAW scores per requirement (with internal weights applied)
         "weighted_scores": weighted_scores,  # Weighted scores per requirement

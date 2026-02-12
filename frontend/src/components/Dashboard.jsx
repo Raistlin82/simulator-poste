@@ -440,14 +440,18 @@ export default function Dashboard({ onNavigate }) {
                                     <div className="text-xs text-slate-400 font-normal">{t('config.company_certs')}</div>
                                 </td>
                                 <td className="px-6 py-4 text-right font-bold text-blue-600">{formatNumber(results.company_certs_score || 0, 2)}</td>
-                                <td className="px-6 py-4 text-right text-slate-500">{formatNumber(lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0, 1)}</td>
+                                <td className="px-6 py-4 text-right text-slate-500">{formatNumber(results.max_company_certs_raw || lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0, 1)}</td>
                                 <td className="px-6 py-4 text-right font-bold text-amber-600">{formatNumber(results.category_company_certs || 0, 2)}</td>
                                 <td className="px-6 py-4 text-right text-amber-500">{formatNumber(lotData.company_certs?.reduce((sum, c) => sum + (c.gara_weight || 0), 0) || 0, 1)}</td>
                                 <td className="px-6 py-4 text-center">
-                                    {((results.company_certs_score || 0) >= (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0.001) && (results.company_certs_score || 0) > 0) ?
-                                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">{t('dashboard.max_status')}</span> :
-                                        <span className="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">{formatNumber((results.company_certs_score || 0) / (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 1) * 100, 0)}%</span>
-                                    }
+                                    {(() => {
+                                        const maxRaw = results.max_company_certs_raw || (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0);
+                                        const score = results.company_certs_score || 0;
+                                        const isMax = score >= maxRaw && score > 0;
+                                        return isMax ?
+                                            <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">{t('dashboard.max_status')}</span> :
+                                            <span className="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">{formatNumber(maxRaw > 0 ? (score / maxRaw * 100) : 0, 0)}%</span>;
+                                    })()}
                                 </td>
                             </tr>
 

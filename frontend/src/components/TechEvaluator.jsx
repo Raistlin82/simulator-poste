@@ -63,7 +63,8 @@ export default function TechEvaluator() {
     }
 
     // Dynamic Category Totals
-    const maxCompanyCerts = lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0;
+    // Use backend-calculated values when available for consistency
+    const maxCompanyCerts = results?.max_company_certs_raw ?? (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0);
     // Use backend-calculated max_raw_scores when available (respects max_points_manual)
     const maxProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) => 
         sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0;
@@ -71,13 +72,8 @@ export default function TechEvaluator() {
         sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0;
 
     // Calculate raw scores for each category
-    // Company certs now use status: "all" (full points), "partial" (partial points), "none" (0)
-    const rawCompanyCerts = lotData.company_certs?.reduce((sum, cert) => {
-        const status = certs[cert.label] || "none";
-        if (status === "all") return sum + (cert.points || 0);
-        if (status === "partial") return sum + (cert.points_partial || 0);
-        return sum;  // "none" = 0
-    }, 0) || 0;
+    // Use backend-calculated score for consistency
+    const rawCompanyCerts = results?.company_certs_score ?? 0;
 
 
     const rawProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, req) => {
