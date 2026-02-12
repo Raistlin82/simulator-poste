@@ -9,7 +9,8 @@ import { useTranslation } from 'react-i18next';
  * @param {Array} props.knownCerts - Available certification options from master data
  * @param {Function} props.onAdd - Callback to add new certification
  * @param {Function} props.onUpdate - Callback to update certification label
- * @param {Function} props.onUpdatePoints - Callback to update certification points
+ * @param {Function} props.onUpdatePoints - Callback to update certification points (all RTI)
+ * @param {Function} props.onUpdatePointsPartial - Callback to update certification points_partial (partial RTI)
  * @param {Function} props.onUpdateGaraWeight - Callback to update certification gara weight
  * @param {Function} props.onDelete - Callback to delete certification
  */
@@ -19,6 +20,7 @@ export default function CompanyCertsEditor({
   onAdd,
   onUpdate,
   onUpdatePoints,
+  onUpdatePointsPartial,
   onUpdateGaraWeight,
   onDelete
 }) {
@@ -61,7 +63,7 @@ export default function CompanyCertsEditor({
 
               <div>
                 <label className="block text-xs font-bold text-purple-600 uppercase mb-1 tracking-wider">
-                  Punti
+                  {t('config.points_per_cert')}
                 </label>
                 <input
                   type="number"
@@ -70,6 +72,20 @@ export default function CompanyCertsEditor({
                   value={cert.points}
                   onChange={(e) => onUpdatePoints(idx, Math.max(0, parseFloat(e.target.value) || 0))}
                   className="w-24 p-2 border border-purple-200 bg-white rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-bold text-center text-purple-700 text-base"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-orange-600 uppercase mb-1 tracking-wider">
+                  {t('config.points_partial')}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={cert.points_partial || 0}
+                  onChange={(e) => onUpdatePointsPartial && onUpdatePointsPartial(idx, Math.max(0, parseFloat(e.target.value) || 0))}
+                  className="w-24 p-2 border border-orange-200 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-bold text-center text-orange-700 text-base"
                 />
               </div>
 

@@ -313,7 +313,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
         const defaultLabel = knownCerts.length > 0 ? knownCerts[0] : "";
         updateLot(lot => {
             if (!lot.company_certs) lot.company_certs = [];
-            lot.company_certs.push({ label: defaultLabel, points: 2.0, gara_weight: 0 });
+            lot.company_certs.push({ label: defaultLabel, points: 2.0, points_partial: 1.0, gara_weight: 0 });
         });
     };
 
@@ -329,6 +329,14 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
         updateLot(lot => {
             if (lot.company_certs && lot.company_certs[idx]) {
                 lot.company_certs[idx].points = pts;
+            }
+        });
+    };
+
+    const updateCompanyCertPointsPartial = (idx, pts) => {
+        updateLot(lot => {
+            if (lot.company_certs && lot.company_certs[idx]) {
+                lot.company_certs[idx].points_partial = pts;
             }
         });
     };
@@ -486,6 +494,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                     onAdd={addCompanyCert}
                     onUpdate={updateCompanyCert}
                     onUpdatePoints={updateCompanyCertPoints}
+                    onUpdatePointsPartial={updateCompanyCertPointsPartial}
                     onUpdateGaraWeight={updateCompanyCertGaraWeight}
                     onDelete={deleteCompanyCert}
                 />

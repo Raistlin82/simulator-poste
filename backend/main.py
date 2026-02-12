@@ -856,15 +856,21 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
 
     # === 1. CALCULATE RAW SCORES ===
 
-    # Company Certifications (raw score)
+    # Company Certifications (raw score with RTI logic)
+    # Status: "all" = full points, "partial" = partial points, "none"/missing = 0
     raw_tech_score = 0.0
     company_certs_raw_score = 0.0
     cert_config = lot_cfg.company_certs
     cert_pts_map = {c["label"]: c["points"] for c in cert_config if isinstance(c, dict)}
+    cert_partial_map = {c["label"]: c.get("points_partial", 0.0) for c in cert_config if isinstance(c, dict)}
     cert_weight_map = {c["label"]: c.get("gara_weight", 0.0) for c in cert_config if isinstance(c, dict)}
 
-    for selected_label in data.selected_company_certs:
-        company_certs_raw_score += cert_pts_map.get(selected_label, 0.0)
+    for label, status in data.company_certs_status.items():
+        if status == "all":
+            company_certs_raw_score += cert_pts_map.get(label, 0.0)
+        elif status == "partial":
+            company_certs_raw_score += cert_partial_map.get(label, 0.0)
+        # "none" or missing = 0
 
     raw_tech_score += company_certs_raw_score
 

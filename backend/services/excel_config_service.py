@@ -204,13 +204,14 @@ class ExcelConfigService:
     def _create_cert_aziendali_sheet(wb: Workbook, master_data: Dict[str, Any]):
         """Create company certifications sheet."""
         ws = wb.create_sheet(SHEET_CERT_AZIENDALI, 1)
-        headers = ["Nome Certificazione", "Punti", "Peso Gara"]
+        headers = ["Nome Certificazione", "Punti", "Punti Parziale RTI", "Peso Gara"]
         ws.append(headers)
         ExcelConfigService._style_header(ws, 1, len(headers))
         
         ws.column_dimensions['A'].width = 30
         ws.column_dimensions['B'].width = 12
-        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['C'].width = 18
+        ws.column_dimensions['D'].width = 12
         
         # Data validation for nome
         company_certs = master_data.get("company_certs", [])
@@ -455,7 +456,8 @@ class ExcelConfigService:
             
             nome = str(row[0]).strip()
             punti = float(row[1]) if row[1] else 0.0
-            peso_gara = float(row[2]) if len(row) > 2 and row[2] else 0.0
+            punti_parziale = float(row[2]) if len(row) > 2 and row[2] else 0.0
+            peso_gara = float(row[3]) if len(row) > 3 and row[3] else 0.0
             
             if nome not in valid_certs:
                 warnings.append(f"Riga {row_num} Cert_Aziendali: '{nome}' non in master data, saltata")
@@ -464,6 +466,7 @@ class ExcelConfigService:
             result.append({
                 "label": nome,
                 "points": punti,
+                "points_partial": punti_parziale,
                 "gara_weight": peso_gara
             })
         

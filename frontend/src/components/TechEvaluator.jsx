@@ -45,8 +45,8 @@ export default function TechEvaluator() {
         });
     };
 
-    const toggleCert = (key) => {
-        setCompanyCert(key, !certs[key]);
+    const setCertStatus = (label, status) => {
+        setCompanyCert(label, status);  // "all", "partial", "none"
     };
 
     // Guard clause - return early if no lotData
@@ -71,8 +71,13 @@ export default function TechEvaluator() {
         sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0;
 
     // Calculate raw scores for each category
-    const rawCompanyCerts = lotData.company_certs?.reduce((sum, cert) =>
-        sum + (certs[cert.label] ? cert.points : 0), 0) || 0;
+    // Company certs now use status: "all" (full points), "partial" (partial points), "none" (0)
+    const rawCompanyCerts = lotData.company_certs?.reduce((sum, cert) => {
+        const status = certs[cert.label] || "none";
+        if (status === "all") return sum + (cert.points || 0);
+        if (status === "partial") return sum + (cert.points_partial || 0);
+        return sum;  // "none" = 0
+    }, 0) || 0;
 
 
     const rawProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, req) => {
@@ -142,24 +147,57 @@ export default function TechEvaluator() {
                     {expandedSections.companyCerts ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
                 </button>
                 {expandedSections.companyCerts && (
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-6 space-y-4">
                         {lotData.company_certs && lotData.company_certs.length > 0 ? (
-                            lotData.company_certs.map((cert) => (
-                                <button
-                                    key={cert.label}
-                                    onClick={() => toggleCert(cert.label)}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${certs[cert.label] ? 'bg-blue-50 border-blue-500 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                        }`}
-                                >
-                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${certs[cert.label] ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-300'}`}>
-                                        {certs[cert.label] && <Check className="w-3 h-3 text-white" />}
+                            lotData.company_certs.map((cert) => {
+                                const status = certs[cert.label] || "none";
+                                const currentPoints = status === "all" ? cert.points : status === "partial" ? (cert.points_partial || 0) : 0;
+                                
+                                return (
+                                    <div key={cert.label} className="p-4 rounded-lg border border-slate-200 bg-slate-50">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <span className="text-sm font-semibold text-slate-800">{cert.label}</span>
+                                            <span className={`text-sm font-bold ${status !== "none" ? 'text-blue-600' : 'text-slate-400'}`}>
+                                                +{formatNumber(currentPoints, 1)}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                onClick={() => setCertStatus(cert.label, "none")}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                                    status === "none" 
+                                                        ? 'bg-slate-600 text-white' 
+                                                        : 'bg-white border border-slate-300 text-slate-600 hover:border-slate-400'
+                                                }`}
+                                            >
+                                                {t('tech.rti_none')}
+                                            </button>
+                                            {(cert.points_partial > 0) && (
+                                                <button
+                                                    onClick={() => setCertStatus(cert.label, "partial")}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                                        status === "partial" 
+                                                            ? 'bg-amber-500 text-white' 
+                                                            : 'bg-white border border-slate-300 text-slate-600 hover:border-amber-400'
+                                                    }`}
+                                                >
+                                                    {t('tech.rti_partial')} (+{formatNumber(cert.points_partial, 1)})
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => setCertStatus(cert.label, "all")}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                                    status === "all" 
+                                                        ? 'bg-green-500 text-white' 
+                                                        : 'bg-white border border-slate-300 text-slate-600 hover:border-green-400'
+                                                }`}
+                                            >
+                                                {t('tech.rti_all')} (+{formatNumber(cert.points, 1)})
+                                            </button>
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-semibold flex-1">{cert.label}</span>
-                                    <span className={`text-xs font-bold ${certs[cert.label] ? 'text-blue-600' : 'text-slate-400'}`}>
-                                        +{cert.points}
-                                    </span>
-                                </button>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="col-span-full text-center py-4 text-slate-400 text-sm italic">
                                 {t('config.no_certs')}

@@ -9,7 +9,8 @@ from typing import List, Dict, Any, Optional
 class CompanyCert(BaseModel):
     """Company certification with points value"""
     label: str
-    points: float  # max_points (raw score max)
+    points: float  # max_points (raw score when ALL have the cert)
+    points_partial: float = 0.0  # points when at least one (but not all) RTI members have the cert
     gara_weight: float = 0.0  # weight for weighted score calculation
 
 
@@ -66,7 +67,7 @@ class SimulationState(BaseModel):
     competitor_tech_score: float = 60.0
     competitor_econ_discount: float = 30.0
     tech_inputs: Dict[str, Any] = Field(default_factory=dict)
-    company_certs: Dict[str, bool] = Field(default_factory=dict)
+    company_certs: Dict[str, str] = Field(default_factory=dict)  # label -> "all"|"partial"|"none"
 
 
 class TechInput(BaseModel):
@@ -87,7 +88,7 @@ class CalculateRequest(BaseModel):
     competitor_discount: float = Field(ge=0, le=100, description="Discount must be between 0 and 100")
     my_discount: float = Field(ge=0, le=100, description="Discount must be between 0 and 100")
     tech_inputs: List[TechInput]
-    selected_company_certs: List[str] = Field(default_factory=list)
+    company_certs_status: Dict[str, str] = Field(default_factory=dict)  # label -> "all"|"partial"|"none"
 
 
 class SimulationRequest(BaseModel):

@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useReducer } from 'react';
 const SimulationContext = createContext(null);
 
 // Reducer for complex state (techInputs, companyCerts)
+// companyCerts: { [label]: "all" | "partial" | "none" }
 const simulationReducer = (state, action) => {
   switch (action.type) {
     case 'SET_LOT':
@@ -24,7 +25,7 @@ const simulationReducer = (state, action) => {
         ...state,
         companyCerts: {
           ...state.companyCerts,
-          [action.label]: action.checked
+          [action.label]: action.status  // "all", "partial", or "none"
         }
       };
     case 'RESET':
@@ -73,8 +74,8 @@ export const SimulationProvider = ({ children }) => {
     dispatch({ type: 'SET_TECH_INPUT', reqId, value });
   };
 
-  const setCompanyCert = (label, checked) => {
-    dispatch({ type: 'SET_COMPANY_CERT', label, checked });
+  const setCompanyCert = (label, status) => {
+    dispatch({ type: 'SET_COMPANY_CERT', label, status });  // status: "all", "partial", "none"
   };
 
   const resetState = (newState) => {

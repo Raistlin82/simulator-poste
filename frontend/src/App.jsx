@@ -219,9 +219,7 @@ function AppContent() {
       competitor_discount: competitorDiscount,
       my_discount: myDiscount,
       tech_inputs: Object.entries(techInputs).map(([k, v]) => ({ req_id: k, ...v })),
-      selected_company_certs: Object.entries(companyCerts)
-        .filter(([, checked]) => checked)
-        .map(([label]) => label)
+      company_certs_status: companyCerts  // { label: "all"|"partial"|"none" }
     };
 
     // Calculate Scores with abort signal
