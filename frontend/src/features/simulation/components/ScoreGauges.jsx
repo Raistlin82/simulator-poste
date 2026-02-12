@@ -8,7 +8,7 @@ import Gauge from '../../../shared/components/ui/Gauge';
  * @param {Object} props
  * @param {Object} props.results - Calculation results with scores
  * @param {Object} props.lotData - Lot configuration data
- * @param {Object} props.techInputs - Technical inputs with assigned_company and cert_companies
+ * @param {Object} props.techInputs - Technical inputs with assigned_company and cert_company_counts
  * @param {Object} props.masterData - Master data with rti_companies
  * @param {Function} props.onExport - Callback for PDF export
  * @param {boolean} props.exportLoading - Export loading state
@@ -52,18 +52,18 @@ export default function ScoreGauges({ results, lotData, techInputs, masterData, 
           companyContributions[assignedCompany].total += weightedScore;
         }
       } else if (req.type === 'resource') {
-        // Split among cert_companies (count how many certs each company has)
-        const certCompanies = input.cert_companies || {};
+        // Split among cert_company_counts (how many certs each company contributes)
+        const certCompanyCounts = input.cert_company_counts || {};
         const companyWeights = {};
         let totalCerts = 0;
 
-        // Count certs per company
-        Object.entries(certCompanies).forEach(([, companies]) => {
-          if (Array.isArray(companies)) {
-            companies.forEach(company => {
-              if (rtiCompanies.includes(company)) {
-                companyWeights[company] = (companyWeights[company] || 0) + 1;
-                totalCerts++;
+        // Sum up cert counts per company across all certs
+        Object.entries(certCompanyCounts).forEach(([, compCounts]) => {
+          if (compCounts && typeof compCounts === 'object') {
+            Object.entries(compCounts).forEach(([company, certCount]) => {
+              if (rtiCompanies.includes(company) && certCount > 0) {
+                companyWeights[company] = (companyWeights[company] || 0) + certCount;
+                totalCerts += certCount;
               }
             });
           }

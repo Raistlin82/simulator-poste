@@ -231,7 +231,7 @@ export default function TechEvaluator() {
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-4">
                                             <div>
                                                 <div className="flex justify-between mb-1">
                                                     <span className="text-xs font-semibold text-slate-600">{t('tech.num_resources')} (R)</span>
@@ -268,7 +268,11 @@ export default function TechEvaluator() {
                                                     {req.selected_prof_certs && req.selected_prof_certs.length > 0 ? (
                                                         req.selected_prof_certs.map(cert => {
                                                             const count = (cur.cert_counts?.[cert]) || 0;
-                                                            const certCompanies = cur.cert_companies?.[cert] || [];
+                                                            // cert_company_counts: { certName: { 'Lutech': 2, 'Partner': 1 } }
+                                                            const companyCounts = cur.cert_company_counts?.[cert] || {};
+                                                            const assignedTotal = Object.values(companyCounts).reduce((s, v) => s + v, 0);
+                                                            const unassigned = count - assignedTotal;
+                                                            
                                                             // RTI companies: Lutech always present, partners added if rti_enabled
                                                             const rtiCompanies = lotData?.rti_enabled 
                                                                 ? ['Lutech', ...(lotData.rti_companies || [])] 
@@ -280,33 +284,61 @@ export default function TechEvaluator() {
                                                                 counts[cert] = newVal;
 
                                                                 const newTotalC = req.selected_prof_certs.reduce((s, c) => s + (counts[c] || 0), 0);
-                                                                // Single update to avoid race condition
                                                                 const currentInput = inputs[req.id] || {};
+                                                                
+                                                                // If reducing count, also reduce company counts proportionally
+                                                                let newCompanyCounts = { ...(currentInput.cert_company_counts || {}) };
+                                                                if (delta < 0 && newCompanyCounts[cert]) {
+                                                                    const certCompCounts = { ...newCompanyCounts[cert] };
+                                                                    const currentAssigned = Object.values(certCompCounts).reduce((s, v) => s + v, 0);
+                                                                    if (currentAssigned > newVal) {
+                                                                        // Need to reduce company counts
+                                                                        const excess = currentAssigned - newVal;
+                                                                        let toReduce = excess;
+                                                                        // Reduce from each company proportionally
+                                                                        Object.keys(certCompCounts).forEach(comp => {
+                                                                            if (toReduce > 0 && certCompCounts[comp] > 0) {
+                                                                                const reduce = Math.min(certCompCounts[comp], toReduce);
+                                                                                certCompCounts[comp] -= reduce;
+                                                                                toReduce -= reduce;
+                                                                            }
+                                                                        });
+                                                                        newCompanyCounts[cert] = certCompCounts;
+                                                                    }
+                                                                }
+                                                                
                                                                 setTechInput(req.id, {
                                                                     ...currentInput,
                                                                     cert_counts: counts,
+                                                                    cert_company_counts: newCompanyCounts,
                                                                     c_val: newTotalC
                                                                 });
                                                             };
 
-                                                            const toggleCompany = (company) => {
+                                                            const updateCompanyCount = (company, delta) => {
                                                                 const currentInput = inputs[req.id] || {};
-                                                                const companies = { ...(currentInput.cert_companies || {}) };
-                                                                const certComps = companies[cert] || [];
-                                                                if (certComps.includes(company)) {
-                                                                    companies[cert] = certComps.filter(c => c !== company);
-                                                                } else {
-                                                                    companies[cert] = [...certComps, company];
-                                                                }
+                                                                const allCompanyCounts = { ...(currentInput.cert_company_counts || {}) };
+                                                                const certCompCounts = { ...(allCompanyCounts[cert] || {}) };
+                                                                const currentVal = certCompCounts[company] || 0;
+                                                                const currentAssigned = Object.values(certCompCounts).reduce((s, v) => s + v, 0);
+                                                                
+                                                                // Calculate new value with constraints
+                                                                let newVal = currentVal + delta;
+                                                                newVal = Math.max(0, newVal); // Can't go below 0
+                                                                newVal = Math.min(newVal, count - (currentAssigned - currentVal)); // Can't exceed total count
+                                                                
+                                                                certCompCounts[company] = newVal;
+                                                                allCompanyCounts[cert] = certCompCounts;
+                                                                
                                                                 setTechInput(req.id, {
                                                                     ...currentInput,
-                                                                    cert_companies: companies
+                                                                    cert_company_counts: allCompanyCounts
                                                                 });
                                                             };
 
                                                             return (
-                                                                <div key={cert} className="p-2 rounded bg-slate-50 border border-slate-100">
-                                                                    <div className="flex items-center justify-between">
+                                                                <div key={cert} className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                                                                    <div className="flex items-center justify-between mb-2">
                                                                         <span className="text-[11px] font-semibold text-slate-700 truncate mr-2" title={cert}>{cert}</span>
                                                                         <div className="flex items-center gap-1 shrink-0">
                                                                             <button
@@ -325,7 +357,6 @@ export default function TechEvaluator() {
                                                                                     const counts = { ...(cur.cert_counts || {}) };
                                                                                     counts[cert] = val;
                                                                                     const newTotalC = req.selected_prof_certs.reduce((s, c) => s + (counts[c] || 0), 0);
-                                                                                    // Single update to avoid race condition
                                                                                     const currentInput = inputs[req.id] || {};
                                                                                     setTechInput(req.id, {
                                                                                         ...currentInput,
@@ -344,24 +375,43 @@ export default function TechEvaluator() {
                                                                             </button>
                                                                         </div>
                                                                     </div>
-                                                                    {/* Company assignment for this cert */}
+                                                                    {/* Per-company assignment with counters */}
                                                                     {count > 0 && rtiCompanies.length > 1 && (
                                                                         <div className="mt-2 pt-2 border-t border-slate-200">
-                                                                            <span className="text-[9px] font-bold text-slate-500 uppercase">{t('tech.company_assignment')}</span>
-                                                                            <div className="flex flex-wrap gap-1 mt-1">
-                                                                                {rtiCompanies.map(company => (
-                                                                                    <button
-                                                                                        key={company}
-                                                                                        onClick={() => toggleCompany(company)}
-                                                                                        className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
-                                                                                            certCompanies.includes(company)
-                                                                                                ? 'bg-indigo-500 text-white'
-                                                                                                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                                                                                        }`}
-                                                                                    >
-                                                                                        {company}
-                                                                                    </button>
-                                                                                ))}
+                                                                            <div className="flex justify-between items-center mb-2">
+                                                                                <span className="text-[9px] font-bold text-slate-500 uppercase">{t('tech.company_assignment')}</span>
+                                                                                {unassigned > 0 && (
+                                                                                    <span className="text-[9px] font-bold text-amber-600">{t('tech.unassigned')}: {unassigned}</span>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                {rtiCompanies.map(company => {
+                                                                                    const compCount = companyCounts[company] || 0;
+                                                                                    return (
+                                                                                        <div key={company} className="flex items-center justify-between bg-white rounded px-2 py-1 border border-slate-100">
+                                                                                            <span className="text-[10px] font-medium text-slate-600">{company}</span>
+                                                                                            <div className="flex items-center gap-1">
+                                                                                                <button
+                                                                                                    onClick={() => updateCompanyCount(company, -1)}
+                                                                                                    disabled={compCount === 0}
+                                                                                                    className="p-1 rounded hover:bg-slate-100 active:bg-slate-200 text-slate-400 disabled:opacity-30 transition-colors"
+                                                                                                >
+                                                                                                    <Minus className="w-3 h-3" />
+                                                                                                </button>
+                                                                                                <span className={`w-6 text-center text-[11px] font-bold ${compCount > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                                                                                    {compCount}
+                                                                                                </span>
+                                                                                                <button
+                                                                                                    onClick={() => updateCompanyCount(company, 1)}
+                                                                                                    disabled={unassigned === 0}
+                                                                                                    className="p-1 rounded hover:bg-slate-100 active:bg-slate-200 text-slate-400 disabled:opacity-30 transition-colors"
+                                                                                                >
+                                                                                                    <Plus className="w-3 h-3" />
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
                                                                             </div>
                                                                         </div>
                                                                     )}

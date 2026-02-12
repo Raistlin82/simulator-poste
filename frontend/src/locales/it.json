@@ -240,6 +240,7 @@
         "max_configured": "Max configurato",
         "no_certs_selected": "Nessuna certificazione specifica selezionata in configurazione.",
         "company_assignment": "Assegnazione Azienda",
+        "unassigned": "Da assegnare",
         "assigned_company": "Azienda",
         "manual_adjustment": "Regolazione Manuale",
         "total_c": "TOTALE C",

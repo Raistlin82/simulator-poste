@@ -2,7 +2,7 @@
 SQLAlchemy database models for Poste Tender Simulator
 """
 
-from sqlalchemy import Column, String, Float, JSON, Text
+from sqlalchemy import Column, String, Float, JSON, Text, Boolean
 from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
 from database import Base
 
@@ -27,6 +27,10 @@ class LotConfigModel(Base):
     company_certs = Column(SQLiteJSON, default=list)
     reqs = Column(SQLiteJSON, default=list)
     state = Column(SQLiteJSON, default=dict)
+    
+    # RTI (joint venture) configuration
+    rti_enabled = Column(Boolean, default=False)
+    rti_companies = Column(SQLiteJSON, default=list)  # Partner companies (excludes Lutech)
 
 
 class MasterDataModel(Base):
