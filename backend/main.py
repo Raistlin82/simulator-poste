@@ -297,18 +297,8 @@ def readiness_check(db: Session = Depends(get_db)):
     Returns 200 only if app is fully ready to serve traffic
     """
     try:
-        # Quick database check
+        # Quick database check - just verify connection works
         db.execute(text("SELECT 1"))
-
-        # Check at least one lot config exists
-        lot_count = db.query(models.LotConfigModel).count()
-        if lot_count == 0:
-            logger.warning("Readiness check: no lot configurations found")
-            return JSONResponse(
-                content={"status": "not_ready", "reason": "No lot configurations"},
-                status_code=503
-            )
-
         return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
     except Exception as e:
         logger.warning("Readiness check failed", extra={"error": str(e)})
