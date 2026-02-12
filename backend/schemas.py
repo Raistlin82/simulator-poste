@@ -182,6 +182,26 @@ class ExportPDFRequest(BaseModel):
     max_raw_score: float = 0.0
 
 
+class ExportExcelRequest(BaseModel):
+    """Request to export Excel report"""
+    lot_key: str
+    base_amount: float
+    technical_score: float
+    economic_score: float
+    total_score: float
+    my_discount: float
+    competitor_discount: float
+    alpha: float = 0.3
+    win_probability: float = 50.0
+    details: Dict[str, float] = Field(default_factory=dict)
+    weighted_scores: Dict[str, float] = Field(default_factory=dict)
+    category_scores: Dict[str, float] = Field(default_factory=dict)  # {company_certs, resource, reference, project}
+    max_tech_score: float = 60.0
+    max_econ_score: float = 40.0
+    tech_inputs_full: Dict[str, Any] = Field(default_factory=dict)  # Full tech inputs with cert_company_counts, assigned_company
+    rti_quotas: Dict[str, float] = Field(default_factory=dict)  # Company quotas for RTI
+
+
 class MasterData(BaseModel):
     """Master data shared across all lots"""
     company_certs: List[str] = Field(default_factory=list)

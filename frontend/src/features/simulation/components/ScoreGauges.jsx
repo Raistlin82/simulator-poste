@@ -1,4 +1,4 @@
-import { Download, Loader2, Building2 } from 'lucide-react';
+import { Download, FileSpreadsheet, Loader2, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Gauge from '../../../shared/components/ui/Gauge';
 
@@ -10,9 +10,11 @@ import Gauge from '../../../shared/components/ui/Gauge';
  * @param {Object} props.lotData - Lot configuration data
  * @param {Object} props.techInputs - Technical inputs with assigned_company and cert_company_counts
  * @param {Function} props.onExport - Callback for PDF export
- * @param {boolean} props.exportLoading - Export loading state
+ * @param {Function} props.onExcelExport - Callback for Excel export
+ * @param {boolean} props.exportLoading - PDF export loading state
+ * @param {boolean} props.excelExportLoading - Excel export loading state
  */
-export default function ScoreGauges({ results, lotData, techInputs, onExport, exportLoading }) {
+export default function ScoreGauges({ results, lotData, techInputs, onExport, onExcelExport, exportLoading, excelExportLoading }) {
   const { t } = useTranslation();
 
   if (!results || !lotData) {
@@ -92,14 +94,25 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, ex
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
       <div className="flex justify-between items-center mb-6">
         <h3 className="font-semibold text-slate-800">{t('dashboard.performance_score')}</h3>
-        <button
-          onClick={onExport}
-          disabled={exportLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all text-sm font-medium disabled:opacity-50"
-        >
-          {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          {t('dashboard.export_pdf')}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onExcelExport}
+            disabled={excelExportLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm font-medium disabled:opacity-50"
+            title={t('dashboard.export_excel')}
+          >
+            {excelExportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+            Excel
+          </button>
+          <button
+            onClick={onExport}
+            disabled={exportLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all text-sm font-medium disabled:opacity-50"
+          >
+            {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {t('dashboard.export_pdf')}
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Gauge

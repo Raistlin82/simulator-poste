@@ -336,6 +336,7 @@
         "optimizer_failed": "Errore durante l'ottimizzazione",
         "calculation_failed": "Errore durante il calcolo dei punteggi",
         "simulation_failed": "Errore durante la simulazione",
-        "network_error": "Errore di connessione al server"
+        "network_error": "Errore di connessione al server",
+        "excel_export_failed": "Errore durante l'esportazione Excel"
     }
 }

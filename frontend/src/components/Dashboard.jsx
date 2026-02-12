@@ -32,6 +32,7 @@ export default function Dashboard({ onNavigate }) {
     const lotData = config?.[selectedLot];
     const [monteCarlo, setMonteCarlo] = useState(null);
     const [exportLoading, setExportLoading] = useState(false);
+    const [excelExportLoading, setExcelExportLoading] = useState(false);
 
     // Optimizer results state
     const [optimizerResults, setOptimizerResults] = useState(null);
@@ -155,6 +156,55 @@ export default function Dashboard({ onNavigate }) {
         }
     };
 
+    const handleExcelExport = async () => {
+        setExcelExportLoading(true);
+        try {
+            const res = await axios.post(`${API_URL}/export-excel`, {
+                lot_key: lotKey,
+                base_amount: lotData.base_amount,
+                technical_score: results.technical_score,
+                economic_score: results.economic_score,
+                total_score: results.total_score,
+                my_discount: myDiscount,
+                competitor_discount: competitorDiscount,
+                alpha: lotData.alpha || 0.3,
+                win_probability: monteCarlo?.win_probability || 50,
+                details: results.details,
+                weighted_scores: results.weighted_scores || {},
+                category_scores: {
+                    company_certs: results.category_company_certs || 0,
+                    resource: results.category_resource || 0,
+                    reference: results.category_reference || 0,
+                    project: results.category_project || 0
+                },
+                max_tech_score: results?.calculated_max_tech_score || lotData.max_tech_score || 60,
+                max_econ_score: lotData.max_econ_score || 40,
+                tech_inputs_full: techInputs || {},
+                rti_quotas: lotData.rti_quotas || {}
+            }, { responseType: 'blob' });
+
+            const url = window.URL.createObjectURL(new Blob([res.data], { 
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `report_${lotKey.replace(/\s+/g, '_')}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+        } catch (err) {
+            console.error("Excel Export Error", err);
+            showError(t('errors.excel_export_failed') || 'Esportazione Excel fallita');
+        } finally {
+            setExcelExportLoading(false);
+        }
+    };
+
     // Show loading skeleton when no results yet (AFTER all hooks!)
     if (!results || !lotData) {
         return (
@@ -179,7 +229,9 @@ export default function Dashboard({ onNavigate }) {
                 lotData={lotData}
                 techInputs={techInputs}
                 onExport={handleExport}
+                onExcelExport={handleExcelExport}
                 exportLoading={exportLoading}
+                excelExportLoading={excelExportLoading}
             />
 
             {/* Strategic Analysis (Monte Carlo) */}

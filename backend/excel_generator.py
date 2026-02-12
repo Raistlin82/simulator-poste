@@ -1,0 +1,1050 @@
+"""
+Excel Report Generator for Simulator Poste
+Generates professional multi-sheet Excel reports with formulas and advanced formatting
+"""
+
+import io
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
+from openpyxl import Workbook
+from openpyxl.styles import (
+    Font, PatternFill, Alignment, Border, Side,
+    NamedStyle, GradientFill
+)
+from openpyxl.formatting.rule import ColorScaleRule, DataBarRule
+from openpyxl.chart import BarChart, PieChart, Reference
+from openpyxl.chart.label import DataLabelList
+from openpyxl.utils import get_column_letter
+from openpyxl.workbook.defined_name import DefinedName
+
+# ============================================================================
+# STYLE DEFINITIONS
+# ============================================================================
+
+# Colors
+COLORS = {
+    'primary': '1E3A5F',
+    'primary_light': '2563EB',
+    'secondary': 'FFCC00',
+    'success': '28A745',
+    'warning': 'FFC107',
+    'danger': 'DC3545',
+    'light': 'F8F9FA',
+    'dark': '333333',
+    'muted': '6C757D',
+    'white': 'FFFFFF',
+    'input_bg': 'FFF9C4',
+    'formula_bg': 'E3F2FD',
+    'lutech': '0066CC',
+    'partner_1': '6366F1',
+    'partner_2': '8B5CF6',
+    'partner_3': 'EC4899',
+}
+
+# Borders
+THIN_BORDER = Border(
+    left=Side(style='thin', color='CCCCCC'),
+    right=Side(style='thin', color='CCCCCC'),
+    top=Side(style='thin', color='CCCCCC'),
+    bottom=Side(style='thin', color='CCCCCC')
+)
+
+MEDIUM_BORDER = Border(
+    left=Side(style='medium', color='333333'),
+    right=Side(style='medium', color='333333'),
+    top=Side(style='medium', color='333333'),
+    bottom=Side(style='medium', color='333333')
+)
+
+# Fills
+HEADER_FILL = PatternFill(start_color=COLORS['primary'], end_color=COLORS['primary'], fill_type='solid')
+LIGHT_FILL = PatternFill(start_color=COLORS['light'], end_color=COLORS['light'], fill_type='solid')
+INPUT_FILL = PatternFill(start_color=COLORS['input_bg'], end_color=COLORS['input_bg'], fill_type='solid')
+FORMULA_FILL = PatternFill(start_color=COLORS['formula_bg'], end_color=COLORS['formula_bg'], fill_type='solid')
+
+# Fonts
+TITLE_FONT = Font(name='Calibri', size=20, bold=True, color=COLORS['primary'])
+HEADER_FONT = Font(name='Calibri', size=11, bold=True, color=COLORS['white'])
+SECTION_FONT = Font(name='Calibri', size=14, bold=True, color=COLORS['primary'])
+LABEL_FONT = Font(name='Calibri', size=10, bold=True, color=COLORS['dark'])
+VALUE_FONT = Font(name='Calibri', size=11, color=COLORS['dark'])
+FORMULA_FONT = Font(name='Consolas', size=10, color=COLORS['muted'])
+KPI_FONT = Font(name='Calibri', size=24, bold=True, color=COLORS['primary'])
+KPI_LABEL_FONT = Font(name='Calibri', size=9, color=COLORS['muted'])
+
+# Alignments
+CENTER = Alignment(horizontal='center', vertical='center')
+LEFT = Alignment(horizontal='left', vertical='center')
+RIGHT = Alignment(horizontal='right', vertical='center')
+WRAP = Alignment(horizontal='left', vertical='top', wrap_text=True)
+
+
+class ExcelReportGenerator:
+    """Generates professional Excel reports with formulas and charts"""
+
+    def __init__(
+        self,
+        lot_key: str,
+        lot_config: Dict[str, Any],
+        base_amount: float,
+        my_discount: float,
+        competitor_discount: float,
+        technical_score: float,
+        economic_score: float,
+        total_score: float,
+        details: Dict[str, float],
+        weighted_scores: Dict[str, float],
+        category_scores: Dict[str, float],
+        max_tech_score: float,
+        max_econ_score: float,
+        alpha: float,
+        win_probability: float,
+        tech_inputs_full: Optional[Dict[str, Any]] = None,
+        rti_quotas: Optional[Dict[str, float]] = None,
+    ):
+        self.lot_key = lot_key
+        self.lot_config = lot_config
+        self.base_amount = base_amount
+        self.my_discount = my_discount
+        self.competitor_discount = competitor_discount
+        self.technical_score = technical_score
+        self.economic_score = economic_score
+        self.total_score = total_score
+        self.details = details
+        self.weighted_scores = weighted_scores
+        self.category_scores = category_scores
+        self.max_tech_score = max_tech_score
+        self.max_econ_score = max_econ_score
+        self.alpha = alpha
+        self.win_probability = win_probability
+        self.tech_inputs_full = tech_inputs_full or {}
+        self.rti_quotas = rti_quotas or {}
+        
+        self.is_rti = lot_config.get('rti_enabled', False)
+        self.rti_companies = ['Lutech'] + (lot_config.get('rti_companies', []) or [])
+        
+        self.wb = Workbook()
+        self.named_ranges = {}
+        
+        # Company colors for RTI
+        self.company_colors = {'Lutech': COLORS['lutech']}
+        partner_colors = [COLORS['partner_1'], COLORS['partner_2'], COLORS['partner_3']]
+        for i, company in enumerate(self.lot_config.get('rti_companies', []) or []):
+            self.company_colors[company] = partner_colors[i % len(partner_colors)]
+
+    def generate(self) -> io.BytesIO:
+        """Generate the complete Excel report"""
+        if 'Sheet' in self.wb.sheetnames:
+            del self.wb['Sheet']
+        
+        self._create_dashboard_sheet()
+        self._create_technical_sheet()
+        self._create_economic_sheet()
+        
+        if self.is_rti:
+            self._create_rti_sheet()
+        
+        self._create_config_sheet()
+        self._create_named_ranges()
+        
+        self.wb.active = self.wb['Dashboard']
+        
+        buffer = io.BytesIO()
+        self.wb.save(buffer)
+        buffer.seek(0)
+        return buffer
+
+    def _create_dashboard_sheet(self):
+        """Create the executive dashboard sheet"""
+        ws = self.wb.create_sheet('Dashboard')
+        ws.sheet_properties.tabColor = COLORS['primary']
+        
+        ws.column_dimensions['A'].width = 3
+        ws.column_dimensions['B'].width = 25
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['G'].width = 3
+        
+        row = 2
+        
+        # Header
+        ws.merge_cells(f'B{row}:F{row}')
+        ws[f'B{row}'] = f'REPORT STRATEGICO - {self.lot_key}'
+        ws[f'B{row}'].font = TITLE_FONT
+        ws[f'B{row}'].alignment = CENTER
+        row += 1
+        
+        ws.merge_cells(f'B{row}:F{row}')
+        ws[f'B{row}'] = f'Generato il {datetime.now().strftime("%d/%m/%Y alle %H:%M")}'
+        ws[f'B{row}'].font = Font(size=10, italic=True, color=COLORS['muted'])
+        ws[f'B{row}'].alignment = CENTER
+        row += 2
+        
+        # Verdetto
+        ws.merge_cells(f'B{row}:F{row}')
+        verdict_cell = ws[f'B{row}']
+        if self.win_probability >= 60:
+            verdict_cell.value = 'PROBABILITÀ ALTA'
+            verdict_cell.font = Font(size=18, bold=True, color=COLORS['success'])
+        elif self.win_probability >= 40:
+            verdict_cell.value = 'PROBABILITÀ MEDIA'
+            verdict_cell.font = Font(size=18, bold=True, color=COLORS['warning'])
+        else:
+            verdict_cell.value = 'PROBABILITÀ BASSA'
+            verdict_cell.font = Font(size=18, bold=True, color=COLORS['danger'])
+        verdict_cell.alignment = CENTER
+        row += 2
+        
+        # KPI boxes
+        kpi_row = row
+        
+        ws[f'B{kpi_row}'] = 'PUNTEGGIO TOTALE'
+        ws[f'B{kpi_row}'].font = KPI_LABEL_FONT
+        ws[f'B{kpi_row}'].alignment = CENTER
+        ws[f'B{kpi_row+1}'] = self.total_score
+        ws[f'B{kpi_row+1}'].font = KPI_FONT
+        ws[f'B{kpi_row+1}'].alignment = CENTER
+        ws[f'B{kpi_row+1}'].number_format = '0.00'
+        
+        ws[f'C{kpi_row}'] = 'TECNICO'
+        ws[f'C{kpi_row}'].font = KPI_LABEL_FONT
+        ws[f'C{kpi_row}'].alignment = CENTER
+        ws[f'C{kpi_row+1}'] = self.technical_score
+        ws[f'C{kpi_row+1}'].font = Font(size=20, bold=True, color=COLORS['primary_light'])
+        ws[f'C{kpi_row+1}'].alignment = CENTER
+        ws[f'C{kpi_row+1}'].number_format = '0.00'
+        
+        ws[f'D{kpi_row}'] = 'ECONOMICO'
+        ws[f'D{kpi_row}'].font = KPI_LABEL_FONT
+        ws[f'D{kpi_row}'].alignment = CENTER
+        ws[f'D{kpi_row+1}'] = self.economic_score
+        ws[f'D{kpi_row+1}'].font = Font(size=20, bold=True, color=COLORS['secondary'])
+        ws[f'D{kpi_row+1}'].alignment = CENTER
+        ws[f'D{kpi_row+1}'].number_format = '0.00'
+        
+        ws[f'E{kpi_row}'] = 'WIN %'
+        ws[f'E{kpi_row}'].font = KPI_LABEL_FONT
+        ws[f'E{kpi_row}'].alignment = CENTER
+        ws[f'E{kpi_row+1}'] = self.win_probability / 100
+        prob_color = COLORS['success'] if self.win_probability >= 60 else (COLORS['warning'] if self.win_probability >= 40 else COLORS['danger'])
+        ws[f'E{kpi_row+1}'].font = Font(size=20, bold=True, color=prob_color)
+        ws[f'E{kpi_row+1}'].alignment = CENTER
+        ws[f'E{kpi_row+1}'].number_format = '0.0%'
+        
+        ws[f'F{kpi_row}'] = 'SCONTO'
+        ws[f'F{kpi_row}'].font = KPI_LABEL_FONT
+        ws[f'F{kpi_row}'].alignment = CENTER
+        ws[f'F{kpi_row+1}'] = self.my_discount / 100
+        ws[f'F{kpi_row+1}'].font = Font(size=20, bold=True, color=COLORS['dark'])
+        ws[f'F{kpi_row+1}'].alignment = CENTER
+        ws[f'F{kpi_row+1}'].number_format = '0.0%'
+        
+        row = kpi_row + 4
+        
+        # Input section
+        ws.merge_cells(f'B{row}:C{row}')
+        ws[f'B{row}'] = 'PARAMETRI DI INPUT'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Base d\'Asta'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = self.base_amount
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '€ #,##0.00'
+        self.named_ranges['BaseAsta'] = f"'Dashboard'!$C${row}"
+        base_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Sconto Mio (%)'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = self.my_discount
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.0'
+        self.named_ranges['ScontoMio'] = f"'Dashboard'!$C${row}"
+        sconto_mio_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Sconto Best Offer (%)'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = self.competitor_discount
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.0'
+        self.named_ranges['ScontoBest'] = f"'Dashboard'!$C${row}"
+        sconto_best_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Alpha (α)'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = self.alpha
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        self.named_ranges['Alpha'] = f"'Dashboard'!$C${row}"
+        alpha_row = row
+        row += 2
+        
+        # Calculated values
+        ws.merge_cells(f'B{row}:C{row}')
+        ws[f'B{row}'] = 'VALORI CALCOLATI'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Prezzo Mio'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = f'=C{base_row}*(1-C{sconto_mio_row}/100)'
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '€ #,##0.00'
+        prezzo_mio_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Prezzo Best Offer'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = f'=C{base_row}*(1-C{sconto_best_row}/100)'
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '€ #,##0.00'
+        prezzo_best_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Rapporto (R)'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = f'=IF(C{base_row}-C{prezzo_best_row}=0,0,(C{base_row}-C{prezzo_mio_row})/(C{base_row}-C{prezzo_best_row}))'
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.0000'
+        rapporto_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Max Punteggio Economico'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = self.max_econ_score
+        ws[f'C{row}'].fill = LIGHT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        max_econ_row = row
+        self.named_ranges['MaxEcon'] = f"'Dashboard'!$C${row}"
+        row += 1
+        
+        ws[f'B{row}'] = 'Punteggio Economico'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = f'=C{max_econ_row}*(C{rapporto_row}^C{alpha_row})'
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        ws[f'C{row}'].font = Font(bold=True, color=COLORS['secondary'])
+        row += 2
+        
+        # Category summary
+        ws.merge_cells(f'E{kpi_row+3}:F{kpi_row+3}')
+        ws[f'E{kpi_row+3}'] = 'CATEGORIE TECNICHE'
+        ws[f'E{kpi_row+3}'].font = SECTION_FONT
+        
+        cat_row = kpi_row + 4
+        categories = [
+            ('Cert. Aziendali', self.category_scores.get('company_certs', 0)),
+            ('Cert. Professionali', self.category_scores.get('resource', 0)),
+            ('Referenze', self.category_scores.get('reference', 0)),
+            ('Progetti', self.category_scores.get('project', 0)),
+        ]
+        
+        for cat_name, cat_score in categories:
+            ws[f'E{cat_row}'] = cat_name
+            ws[f'E{cat_row}'].font = Font(size=9, color=COLORS['muted'])
+            ws[f'F{cat_row}'] = cat_score
+            ws[f'F{cat_row}'].number_format = '0.00'
+            ws[f'F{cat_row}'].alignment = RIGHT
+            cat_row += 1
+        
+        ws[f'E{cat_row}'] = 'TOTALE TECNICO'
+        ws[f'E{cat_row}'].font = LABEL_FONT
+        ws[f'F{cat_row}'] = f'=SUM(F{kpi_row+4}:F{cat_row-1})'
+        ws[f'F{cat_row}'].number_format = '0.00'
+        ws[f'F{cat_row}'].font = Font(bold=True)
+        ws[f'F{cat_row}'].alignment = RIGHT
+        
+        rule = DataBarRule(
+            start_type='num', start_value=0,
+            end_type='num', end_value=self.max_tech_score / 4,
+            color=COLORS['primary_light']
+        )
+        ws.conditional_formatting.add(f'F{kpi_row+4}:F{cat_row-1}', rule)
+        
+        ws.freeze_panes = 'B5'
+
+    def _create_technical_sheet(self):
+        """Create the technical score analysis sheet"""
+        ws = self.wb.create_sheet('Tecnico')
+        ws.sheet_properties.tabColor = COLORS['primary_light']
+        
+        ws.column_dimensions['A'].width = 3
+        ws.column_dimensions['B'].width = 8
+        ws.column_dimensions['C'].width = 40
+        ws.column_dimensions['D'].width = 12
+        ws.column_dimensions['E'].width = 12
+        ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 12
+        ws.column_dimensions['H'].width = 15
+        ws.column_dimensions['I'].width = 12
+        
+        row = 2
+        
+        ws.merge_cells(f'B{row}:I{row}')
+        ws[f'B{row}'] = 'ANALISI PUNTEGGIO TECNICO'
+        ws[f'B{row}'].font = TITLE_FONT
+        row += 2
+        
+        ws[f'B{row}'] = 'Punteggio Tecnico Totale:'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = self.technical_score
+        ws[f'C{row}'].font = Font(size=16, bold=True, color=COLORS['primary'])
+        ws[f'C{row}'].number_format = '0.00'
+        
+        ws[f'E{row}'] = 'Max Ottenibile:'
+        ws[f'E{row}'].font = LABEL_FONT
+        ws[f'F{row}'] = self.max_tech_score
+        ws[f'F{row}'].number_format = '0.00'
+        
+        ws[f'G{row}'] = 'Raggiungimento:'
+        ws[f'G{row}'].font = LABEL_FONT
+        pct = self.technical_score / self.max_tech_score if self.max_tech_score > 0 else 0
+        ws[f'H{row}'] = pct
+        ws[f'H{row}'].number_format = '0.0%'
+        if pct >= 0.7:
+            ws[f'H{row}'].font = Font(bold=True, color=COLORS['success'])
+        elif pct >= 0.5:
+            ws[f'H{row}'].font = Font(bold=True, color=COLORS['warning'])
+        else:
+            ws[f'H{row}'].font = Font(bold=True, color=COLORS['danger'])
+        row += 3
+        
+        # Category breakdown
+        ws.merge_cells(f'B{row}:E{row}')
+        ws[f'B{row}'] = 'BREAKDOWN PER CATEGORIA'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        headers = ['Categoria', 'Punteggio Raw', 'Max Raw', '%', 'Peso Gara', 'Punteggio Pesato']
+        for col, header in enumerate(headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        reqs = self.lot_config.get('reqs', [])
+        category_data = {
+            'company_certs': {'raw': 0, 'max_raw': 0, 'gara_weight': 0, 'weighted': 0},
+            'resource': {'raw': 0, 'max_raw': 0, 'gara_weight': 0, 'weighted': 0},
+            'reference': {'raw': 0, 'max_raw': 0, 'gara_weight': 0, 'weighted': 0},
+            'project': {'raw': 0, 'max_raw': 0, 'gara_weight': 0, 'weighted': 0},
+        }
+        
+        company_certs = self.lot_config.get('company_certs', [])
+        for cert in company_certs:
+            category_data['company_certs']['max_raw'] += cert.get('points', 0)
+            category_data['company_certs']['gara_weight'] += cert.get('gara_weight', 0)
+        category_data['company_certs']['weighted'] = self.category_scores.get('company_certs', 0)
+        
+        for req in reqs:
+            req_type = req.get('type', 'resource')
+            if req_type in category_data:
+                category_data[req_type]['raw'] += self.details.get(req.get('id', ''), 0)
+                category_data[req_type]['max_raw'] += req.get('max_points', 0)
+                category_data[req_type]['gara_weight'] += req.get('gara_weight', 0)
+                category_data[req_type]['weighted'] += self.weighted_scores.get(req.get('id', ''), 0)
+        
+        cat_labels = {
+            'company_certs': 'Certificazioni Aziendali',
+            'resource': 'Certificazioni Professionali',
+            'reference': 'Referenze',
+            'project': 'Progetti Tecnici'
+        }
+        
+        cat_start_row = row
+        for cat_key, cat_label in cat_labels.items():
+            data = category_data[cat_key]
+            ws.cell(row=row, column=2, value=cat_label).font = LABEL_FONT
+            ws.cell(row=row, column=3, value=data['raw']).number_format = '0.00'
+            ws.cell(row=row, column=4, value=data['max_raw']).number_format = '0.00'
+            cat_pct = data['raw'] / data['max_raw'] if data['max_raw'] > 0 else 0
+            ws.cell(row=row, column=5, value=cat_pct).number_format = '0.0%'
+            ws.cell(row=row, column=6, value=data['gara_weight']).number_format = '0.00'
+            ws.cell(row=row, column=7, value=data['weighted']).number_format = '0.00'
+            
+            for col in range(2, 8):
+                ws.cell(row=row, column=col).border = THIN_BORDER
+            row += 1
+        
+        # Total row
+        ws.cell(row=row, column=2, value='TOTALE').font = Font(bold=True)
+        ws.cell(row=row, column=3, value=f'=SUM(C{cat_start_row}:C{row-1})').number_format = '0.00'
+        ws.cell(row=row, column=4, value=f'=SUM(D{cat_start_row}:D{row-1})').number_format = '0.00'
+        ws.cell(row=row, column=5, value=f'=IF(D{row}=0,0,C{row}/D{row})').number_format = '0.0%'
+        ws.cell(row=row, column=6, value=f'=SUM(F{cat_start_row}:F{row-1})').number_format = '0.00'
+        ws.cell(row=row, column=7, value=f'=SUM(G{cat_start_row}:G{row-1})').number_format = '0.00'
+        ws.cell(row=row, column=7).font = Font(bold=True, color=COLORS['primary'])
+        
+        for col in range(2, 8):
+            ws.cell(row=row, column=col).border = MEDIUM_BORDER
+            ws.cell(row=row, column=col).fill = LIGHT_FILL
+        row += 3
+        
+        # Requirements detail
+        ws.merge_cells(f'B{row}:H{row}')
+        ws[f'B{row}'] = 'DETTAGLIO REQUISITI'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        det_headers = ['ID', 'Requisito', 'Tipo', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status']
+        for col, header in enumerate(det_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        req_start_row = row
+        type_labels = {'resource': 'Cert. Prof.', 'reference': 'Referenza', 'project': 'Progetto'}
+        
+        for req in reqs:
+            req_id = req.get('id', '')
+            raw_score = self.details.get(req_id, 0)
+            max_score = req.get('max_points', 0)
+            gara_weight = req.get('gara_weight', 0)
+            weighted = self.weighted_scores.get(req_id, 0)
+            req_pct = raw_score / max_score if max_score > 0 else 0
+            
+            ws.cell(row=row, column=2, value=req_id).font = Font(size=9, color=COLORS['muted'])
+            ws.cell(row=row, column=3, value=req.get('label', '')).alignment = WRAP
+            ws.cell(row=row, column=4, value=type_labels.get(req.get('type', ''), req.get('type', '')))
+            ws.cell(row=row, column=5, value=raw_score).number_format = '0.00'
+            ws.cell(row=row, column=6, value=max_score).number_format = '0.00'
+            ws.cell(row=row, column=7, value=req_pct).number_format = '0.0%'
+            ws.cell(row=row, column=8, value=gara_weight).number_format = '0.00'
+            ws.cell(row=row, column=9, value=weighted).number_format = '0.00'
+            
+            if req_pct >= 0.8:
+                ws.cell(row=row, column=10, value='OK')
+            elif req_pct >= 0.5:
+                ws.cell(row=row, column=10, value='WARN')
+            elif req_pct > 0:
+                ws.cell(row=row, column=10, value='LOW')
+            else:
+                ws.cell(row=row, column=10, value='MISS')
+            
+            for col in range(2, 11):
+                ws.cell(row=row, column=col).border = THIN_BORDER
+            row += 1
+        
+        if row > req_start_row:
+            rule = ColorScaleRule(
+                start_type='num', start_value=0, start_color='F8D7DA',
+                mid_type='num', mid_value=0.5, mid_color='FFF3CD',
+                end_type='num', end_value=1, end_color='D4EDDA'
+            )
+            ws.conditional_formatting.add(f'G{req_start_row}:G{row-1}', rule)
+        
+        ws.freeze_panes = 'C5'
+
+    def _create_economic_sheet(self):
+        """Create the economic analysis sheet"""
+        ws = self.wb.create_sheet('Economico')
+        ws.sheet_properties.tabColor = COLORS['secondary']
+        
+        ws.column_dimensions['A'].width = 3
+        ws.column_dimensions['B'].width = 25
+        ws.column_dimensions['C'].width = 18
+        ws.column_dimensions['D'].width = 18
+        ws.column_dimensions['E'].width = 18
+        ws.column_dimensions['F'].width = 18
+        ws.column_dimensions['G'].width = 18
+        
+        row = 2
+        
+        ws.merge_cells(f'B{row}:G{row}')
+        ws[f'B{row}'] = 'ANALISI ECONOMICA'
+        ws[f'B{row}'].font = TITLE_FONT
+        row += 2
+        
+        ws.merge_cells(f'B{row}:G{row}')
+        ws[f'B{row}'] = 'FORMULA: Score = MaxEcon × ((BaseAsta - PrezzoMio) / (BaseAsta - PrezzoBest))^α'
+        ws[f'B{row}'].font = Font(size=11, italic=True, color=COLORS['muted'])
+        row += 2
+        
+        ws.merge_cells(f'B{row}:C{row}')
+        ws[f'B{row}'] = 'PARAMETRI'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Base d\'Asta'
+        ws[f'C{row}'] = self.base_amount
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '€ #,##0.00'
+        base_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Sconto Mio (%)'
+        ws[f'C{row}'] = self.my_discount
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.0'
+        sconto_mio_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Sconto Best Offer (%)'
+        ws[f'C{row}'] = self.competitor_discount
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.0'
+        sconto_best_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Alpha (α)'
+        ws[f'C{row}'] = self.alpha
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        alpha_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Max Punteggio Economico'
+        ws[f'C{row}'] = self.max_econ_score
+        ws[f'C{row}'].fill = LIGHT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        max_econ_row = row
+        row += 2
+        
+        ws.merge_cells(f'B{row}:C{row}')
+        ws[f'B{row}'] = 'CALCOLI'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Prezzo Mio'
+        ws[f'C{row}'] = f'=C{base_row}*(1-C{sconto_mio_row}/100)'
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '€ #,##0.00'
+        prezzo_mio_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Prezzo Best Offer'
+        ws[f'C{row}'] = f'=C{base_row}*(1-C{sconto_best_row}/100)'
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '€ #,##0.00'
+        prezzo_best_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Rapporto (R)'
+        ws[f'C{row}'] = f'=IF(C{base_row}-C{prezzo_best_row}=0,0,(C{base_row}-C{prezzo_mio_row})/(C{base_row}-C{prezzo_best_row}))'
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.0000'
+        rapporto_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'PUNTEGGIO ECONOMICO'
+        ws[f'B{row}'].font = Font(bold=True)
+        ws[f'C{row}'] = f'=C{max_econ_row}*(C{rapporto_row}^C{alpha_row})'
+        ws[f'C{row}'].fill = PatternFill(start_color='E8F5E9', end_color='E8F5E9', fill_type='solid')
+        ws[f'C{row}'].border = MEDIUM_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        ws[f'C{row}'].font = Font(bold=True, size=14, color=COLORS['success'])
+        row += 3
+        
+        # Scenario table
+        ws.merge_cells(f'B{row}:G{row}')
+        ws[f'B{row}'] = 'TABELLA SCENARI'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        scenario_headers = ['Sconto %', 'Prezzo Offerto', 'Rapporto', 'Score Econ.', 'Score Tecnico', 'TOTALE']
+        for col, header in enumerate(scenario_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        scenario_start = row
+        discounts = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+        
+        for discount in discounts:
+            ws.cell(row=row, column=2, value=discount / 100).number_format = '0%'
+            ws.cell(row=row, column=3, value=f'=C{base_row}*(1-B{row})').number_format = '€ #,##0.00'
+            ws.cell(row=row, column=4, value=f'=IF($C${base_row}-$C${prezzo_best_row}=0,0,($C${base_row}-C{row})/($C${base_row}-$C${prezzo_best_row}))').number_format = '0.0000'
+            ws.cell(row=row, column=5, value=f'=$C${max_econ_row}*(D{row}^$C${alpha_row})').number_format = '0.00'
+            ws.cell(row=row, column=6, value=self.technical_score).number_format = '0.00'
+            ws.cell(row=row, column=7, value=f'=E{row}+F{row}').number_format = '0.00'
+            ws.cell(row=row, column=7).font = Font(bold=True)
+            
+            if discount == int(self.my_discount):
+                for col in range(2, 8):
+                    ws.cell(row=row, column=col).fill = PatternFill(start_color='FFF9C4', end_color='FFF9C4', fill_type='solid')
+            
+            for col in range(2, 8):
+                ws.cell(row=row, column=col).border = THIN_BORDER
+            row += 1
+        
+        rule = ColorScaleRule(
+            start_type='min', start_color='F8D7DA',
+            mid_type='percentile', mid_value=50, mid_color='FFF3CD',
+            end_type='max', end_color='D4EDDA'
+        )
+        ws.conditional_formatting.add(f'G{scenario_start}:G{row-1}', rule)
+
+    def _create_rti_sheet(self):
+        """Create the RTI contributions breakdown sheet"""
+        ws = self.wb.create_sheet('RTI')
+        ws.sheet_properties.tabColor = COLORS['partner_1']
+        
+        ws.column_dimensions['A'].width = 3
+        ws.column_dimensions['B'].width = 25
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 18
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['G'].width = 15
+        ws.column_dimensions['H'].width = 15
+        
+        row = 2
+        
+        ws.merge_cells(f'B{row}:H{row}')
+        ws[f'B{row}'] = 'CONTRIBUTI PER AZIENDA RTI'
+        ws[f'B{row}'].font = TITLE_FONT
+        row += 2
+        
+        # Quote and amounts
+        ws.merge_cells(f'B{row}:D{row}')
+        ws[f'B{row}'] = 'RIPARTIZIONE ECONOMICA'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        quote_headers = ['Azienda', 'Quota %', 'Importo €']
+        for col, header in enumerate(quote_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        quote_start = row
+        prezzo_mio = self.base_amount * (1 - self.my_discount / 100)
+        
+        for company in self.rti_companies:
+            quota = self.rti_quotas.get(company, 0)
+            amount = prezzo_mio * (quota / 100)
+            
+            ws.cell(row=row, column=2, value=company).font = Font(bold=True, color=self.company_colors.get(company, COLORS['dark']))
+            ws.cell(row=row, column=3, value=quota / 100).number_format = '0.0%'
+            ws.cell(row=row, column=4, value=amount).number_format = '€ #,##0.00'
+            
+            for col in range(2, 5):
+                ws.cell(row=row, column=col).border = THIN_BORDER
+            row += 1
+        
+        ws.cell(row=row, column=2, value='TOTALE').font = Font(bold=True)
+        ws.cell(row=row, column=3, value=f'=SUM(C{quote_start}:C{row-1})').number_format = '0.0%'
+        ws.cell(row=row, column=4, value=f'=SUM(D{quote_start}:D{row-1})').number_format = '€ #,##0.00'
+        for col in range(2, 5):
+            ws.cell(row=row, column=col).fill = LIGHT_FILL
+            ws.cell(row=row, column=col).border = MEDIUM_BORDER
+        row += 3
+        
+        # References
+        ws.merge_cells(f'B{row}:G{row}')
+        ws[f'B{row}'] = 'REFERENZE (Max Peso Gara assegnato all\'azienda responsabile)'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        reference_reqs = [r for r in self.lot_config.get('reqs', []) if r.get('type') == 'reference']
+        
+        if reference_reqs:
+            ref_headers = ['ID', 'Requisito', 'Azienda Responsabile', 'Peso Gara (Max)']
+            for col, header in enumerate(ref_headers, start=2):
+                cell = ws.cell(row=row, column=col, value=header)
+                cell.font = HEADER_FONT
+                cell.fill = HEADER_FILL
+                cell.alignment = CENTER
+                cell.border = THIN_BORDER
+            row += 1
+            
+            for req in reference_reqs:
+                req_id = req.get('id', '')
+                tech_input = self.tech_inputs_full.get(req_id, {})
+                assigned = tech_input.get('assigned_company', '') or 'Lutech'
+                gara_weight = req.get('gara_weight', 0)
+                
+                ws.cell(row=row, column=2, value=req_id).font = Font(size=9, color=COLORS['muted'])
+                ws.cell(row=row, column=3, value=req.get('label', '')[:40]).alignment = WRAP
+                ws.cell(row=row, column=4, value=assigned).font = Font(bold=True, color=self.company_colors.get(assigned, COLORS['dark']))
+                ws.cell(row=row, column=5, value=gara_weight).number_format = '0.00'
+                ws.cell(row=row, column=5).font = Font(bold=True)
+                
+                for c in range(2, 6):
+                    ws.cell(row=row, column=c).border = THIN_BORDER
+                row += 1
+            row += 1
+        
+        # Projects
+        ws.merge_cells(f'B{row}:G{row}')
+        ws[f'B{row}'] = 'PROGETTI (Max Peso Gara assegnato all\'azienda responsabile)'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        project_reqs = [r for r in self.lot_config.get('reqs', []) if r.get('type') == 'project']
+        
+        if project_reqs:
+            proj_headers = ['ID', 'Requisito', 'Azienda Responsabile', 'Peso Gara (Max)']
+            for col, header in enumerate(proj_headers, start=2):
+                cell = ws.cell(row=row, column=col, value=header)
+                cell.font = HEADER_FONT
+                cell.fill = HEADER_FILL
+                cell.alignment = CENTER
+                cell.border = THIN_BORDER
+            row += 1
+            
+            for req in project_reqs:
+                req_id = req.get('id', '')
+                tech_input = self.tech_inputs_full.get(req_id, {})
+                assigned = tech_input.get('assigned_company', '') or 'Lutech'
+                gara_weight = req.get('gara_weight', 0)
+                
+                ws.cell(row=row, column=2, value=req_id).font = Font(size=9, color=COLORS['muted'])
+                ws.cell(row=row, column=3, value=req.get('label', '')[:40]).alignment = WRAP
+                ws.cell(row=row, column=4, value=assigned).font = Font(bold=True, color=self.company_colors.get(assigned, COLORS['dark']))
+                ws.cell(row=row, column=5, value=gara_weight).number_format = '0.00'
+                ws.cell(row=row, column=5).font = Font(bold=True)
+                
+                for c in range(2, 6):
+                    ws.cell(row=row, column=c).border = THIN_BORDER
+                row += 1
+            row += 1
+        
+        row += 1
+        
+        # Company summary
+        ws.merge_cells(f'B{row}:H{row}')
+        ws[f'B{row}'] = 'RIEPILOGO CONTRIBUTI PER AZIENDA'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        summary_headers = ['Azienda', 'Cert. Prof. (prop.)', 'Referenze (max)', 'Progetti (max)', 'TOTALE', '% Contributo']
+        for col, header in enumerate(summary_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        summary_start = row
+        company_contributions = {company: {'resource': 0, 'reference': 0, 'project': 0} for company in self.rti_companies}
+        
+        for req in self.lot_config.get('reqs', []):
+            req_id = req.get('id', '')
+            req_type = req.get('type', 'resource')
+            gara_weight = req.get('gara_weight', 0)
+            tech_input = self.tech_inputs_full.get(req_id, {})
+            
+            if req_type == 'resource':
+                cert_company_counts = tech_input.get('cert_company_counts', {})
+                total_certs = 0
+                company_certs = {c: 0 for c in self.rti_companies}
+                
+                for cert_type, counts in cert_company_counts.items():
+                    for company, count in counts.items():
+                        if company in company_certs:
+                            company_certs[company] += count
+                            total_certs += count
+                
+                if total_certs > 0:
+                    weighted_score = self.weighted_scores.get(req_id, 0)
+                    for company in self.rti_companies:
+                        proportion = company_certs[company] / total_certs
+                        company_contributions[company]['resource'] += weighted_score * proportion
+                else:
+                    company_contributions['Lutech']['resource'] += self.weighted_scores.get(req_id, 0)
+                    
+            elif req_type in ['reference', 'project']:
+                assigned = tech_input.get('assigned_company', '') or 'Lutech'
+                if assigned in company_contributions:
+                    company_contributions[assigned][req_type] += gara_weight
+        
+        grand_total = 0
+        for company in self.rti_companies:
+            contrib = company_contributions[company]
+            total = contrib['resource'] + contrib['reference'] + contrib['project']
+            grand_total += total
+        
+        for company in self.rti_companies:
+            contrib = company_contributions[company]
+            total = contrib['resource'] + contrib['reference'] + contrib['project']
+            pct = total / grand_total if grand_total > 0 else 0
+            
+            ws.cell(row=row, column=2, value=company).font = Font(bold=True, color=self.company_colors.get(company, COLORS['dark']))
+            ws.cell(row=row, column=3, value=contrib['resource']).number_format = '0.00'
+            ws.cell(row=row, column=4, value=contrib['reference']).number_format = '0.00'
+            ws.cell(row=row, column=5, value=contrib['project']).number_format = '0.00'
+            ws.cell(row=row, column=6, value=total).number_format = '0.00'
+            ws.cell(row=row, column=6).font = Font(bold=True)
+            ws.cell(row=row, column=7, value=pct).number_format = '0.0%'
+            
+            for c in range(2, 8):
+                ws.cell(row=row, column=c).border = THIN_BORDER
+            row += 1
+        
+        ws.cell(row=row, column=2, value='TOTALE').font = Font(bold=True)
+        for col in range(3, 7):
+            ws.cell(row=row, column=col, value=f'=SUM({get_column_letter(col)}{summary_start}:{get_column_letter(col)}{row-1})').number_format = '0.00'
+        ws.cell(row=row, column=7, value=f'=SUM(G{summary_start}:G{row-1})').number_format = '0.0%'
+        for c in range(2, 8):
+            ws.cell(row=row, column=c).fill = LIGHT_FILL
+            ws.cell(row=row, column=c).border = MEDIUM_BORDER
+        
+        rule = DataBarRule(
+            start_type='num', start_value=0,
+            end_type='num', end_value=1,
+            color=COLORS['primary_light']
+        )
+        ws.conditional_formatting.add(f'G{summary_start}:G{row-1}', rule)
+
+    def _create_config_sheet(self):
+        """Create the configuration sheet"""
+        ws = self.wb.create_sheet('Config')
+        ws.sheet_properties.tabColor = COLORS['muted']
+        
+        ws.column_dimensions['A'].width = 3
+        ws.column_dimensions['B'].width = 25
+        ws.column_dimensions['C'].width = 30
+        ws.column_dimensions['D'].width = 20
+        
+        row = 2
+        
+        ws.merge_cells(f'B{row}:D{row}')
+        ws[f'B{row}'] = 'CONFIGURAZIONE LOTTO'
+        ws[f'B{row}'].font = TITLE_FONT
+        row += 2
+        
+        config_data = [
+            ('Nome Lotto', self.lot_key),
+            ('Base d\'Asta', f'€ {self.base_amount:,.2f}'),
+            ('Max Punteggio Tecnico', self.max_tech_score),
+            ('Max Punteggio Economico', self.max_econ_score),
+            ('Alpha (α)', self.alpha),
+            ('Formula Economica', self.lot_config.get('economic_formula', 'interp_alpha')),
+            ('RTI Abilitato', 'Sì' if self.is_rti else 'No'),
+        ]
+        
+        for label, value in config_data:
+            ws[f'B{row}'] = label
+            ws[f'B{row}'].font = LABEL_FONT
+            ws[f'C{row}'] = value
+            ws[f'C{row}'].border = THIN_BORDER
+            row += 1
+        
+        if self.is_rti:
+            ws[f'B{row}'] = 'Partner RTI'
+            ws[f'B{row}'].font = LABEL_FONT
+            ws[f'C{row}'] = ', '.join(self.lot_config.get('rti_companies', []))
+            ws[f'C{row}'].border = THIN_BORDER
+            row += 1
+        
+        row += 2
+        
+        ws.merge_cells(f'B{row}:D{row}')
+        ws[f'B{row}'] = 'NAMED RANGES DEFINITI'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Nome'
+        ws[f'B{row}'].font = HEADER_FONT
+        ws[f'B{row}'].fill = HEADER_FILL
+        ws[f'C{row}'] = 'Riferimento'
+        ws[f'C{row}'].font = HEADER_FONT
+        ws[f'C{row}'].fill = HEADER_FILL
+        row += 1
+        
+        for name, ref in self.named_ranges.items():
+            ws[f'B{row}'] = name
+            ws[f'B{row}'].font = Font(name='Consolas', size=10)
+            ws[f'C{row}'] = ref
+            ws[f'C{row}'].font = FORMULA_FONT
+            row += 1
+        
+        row += 2
+        
+        ws.merge_cells(f'B{row}:D{row}')
+        ws[f'B{row}'] = 'METADATI'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Data Generazione'
+        ws[f'C{row}'] = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        row += 1
+        
+        ws[f'B{row}'] = 'Versione App'
+        ws[f'C{row}'] = '2.0.0'
+
+    def _create_named_ranges(self):
+        """Create Excel named ranges for cross-sheet references"""
+        for name, ref in self.named_ranges.items():
+            defn = DefinedName(name, attr_text=ref)
+            self.wb.defined_names[name] = defn
+
+
+def generate_excel_report(
+    lot_key: str,
+    lot_config: Dict[str, Any],
+    base_amount: float,
+    my_discount: float,
+    competitor_discount: float,
+    technical_score: float,
+    economic_score: float,
+    total_score: float,
+    details: Dict[str, float],
+    weighted_scores: Dict[str, float],
+    category_scores: Dict[str, float],
+    max_tech_score: float,
+    max_econ_score: float,
+    alpha: float,
+    win_probability: float,
+    tech_inputs_full: Optional[Dict[str, Any]] = None,
+    rti_quotas: Optional[Dict[str, float]] = None,
+) -> io.BytesIO:
+    """Generate Excel report"""
+    generator = ExcelReportGenerator(
+        lot_key=lot_key,
+        lot_config=lot_config,
+        base_amount=base_amount,
+        my_discount=my_discount,
+        competitor_discount=competitor_discount,
+        technical_score=technical_score,
+        economic_score=economic_score,
+        total_score=total_score,
+        details=details,
+        weighted_scores=weighted_scores,
+        category_scores=category_scores,
+        max_tech_score=max_tech_score,
+        max_econ_score=max_econ_score,
+        alpha=alpha,
+        win_probability=win_probability,
+        tech_inputs_full=tech_inputs_full,
+        rti_quotas=rti_quotas,
+    )
+    
+    return generator.generate()

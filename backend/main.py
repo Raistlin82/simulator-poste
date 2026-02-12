@@ -36,6 +36,7 @@ from logging_config import setup_logging, get_logger
 from auth import OIDCMiddleware, OIDCConfig, get_current_user
 from services.scoring_service import ScoringService
 from pdf_generator import generate_pdf_report
+from excel_generator import generate_excel_report
 
 # Setup structured logging
 setup_logging()
@@ -1556,6 +1557,57 @@ def export_pdf(data: schemas.ExportPDFRequest, db: Session = Depends(get_db)):
         media_type="application/pdf",
         headers={
             "Content-Disposition": f"attachment; filename=report_{data.lot_key.replace(' ', '_')}.pdf",
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
+
+
+@api_router.post("/export-excel")
+def export_excel(data: schemas.ExportExcelRequest, db: Session = Depends(get_db)):
+    """
+    Export comprehensive Excel report with multiple sheets, formulas,
+    conditional formatting, and RTI contribution analysis.
+    """
+    logger.info(f"Excel export requested for lot: {data.lot_key}")
+
+    # Get lot configuration
+    lot_cfg_db = crud.get_lot_config(db, data.lot_key)
+    if not lot_cfg_db:
+        raise HTTPException(status_code=404, detail="Lot not found")
+    lot_cfg = schemas.LotConfig.model_validate(lot_cfg_db)
+
+    # Generate Excel report
+    buffer = generate_excel_report(
+        lot_key=data.lot_key,
+        lot_config=lot_cfg.model_dump(),
+        base_amount=data.base_amount,
+        my_discount=data.my_discount,
+        competitor_discount=data.competitor_discount,
+        technical_score=data.technical_score,
+        economic_score=data.economic_score,
+        total_score=data.total_score,
+        details=data.details,
+        weighted_scores=data.weighted_scores,
+        category_scores=data.category_scores,
+        max_tech_score=data.max_tech_score,
+        max_econ_score=data.max_econ_score,
+        alpha=data.alpha,
+        win_probability=data.win_probability,
+        tech_inputs_full=data.tech_inputs_full,
+        rti_quotas=data.rti_quotas,
+    )
+
+    logger.info(f"Excel export completed for lot: {data.lot_key}")
+
+    # Create safe filename
+    safe_lot_key = data.lot_key.replace(' ', '_').replace('/', '_')
+    filename = f"report_{safe_lot_key}.xlsx"
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
             "Access-Control-Expose-Headers": "Content-Disposition",
         },
     )
