@@ -680,10 +680,21 @@ def export_lot_config(lot_key: str, db: Session = Depends(get_db)):
     
     # Get lot config from database
     lot_obj = crud.get_lot_config(db, lot_key)
-    if not lot_obj or not lot_obj.config:
+    if not lot_obj:
         raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
     
-    lot_config = lot_obj.config
+    # Build lot_config dict from model attributes
+    lot_config = {
+        "name": lot_obj.name,
+        "base_amount": lot_obj.base_amount,
+        "max_tech_score": lot_obj.max_tech_score,
+        "max_econ_score": lot_obj.max_econ_score,
+        "max_raw_score": lot_obj.max_raw_score,
+        "alpha": lot_obj.alpha,
+        "economic_formula": lot_obj.economic_formula,
+        "company_certs": lot_obj.company_certs or [],
+        "reqs": lot_obj.reqs or [],
+    }
     
     # Get master data for dropdowns
     master_data_obj = crud.get_master_data(db)
