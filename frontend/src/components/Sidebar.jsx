@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings, X, FileSearch, Building2, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../utils/formatters';
@@ -11,6 +11,9 @@ export default function Sidebar({
     currentView
 }) {
     const { t } = useTranslation();
+
+    // Track lots where we've already saved default quotas
+    const savedDefaultQuotasRef = useRef(new Set());
 
     // Get data from contexts (no more prop drilling!)
     const { config, updateConfig, setConfig } = useConfig();
@@ -50,10 +53,18 @@ export default function Sidebar({
                 defaultQuotas[company] = perPartner;
             });
             setLocalQuotas(defaultQuotas);
+            
+            // Auto-save default quotas to backend so they're available for export
+            // Only save once per lot to avoid loops
+            if (lotData && selectedLot && !savedDefaultQuotasRef.current.has(selectedLot)) {
+                savedDefaultQuotasRef.current.add(selectedLot);
+                const updatedLot = { ...lotData, rti_quotas: defaultQuotas };
+                updateConfig({ [selectedLot]: updatedLot });
+            }
         } else {
             setLocalQuotas({});
         }
-    }, [selectedLot, lotData?.rti_quotas, isRti, rtiCompanies]);
+    }, [selectedLot, lotData, isRti, rtiCompanies, updateConfig]);
 
     // Validate that quotas sum to 100
     const totalQuota = Object.values(localQuotas).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
