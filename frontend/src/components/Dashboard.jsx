@@ -320,9 +320,6 @@ export default function Dashboard({ onNavigate }) {
                                             <div className="text-[10px] text-slate-500">{t('dashboard.vs_competitor')}</div>
                                         </div>
                                     </div>
-                                    <div className="mt-3 text-[10px] text-purple-700 text-center">
-                                        💡 {t('dashboard.discount_impact_tip', { value: formatNumber(((simulationData?.find(p => p.discount === myDiscount + 1)?.economic_score || 0) - (results?.economic_score || 0)), 2) })}
-                                    </div>
                                 </div>
 
                                 {/* Scenarios Grid */}

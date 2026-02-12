@@ -1185,7 +1185,14 @@ def simulate(data: schemas.SimulationRequest, db: Session = Depends(get_db)):
     p_best_comp = p_base * (1 - (data.competitor_discount / 100))
     results = []
 
-    for d in range(10, 71, 2):
+    # Generate discount points from 0 to 70
+    discount_points = set(range(0, 71, 2))
+    # Always include competitor_discount point for accurate Best Offer display
+    discount_points.add(round(data.competitor_discount))
+    # Also include my_discount point
+    discount_points.add(round(data.my_discount))
+
+    for d in sorted(discount_points):
         p_hyp = p_base * (1 - d / 100)
         e_s = calculate_economic_score(
             p_base, p_hyp, p_best_comp, lot_cfg.alpha, lot_cfg.max_econ_score
