@@ -1,4 +1,4 @@
-import { Sliders, Settings, X, FileSearch } from 'lucide-react';
+import { Sliders, Settings, X, FileSearch, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../utils/formatters';
 import { useConfig } from '../features/config/context/ConfigContext';
@@ -73,7 +73,15 @@ export default function Sidebar({
                     ))}
                 </select>
                 {config && selectedLot && config[selectedLot] && (
-                    <p className="text-xs text-slate-500 mt-1">{config[selectedLot].name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-slate-500">{config[selectedLot].name}</p>
+                        {config[selectedLot].rti_enabled && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-full border border-indigo-200">
+                                <Building2 className="w-3 h-3" />
+                                RTI ({(config[selectedLot].rti_companies?.length || 0) + 1})
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
 

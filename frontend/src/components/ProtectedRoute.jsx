@@ -5,6 +5,14 @@ import LoginButton from './LoginButton';
 export default function ProtectedRoute({ children }) {
     const { isAuthenticated, isLoading, error, login } = useAuth();
 
+    // Auto-redirect to IAS when not authenticated and not loading/error
+    // Hook must be at top level, before any conditional returns
+    useEffect(() => {
+        if (!isLoading && !isAuthenticated && !error && window.location.pathname !== '/callback') {
+            login();
+        }
+    }, [isLoading, isAuthenticated, error, login]);
+
     // Allow callback path to pass through for OIDC flow completion
     if (window.location.pathname === '/callback') {
         return children;
@@ -35,13 +43,6 @@ export default function ProtectedRoute({ children }) {
             </div>
         );
     }
-
-    // Auto-redirect to IAS when not authenticated and not loading/error
-    useEffect(() => {
-        if (!isLoading && !isAuthenticated && !error) {
-            login();
-        }
-    }, [isLoading, isAuthenticated, error, login]);
 
     if (!isAuthenticated) {
         return (

@@ -14,7 +14,7 @@ import { API_URL } from '../utils/api';
 
 export default function Dashboard({ onNavigate }) {
     const { t } = useTranslation();
-    const { config, masterData } = useConfig();
+    const { config } = useConfig();
     const {
         selectedLot,
         myDiscount,
@@ -73,8 +73,7 @@ export default function Dashboard({ onNavigate }) {
             isMounted = false;
             clearTimeout(timer);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [myDiscount, competitorDiscount, results?.technical_score, lotKey, lotData, competitorTechScore]);
+    }, [myDiscount, competitorDiscount, results, lotKey, lotData, competitorTechScore, showError, t]);
 
     // Run optimizer when competitor inputs change
     useEffect(() => {
@@ -179,7 +178,6 @@ export default function Dashboard({ onNavigate }) {
                 results={results}
                 lotData={lotData}
                 techInputs={techInputs}
-                masterData={masterData}
                 onExport={handleExport}
                 exportLoading={exportLoading}
             />

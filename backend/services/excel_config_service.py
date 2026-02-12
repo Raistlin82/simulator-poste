@@ -28,6 +28,7 @@ SHEET_MD_CERT_AZ = "_MD_CertAziendali"
 SHEET_MD_CERT_PROF = "_MD_CertProfessionali"
 SHEET_MD_FORMULE = "_MD_Formule"
 SHEET_MD_TIPI = "_MD_Tipi"
+SHEET_MD_RTI_PARTNERS = "_MD_RTI_Partners"
 
 # Styles
 HEADER_FILL = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -92,7 +93,7 @@ class ExcelConfigService:
     def _export_lotto_sheet(wb: Workbook, lot_config: Dict[str, Any], master_data: Dict[str, Any]):
         """Create and populate Lotto sheet with lot config data."""
         ws = wb.create_sheet(SHEET_LOTTO, 0)
-        headers = ["Nome", "Importo Base", "Alpha", "Formula Economica"]
+        headers = ["Nome", "Importo Base", "Alpha", "Formula Economica", "RTI Abilitato", "Partner RTI (sep. ;)"]
         ws.append(headers)
         ExcelConfigService._style_header(ws, 1, len(headers))
         
@@ -100,6 +101,8 @@ class ExcelConfigService:
         ws.column_dimensions['B'].width = 18
         ws.column_dimensions['C'].width = 12
         ws.column_dimensions['D'].width = 25
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 40
         
         # Add data validation for formula_economica
         formulas = master_data.get("economic_formulas", [])
@@ -108,12 +111,23 @@ class ExcelConfigService:
             ws.add_data_validation(dv)
             dv.add("D2:D100")
         
+        # Add data validation for RTI Abilitato (Sì/No)
+        dv_rti = DataValidation(type="list", formula1='"Sì,No"', allow_blank=False)
+        ws.add_data_validation(dv_rti)
+        dv_rti.add("E2:E100")
+        
         # Populate with lot data
+        rti_enabled = lot_config.get("rti_enabled", False)
+        rti_companies = lot_config.get("rti_companies", [])
+        rti_companies_str = ";".join(rti_companies) if rti_companies else ""
+        
         ws.append([
             lot_config.get("name", ""),
             lot_config.get("base_amount", 0),
             lot_config.get("alpha", 0.3),
-            lot_config.get("economic_formula", "interp_alpha")
+            lot_config.get("economic_formula", "interp_alpha"),
+            "Sì" if rti_enabled else "No",
+            rti_companies_str
         ])
 
     @staticmethod
@@ -379,12 +393,29 @@ class ExcelConfigService:
             for cell in row:
                 cell.fill = MD_FILL
                 cell.protection = Protection(locked=True)
+        
+        # _MD_RTI_Partners
+        ws = wb.create_sheet(SHEET_MD_RTI_PARTNERS)
+        ws.append(["Partner RTI Disponibili"])
+        ExcelConfigService._style_header(ws, 1, 1, MD_HEADER_FILL, HEADER_FONT)
+        rti_partners = master_data.get("rti_partners", [])
+        for partner in rti_partners:
+            ws.append([partner])
+        ws.column_dimensions['A'].width = 30
+        if rti_partners:
+            wb.create_named_range("MD_RTI_Partners", ws, f"$A$2:$A${len(rti_partners) + 1}")
+        ws.protection.sheet = True
+        ws.protection.password = 'readonly'
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.fill = MD_FILL
+                cell.protection = Protection(locked=True)
 
     @staticmethod
     def _create_lotto_sheet(wb: Workbook, master_data: Dict[str, Any]):
         """Create Lotto configuration sheet."""
         ws = wb.create_sheet(SHEET_LOTTO, 0)  # First position
-        headers = ["Nome", "Importo Base", "Alpha", "Formula Economica"]
+        headers = ["Nome", "Importo Base", "Alpha", "Formula Economica", "RTI Abilitato", "Partner RTI (sep. ;)"]
         ws.append(headers)
         ExcelConfigService._style_header(ws, 1, len(headers))
         
@@ -393,6 +424,8 @@ class ExcelConfigService:
         ws.column_dimensions['B'].width = 18
         ws.column_dimensions['C'].width = 12
         ws.column_dimensions['D'].width = 25
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 40
         
         # Add data validation for formula_economica
         formulas = master_data.get("economic_formulas", [])
@@ -407,8 +440,15 @@ class ExcelConfigService:
             ws.add_data_validation(dv)
             dv.add("D2:D100")
         
+        # Add data validation for RTI Abilitato (Sì/No)
+        dv_rti = DataValidation(type="list", formula1='"Sì,No"', allow_blank=False)
+        dv_rti.error = "Seleziona Sì o No"
+        dv_rti.errorTitle = "Valore non valido"
+        ws.add_data_validation(dv_rti)
+        dv_rti.add("E2:E100")
+        
         # Add sample row with example values
-        ws.append(["Nome del Lotto", 1000000, 0.3, "interp_alpha"])
+        ws.append(["Nome del Lotto", 1000000, 0.3, "interp_alpha", "No", ""])
 
     @staticmethod
     def _create_cert_aziendali_sheet(wb: Workbook, master_data: Dict[str, Any]):
@@ -554,6 +594,17 @@ class ExcelConfigService:
         
         logger.info(f"Parsed Lotto: name={lot_config.get('name')}")
         
+        # Validate RTI companies against master data
+        valid_rti_partners = set(master_data.get("rti_partners", []))
+        if lot_config.get("rti_enabled") and lot_config.get("rti_companies"):
+            validated_companies = []
+            for company in lot_config["rti_companies"]:
+                if company in valid_rti_partners:
+                    validated_companies.append(company)
+                else:
+                    warnings.append(f"Partner RTI '{company}' non presente nei master data, ignorato")
+            lot_config["rti_companies"] = validated_companies
+        
         # Parse Cert_Aziendali
         company_certs = ExcelConfigService._parse_cert_aziendali_sheet(wb, master_data, warnings)
         lot_config["company_certs"] = company_certs
@@ -634,6 +685,13 @@ class ExcelConfigService:
         values = [cell.value for cell in row]
         logger.debug(f"Lotto data row: {values}")
         
+        # Parse RTI fields
+        rti_enabled_raw = str(values[4]).strip().lower() if len(values) > 4 and values[4] else "no"
+        rti_enabled = rti_enabled_raw in ("sì", "si", "yes", "true", "1")
+        
+        rti_companies_raw = str(values[5]).strip() if len(values) > 5 and values[5] else ""
+        rti_companies = [c.strip() for c in rti_companies_raw.split(";") if c.strip()] if rti_companies_raw else []
+        
         config = {
             "name": str(values[0]).strip() if values[0] else "",
             "base_amount": float(values[1]) if len(values) > 1 and values[1] else 0.0,
@@ -641,9 +699,11 @@ class ExcelConfigService:
             "economic_formula": str(values[3]).strip() if len(values) > 3 and values[3] else "interp_alpha",
             "max_tech_score": 60.0,
             "max_econ_score": 40.0,
+            "rti_enabled": rti_enabled,
+            "rti_companies": rti_companies,
         }
         
-        logger.info(f"Parsed Lotto config: name='{config['name']}', base={config['base_amount']}")
+        logger.info(f"Parsed Lotto config: name='{config['name']}', base={config['base_amount']}, rti_enabled={rti_enabled}, rti_companies={rti_companies}")
         
         if not config["name"]:
             warnings.append("Nome lotto mancante, utilizza valore default")

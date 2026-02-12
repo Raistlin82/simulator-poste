@@ -195,7 +195,14 @@ def update_lot_config(
         db_lot.company_certs = lot_config.company_certs
         db_lot.reqs = lot_config.reqs
         db_lot.rti_enabled = lot_config.rti_enabled
-        db_lot.rti_companies = lot_config.rti_companies
+        
+        # Validate rti_companies against master data
+        if lot_config.rti_companies:
+            master = get_master_data(db)
+            valid_partners = set(master.rti_partners) if master and master.rti_partners else set()
+            db_lot.rti_companies = [c for c in lot_config.rti_companies if c in valid_partners]
+        else:
+            db_lot.rti_companies = []
         # NOTE: state is NOT updated here - it is saved separately via POST /config/state
         # to prevent POST /config from overwriting simulation state with stale data
 

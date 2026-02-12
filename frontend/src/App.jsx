@@ -229,12 +229,13 @@ function AppContent() {
         // Ignore abort errors
         if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
           logger.error("Calculation failed", err, { component: "App", lot: selectedLot });
+          showError(t('errors.calculation_failed'));
         }
       });
 
     // Cleanup: abort previous request when dependencies change
     return () => controller.abort();
-  }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config, authLoading, isAuthenticated, setResults]);
+  }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config, authLoading, isAuthenticated, setResults, showError, t]);
 
   // Simulation Effect (runs only when technical or economic results change) - with AbortController
   useEffect(() => {
@@ -256,11 +257,12 @@ function AppContent() {
       .catch(err => {
         if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
           logger.error("Simulation failed", err, { component: "App", lot: selectedLot });
+          showError(t('errors.simulation_failed'));
         }
       });
 
     return () => controller.abort();
-  }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config, authLoading, isAuthenticated, results, setSimulationData]);
+  }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config, authLoading, isAuthenticated, results, setSimulationData, showError, t]);
 
   if (loading) return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
 

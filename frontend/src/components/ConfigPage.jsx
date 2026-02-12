@@ -422,12 +422,17 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                     onChange={(e) => {
                                         const raw = e.target.value.replace(/\./g, '').replace(',', '.');
                                         setDisplayBase(e.target.value);
-                                        if (!isNaN(parseFloat(raw))) {
-                                            currentLot.base_amount = parseFloat(raw);
+                                        const parsed = parseFloat(raw);
+                                        if (!isNaN(parsed) && parsed >= 0) {
+                                            currentLot.base_amount = parsed;
                                             setEditedConfig({ ...editedConfig });
                                         }
                                     }}
-                                    onBlur={() => setDisplayBase(formatNumber(currentLot.base_amount, 2))}
+                                    onBlur={() => {
+                                        // Ensure non-negative on blur
+                                        if (currentLot.base_amount < 0) currentLot.base_amount = 0;
+                                        setDisplayBase(formatNumber(currentLot.base_amount || 0, 2));
+                                    }}
                                     placeholder="0,00"
                                     className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 bg-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono text-right text-lg font-semibold text-slate-900 hover:border-slate-300 transition-colors"
                                 />
@@ -591,7 +596,10 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                     max="1"
                                     value={currentLot.alpha || 0.3}
                                     onChange={(e) => {
-                                        currentLot.alpha = parseFloat(e.target.value);
+                                        let val = parseFloat(e.target.value);
+                                        if (isNaN(val)) val = 0.3;
+                                        val = Math.max(0, Math.min(1, val)); // Clamp 0-1
+                                        currentLot.alpha = val;
                                         setEditedConfig({ ...editedConfig });
                                     }}
                                     className="w-full p-2 border border-green-300 bg-white rounded-lg focus:ring-2 focus:ring-green-500 outline-none font-bold text-lg text-green-700"

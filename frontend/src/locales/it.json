@@ -327,6 +327,9 @@
         "lot_data_unavailable": "Errore: dati del lotto non disponibili o corrotti. Controlla la configurazione e riprova.",
         "no_prof_certs_configured": "Nessuna certificazione professionale configurata per questo lotto. Verifica la configurazione in ConfigPage o la sincronizzazione dei dati.",
         "monte_carlo_failed": "Errore durante l'analisi Monte Carlo",
-        "optimizer_failed": "Errore durante l'ottimizzazione"
+        "optimizer_failed": "Errore durante l'ottimizzazione",
+        "calculation_failed": "Errore durante il calcolo dei punteggi",
+        "simulation_failed": "Errore durante la simulazione",
+        "network_error": "Errore di connessione al server"
     }
 }

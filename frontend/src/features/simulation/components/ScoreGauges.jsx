@@ -9,11 +9,10 @@ import Gauge from '../../../shared/components/ui/Gauge';
  * @param {Object} props.results - Calculation results with scores
  * @param {Object} props.lotData - Lot configuration data
  * @param {Object} props.techInputs - Technical inputs with assigned_company and cert_company_counts
- * @param {Object} props.masterData - Master data with rti_companies
  * @param {Function} props.onExport - Callback for PDF export
  * @param {boolean} props.exportLoading - Export loading state
  */
-export default function ScoreGauges({ results, lotData, techInputs, masterData, onExport, exportLoading }) {
+export default function ScoreGauges({ results, lotData, techInputs, onExport, exportLoading }) {
   const { t } = useTranslation();
 
   if (!results || !lotData) {
