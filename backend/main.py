@@ -1477,86 +1477,49 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
 @api_router.post("/export-pdf")
 def export_pdf(data: schemas.ExportPDFRequest, db: Session = Depends(get_db)):
     """
-    Export comprehensive PDF report with branding, multi-page layout,
-    and detailed strategic analysis.
+    Export comprehensive PDF report matching Excel structure with
+    professional formatting and branding.
     """
     logger.info(f"PDF export requested for lot: {data.lot_key}")
 
-    # Get lot configuration for Monte Carlo simulation
+    # Get lot configuration
     lot_cfg_db = crud.get_lot_config(db, data.lot_key)
     if not lot_cfg_db:
         raise HTTPException(status_code=404, detail="Lot not found")
     lot_cfg = schemas.LotConfig.model_validate(lot_cfg_db)
 
-    # Run Monte Carlo simulation (500 iterations)
-    iterations = 500
-    comp_discounts = np.random.normal(data.competitor_discount, 3.5, iterations)
-    score_distribution = []
-
-    p_off = data.base_amount * (1 - (data.my_discount / 100))
-
-    for c_disc in comp_discounts:
-        c_disc = max(0, min(100, c_disc))
-        p_comp = data.base_amount * (1 - (c_disc / 100))
-        p_actual_best = min(p_off, p_comp)
-
-        econ_score = calculate_economic_score(
-            data.base_amount, p_off, p_actual_best, lot_cfg.alpha, lot_cfg.max_econ_score
-        )
-        my_total = data.technical_score + econ_score
-        score_distribution.append(my_total)
-
-    score_distribution = np.array(score_distribution)
-
-    # Calculate win probability
-    # Use actual competitor tech score if provided, otherwise estimate at 90% of max
-    competitor_tech = data.competitor_tech_score if hasattr(data, 'competitor_tech_score') and data.competitor_tech_score is not None else (data.max_tech_score * 0.9)
-    
-    competitor_econ = calculate_economic_score(
-        data.base_amount,
-        data.base_amount * (1 - data.competitor_discount / 100),
-        data.base_amount * (1 - max(data.my_discount, data.competitor_discount) / 100),
-        lot_cfg.alpha,
-        lot_cfg.max_econ_score
-    )
-    competitor_total = competitor_tech + competitor_econ
-    wins = np.sum(score_distribution >= competitor_total)
-    win_probability = (wins / iterations) * 100
-
-    # Prepare category scores
-    category_scores = {
-        'company_certs': data.category_company_certs,
-        'resource': data.category_resource,
-        'reference': data.category_reference,
-        'project': data.category_project,
-    }
-
-    # Generate PDF using the new comprehensive generator
+    # Generate PDF using the comprehensive generator (same data as Excel)
     buffer = generate_pdf_report(
         lot_key=data.lot_key,
+        lot_config=lot_cfg.model_dump(),
         base_amount=data.base_amount,
+        my_discount=data.my_discount,
+        competitor_discount=data.competitor_discount,
         technical_score=data.technical_score,
         economic_score=data.economic_score,
         total_score=data.total_score,
-        my_discount=data.my_discount,
-        competitor_discount=data.competitor_discount,
-        category_scores=category_scores,
+        details=data.details,
+        weighted_scores=data.weighted_scores,
+        category_scores=data.category_scores,
         max_tech_score=data.max_tech_score,
         max_econ_score=data.max_econ_score,
-        score_distribution=score_distribution,
-        win_probability=win_probability,
-        optimal_discount=None,  # Can be calculated if needed
-        scenarios=None,
-        iterations=iterations
+        alpha=data.alpha,
+        win_probability=data.win_probability,
+        tech_inputs_full=data.tech_inputs_full,
+        rti_quotas=data.rti_quotas,
     )
 
     logger.info(f"PDF export completed for lot: {data.lot_key}")
+
+    # Create safe filename
+    safe_lot_key = data.lot_key.replace(' ', '_').replace('/', '_')
+    filename = f"report_{safe_lot_key}.pdf"
 
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"attachment; filename=report_{data.lot_key.replace(' ', '_')}.pdf",
+            "Content-Disposition": f"attachment; filename={filename}",
             "Access-Control-Expose-Headers": "Content-Disposition",
         },
     )

@@ -161,7 +161,7 @@ class OptimizeDiscountRequest(BaseModel):
 
 
 class ExportPDFRequest(BaseModel):
-    """Request to export PDF report"""
+    """Request to export PDF report - mirrors ExportExcelRequest for consistency"""
     lot_key: str
     base_amount: float
     technical_score: float
@@ -169,17 +169,15 @@ class ExportPDFRequest(BaseModel):
     total_score: float
     my_discount: float
     competitor_discount: float
-    competitor_tech_score: Optional[float] = None  # Actual competitor tech score (if None, uses 90% of max)
-    avg_total_score: float = 0.0
+    alpha: float = 0.3
+    win_probability: float = 50.0
     details: Dict[str, float] = Field(default_factory=dict)
-    weighted_scores: Dict[str, float] = Field(default_factory=dict)  # Weighted scores per requirement
-    category_company_certs: float = 0.0
-    category_resource: float = 0.0
-    category_reference: float = 0.0
-    category_project: float = 0.0
+    weighted_scores: Dict[str, float] = Field(default_factory=dict)
+    category_scores: Dict[str, float] = Field(default_factory=dict)  # {company_certs, resource, reference, project}
     max_tech_score: float = 60.0
     max_econ_score: float = 40.0
-    max_raw_score: float = 0.0
+    tech_inputs_full: Dict[str, Any] = Field(default_factory=dict)
+    rti_quotas: Dict[str, float] = Field(default_factory=dict)  # Company quotas for RTI
 
 
 class ExportExcelRequest(BaseModel):
