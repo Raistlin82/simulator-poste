@@ -174,7 +174,14 @@ class ExcelReportGenerator:
         
         row = 2
         
-        # Header
+        # Brand Header
+        ws.merge_cells(f'B{row}:E{row}')
+        ws[f'B{row}'] = 'SIMULATORE GARA POSTE'
+        ws[f'B{row}'].font = Font(name='Calibri', size=12, bold=True, color=COLORS['primary'])
+        ws[f'B{row}'].alignment = CENTER
+        row += 1
+        
+        # Report title
         ws.merge_cells(f'B{row}:E{row}')
         ws[f'B{row}'] = f'REPORT - {self.lot_key}'
         ws[f'B{row}'].font = TITLE_FONT
@@ -278,9 +285,30 @@ class ExcelReportGenerator:
         ws[f'C{row}'].fill = FORMULA_FILL
         ws[f'C{row}'].border = THIN_BORDER
         ws[f'C{row}'].number_format = '0.00'
-        row += 2
+        row += 3
         
-        ws.freeze_panes = 'B5'
+        # Professional footer
+        ws.merge_cells(f'B{row}:E{row}')
+        footer_line = ws[f'B{row}']
+        footer_line.value = '─' * 60
+        footer_line.font = Font(size=8, color=COLORS['muted'])
+        footer_line.alignment = CENTER
+        row += 1
+        
+        ws.merge_cells(f'B{row}:E{row}')
+        ws[f'B{row}'] = 'https://simulator-poste.c-6dc1be8.kyma.ondemand.com'
+        ws[f'B{row}'].font = Font(size=9, color=COLORS['primary_light'], underline='single')
+        ws[f'B{row}'].alignment = CENTER
+        ws[f'B{row}'].hyperlink = 'https://simulator-poste.c-6dc1be8.kyma.ondemand.com'
+        row += 1
+        
+        ws.merge_cells(f'B{row}:E{row}')
+        ws[f'B{row}'] = 'Sviluppato da Gabriele Rendina'
+        ws[f'B{row}'].font = Font(size=9, italic=True, color=COLORS['muted'])
+        ws[f'B{row}'].alignment = CENTER
+        row += 1
+        
+        ws.freeze_panes = 'B6'
 
     def _create_technical_sheet(self):
         """Create the technical score analysis sheet with formulas"""
@@ -365,18 +393,36 @@ class ExcelReportGenerator:
         }
         
         company_certs = self.lot_config.get('company_certs', [])
-        # For company_certs, raw is the SUM of individual cert points obtained
-        # max_raw is the SUM of individual max points, gara_weight is total weight
+        # For company_certs, use category_scores which contains the weighted value
+        # The raw score for company_certs is the sum of points for certs the company has
         company_certs_raw_sum = 0
         for cert in company_certs:
             cert_id = cert.get('id', '')
-            # Check if company has this cert (stored in tech_inputs_full)
-            cert_input = self.tech_inputs_full.get(f'company_cert_{cert_id}', {})
-            has_cert = cert_input.get('has_cert', False) if isinstance(cert_input, dict) else cert_input
+            # Try multiple key patterns for tech_inputs_full
+            cert_input = (self.tech_inputs_full.get(f'company_cert_{cert_id}', {}) or
+                          self.tech_inputs_full.get(cert_id, {}) or
+                          {})
+            has_cert = False
+            if isinstance(cert_input, dict):
+                has_cert = cert_input.get('has_cert', False) or cert_input.get('hasCert', False)
+            elif isinstance(cert_input, bool):
+                has_cert = cert_input
             if has_cert:
                 company_certs_raw_sum += cert.get('points', 0)
             category_data['company_certs']['max_raw'] += cert.get('points', 0)
             category_data['company_certs']['gara_weight'] += cert.get('gara_weight', 0)
+        
+        # Fallback: if no raw was computed but we have a category score, use it
+        if company_certs_raw_sum == 0 and self.category_scores.get('company_certs', 0) > 0:
+            # The category score IS the weighted score; back-calculate raw assuming formula is raw*gara_weight/max_raw
+            weighted = self.category_scores.get('company_certs', 0)
+            max_raw = category_data['company_certs']['max_raw']
+            gara_weight = category_data['company_certs']['gara_weight']
+            if gara_weight > 0 and max_raw > 0:
+                # raw = weighted * max_raw / gara_weight
+                company_certs_raw_sum = weighted * max_raw / gara_weight
+            else:
+                company_certs_raw_sum = weighted
         category_data['company_certs']['raw'] = company_certs_raw_sum
         
         for req in reqs:
@@ -772,6 +818,7 @@ class ExcelReportGenerator:
             cell.fill = HEADER_FILL
             cell.alignment = CENTER
             cell.border = THIN_BORDER
+        scenario_headers_row = row
         row += 1
         
         scenario_start = row
@@ -783,7 +830,8 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=3).border = THIN_BORDER
             ws.cell(row=row, column=4, value=f'=IF($C${base_row}-$C${prezzo_best_row}=0,0,($C${base_row}-C{row})/($C${base_row}-$C${prezzo_best_row}))').number_format = '0.0000'
             ws.cell(row=row, column=4).border = THIN_BORDER
-            ws.cell(row=row, column=5, value=f'=$C${max_econ_row}*(D{row}^$C${alpha_row})').number_format = '0.00'
+            # Score Econ formula - capped at max using MIN
+            ws.cell(row=row, column=5, value=f'=MIN($C${max_econ_row},$C${max_econ_row}*(D{row}^$C${alpha_row}))').number_format = '0.00'
             ws.cell(row=row, column=5).border = THIN_BORDER
             # Reference to Tecnico sheet total
             ws.cell(row=row, column=6, value=f'=Tecnico!G{self.tech_cat_total_row}').number_format = '0.00'
@@ -791,19 +839,73 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=7, value=f'=E{row}+F{row}').number_format = '0.00'
             ws.cell(row=row, column=7).font = Font(bold=True)
             ws.cell(row=row, column=7).border = THIN_BORDER
-            
-            # Highlight current discount row
-            if discount == int(self.my_discount):
-                for col in range(2, 8):
-                    ws.cell(row=row, column=col).fill = PatternFill(start_color='FFF9C4', end_color='FFF9C4', fill_type='solid')
             row += 1
         
+        scenario_end = row - 1
+        
+        # Conditional formatting: highlight current discount row dynamically
+        # When B{row} (discount %) equals C{sconto_mio_row}/100
+        from openpyxl.formatting.rule import FormulaRule
+        highlight_fill = PatternFill(start_color='FFF9C4', end_color='FFF9C4', fill_type='solid')
+        highlight_rule = FormulaRule(
+            formula=[f'$B{scenario_start}=$C${sconto_mio_row}/100'],
+            fill=highlight_fill
+        )
+        ws.conditional_formatting.add(f'B{scenario_start}:G{scenario_end}', highlight_rule)
+        
+        # Conditional formatting: gray out rows where Score Econ >= Max (using ratio >= 1)
+        gray_fill = PatternFill(start_color='E0E0E0', end_color='E0E0E0', fill_type='solid')
+        gray_rule = FormulaRule(
+            formula=[f'$D{scenario_start}>=1'],
+            fill=gray_fill
+        )
+        ws.conditional_formatting.add(f'B{scenario_start}:G{scenario_end}', gray_rule)
+        
+        # Color scale for total column
         rule = ColorScaleRule(
             start_type='min', start_color='F8D7DA',
             mid_type='percentile', mid_value=50, mid_color='FFF3CD',
             end_type='max', end_color='D4EDDA'
         )
-        ws.conditional_formatting.add(f'G{scenario_start}:G{row-1}', rule)
+        ws.conditional_formatting.add(f'G{scenario_start}:G{scenario_end}', rule)
+        
+        row += 2
+        
+        # Add chart: Score curve (Sconto vs Score Economico and Totale)
+        from openpyxl.chart import LineChart, Reference as ChartRef
+        
+        chart = LineChart()
+        chart.title = 'Curva Punteggio'
+        chart.style = 10
+        chart.x_axis.title = 'Sconto %'
+        chart.y_axis.title = 'Punteggio'
+        chart.y_axis.crossAx = 500
+        chart.width = 18
+        chart.height = 10
+        
+        # X-axis: Sconto % (column B)
+        x_values = ChartRef(ws, min_col=2, min_row=scenario_start, max_col=2, max_row=scenario_end)
+        
+        # Series 1: Score Economico (column E)
+        econ_data = ChartRef(ws, min_col=5, min_row=scenario_headers_row, max_col=5, max_row=scenario_end)
+        chart.add_data(econ_data, titles_from_data=True)
+        
+        # Series 2: Score Totale (column G)
+        total_data = ChartRef(ws, min_col=7, min_row=scenario_headers_row, max_col=7, max_row=scenario_end)
+        chart.add_data(total_data, titles_from_data=True)
+        
+        chart.set_categories(x_values)
+        
+        # Style the series
+        s1 = chart.series[0]
+        s1.graphicalProperties.line.solidFill = COLORS['secondary']
+        s1.graphicalProperties.line.width = 25000  # EMUs
+        
+        s2 = chart.series[1]
+        s2.graphicalProperties.line.solidFill = COLORS['primary']
+        s2.graphicalProperties.line.width = 25000
+        
+        ws.add_chart(chart, f'I{scenario_start}')
         
         ws.freeze_panes = 'B5'
 
