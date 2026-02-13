@@ -732,6 +732,7 @@ def export_lot_config(lot_key: str, db: Session = Depends(get_db)):
         "reqs": lot_obj.reqs or [],
         "rti_enabled": lot_obj.rti_enabled or False,
         "rti_companies": lot_obj.rti_companies or [],
+        "is_active": lot_obj.is_active if lot_obj.is_active is not None else True,
     }
     
     # Get master data for dropdowns

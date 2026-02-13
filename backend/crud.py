@@ -172,6 +172,10 @@ def create_lot_config(
         company_certs=lot_config.company_certs,
         reqs=lot_config.reqs,
         state=lot_config.state or {},
+        rti_enabled=lot_config.rti_enabled,
+        rti_companies=lot_config.rti_companies or [],
+        rti_quotas=lot_config.rti_quotas or {},
+        is_active=lot_config.is_active,
     )
     db.add(db_lot)
     db.commit()
@@ -222,6 +226,9 @@ def update_lot_config(
         
         # NOTE: state is NOT updated here - it is saved separately via POST /config/state
         # to prevent POST /config from overwriting simulation state with stale data
+        
+        # Update is_active flag
+        db_lot.is_active = lot_config.is_active
 
         db.commit()
         db.refresh(db_lot)
