@@ -146,6 +146,7 @@ class ExcelReportGenerator:
             self._create_rti_sheet()
         
         self._create_dashboard_sheet()
+        self._create_analytics_sheet()
         self._create_config_sheet()
         self._create_named_ranges()
         
@@ -209,6 +210,7 @@ class ExcelReportGenerator:
         ws[f'B{kpi_row+1}'].number_format = '0.00'
         ws[f'B{kpi_row+1}'].fill = FORMULA_FILL
         ws[f'B{kpi_row+1}'].border = THIN_BORDER
+        self.dashboard_total_row = kpi_row + 1
         
         # TECNICO - formula referencing Tecnico sheet
         ws[f'C{kpi_row}'] = 'TECNICO'
@@ -248,9 +250,9 @@ class ExcelReportGenerator:
         
         row = kpi_row + 4
         
-        # Input section (simplified - main inputs are in Economico)
+        # GENERALI section (summary info)
         ws.merge_cells(f'B{row}:C{row}')
-        ws[f'B{row}'] = 'PARAMETRI DI INPUT'
+        ws[f'B{row}'] = 'GENERALI'
         ws[f'B{row}'].font = SECTION_FONT
         row += 1
         
@@ -285,7 +287,27 @@ class ExcelReportGenerator:
         ws[f'C{row}'].fill = FORMULA_FILL
         ws[f'C{row}'].border = THIN_BORDER
         ws[f'C{row}'].number_format = '0.00'
-        row += 3
+        row += 1
+        
+        ws[f'B{row}'] = 'Prezzo Best Offer'
+        ws[f'B{row}'].font = LABEL_FONT
+        ws[f'C{row}'] = f"=Economico!C{self.econ_prezzo_best_row}"
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '€ #,##0.00'
+        row += 1
+        
+        # Quota Lutech: total if not RTI, otherwise from RTI sheet
+        ws[f'B{row}'] = 'Quota Lutech'
+        ws[f'B{row}'].font = LABEL_FONT
+        if self.is_rti:
+            ws[f'C{row}'] = f"=RTI!D{self.rti_lutech_row}"
+        else:
+            ws[f'C{row}'] = f"=Economico!C{self.econ_prezzo_mio_row}"
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '€ #,##0.00'
+        row += 2
         
         # Professional footer
         ws.merge_cells(f'B{row}:E{row}')
@@ -767,6 +789,7 @@ class ExcelReportGenerator:
         ws[f'C{row}'].border = THIN_BORDER
         ws[f'C{row}'].number_format = '0.00'
         max_econ_row = row
+        self.econ_max_econ_row = row
         self.named_ranges['MaxEcon'] = f"'Economico'!$C${row}"
         row += 2
         
@@ -794,6 +817,7 @@ class ExcelReportGenerator:
         ws[f'C{row}'].border = THIN_BORDER
         ws[f'C{row}'].number_format = '€ #,##0.00'
         prezzo_best_row = row
+        self.econ_prezzo_best_row = row
         row += 1
         
         ws[f'B{row}'] = 'Rapporto (R)'
@@ -970,6 +994,10 @@ class ExcelReportGenerator:
         ws.add_data_validation(company_dv)
         
         for company in self.rti_companies:
+            # Store Lutech row for Dashboard reference
+            if company == 'Lutech':
+                self.rti_lutech_row = row
+            
             quota = self.rti_quotas.get(company, 0)
             
             company_cell = ws.cell(row=row, column=2, value=company)
@@ -1183,6 +1211,417 @@ class ExcelReportGenerator:
             color=COLORS['primary_light']
         )
         ws.conditional_formatting.add(f'G{summary_start}:G{row-1}', rule)
+
+    def _create_analytics_sheet(self):
+        """Create the analytics sheet with advanced analysis"""
+        ws = self.wb.create_sheet('Analytics')
+        ws.sheet_properties.tabColor = COLORS['secondary']
+        
+        ws.column_dimensions['A'].width = 3
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['G'].width = 15
+        ws.column_dimensions['H'].width = 15
+        
+        row = 2
+        
+        # Title
+        ws.merge_cells(f'B{row}:H{row}')
+        ws[f'B{row}'] = 'ANALYTICS - ANALISI AVANZATA'
+        ws[f'B{row}'].font = TITLE_FONT
+        row += 3
+        
+        # ========================================
+        # 1. GAP TECNICO
+        # ========================================
+        ws.merge_cells(f'B{row}:E{row}')
+        ws[f'B{row}'] = '📊 GAP TECNICO PER CATEGORIA'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        gap_headers = ['Categoria', 'Ottenuto', 'Max', '% Copertura', 'Gap']
+        for col, header in enumerate(gap_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        gap_start_row = row
+        
+        # Company Certs category
+        company_cert_obtained = self.category_scores.get('company_certs', 0)
+        company_cert_max = sum(c.get('gara_weight', 0) for c in self.lot_config.get('company_certs', []))
+        if company_cert_max > 0:
+            ws.cell(row=row, column=2, value='Certificazioni Aziendali').border = THIN_BORDER
+            ws.cell(row=row, column=3, value=company_cert_obtained).number_format = '0.00'
+            ws.cell(row=row, column=3).border = THIN_BORDER
+            ws.cell(row=row, column=4, value=company_cert_max).number_format = '0.00'
+            ws.cell(row=row, column=4).border = THIN_BORDER
+            ws.cell(row=row, column=5, value=f'=C{row}/D{row}').number_format = '0.0%'
+            ws.cell(row=row, column=5).fill = FORMULA_FILL
+            ws.cell(row=row, column=5).border = THIN_BORDER
+            ws.cell(row=row, column=6, value=f'=D{row}-C{row}').number_format = '0.00'
+            ws.cell(row=row, column=6).fill = FORMULA_FILL
+            ws.cell(row=row, column=6).border = THIN_BORDER
+            row += 1
+        
+        # Resource requirements
+        resource_obtained = self.category_scores.get('resources', 0)
+        resource_max = sum(r.get('gara_weight', 0) for r in self.lot_config.get('reqs', []) if r.get('type') == 'resource')
+        if resource_max > 0:
+            ws.cell(row=row, column=2, value='Risorse/Cert. Professionali').border = THIN_BORDER
+            ws.cell(row=row, column=3, value=resource_obtained).number_format = '0.00'
+            ws.cell(row=row, column=3).border = THIN_BORDER
+            ws.cell(row=row, column=4, value=resource_max).number_format = '0.00'
+            ws.cell(row=row, column=4).border = THIN_BORDER
+            ws.cell(row=row, column=5, value=f'=C{row}/D{row}').number_format = '0.0%'
+            ws.cell(row=row, column=5).fill = FORMULA_FILL
+            ws.cell(row=row, column=5).border = THIN_BORDER
+            ws.cell(row=row, column=6, value=f'=D{row}-C{row}').number_format = '0.00'
+            ws.cell(row=row, column=6).fill = FORMULA_FILL
+            ws.cell(row=row, column=6).border = THIN_BORDER
+            row += 1
+        
+        # References
+        ref_obtained = self.category_scores.get('references', 0)
+        ref_max = sum(r.get('gara_weight', 0) for r in self.lot_config.get('reqs', []) if r.get('type') == 'reference')
+        if ref_max > 0:
+            ws.cell(row=row, column=2, value='Referenze').border = THIN_BORDER
+            ws.cell(row=row, column=3, value=ref_obtained).number_format = '0.00'
+            ws.cell(row=row, column=3).border = THIN_BORDER
+            ws.cell(row=row, column=4, value=ref_max).number_format = '0.00'
+            ws.cell(row=row, column=4).border = THIN_BORDER
+            ws.cell(row=row, column=5, value=f'=C{row}/D{row}').number_format = '0.0%'
+            ws.cell(row=row, column=5).fill = FORMULA_FILL
+            ws.cell(row=row, column=5).border = THIN_BORDER
+            ws.cell(row=row, column=6, value=f'=D{row}-C{row}').number_format = '0.00'
+            ws.cell(row=row, column=6).fill = FORMULA_FILL
+            ws.cell(row=row, column=6).border = THIN_BORDER
+            row += 1
+        
+        # Projects
+        proj_obtained = self.category_scores.get('projects', 0)
+        proj_max = sum(r.get('gara_weight', 0) for r in self.lot_config.get('reqs', []) if r.get('type') == 'project')
+        if proj_max > 0:
+            ws.cell(row=row, column=2, value='Progetti').border = THIN_BORDER
+            ws.cell(row=row, column=3, value=proj_obtained).number_format = '0.00'
+            ws.cell(row=row, column=3).border = THIN_BORDER
+            ws.cell(row=row, column=4, value=proj_max).number_format = '0.00'
+            ws.cell(row=row, column=4).border = THIN_BORDER
+            ws.cell(row=row, column=5, value=f'=C{row}/D{row}').number_format = '0.0%'
+            ws.cell(row=row, column=5).fill = FORMULA_FILL
+            ws.cell(row=row, column=5).border = THIN_BORDER
+            ws.cell(row=row, column=6, value=f'=D{row}-C{row}').number_format = '0.00'
+            ws.cell(row=row, column=6).fill = FORMULA_FILL
+            ws.cell(row=row, column=6).border = THIN_BORDER
+            row += 1
+        
+        # Total row
+        gap_end_row = row - 1
+        ws.cell(row=row, column=2, value='TOTALE').font = Font(bold=True)
+        ws.cell(row=row, column=2).border = MEDIUM_BORDER
+        ws.cell(row=row, column=2).fill = LIGHT_FILL
+        ws.cell(row=row, column=3, value=f'=SUM(C{gap_start_row}:C{gap_end_row})').number_format = '0.00'
+        ws.cell(row=row, column=3).font = Font(bold=True)
+        ws.cell(row=row, column=3).border = MEDIUM_BORDER
+        ws.cell(row=row, column=3).fill = LIGHT_FILL
+        ws.cell(row=row, column=4, value=f'=SUM(D{gap_start_row}:D{gap_end_row})').number_format = '0.00'
+        ws.cell(row=row, column=4).font = Font(bold=True)
+        ws.cell(row=row, column=4).border = MEDIUM_BORDER
+        ws.cell(row=row, column=4).fill = LIGHT_FILL
+        ws.cell(row=row, column=5, value=f'=C{row}/D{row}').number_format = '0.0%'
+        ws.cell(row=row, column=5).font = Font(bold=True)
+        ws.cell(row=row, column=5).border = MEDIUM_BORDER
+        ws.cell(row=row, column=5).fill = LIGHT_FILL
+        ws.cell(row=row, column=6, value=f'=SUM(F{gap_start_row}:F{gap_end_row})').number_format = '0.00'
+        ws.cell(row=row, column=6).font = Font(bold=True)
+        ws.cell(row=row, column=6).border = MEDIUM_BORDER
+        ws.cell(row=row, column=6).fill = LIGHT_FILL
+        row += 3
+        
+        # ========================================
+        # 2. EFFICIENZA REQUISITI
+        # ========================================
+        ws.merge_cells(f'B{row}:F{row}')
+        ws[f'B{row}'] = '📈 EFFICIENZA REQUISITI (ordinati per % copertura)'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        eff_headers = ['Requisito', 'Tipo', 'Ottenuto', 'Max', '% Copertura']
+        for col, header in enumerate(eff_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        # Build list of requirements with efficiency
+        req_efficiency = []
+        for req in self.lot_config.get('reqs', []):
+            req_id = req.get('id', '')
+            req_label = req.get('label', req_id)
+            req_type = req.get('type', '')
+            max_pts = req.get('gara_weight', 0)
+            obtained = self.weighted_scores.get(req_id, 0)
+            efficiency = obtained / max_pts if max_pts > 0 else 0
+            req_efficiency.append({
+                'label': req_label[:35],  # Truncate for display
+                'type': req_type,
+                'obtained': obtained,
+                'max': max_pts,
+                'efficiency': efficiency
+            })
+        
+        # Sort by efficiency ascending (worst first)
+        req_efficiency.sort(key=lambda x: x['efficiency'])
+        
+        for req in req_efficiency[:10]:  # Show top 10 worst
+            ws.cell(row=row, column=2, value=req['label']).border = THIN_BORDER
+            ws.cell(row=row, column=3, value=req['type']).border = THIN_BORDER
+            ws.cell(row=row, column=4, value=req['obtained']).number_format = '0.00'
+            ws.cell(row=row, column=4).border = THIN_BORDER
+            ws.cell(row=row, column=5, value=req['max']).number_format = '0.00'
+            ws.cell(row=row, column=5).border = THIN_BORDER
+            eff_cell = ws.cell(row=row, column=6, value=req['efficiency'])
+            eff_cell.number_format = '0.0%'
+            eff_cell.border = THIN_BORDER
+            # Color code efficiency
+            if req['efficiency'] < 0.5:
+                eff_cell.fill = PatternFill(start_color='FFCDD2', end_color='FFCDD2', fill_type='solid')
+            elif req['efficiency'] < 0.8:
+                eff_cell.fill = PatternFill(start_color='FFF9C4', end_color='FFF9C4', fill_type='solid')
+            else:
+                eff_cell.fill = PatternFill(start_color='C8E6C9', end_color='C8E6C9', fill_type='solid')
+            row += 1
+        
+        row += 2
+        
+        # ========================================
+        # 3. SIMULAZIONE COMPETITOR
+        # ========================================
+        ws.merge_cells(f'B{row}:F{row}')
+        ws[f'B{row}'] = '🎯 SIMULAZIONE COMPETITOR'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Ipotesi: quale sconto serve per pareggiare/battere un competitor con tech score diverso?'
+        ws[f'B{row}'].font = Font(italic=True, color=COLORS['muted'])
+        row += 2
+        
+        ws[f'B{row}'] = 'Tech Score Competitor (input)'
+        ws[f'B{row}'].font = LABEL_FONT
+        competitor_tech_cell = f'C{row}'
+        ws[competitor_tech_cell] = self.technical_score  # Default: same as ours
+        ws[competitor_tech_cell].fill = INPUT_FILL
+        ws[competitor_tech_cell].border = THIN_BORDER
+        ws[competitor_tech_cell].number_format = '0.00'
+        competitor_tech_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Nostro Tech Score'
+        ws[f'C{row}'] = f"=Tecnico!G{self.tech_cat_total_row}"
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        our_tech_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Differenza Tech'
+        ws[f'C{row}'] = f'=C{our_tech_row}-C{competitor_tech_row}'
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '+0.00;-0.00;0'
+        row += 2
+        
+        # Scenario table: competitor sconto vs our required sconto
+        sim_headers = ['Sconto Competitor', 'Score Competitor', 'Sconto Pareggio', 'Sconto per +5pt']
+        for col, header in enumerate(sim_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        # Show scenarios for competitor discounts 10% to 50%
+        for comp_discount in [10, 20, 30, 40, 50]:
+            ws.cell(row=row, column=2, value=comp_discount / 100).number_format = '0%'
+            ws.cell(row=row, column=2).border = THIN_BORDER
+            
+            # Competitor total score formula
+            # Score = TechComp + MaxEcon * ((Base - PrezzoComp) / (Base - PrezzoBest))^alpha
+            # Simplified: we calculate based on their discount matching best offer
+            ws.cell(row=row, column=3, 
+                value=f'=$C${competitor_tech_row}+Economico!$C${self.econ_max_econ_row}*((1-B{row})/(1-Economico!$C${self.econ_sconto_best_row}))^Economico!$C${self.econ_alpha_row}'
+            ).number_format = '0.00'
+            ws.cell(row=row, column=3).fill = FORMULA_FILL
+            ws.cell(row=row, column=3).border = THIN_BORDER
+            
+            # Required discount to match (simplified approximation)
+            ws.cell(row=row, column=4, 
+                value=f'=1-(1-Economico!$C${self.econ_sconto_best_row})*((C{row}-$C${our_tech_row})/Economico!$C${self.econ_max_econ_row})^(1/Economico!$C${self.econ_alpha_row})'
+            ).number_format = '0.0%'
+            ws.cell(row=row, column=4).fill = FORMULA_FILL
+            ws.cell(row=row, column=4).border = THIN_BORDER
+            
+            # Required discount to beat by 5 points
+            ws.cell(row=row, column=5, 
+                value=f'=1-(1-Economico!$C${self.econ_sconto_best_row})*((C{row}+5-$C${our_tech_row})/Economico!$C${self.econ_max_econ_row})^(1/Economico!$C${self.econ_alpha_row})'
+            ).number_format = '0.0%'
+            ws.cell(row=row, column=5).fill = FORMULA_FILL
+            ws.cell(row=row, column=5).border = THIN_BORDER
+            row += 1
+        
+        row += 2
+        
+        # ========================================
+        # 4. ZONA SICURA
+        # ========================================
+        ws.merge_cells(f'B{row}:G{row}')
+        ws[f'B{row}'] = '🛡️ ZONA SICURA'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Analisi: in quale range di sconti restiamo vincenti anche se il competitor varia il suo sconto?'
+        ws[f'B{row}'].font = Font(italic=True, color=COLORS['muted'])
+        row += 2
+        
+        ws[f'B{row}'] = 'Tech Score Competitor (input)'
+        ws[f'C{row}'] = self.technical_score * 0.95  # Assume slightly lower
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        safe_comp_tech_row = row
+        row += 1
+        
+        ws[f'B{row}'] = 'Nostro Sconto Attuale'
+        ws[f'C{row}'] = f"=Economico!C{self.econ_sconto_row}"
+        ws[f'C{row}'].fill = FORMULA_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.0%'
+        our_discount_row = row
+        row += 2
+        
+        # Table: competitor discount variations
+        zone_headers = ['Var. Competitor', 'Sconto Comp.', 'Score Comp.', 'Nostro Score', 'Margine', 'Esito']
+        for col, header in enumerate(zone_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        # Variations: -10%, -5%, 0%, +5%, +10% from best offer
+        for var in [-10, -5, 0, 5, 10]:
+            ws.cell(row=row, column=2, value=f'{var:+d}%').border = THIN_BORDER
+            
+            # Competitor discount = best offer + variation
+            ws.cell(row=row, column=3, 
+                value=f'=Economico!$C${self.econ_sconto_best_row}+{var/100}'
+            ).number_format = '0.0%'
+            ws.cell(row=row, column=3).border = THIN_BORDER
+            
+            # Competitor total score
+            ws.cell(row=row, column=4, 
+                value=f'=$C${safe_comp_tech_row}+Economico!$C${self.econ_max_econ_row}*MIN(1,((1-C{row})/(1-Economico!$C${self.econ_sconto_best_row}))^Economico!$C${self.econ_alpha_row})'
+            ).number_format = '0.00'
+            ws.cell(row=row, column=4).fill = FORMULA_FILL
+            ws.cell(row=row, column=4).border = THIN_BORDER
+            
+            # Our score (reference from Dashboard)
+            ws.cell(row=row, column=5, 
+                value=f'=Dashboard!B{self.dashboard_total_row}'
+            ).number_format = '0.00'
+            ws.cell(row=row, column=5).fill = FORMULA_FILL
+            ws.cell(row=row, column=5).border = THIN_BORDER
+            
+            # Margin
+            ws.cell(row=row, column=6, value=f'=E{row}-D{row}').number_format = '+0.00;-0.00;0'
+            ws.cell(row=row, column=6).fill = FORMULA_FILL
+            ws.cell(row=row, column=6).border = THIN_BORDER
+            
+            # Outcome
+            ws.cell(row=row, column=7, value=f'=IF(F{row}>0,"✓ VINCENTE",IF(F{row}=0,"= PAREGGIO","✗ PERDENTE"))')
+            ws.cell(row=row, column=7).border = THIN_BORDER
+            row += 1
+        
+        row += 2
+        
+        # ========================================
+        # 5. WHAT-IF SCENARI
+        # ========================================
+        ws.merge_cells(f'B{row}:G{row}')
+        ws[f'B{row}'] = '🔮 WHAT-IF SCENARI'
+        ws[f'B{row}'].font = SECTION_FONT
+        row += 1
+        
+        ws[f'B{row}'] = 'Cosa succede combinando diversi sconti con miglioramenti tecnici?'
+        ws[f'B{row}'].font = Font(italic=True, color=COLORS['muted'])
+        row += 2
+        
+        # Input: additional tech points
+        ws[f'B{row}'] = 'Miglioramento Tech ipotizzato (punti)'
+        ws[f'C{row}'] = 0
+        ws[f'C{row}'].fill = INPUT_FILL
+        ws[f'C{row}'].border = THIN_BORDER
+        ws[f'C{row}'].number_format = '0.00'
+        improvement_row = row
+        row += 2
+        
+        whatif_headers = ['Sconto', 'Tech Attuale', 'Tech Miglior.', 'Econ. Score', 'Totale Attuale', 'Totale Miglior.', 'Δ']
+        for col, header in enumerate(whatif_headers, start=2):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = CENTER
+            cell.border = THIN_BORDER
+        row += 1
+        
+        # Scenarios at different discounts
+        for discount in [20, 25, 30, 35, 40, 45, 50]:
+            ws.cell(row=row, column=2, value=discount / 100).number_format = '0%'
+            ws.cell(row=row, column=2).border = THIN_BORDER
+            
+            # Current tech
+            ws.cell(row=row, column=3, value=f"=Tecnico!G{self.tech_cat_total_row}").number_format = '0.00'
+            ws.cell(row=row, column=3).border = THIN_BORDER
+            
+            # Improved tech
+            ws.cell(row=row, column=4, value=f"=Tecnico!G{self.tech_cat_total_row}+$C${improvement_row}").number_format = '0.00'
+            ws.cell(row=row, column=4).fill = FORMULA_FILL
+            ws.cell(row=row, column=4).border = THIN_BORDER
+            
+            # Econ score at this discount
+            ws.cell(row=row, column=5, 
+                value=f'=Economico!$C${self.econ_max_econ_row}*MIN(1,((1-B{row})/(1-Economico!$C${self.econ_sconto_best_row}))^Economico!$C${self.econ_alpha_row})'
+            ).number_format = '0.00'
+            ws.cell(row=row, column=5).fill = FORMULA_FILL
+            ws.cell(row=row, column=5).border = THIN_BORDER
+            
+            # Total current
+            ws.cell(row=row, column=6, value=f'=C{row}+E{row}').number_format = '0.00'
+            ws.cell(row=row, column=6).fill = FORMULA_FILL
+            ws.cell(row=row, column=6).border = THIN_BORDER
+            
+            # Total improved
+            ws.cell(row=row, column=7, value=f'=D{row}+E{row}').number_format = '0.00'
+            ws.cell(row=row, column=7).fill = FORMULA_FILL
+            ws.cell(row=row, column=7).border = THIN_BORDER
+            
+            # Delta
+            ws.cell(row=row, column=8, value=f'=G{row}-F{row}').number_format = '+0.00;-0.00;0'
+            ws.cell(row=row, column=8).fill = FORMULA_FILL
+            ws.cell(row=row, column=8).border = THIN_BORDER
+            row += 1
+        
+        ws.freeze_panes = 'B5'
 
     def _create_config_sheet(self):
         """Create the configuration sheet"""
