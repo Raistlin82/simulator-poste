@@ -891,8 +891,8 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                             <div className="border-t border-purple-100 pt-3">
                                                 <div className="flex justify-between items-center mb-2">
                                                     <h5 className="text-[10px] font-bold text-purple-700 uppercase tracking-widest">{t('config.selected_certs')}</h5>
-                                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${req.selected_prof_certs?.length === (req.prof_C || 1) ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
-                                                        {req.selected_prof_certs?.length || 0} / {req.prof_C || 1}
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                                                        {req.selected_prof_certs?.length || 0}
                                                     </span>
                                                 </div>
 
@@ -935,27 +935,19 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                     {knownProfCerts
                                                         .filter(cert => !req.selected_prof_certs?.includes(cert))
                                                         .filter(cert => cert.toLowerCase().includes(certSearch.toLowerCase()))
-                                                        .map(cert => {
-                                                            const count = req.selected_prof_certs?.length || 0;
-                                                            const canSelectMore = count < (req.prof_C || 1);
-
-                                                            return (
-                                                                <button
-                                                                    key={cert}
-                                                                    disabled={!canSelectMore}
-                                                                    onClick={() => {
-                                                                        const current = req.selected_prof_certs || [];
-                                                                        updateRequirement(req.id, 'selected_prof_certs', [...current, cert]);
-                                                                        setCertSearch(''); // Clear search after selection
-                                                                    }}
-                                                                    className={`w-full text-left px-3 py-2 text-[11px] font-medium border-b border-slate-50 last:border-0 transition-colors ${canSelectMore
-                                                                        ? 'hover:bg-purple-50 text-slate-700'
-                                                                        : 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-60'}`}
-                                                                >
-                                                                    {cert}
-                                                                </button>
-                                                            );
-                                                        })}
+                                                        .map(cert => (
+                                                            <button
+                                                                key={cert}
+                                                                onClick={() => {
+                                                                    const current = req.selected_prof_certs || [];
+                                                                    updateRequirement(req.id, 'selected_prof_certs', [...current, cert]);
+                                                                    setCertSearch(''); // Clear search after selection
+                                                                }}
+                                                                className="w-full text-left px-3 py-2 text-[11px] font-medium border-b border-slate-50 last:border-0 transition-colors hover:bg-purple-50 text-slate-700"
+                                                            >
+                                                                {cert}
+                                                            </button>
+                                                        ))}
                                                     {knownProfCerts.length === 0 && (
                                                         <p className="text-[10px] italic text-slate-400 p-3 text-center">Nessuna certificazione in Master Data.</p>
                                                     )}

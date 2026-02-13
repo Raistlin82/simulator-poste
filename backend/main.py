@@ -809,12 +809,13 @@ async def import_config_from_excel(
         # Get master data for validation
         master_data_obj = crud.get_master_data(db)
         if not master_data_obj:
-            master_data = {"company_certs": [], "prof_certs": [], "economic_formulas": []}
+            master_data = {"company_certs": [], "prof_certs": [], "economic_formulas": [], "rti_partners": []}
         else:
             master_data = {
                 "company_certs": master_data_obj.company_certs or [],
                 "prof_certs": master_data_obj.prof_certs or [],
-                "economic_formulas": master_data_obj.economic_formulas or []
+                "economic_formulas": master_data_obj.economic_formulas or [],
+                "rti_partners": master_data_obj.rti_partners or []
             }
         
         # Parse Excel

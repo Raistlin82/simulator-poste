@@ -768,10 +768,13 @@ class ExcelConfigService:
         
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             if not row:
-                logger.debug(f"Row {row_num}: empty row tuple")
+                logger.info(f"Cert_Prof row {row_num}: empty row tuple")
                 continue
             if not row[0]:
-                logger.debug(f"Row {row_num}: first cell is empty, row={row}")
+                # Log if other cells have data (possible column misalignment)
+                non_empty = [(i, v) for i, v in enumerate(row) if v]
+                if non_empty:
+                    logger.warning(f"Cert_Prof row {row_num}: Codice (col A) empty but data in: {non_empty}")
                 continue
             
             codice = str(row[0]).strip()
@@ -828,10 +831,13 @@ class ExcelConfigService:
         
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             if not row:
-                logger.debug(f"Row {row_num}: empty row tuple")
+                logger.info(f"Ref_Prog row {row_num}: empty row tuple")
                 continue
             if not row[0]:
-                logger.debug(f"Row {row_num}: first cell is empty, row={row}")
+                # Log if other cells have data (possible column misalignment)
+                non_empty = [(i, v) for i, v in enumerate(row) if v]
+                if non_empty:
+                    logger.warning(f"Ref_Prog row {row_num}: Codice (col A) empty but data in: {non_empty}")
                 continue
             
             codice = str(row[0]).strip()
