@@ -59,6 +59,7 @@ class LotConfig(BaseModel):
     rti_enabled: bool = False  # Whether this lot is an RTI (joint venture)
     rti_companies: List[str] = Field(default_factory=list)  # RTI partner companies (excludes Lutech)
     rti_quotas: Dict[str, float] = Field(default_factory=dict)  # Company quotas: {"Lutech": 70, "Partner1": 30, ...}
+    is_active: bool = True  # Whether lot is active (True) or closed (False)
 
     model_config = ConfigDict(from_attributes=True)
 

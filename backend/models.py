@@ -32,6 +32,9 @@ class LotConfigModel(Base):
     rti_enabled = Column(Boolean, default=False)
     rti_companies = Column(SQLiteJSON, default=list)  # Partner companies (excludes Lutech)
     rti_quotas = Column(SQLiteJSON, default=dict)  # Company quotas: {"Lutech": 70, "Partner1": 30, ...}
+    
+    # Active/closed flag for filtering
+    is_active = Column(Boolean, default=True)  # True = active, False = closed
 
 
 class MasterDataModel(Base):

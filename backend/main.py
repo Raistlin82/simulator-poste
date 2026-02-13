@@ -74,6 +74,9 @@ def run_migrations():
             if "rti_quotas" not in columns:
                 logger.info("Migrating: Adding rti_quotas column to lot_configs table")
                 conn.execute(text("ALTER TABLE lot_configs ADD COLUMN rti_quotas TEXT DEFAULT '{}'"))
+            if "is_active" not in columns:
+                logger.info("Migrating: Adding is_active column to lot_configs table")
+                conn.execute(text("ALTER TABLE lot_configs ADD COLUMN is_active INTEGER DEFAULT 1"))
             conn.commit()
     
     logger.info("Database migrations completed")

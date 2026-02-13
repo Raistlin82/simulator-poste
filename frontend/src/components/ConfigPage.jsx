@@ -409,6 +409,27 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                 }}
                                 className="w-full p-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                             />
+                            {/* Active/Closed Toggle */}
+                            <div className="flex items-center gap-2 mt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        updateLot(lot => {
+                                            lot.is_active = lot.is_active === false ? true : false;
+                                        });
+                                    }}
+                                    className={`relative w-9 h-5 rounded-full transition-colors ${
+                                        currentLot.is_active !== false ? 'bg-green-500' : 'bg-slate-300'
+                                    }`}
+                                >
+                                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                                        currentLot.is_active !== false ? 'translate-x-4' : ''
+                                    }`} />
+                                </button>
+                                <span className={`text-xs font-medium ${currentLot.is_active !== false ? 'text-green-600' : 'text-slate-500'}`}>
+                                    {currentLot.is_active !== false ? 'Gara Attiva' : 'Gara Chiusa'}
+                                </span>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">{t('config.base_amount')}</label>
