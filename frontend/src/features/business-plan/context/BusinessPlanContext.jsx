@@ -107,6 +107,7 @@ export function BusinessPlanProvider({ children, activeView }) {
           discount_pct: params.discount_pct || 0,
           is_rti: params.is_rti || false,
           quota_lutech: params.quota_lutech || 1.0,
+          subcontract: params.subcontract || {},
         },
       );
       return res.data;

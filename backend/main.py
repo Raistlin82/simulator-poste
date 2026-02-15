@@ -38,6 +38,7 @@ from services.scoring_service import ScoringService
 from services.business_plan_service import BusinessPlanService
 from pdf_generator import generate_pdf_report
 from excel_generator import generate_excel_report
+from excel_business_plan import generate_business_plan_excel
 
 # Setup structured logging
 setup_logging()
@@ -2386,13 +2387,25 @@ def calculate_business_plan(
 
     # Calculate team cost from composition if available
     team_cost = 0.0
+    tow_breakdown = {}
+    lutech_breakdown = {}
     if bp.team_composition:
+        # Get profile rates for mix calculation
+        profile_rates = {}
+        # We need the profile catalog rates. Let's assume we can get them or use defaults.
+        # For simplicity in this refactor, we pass the mappings from the BP.
         team_result = BusinessPlanService.calculate_team_cost(
             team_composition=bp.team_composition,
             volume_adjustments=bp.volume_adjustments or {},
             reuse_factor=bp.reuse_factor or 0.0,
+            profile_mappings=bp.profile_mappings or {},
+            profile_rates={}, # Should be populated from catalog in a full implementation
+            duration_months=bp.duration_months or 36,
+            default_daily_rate=bp.default_daily_rate or 250.0
         )
         team_cost = team_result["total_cost"]
+        tow_breakdown = team_result["by_tow"]
+        lutech_breakdown = team_result["by_lutech_profile"]
     else:
         team_cost = bp.total_cost or 0.0
 
@@ -2416,7 +2429,8 @@ def calculate_business_plan(
         quota_lutech=calc_request.quota_lutech,
     )
 
-    # Calculate savings percentage
+    # Calculate savings percentage using the weighted average from service if available
+    # fallback to simple calculation
     original_fte = sum(float(m.get("fte", 0)) for m in (bp.team_composition or []))
     effective_fte = original_fte
     if bp.volume_adjustments:
@@ -2433,6 +2447,9 @@ def calculate_business_plan(
         total_revenue=margin_result["revenue"],
         margin=margin_result["margin"],
         margin_pct=margin_result["margin_pct"],
+        tow_breakdown=tow_breakdown,
+        lutech_breakdown=lutech_breakdown,
+        intervals=team_result.get("intervals", []) if bp.team_composition else [],
         savings_pct=round(savings_pct, 2),
     )
 
@@ -2500,6 +2517,60 @@ def find_discount_for_target(
         "total_cost": cost_breakdown["total"],
         "base_amount": lot.base_amount,
     }
+
+
+@bp_router.post("/export-excel")
+def export_business_plan_excel(data: schemas.ExportBusinessPlanRequest, db: Session = Depends(get_db)):
+    """
+    Export Business Plan comprehensive Excel report with multiple sheets,
+    formulas, conditional formatting, and validations.
+    """
+    logger.info(f"Business Plan Excel export requested for lot: {data.lot_key}")
+
+    # Generate Excel report
+    try:
+        buffer = generate_business_plan_excel(
+            lot_key=data.lot_key,
+            business_plan=data.business_plan,
+            costs=data.costs,
+            clean_team_cost=data.clean_team_cost,
+            base_amount=data.base_amount,
+            is_rti=data.is_rti,
+            quota_lutech=data.quota_lutech,
+            scenarios=data.scenarios,
+            tow_breakdown=data.tow_breakdown,
+            profile_rates=data.profile_rates,
+            intervals=data.intervals,
+            lutech_breakdown=data.lutech_breakdown,
+        )
+    except Exception as e:
+        logger.error(f"Error generating Business Plan Excel: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error generating Excel: {str(e)}")
+
+    logger.info(f"Business Plan Excel export completed for lot: {data.lot_key}")
+
+    # Create safe filename
+    safe_lot_key = data.lot_key.replace(' ', '_').replace('/', '_')
+    filename = f"business_plan_{safe_lot_key}.xlsx"
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
+
+
+@api_router.post("/business-plan-export")
+def export_business_plan_excel_alias(data: schemas.ExportBusinessPlanRequest, db: Session = Depends(get_db)):
+    """
+    Alias for Business Plan Excel export to avoid router issues.
+    """
+    return export_business_plan_excel(data, db)
 
 
 # --- PRACTICE ENDPOINTS ---

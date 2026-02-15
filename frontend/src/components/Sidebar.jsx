@@ -41,11 +41,15 @@ export default function Sidebar({
 
     // Keep a stable ref to updateConfig to avoid re-triggering the effect
     const updateConfigRef = useRef(updateConfig);
-    updateConfigRef.current = updateConfig;
+    useEffect(() => {
+        updateConfigRef.current = updateConfig;
+    }, [updateConfig]);
 
     // Stable ref for lotData to use inside effect without causing re-triggers
     const lotDataRef = useRef(lotData);
-    lotDataRef.current = lotData;
+    useEffect(() => {
+        lotDataRef.current = lotData;
+    }, [lotData]);
 
     // Serialize rtiCompanies to a string for stable dependency comparison
     const rtiCompaniesKey = rtiCompanies.join(',');
@@ -274,7 +278,7 @@ export default function Sidebar({
 
                             {/* Company rows */}
                             <div className="bg-white divide-y divide-slate-100">
-                                {allRtiCompanies.map((company, idx) => {
+                                {allRtiCompanies.map((company) => {
                                     const quota = parseFloat(localQuotas[company]) || 0;
                                     const amount = p_my * (quota / 100);
                                     const isLutech = company === 'Lutech';

@@ -202,6 +202,22 @@ class ExportExcelRequest(BaseModel):
     rti_quotas: Dict[str, float] = Field(default_factory=dict)  # Company quotas for RTI
 
 
+class ExportBusinessPlanRequest(BaseModel):
+    """Request to export Business Plan Excel report"""
+    lot_key: str
+    business_plan: Dict[str, Any]
+    costs: Dict[str, Any]  # Changed from float to Any to support explanation object
+    clean_team_cost: float
+    base_amount: float
+    is_rti: bool = False
+    quota_lutech: float = 1.0
+    scenarios: List[Dict[str, Any]] = Field(default_factory=list)
+    tow_breakdown: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    lutech_breakdown: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    profile_rates: Optional[Dict[str, float]] = Field(default_factory=dict)
+    intervals: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+
+
 class MasterData(BaseModel):
     """Master data shared across all lots"""
     company_certs: List[str] = Field(default_factory=list)
@@ -332,14 +348,16 @@ class VolumeAdjustments(BaseModel):
 
 class SubcontractConfig(BaseModel):
     """Configurazione subappalto"""
-    quota_pct: float = Field(default=0.0, ge=0.0, le=0.20)
+    tow_split: Dict[str, float] = Field(default_factory=dict)  # {tow_id: percentage}
     partner: Optional[str] = None
-    tows: List[str] = Field(default_factory=list)
+    avg_daily_rate: Optional[float] = None  # Costo medio €/gg del partner
 
 
 class BusinessPlanCreate(BaseModel):
     """Schema per creare/aggiornare un Business Plan"""
     duration_months: int = 36
+    days_per_fte: float = 220.0
+    default_daily_rate: float = 250.0
     governance_pct: float = Field(default=0.10, ge=0.0, le=1.0)  # Decimali 0-1 (frontend invia /100)
     risk_contingency_pct: float = Field(default=0.05, ge=0.0, le=1.0)  # Decimali 0-1 (frontend invia /100)
     team_composition: List[Dict[str, Any]] = Field(default_factory=list)
@@ -349,6 +367,8 @@ class BusinessPlanCreate(BaseModel):
     tow_assignments: Dict[str, str] = Field(default_factory=dict)
     profile_mappings: Dict[str, List[TimeVaryingMix]] = Field(default_factory=dict)
     subcontract_config: Dict[str, Any] = Field(default_factory=dict)
+    governance_profile_mix: List[Dict[str, Any]] = Field(default_factory=list)  # Mix profili per governance
+    governance_cost_manual: Optional[float] = None  # Costo governance manuale (override)
 
 
 class BusinessPlanResponse(BaseModel):
@@ -358,6 +378,8 @@ class BusinessPlanResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     duration_months: int = 36
+    days_per_fte: float = 220.0
+    default_daily_rate: float = 250.0
     governance_pct: float = 0.10
     risk_contingency_pct: float = 0.05
     team_composition: List[Dict[str, Any]] = Field(default_factory=list)
@@ -367,6 +389,8 @@ class BusinessPlanResponse(BaseModel):
     tow_assignments: Dict[str, str] = Field(default_factory=dict)
     profile_mappings: Dict[str, List[TimeVaryingMix]] = Field(default_factory=dict)
     subcontract_config: Dict[str, Any] = Field(default_factory=dict)
+    governance_profile_mix: List[Dict[str, Any]] = Field(default_factory=list)
+    governance_cost_manual: Optional[float] = None
     tow_costs: Dict[str, float] = Field(default_factory=dict)
     tow_prices: Dict[str, float] = Field(default_factory=dict)
     total_cost: float = 0.0
@@ -392,6 +416,7 @@ class BusinessPlanCalculateResponse(BaseModel):
     total_cost: float = 0.0
     total_revenue: float = 0.0
     margin: float = 0.0
-    margin_pct: float = 0.0
     tow_breakdown: Dict[str, Any] = Field(default_factory=dict)
+    lutech_breakdown: Dict[str, Any] = Field(default_factory=dict)
+    intervals: List[Dict[str, Any]] = Field(default_factory=list)
     savings_pct: float = 0.0

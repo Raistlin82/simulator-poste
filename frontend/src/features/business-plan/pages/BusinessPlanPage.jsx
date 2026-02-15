@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useSimulation } from '../../simulation/context/SimulationContext';
 import { useBusinessPlan } from '../context/BusinessPlanContext';
 import { useConfig } from '../../config/context/ConfigContext';
+import axios from 'axios';
+import { API_URL } from '../../../utils/api';
 import {
   Briefcase,
   Building2,
@@ -10,6 +12,11 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle2,
+  MailCheck,
+  Users,
+  BarChart3,
+  Calendar,
+  FileDown,
 } from 'lucide-react';
 
 import {
@@ -22,7 +29,16 @@ import {
   VolumeAdjustments,
   CostBreakdown,
   ScenarioCards,
+  ProfitAndLoss,
+  SubcontractPanel,
+  OfferSchemeTable,
+  TowAnalysis,
 } from '../components';
+
+
+
+const DEFAULT_DAILY_RATE = 250;
+const DAYS_PER_FTE = 220;
 
 export default function BusinessPlanPage() {
   const { t } = useTranslation();
@@ -43,12 +59,43 @@ export default function BusinessPlanPage() {
   // Local state for editing
   const [localBP, setLocalBP] = useState(null);
   const [calcResult, setCalcResult] = useState(null);
+  const [cleanTeamCost, setCleanTeamCost] = useState(0);
+  const [towBreakdown, setTowBreakdown] = useState({});
+  const [lutechProfileBreakdown, setLutechProfileBreakdown] = useState({});
+  const [intervals, setIntervals] = useState([]);
+  const [teamMixRate, setTeamMixRate] = useState(0);
   const [scenarios, setScenarios] = useState([]);
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [discount, setDiscount] = useState(0);
   const [targetMargin, setTargetMargin] = useState(15);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [excelExportLoading, setExcelExportLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('poste');
+
+  // Build Lutech rates lookup from practices
+  const buildLutechRates = useCallback(() => {
+    const rates = {};
+    for (const practice of practices) {
+      for (const profile of (practice.profiles || [])) {
+        rates[`${practice.id}:${profile.id}`] = profile.daily_rate || DEFAULT_DAILY_RATE;
+      }
+    }
+    return rates;
+  }, [practices]);
+
+  const buildLutechLabels = useCallback(() => {
+    const labels = {};
+    for (const practice of practices) {
+      for (const profile of (practice.profiles || [])) {
+        labels[`${practice.id}:${profile.id}`] = {
+          profile: profile.label || profile.id,
+          practice: practice.label || practice.id
+        };
+      }
+    }
+    return labels;
+  }, [practices]);
 
   // Initialize local state from fetched BP
   useEffect(() => {
@@ -56,16 +103,20 @@ export default function BusinessPlanPage() {
       // Convert decimals from API to percentages for UI display
       setLocalBP({
         ...businessPlan,
-        governance_pct: (businessPlan.governance_pct || 0.10) * 100,
-        risk_contingency_pct: (businessPlan.risk_contingency_pct || 0.05) * 100,
+        governance_pct: (businessPlan.governance_pct || 0.04) * 100,
+        risk_contingency_pct: (businessPlan.risk_contingency_pct || 0.03) * 100,
         reuse_factor: (businessPlan.reuse_factor || 0) * 100,
+        days_per_fte: businessPlan.days_per_fte || DAYS_PER_FTE,
+        default_daily_rate: businessPlan.default_daily_rate || DEFAULT_DAILY_RATE,
       });
     } else if (selectedLot) {
       // Initialize empty BP (values already in percentage form)
       setLocalBP({
         duration_months: 36,
-        governance_pct: 10,
-        risk_contingency_pct: 5,
+        days_per_fte: DAYS_PER_FTE,
+        default_daily_rate: DEFAULT_DAILY_RATE,
+        governance_pct: 4,
+        risk_contingency_pct: 3,
         reuse_factor: 0,
         team_composition: [],
         tows: [],
@@ -79,202 +130,380 @@ export default function BusinessPlanPage() {
     }
   }, [businessPlan, selectedLot]);
 
-  // Calculate costs when BP changes
-  const runCalculation = useCallback(async () => {
-    if (!localBP || !lotData) return;
-
-    try {
-      // Simulate calculation locally for now
-      const teamCost = calculateTeamCost(localBP);
-
-      // Governance: calcolo basato su FTE Lutech con distribuzione profili
-      const governanceCost = calculateGovernanceCost(localBP, teamCost);
-
-      const riskCost = teamCost * (localBP.risk_contingency_pct / 100);
-      const subcontractCost = 0; // TODO: calculate from config
-
-      const totalCost = teamCost + governanceCost + riskCost + subcontractCost;
-
-      setCalcResult({
-        team: teamCost,
-        governance: governanceCost,
-        risk: riskCost,
-        subcontract: subcontractCost,
-        total: totalCost
-      });
-
-      // Generate scenarios
-      const baseAmount = lotData.base_amount || 0;
-      const newScenarios = generateScenarios(localBP, baseAmount, totalCost);
-      setScenarios(newScenarios);
-
-    } catch (err) {
-      console.error('Calculation error:', err);
+  /**
+   * Calculate team cost with explicit parameters.
+   * Returns { total, byTow } where byTow is a {towId: cost} map.
+   *
+   * @param {object} bp - business plan data
+   * @param {object} overrides - optional overrides for reuse_factor and volume_adjustments
+   */
+  const calculateTeamCost = useCallback((bp, overrides = {}) => {
+    if (!bp.team_composition || bp.team_composition.length === 0) {
+      return { total: 0, byTow: {} };
     }
-  }, [localBP, lotData]);
 
-  useEffect(() => {
-    runCalculation();
-  }, [runCalculation]);
-
-  // Calculate team cost using profile mappings for real rates (supports time-varying mappings)
-  const calculateTeamCost = (bp) => {
-    if (!bp.team_composition || bp.team_composition.length === 0) return 0;
-
-    const reuseFactor = 1 - (bp.reuse_factor / 100);
-    const DAYS_PER_FTE = 220;
-    const DEFAULT_DAILY_RATE = 400; // Fallback se non mappato
+    const reusePct = overrides.reuse_factor ?? bp.reuse_factor ?? 0;
+    const reuseFactor = 1 - (reusePct / 100);
     const durationMonths = bp.duration_months || 36;
-    const durationYears = durationMonths / 12;
+    const daysPerFte = bp.days_per_fte || DAYS_PER_FTE;
+    const defaultRate = bp.default_daily_rate || DEFAULT_DAILY_RATE;
 
-    // Build lookup for Lutech profile rates from practices
-    const lutechRates = {};
-    for (const practice of practices) {
-      for (const profile of (practice.profiles || [])) {
-        lutechRates[`${practice.id}:${profile.id}`] = profile.daily_rate || DEFAULT_DAILY_RATE;
-      }
-    }
+    const lutechRates = buildLutechRates();
+    const lutechLabels = buildLutechLabels(); // Map for Lutech profile labels from practices
 
-    // Volume adjustments - new period-based structure
-    const adjustmentPeriods = bp.volume_adjustments?.periods || [{
+    // Volume adjustments - use overrides if provided
+    const volAdj = overrides.volume_adjustments ?? bp.volume_adjustments;
+    const adjustmentPeriods = volAdj?.periods || [{
       month_start: 1,
       month_end: durationMonths,
-      by_tow: bp.volume_adjustments?.by_tow || {},
-      by_profile: bp.volume_adjustments?.by_profile || {}
+      by_tow: volAdj?.by_tow || {},
+      by_profile: volAdj?.by_profile || {},
     }];
 
-    // Calculate weighted average profile factor across periods
-    const getWeightedProfileFactor = (profileId) => {
-      let totalMonths = 0;
-      let weightedFactor = 0;
-
-      for (const period of adjustmentPeriods) {
-        const start = period.month_start || 1;
-        const end = period.month_end || durationMonths;
-        const months = end - start + 1;
-        const factor = period.by_profile?.[profileId] ?? 1.0;
-        weightedFactor += factor * months;
-        totalMonths += months;
-      }
-
-      return totalMonths > 0 ? weightedFactor / totalMonths : 1.0;
-    };
-
-    // Calculate TOW adjustment cost reduction
-    const getTowCostReduction = () => {
-      let totalReduction = 0;
-      const tows = bp.tows || [];
-
-      for (const period of adjustmentPeriods) {
-        const start = period.month_start || 1;
-        const end = period.month_end || durationMonths;
-        const periodMonths = end - start + 1;
-        const periodFraction = periodMonths / durationMonths;
-
-        for (const tow of tows) {
-          const factor = period.by_tow?.[tow.tow_id] ?? 1.0;
-          if (factor >= 1.0) continue;
-
-          if (tow.type === 'task') {
-            // A Task: reducing tasks → reduces proportional cost
-            // Assume each task has equal cost weight based on tow weight
-            const numTasks = tow.num_tasks || 0;
-            const reducedTasks = numTasks - Math.round(numTasks * factor);
-            const towWeight = (tow.weight_pct || 0) / 100;
-            // Reduction is proportional to tasks saved × tow weight × period fraction
-            if (numTasks > 0) {
-              totalReduction += (reducedTasks / numTasks) * towWeight * periodFraction;
-            }
-          } else if (tow.type === 'corpo') {
-            // A Corpo: reducing months → reduces days → reduces FTE equivalent
-            const towWeight = (tow.weight_pct || 0) / 100;
-            const reduction = (1 - factor);
-            totalReduction += reduction * towWeight * periodFraction;
-          }
+    // Help: get adjustment period for a specific month
+    const getAdjustmentPeriodAtMonth = (month) => {
+      for (const p of adjustmentPeriods) {
+        if (month >= (p.month_start || 1) && month <= (p.month_end || durationMonths)) {
+          return p;
         }
       }
-
-      return totalReduction; // Fraction of total cost to subtract
+      return adjustmentPeriods[0];
     };
 
-    let totalCost = 0;
+    // Helper: get factor for a profile in a specific month
+    const getProfileFactorAtMonth = (profileId, month) => {
+      for (const p of adjustmentPeriods) {
+        if (month >= (p.month_start || 1) && month <= (p.month_end || durationMonths)) {
+          return p.by_profile?.[profileId] ?? 1.0;
+        }
+      }
+      return 1.0;
+    };
 
-    for (const member of bp.team_composition) {
-      const profileId = member.profile_id || member.label;
-      const fte = parseFloat(member.fte) || 0;
-      const profileFactor = getWeightedProfileFactor(profileId);
-      const adjustedFte = fte * profileFactor * reuseFactor;
-      const daysPerYear = adjustedFte * DAYS_PER_FTE;
-
-      // Check if this profile has a mapping (new structure with periods)
-      const mapping = bp.profile_mappings?.[profileId];
-
-      if (mapping && mapping.length > 0) {
-        // New structure: array of period mappings
-        // Calculate weighted average rate across all periods
-        let totalRate = 0;
-        let validPeriods = 0;
-
-        for (const periodMapping of mapping) {
+    // Helper: get average rate for a profile in a specific month
+    const getProfileRateAtMonth = (profileId, month) => {
+      const mapping = bp.profile_mappings?.[profileId] || [];
+      for (const periodMapping of mapping) {
+        if (month >= (periodMapping.month_start || 1) && month <= (periodMapping.month_end || durationMonths)) {
           const mix = periodMapping.mix || [];
           let periodRate = 0;
           let periodPct = 0;
-
           for (const m of mix) {
-            const rate = lutechRates[m.lutech_profile] || DEFAULT_DAILY_RATE;
+            const rate = lutechRates[m.lutech_profile] || defaultRate;
             const pct = (m.pct || 0) / 100;
             periodRate += rate * pct;
             periodPct += pct;
           }
+          return periodPct > 0 ? periodRate / periodPct : defaultRate;
+        }
+      }
+      return defaultRate;
+    };
 
-          // Normalize period rate
-          if (periodPct > 0) {
-            periodRate = periodRate / periodPct;
-            totalRate += periodRate;
-            validPeriods++;
+    // Helper: get Lutech mix for a profile in a specific month
+    const getLutechMixAtMonth = (profileId, month) => {
+      const mapping = bp.profile_mappings?.[profileId] || [];
+      for (const periodMapping of mapping) {
+        if (month >= (periodMapping.month_start || 1) && month <= (periodMapping.month_end || durationMonths)) {
+          return periodMapping.mix || [];
+        }
+      }
+      return null;
+    };
+
+    let totalCost = 0;
+    const byTow = {}; // { id: { cost, label, days, daysBase, contributions: [] } }
+    const byLutechProfile = {};  // { full_id: { label, cost, days, daysBase, rate, contributions: [] } }
+    const intervals = []; // for Excel parity
+    let totalDays = 0;
+
+    const towMap = (lotData?.tows || []).reduce((acc, t) => ({ ...acc, [t.tow_id]: t.label }), {});
+
+    for (const member of bp.team_composition) {
+      const profileId = member.profile_id || member.label;
+      const fte = parseFloat(member.fte) || 0;
+      const mapping = bp.profile_mappings?.[profileId] || [];
+
+      // Boundaries for this member
+      const boundaries = new Set([1, durationMonths + 1]);
+      for (const p of adjustmentPeriods) {
+        boundaries.add(p.month_start || 1);
+        boundaries.add((p.month_end || durationMonths) + 1);
+      }
+      for (const pm of mapping) {
+        boundaries.add(pm.month_start || 1);
+        boundaries.add((pm.month_end || durationMonths) + 1);
+      }
+      const sorted = Array.from(boundaries).filter(b => b >= 1 && b <= durationMonths + 1).sort((a, b) => a - b);
+
+      const triplets = []; // To collect granular profile intervals for TOW distribution
+
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const start = sorted[i];
+        const end = sorted[i + 1] - 1;
+        const months = sorted[i + 1] - sorted[i];
+        const years = months / 12;
+
+        const factor = getProfileFactorAtMonth(profileId, start);
+        const rate = getProfileRateAtMonth(profileId, start);
+        const mix = getLutechMixAtMonth(profileId, start);
+
+        // TOW Reduction for this member in this interval
+        const adjustmentPeriod = getAdjustmentPeriodAtMonth(start);
+        const towAllocation = member.tow_allocation || {};
+        let towFactorSum = 0;
+        let totalAllocatedPct = 0;
+        for (const [towId, pct] of Object.entries(towAllocation)) {
+          const towPct = parseFloat(pct) || 0;
+          if (towPct > 0) {
+            const tFactor = adjustmentPeriod.by_tow?.[towId] ?? 1.0;
+            towFactorSum += (towPct / 100) * tFactor;
+            totalAllocatedPct += (towPct / 100);
           }
         }
+        const finalTowFactor = totalAllocatedPct > 0 ? (towFactorSum / totalAllocatedPct) : 1.0;
 
-        // Average rate across periods
-        const avgRate = validPeriods > 0 ? totalRate / validPeriods : DEFAULT_DAILY_RATE;
+        const intervalRawDays = fte * daysPerFte * years; // Raw GG before any factor
+        const intervalBaseDays = intervalRawDays * factor; // After profile factor
+        const intervalDays = intervalBaseDays * (reuseFactor * finalTowFactor); // Effective GG
+        const intervalCost = intervalDays * rate;
 
-        // Total cost = days per year × years × rate
-        totalCost += daysPerYear * durationYears * avgRate;
-      } else {
-        // No mapping, use default rate
-        totalCost += daysPerYear * durationYears * DEFAULT_DAILY_RATE;
+        // Record interval for Excel
+        intervals.push({
+          member: member.label,
+          start_month: start,
+          end_month: end,
+          fte_base: fte,
+          fte_factor: factor * reuseFactor * finalTowFactor,
+          rate: rate,
+          cost: intervalCost,
+          days: intervalDays
+        });
+
+        // Accumulate per Lutech profile
+        if (mix && mix.length > 0) {
+          for (const m of mix) {
+            if (!m.lutech_profile) continue;
+            const pct = (m.pct || 0) / 100;
+            const lRate = lutechRates[m.lutech_profile] || defaultRate;
+
+            // WYSIWYG Rounding: round effective days at the most granular level
+            const lDaysRaw = intervalRawDays * pct;
+            const lDaysBase = intervalBaseDays * pct;
+            const lDaysEff = Math.round(intervalDays * pct * 100) / 100;
+            const lCost = lDaysEff * lRate;
+
+            if (!byLutechProfile[m.lutech_profile]) {
+              const info = lutechLabels[m.lutech_profile];
+              const parts = m.lutech_profile.split(':');
+              byLutechProfile[m.lutech_profile] = {
+                label: info?.profile || (parts.length > 1 ? parts[1] : m.lutech_profile),
+                practice: info?.practice || (parts[0] || ''),
+                cost: 0,
+                days: 0,
+                daysBase: 0,
+                daysRaw: 0,
+                rate: lRate,
+                contributions: []
+              };
+            }
+            byLutechProfile[m.lutech_profile].cost += lCost;
+            byLutechProfile[m.lutech_profile].days += lDaysEff;
+            byLutechProfile[m.lutech_profile].daysBase += lDaysBase;
+            byLutechProfile[m.lutech_profile].daysRaw += lDaysRaw;
+            byLutechProfile[m.lutech_profile].contributions.push({
+              memberLabel: member.label,
+              months: `${start}-${end}`,
+              days: lDaysEff,
+              daysBase: lDaysBase,
+              daysRaw: lDaysRaw,
+              rate: lRate,
+              cost: lCost,
+              profileFactor: factor,
+              efficiencyFactor: reuseFactor * finalTowFactor,
+              reductions: {
+                tow: finalTowFactor < 1 ? (1 - finalTowFactor) * 100 : 0,
+                reuse: reuseFactor < 1 ? (1 - reuseFactor) * 100 : 0,
+                profile: factor < 1 ? (1 - factor) * 100 : 0,
+              }
+            });
+
+            // Prepare for TOW distribution
+            triplets.push({
+              member: member.label,
+              lutech_profile: m.lutech_profile,
+              daysRaw: lDaysRaw,
+              daysBase: lDaysBase,
+              daysEff: lDaysEff,
+              cost: lCost,
+              rate: lRate,
+              factor,
+              reuseFactor,
+              finalTowFactor,
+              start,
+              end
+            });
+          }
+        } else {
+          const defaultKey = '__default__';
+          const defaultLRate = defaultRate;
+          const lDaysRaw = intervalRawDays;
+          const lDaysBase = intervalBaseDays;
+          const lDaysEff = Math.round(intervalDays * 100) / 100;
+          const lCost = lDaysEff * defaultLRate;
+
+          if (!byLutechProfile[defaultKey]) {
+            byLutechProfile[defaultKey] = {
+              label: 'Non mappato',
+              practice: '',
+              cost: 0,
+              days: 0,
+              daysBase: 0,
+              daysRaw: 0,
+              rate: defaultLRate,
+              contributions: []
+            };
+          }
+          byLutechProfile[defaultKey].cost += lCost;
+          byLutechProfile[defaultKey].days += lDaysEff;
+          byLutechProfile[defaultKey].daysBase += lDaysBase;
+          byLutechProfile[defaultKey].daysRaw += lDaysRaw;
+          byLutechProfile[defaultKey].contributions.push({
+            memberLabel: member.label,
+            months: `${start}-${end}`,
+            days: lDaysEff,
+            daysBase: lDaysBase,
+            daysRaw: lDaysRaw,
+            profileFactor: factor,
+            efficiencyFactor: reuseFactor * finalTowFactor,
+            rate: defaultLRate,
+            cost: lCost,
+            reductions: {
+              tow: finalTowFactor < 1 ? (1 - finalTowFactor) * 100 : 0,
+              reuse: reuseFactor < 1 ? (1 - reuseFactor) * 100 : 0,
+              profile: factor < 1 ? (1 - factor) * 100 : 0,
+            }
+          });
+
+          triplets.push({
+            member: member.label,
+            lutech_profile: defaultKey,
+            daysRaw: lDaysRaw,
+            daysBase: lDaysBase,
+            daysEff: lDaysEff,
+            cost: lCost,
+            rate: defaultLRate,
+            factor,
+            reuseFactor,
+            finalTowFactor,
+            start,
+            end
+          });
+        }
+      }
+
+      // Distribute collected triplets to TOWs for logical parity and WYSIWYG audit
+      const towAllocation = member.tow_allocation || {};
+      const allocatedPcts = Object.entries(towAllocation).filter(([, pct]) => (parseFloat(pct) || 0) > 0);
+      const sumAllocatedPcts = allocatedPcts.reduce((sum, [, pct]) => sum + (parseFloat(pct) || 0), 0);
+
+      const activeAllocations = sumAllocatedPcts > 0 ? allocatedPcts : [['__no_tow__', 100]];
+      const finalSum = sumAllocatedPcts > 0 ? sumAllocatedPcts : 100;
+
+      for (const [towId, pct] of activeAllocations) {
+        const towPct = parseFloat(pct) || 0;
+        const ratio = towPct / finalSum;
+
+        if (!byTow[towId]) {
+          byTow[towId] = {
+            cost: 0,
+            days: 0,
+            daysBase: 0,
+            daysRaw: 0,
+            label: towMap[towId] || towId,
+            contributions: []
+          };
+        }
+
+        for (const t of triplets) {
+          const tRaw = t.daysRaw * ratio;
+          const tBase = t.daysBase * ratio;
+          const tEff = Math.round(t.daysEff * ratio * 100) / 100;
+          const tCost = tEff * t.rate;
+
+          byTow[towId].cost += tCost;
+          byTow[towId].days += tEff;
+          byTow[towId].daysBase += tBase;
+          byTow[towId].daysRaw += tRaw;
+          byTow[towId].contributions.push({
+            memberLabel: t.member,
+            profileLabel: byLutechProfile[t.lutech_profile]?.label || t.lutech_profile,
+            months: `${t.start}-${t.end}`,
+            days: tEff,
+            daysBase: tBase,
+            daysRaw: tRaw,
+            cost: tCost,
+            rate: t.rate,
+            allocationPct: towPct,
+            profileFactor: t.factor,
+            efficiencyFactor: t.reuseFactor * t.finalTowFactor,
+            reductions: {
+              tow: t.finalTowFactor < 1 ? (1 - t.finalTowFactor) * 100 : 0,
+              reuse: t.reuseFactor < 1 ? (1 - t.reuseFactor) * 100 : 0,
+              profile: t.factor < 1 ? (1 - t.factor) * 100 : 0,
+            }
+          });
+
+          totalCost += tCost;
+          totalDays += tEff;
+        }
       }
     }
 
-    // Apply TOW-based cost reduction
-    const towReduction = getTowCostReduction();
-    totalCost = totalCost * (1 - towReduction);
-
-    return Math.round(totalCost);
-  };
-
-  // Calculate governance cost based on FTE + Lutech profile mix
-  const calculateGovernanceCost = (bp, teamCost) => {
-    // Manual override
-    if (bp.governance_cost_manual !== null && bp.governance_cost_manual !== undefined) {
-      return bp.governance_cost_manual;
+    // Finalize rounding to 2 decimals for Euro values (Cent precision)
+    for (const towId of Object.keys(byTow)) {
+      byTow[towId].cost = Math.round(byTow[towId].cost * 100) / 100;
+      byTow[towId].days = Math.round(byTow[towId].days * 10000) / 10000;
+      byTow[towId].daysBase = Math.round(byTow[towId].daysBase * 10000) / 10000;
+      byTow[towId].daysRaw = Math.round(byTow[towId].daysRaw * 10000) / 10000;
+    }
+    for (const key of Object.keys(byLutechProfile)) {
+      byLutechProfile[key].cost = Math.round(byLutechProfile[key].cost * 100) / 100;
+      byLutechProfile[key].days = Math.round(byLutechProfile[key].days * 10000) / 10000;
+      byLutechProfile[key].daysBase = Math.round(byLutechProfile[key].daysBase * 10000) / 10000;
+      byLutechProfile[key].daysRaw = Math.round(byLutechProfile[key].daysRaw * 10000) / 10000;
     }
 
-    const DAYS_PER_FTE = 220;
+    const teamMixRate = totalDays > 0 ? (totalCost / totalDays) : 0;
+
+    return {
+      total: Math.round(totalCost * 100) / 100,
+      byTow,
+      byLutechProfile,
+      teamMixRate,
+      intervals
+    };
+  }, [buildLutechRates, buildLutechLabels, lotData?.tows]);
+
+  // Calculate governance cost based on FTE + Lutech profile mix
+  const calculateGovernanceCost = useCallback((bp, teamCost) => {
+    // Manual override
+    if (bp.governance_cost_manual !== null && bp.governance_cost_manual !== undefined) {
+      return {
+        value: bp.governance_cost_manual,
+        meta: { method: 'manuale' }
+      };
+    }
+
     const durationMonths = bp.duration_months || 36;
     const durationYears = durationMonths / 12;
+    const daysPerFte = bp.days_per_fte || DAYS_PER_FTE;
     const totalFte = (bp.team_composition || []).reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0);
     const governanceFte = totalFte * (bp.governance_pct / 100);
 
-    // Se c'è un mix di profili governance, usa quello per calcolare la tariffa
     const govMix = bp.governance_profile_mix || [];
     if (govMix.length > 0) {
-      const lutechRates = {};
-      for (const practice of practices) {
-        for (const profile of (practice.profiles || [])) {
-          lutechRates[`${practice.id}:${profile.id}`] = profile.daily_rate || 400;
-        }
-      }
+      const lutechRates = buildLutechRates();
 
       let totalPct = 0;
       let weightedRate = 0;
@@ -288,41 +517,163 @@ export default function BusinessPlanPage() {
 
       if (totalPct > 0) {
         const avgRate = weightedRate / totalPct;
-        return Math.round(governanceFte * DAYS_PER_FTE * durationYears * avgRate);
+        const result = governanceFte * daysPerFte * durationYears * avgRate;
+        return {
+          value: Math.round(result * 100) / 100,
+          meta: {
+            method: 'mix_profili',
+            fte: governanceFte,
+            daysPerFte,
+            years: durationYears,
+            avgRate
+          }
+        };
       }
     }
 
-    // Fallback: usa il vecchio metodo (% su team cost)
-    return Math.round(teamCost * (bp.governance_pct / 100));
-  };
+    // Fallback: % su team cost
+    const result = teamCost * (bp.governance_pct / 100);
+    return {
+      value: Math.round(result * 100) / 100,
+      meta: {
+        method: 'percentuale_team',
+        pct: bp.governance_pct
+      }
+    };
+  }, [buildLutechRates]);
 
-  // Generate 3 scenarios
-  const generateScenarios = (_bp, baseAmount, currentCost) => {
-    if (!baseAmount || !currentCost) return [];
+  // Generate scenarios with real recalculation and suggested discount
+  // effectiveBase is already Lutech's share (baseAmount * quotaLutech)
+  const generateScenarios = useCallback((bp, effectiveBase, currentCost) => {
+    if (!effectiveBase || !currentCost) return [];
 
     const scenarioParams = [
-      { name: 'Conservativo', volAdj: 0.95, reuse: 0.05 },
-      { name: 'Bilanciato', volAdj: 0.90, reuse: 0.15 },
-      { name: 'Aggressivo', volAdj: 0.85, reuse: 0.30 },
+      { name: 'Conservativo', reuse: 5, profileReduction: 0.95 },
+      { name: 'Bilanciato', reuse: 15, profileReduction: 0.90 },
+      { name: 'Aggressivo', reuse: 30, profileReduction: 0.85 },
     ];
 
-    return scenarioParams.map(({ name, volAdj, reuse }) => {
-      const adjustedCost = currentCost * volAdj * (1 - reuse);
-      const revenue = baseAmount; // Full base, no discount for comparison
-      const margin = revenue - adjustedCost;
+    return scenarioParams.map(({ name, reuse, profileReduction }) => {
+      const neutralVolAdj = { periods: [{ month_start: 1, month_end: bp.duration_months || 36, by_tow: {}, by_profile: {} }] };
+
+      const team = bp.team_composition || [];
+      for (const member of team) {
+        const pid = member.profile_id || member.label;
+        neutralVolAdj.periods[0].by_profile[pid] = profileReduction;
+      }
+
+      const scenarioResult = calculateTeamCost(bp, {
+        reuse_factor: reuse,
+        volume_adjustments: neutralVolAdj,
+      });
+
+      const scenarioCost = scenarioResult.total;
+      const govResult = calculateGovernanceCost(bp, scenarioCost);
+      const govCost = govResult.value;
+      const riskCost = (scenarioCost + govCost) * ((bp.risk_contingency_pct || 3) / 100);
+      const towSplit = bp.subcontract_config?.tow_split || {};
+      const subPct = Object.values(towSplit).reduce((sum, pct) => sum + (parseFloat(pct) || 0), 0);
+      const subCost = scenarioCost * (subPct / 100);
+      const totalScenarioCost = scenarioCost + govCost + riskCost + subCost;
+
+      const revenue = effectiveBase;
+      const margin = revenue - totalScenarioCost;
       const marginPct = revenue > 0 ? (margin / revenue) * 100 : 0;
+
+      // Find discount that achieves the target margin
+      const target = targetMargin / 100;
+      const denom = effectiveBase * (1 - target);
+      const suggestedDiscount = denom > 0
+        ? Math.max(0, Math.min(100, (1 - totalScenarioCost / denom) * 100))
+        : 0;
 
       return {
         name,
-        volume_adjustment: volAdj,
-        reuse_factor: reuse,
-        total_cost: adjustedCost,
+        volume_adjustment: profileReduction,
+        reuse_factor: reuse / 100,
+        total_cost: totalScenarioCost,
+        team_cost: scenarioCost,
         revenue,
         margin,
-        margin_pct: marginPct
+        margin_pct: marginPct,
+        suggested_discount: parseFloat(suggestedDiscount.toFixed(2)),
       };
     });
-  };
+  }, [calculateTeamCost, calculateGovernanceCost, targetMargin]);
+
+  // Calculate costs when BP changes
+  const runCalculation = useCallback(() => {
+    if (!localBP || !lotData) return;
+
+    try {
+      // Optimized team cost with TOW breakdown
+      const teamResult = calculateTeamCost(localBP);
+      const teamCost = teamResult.total;
+
+      // Clean team cost (no optimizations)
+      const cleanResult = calculateTeamCost(localBP, {
+        reuse_factor: 0,
+        volume_adjustments: { periods: [{ month_start: 1, month_end: localBP.duration_months || 36, by_tow: {}, by_profile: {} }] },
+      });
+
+      // Governance
+      const govResult = calculateGovernanceCost(localBP, teamCost);
+      const governanceCost = govResult.value;
+
+      // Risk (calcolato su team + governance)
+      const riskPct = localBP.risk_contingency_pct || 0;
+      const riskCost = Math.round((teamCost + governanceCost) * (riskPct / 100) * 100) / 100;
+
+      // Subcontract
+      const towSplit = localBP.subcontract_config?.tow_split || {};
+      const subQuotaPct = Object.values(towSplit).reduce((sum, pct) => sum + (parseFloat(pct) || 0), 0);
+      const subcontractCost = Math.round(teamCost * (subQuotaPct / 100) * 100) / 100;
+      const subAvgRate = localBP.subcontract_config?.avg_daily_rate ?? teamMixRate;
+      const subPartner = localBP.subcontract_config?.partner || 'Non specificato';
+
+      const totalCostRaw = teamCost + governanceCost + riskCost + subcontractCost;
+      const totalCost = Math.round(totalCostRaw * 100) / 100;
+
+      setCalcResult({
+        team: teamCost,
+        governance: governanceCost,
+        risk: riskCost,
+        subcontract: subcontractCost,
+        total: totalCost,
+        explanation: {
+          governance: govResult.meta,
+          risk: { pct: riskPct, base: teamCost + governanceCost },
+          subcontract: {
+            pct: subQuotaPct,
+            avg_daily_rate: subAvgRate,
+            partner: subPartner
+          }
+        }
+      });
+
+      setCleanTeamCost(cleanResult.total);
+      setTowBreakdown(teamResult.byTow);
+      setLutechProfileBreakdown(teamResult.byLutechProfile || {});
+      setIntervals(teamResult.intervals || []);
+      setTeamMixRate(teamResult.teamMixRate || 0);
+
+      // Generate scenarios using effective base (already Lutech's share)
+      const rawBase = lotData.base_amount || 0;
+      const isRtiCalc = lotData.rti_enabled || false;
+      const qLutechCalc = isRtiCalc && lotData.rti_quotas?.Lutech
+        ? lotData.rti_quotas.Lutech / 100 : 1.0;
+      const effectiveBase = rawBase * qLutechCalc;
+      const newScenarios = generateScenarios(localBP, effectiveBase, totalCost);
+      setScenarios(newScenarios);
+
+    } catch (err) {
+      console.error('Calculation error:', err);
+    }
+  }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, generateScenarios, teamMixRate]);
+
+  useEffect(() => {
+    runCalculation();
+  }, [runCalculation]);
 
   // Handle save
   const handleSave = async () => {
@@ -338,6 +689,8 @@ export default function BusinessPlanPage() {
         governance_pct: localBP.governance_pct / 100,
         risk_contingency_pct: localBP.risk_contingency_pct / 100,
         reuse_factor: localBP.reuse_factor / 100,
+        days_per_fte: localBP.days_per_fte,
+        default_daily_rate: localBP.default_daily_rate,
       };
 
       await saveBusinessPlan(dataToSave);
@@ -348,6 +701,53 @@ export default function BusinessPlanPage() {
       setSaveStatus('error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleExcelExport = async () => {
+    if (!localBP || !lotData || !calcResult) return;
+
+    setExcelExportLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/business-plan-export`, {
+        lot_key: selectedLot,
+        business_plan: {
+          ...localBP,
+          governance_pct: localBP.governance_pct / 100,
+          risk_contingency_pct: localBP.risk_contingency_pct / 100,
+          reuse_factor: localBP.reuse_factor / 100,
+        },
+        costs: calcResult,
+        clean_team_cost: cleanTeamCost,
+        base_amount: lotData.base_amount || 0,
+        is_rti: isRti,
+        quota_lutech: quotaLutech,
+        scenarios: scenarios,
+        tow_breakdown: towBreakdown,
+        lutech_breakdown: lutechProfileBreakdown,
+        profile_rates: buildLutechRates(),
+        intervals: intervals,
+      }, { responseType: 'blob' });
+
+      const url = window.URL.createObjectURL(new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `business_plan_${selectedLot.replace(/\s+/g, '_')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (err) {
+      console.error("Excel Export Error", err);
+      setSaveStatus('error');
+    } finally {
+      setExcelExportLoading(false);
     }
   };
 
@@ -375,13 +775,28 @@ export default function BusinessPlanPage() {
   const handleParametersChange = (params) => {
     setLocalBP(prev => ({
       ...prev,
-      duration_months: params.duration_months,
       governance_pct: params.governance_pct,
       risk_contingency_pct: params.risk_contingency_pct,
       reuse_factor: params.reuse_factor,
       governance_profile_mix: params.governance_profile_mix,
       governance_cost_manual: params.governance_cost_manual,
     }));
+  };
+
+  const handleDurationChange = (months) => {
+    setLocalBP(prev => ({ ...prev, duration_months: parseFloat(months) || 36 }));
+  };
+
+  const handleDaysPerFteChange = (days) => {
+    setLocalBP(prev => ({ ...prev, days_per_fte: parseFloat(days) || DAYS_PER_FTE }));
+  };
+
+  const handleDefaultRateChange = (rate) => {
+    setLocalBP(prev => ({ ...prev, default_daily_rate: parseFloat(rate) || DEFAULT_DAILY_RATE }));
+  };
+
+  const handleSubcontractChange = (subConfig) => {
+    setLocalBP(prev => ({ ...prev, subcontract_config: subConfig }));
   };
 
   // Apply scenario
@@ -391,10 +806,111 @@ export default function BusinessPlanPage() {
     if (scenario) {
       setLocalBP(prev => ({
         ...prev,
-        reuse_factor: scenario.reuse_factor * 100
+        reuse_factor: scenario.reuse_factor * 100,
       }));
+      // Apply suggested discount
+      if (scenario.suggested_discount > 0) {
+        setDiscount(scenario.suggested_discount);
+      }
     }
   };
+
+  const isRti = lotData?.rti_enabled || false;
+  const quotaLutech = isRti && lotData?.rti_quotas?.Lutech
+    ? lotData.rti_quotas.Lutech / 100
+    : 1.0;
+
+  // Base d'asta effettiva per Lutech: se RTI, e gia la quota Lutech
+  const effectiveBaseAmount = (lotData?.base_amount || 0) * quotaLutech;
+
+  // Calculate Offer Scheme Data (PxQ)
+  const calculateOfferData = useCallback(() => {
+    if (!calcResult || !localBP || !lotData) return { data: [], total: 0 };
+
+    // Revenue Target (Base d'asta effettiva - Sconto)
+    const effectiveBase = (lotData.base_amount || 0) * (isRti && lotData.rti_quotas?.Lutech ? lotData.rti_quotas.Lutech / 100 : 1.0);
+    const revenue = effectiveBase * (1 - discount / 100);
+
+    // TOW Breakdown logic:
+    // Dobbiamo ripartire la Revenue totale sui TOW.
+    // Usiamo il 'byTow' breakdown del costo del team come driver principale.
+    // Ma ci sono anche costi Governance, Risk e Subappalto che non sono nel 'byTow'.
+    // Strategia: Spalmare Gov e Risk proporzionalmente sul Team Cost dei TOW.
+    // Subappalto: Se specifico per TOW, va aggiunto al TOW specifico.
+
+    // 1. Recupera breakdown costi team per TOW
+    const teamByTow = towBreakdown || {};
+
+    // 2. Recupera split subappalto
+    const subSplit = localBP.subcontract_config?.tow_split || {};
+
+    // 3. Calcola "Costo Pieno" per ogni TOW (Team + Sub + Quota Gov + Quota Risk)
+    // Gov è % sul Team, Risk è % su (Team + Gov)
+    // CostoPieno_Tow = TeamCost_Tow * (1 + Gov% + (1+Gov%)*Risk%) + SubCost_Tow
+    //                = TeamCost_Tow * (1 + Gov% + Risk% + Gov%*Risk%) + SubCost_Tow
+
+    const govPct = localBP.governance_pct / 100;
+    const riskPct = localBP.risk_contingency_pct / 100;
+    const overheadFactor = 1 + govPct + riskPct + (govPct * riskPct);
+
+    const fullCostByTow = {};
+    let totalFullCost = 0;
+
+    const tows = localBP.tows || [];
+
+    for (const tow of tows) {
+      const towId = tow.tow_id;
+      const teamC = teamByTow[towId]?.cost || 0;
+
+      // Subappalto per questo TOW
+      const subPct = subSplit[towId] || 0;
+      const subC = calcResult.team * (subPct / 100); // Sub calcolato su base team totale ma attribuito a questo tow
+
+      const towFullCost = (teamC * overheadFactor) + subC;
+      fullCostByTow[towId] = towFullCost;
+      totalFullCost += towFullCost;
+    }
+
+    // 4. Ripartisci Revenue su base Costo Pieno
+    const offerData = [];
+    let checkTotal = 0;
+
+    for (const tow of tows) {
+      const towId = tow.tow_id;
+      const fullCost = fullCostByTow[towId] || 0;
+
+      // Share di revenue
+      const share = totalFullCost > 0 ? fullCost / totalFullCost : 0;
+      const totalPrice = revenue * share;
+
+      // Quantità
+      let quantity = 0;
+      if (tow.type === 'task') {
+        quantity = parseInt(tow.num_tasks) || 0;
+      } else if (tow.type === 'corpo') {
+        quantity = parseInt(tow.duration_months) || parseInt(localBP.duration_months) || 36;
+      } else {
+        quantity = 1; // Consumo default
+      }
+
+      // Prezzo unitario
+      const unitPrice = quantity > 0 ? totalPrice / quantity : 0;
+
+      offerData.push({
+        tow_id: towId,
+        label: tow.label,
+        type: tow.type,
+        quantity: quantity,
+        unit_price: unitPrice,
+        total_price: totalPrice
+      });
+
+      checkTotal += totalPrice;
+    }
+
+    return { data: offerData, total: checkTotal };
+
+  }, [calcResult, localBP, lotData, discount, towBreakdown, isRti]);
 
   // Loading state
   if (!selectedLot || !lotData) {
@@ -434,10 +950,7 @@ export default function BusinessPlanPage() {
     );
   }
 
-  const isRti = lotData.rti_enabled;
-  const quotaLutech = isRti && lotData.rti_quotas?.Lutech
-    ? lotData.rti_quotas.Lutech / 100
-    : 1.0;
+  const offerScheme = calculateOfferData();
 
   return (
     <div className="flex-1 overflow-auto p-4 md:p-6 bg-slate-50">
@@ -469,6 +982,20 @@ export default function BusinessPlanPage() {
               </span>
             )}
             <button
+              onClick={handleExcelExport}
+              disabled={excelExportLoading || !calcResult}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg
+                         font-medium text-sm hover:bg-green-700 transition-colors shadow-sm
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {excelExportLoading ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+              Export Excel
+            </button>
+            <button
               onClick={handleSave}
               disabled={saving}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg
@@ -487,11 +1014,10 @@ export default function BusinessPlanPage() {
 
         {/* Save status */}
         {saveStatus && (
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            saveStatus === 'success'
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${saveStatus === 'success'
+            ? 'bg-green-50 text-green-700 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
             {saveStatus === 'success' ? (
               <CheckCircle2 className="w-4 h-4" />
             ) : (
@@ -510,99 +1036,279 @@ export default function BusinessPlanPage() {
           </div>
         )}
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Configuration */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* STEP 1: TOW Configuration - PRIMA definisci la struttura del lavoro */}
-            <TowConfigTable
-              tows={localBP.tows || []}
-              practices={practices}
-              towAssignments={localBP.tow_assignments || {}}
-              onChange={handleTowsChange}
-              onAssignmentChange={handleTowAssignmentChange}
-            />
-
-            {/* STEP 2: Team Composition - POI inserisci il team richiesto da Poste */}
-            <TeamCompositionTable
-              team={localBP.team_composition || []}
-              tows={localBP.tows || []}
-              durationMonths={localBP.duration_months || 36}
-              onChange={handleTeamChange}
-            />
-
-            {/* STEP 3: Profile Mapping - Mappa profili Poste → profili Lutech */}
-            <ProfileMappingEditor
-              teamComposition={localBP.team_composition || []}
-              practices={practices}
-              mappings={localBP.profile_mappings || {}}
-              durationMonths={localBP.duration_months || 36}
-              onChange={handleProfileMappingsChange}
-            />
-
-            {/* STEP 4: Volume Adjustments - Applica rettifiche */}
-            <VolumeAdjustments
-              adjustments={localBP.volume_adjustments || {}}
-              team={localBP.team_composition || []}
-              tows={localBP.tows || []}
-              durationMonths={localBP.duration_months || 36}
-              onChange={handleVolumeAdjustmentsChange}
-            />
-          </div>
-
-          {/* Right Column - Parameters & Results */}
-          <div className="space-y-6">
-            {/* STEP 0: Catalogo Profili Lutech - Definisci le risorse disponibili */}
-            <PracticeCatalogManager
-              practices={practices}
-              onSavePractice={savePractice}
-              onDeletePractice={deletePractice}
-            />
-
-            {/* STEP 5: Parameters */}
-            <ParametersPanel
-              values={{
-                duration_months: localBP.duration_months,
-                governance_pct: localBP.governance_pct,
-                risk_contingency_pct: localBP.risk_contingency_pct,
-                reuse_factor: localBP.reuse_factor,
-                governance_profile_mix: localBP.governance_profile_mix || [],
-                governance_cost_manual: localBP.governance_cost_manual ?? null,
-              }}
-              practices={practices}
-              totalTeamFte={(localBP.team_composition || []).reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0)}
-              onChange={handleParametersChange}
-            />
-
-            {/* STEP 6: Cost Breakdown - Visualizza costi calcolati */}
-            <CostBreakdown
-              costs={calcResult || {}}
-              towBreakdown={{}}
-              showTowDetail={false}
-            />
-
-          </div>
+        {/* Tab Navigation */}
+        <div className="flex border-b border-slate-200 bg-white rounded-t-xl">
+          {[
+            { id: 'poste', label: 'Poste', icon: MailCheck, desc: 'Requisiti e volumi' },
+            { id: 'lutech', label: 'Lutech', icon: Users, desc: 'Team, costi e parametri' },
+            { id: 'analisi', label: 'Analisi', icon: BarChart3, desc: 'P&L, margine, scenari' },
+            { id: 'offerta', label: 'Offerta', icon: FileDown, desc: 'Schema PxQ' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium
+                         transition-colors border-b-2 ${activeTab === tab.id
+                  ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+              <span className="hidden md:inline text-xs opacity-60">— {tab.desc}</span>
+            </button>
+          ))}
         </div>
 
-        {/* STEP 7: Margin Simulator - Full Width */}
-        <MarginSimulator
-          baseAmount={lotData.base_amount || 0}
-          totalCost={calcResult?.total || 0}
-          isRti={isRti}
-          quotaLutech={quotaLutech}
-          discount={discount}
-          onDiscountChange={setDiscount}
-          targetMargin={targetMargin}
-          onTargetMarginChange={setTargetMargin}
-          riskContingency={localBP.risk_contingency_pct || 5}
-        />
+        {/* Tab Content */}
+        <div className="space-y-6">
 
-        {/* Scenarios - Full Width */}
-        <ScenarioCards
-          scenarios={scenarios}
-          selectedScenario={selectedScenario}
-          onSelectScenario={handleSelectScenario}
-        />
+          {/* ═══ TAB 1: POSTE ═══ */}
+          {activeTab === 'poste' && (
+            <div className="space-y-6">
+              {/* Configurazione TOW */}
+              <TowConfigTable
+                tows={localBP.tows || []}
+                practices={practices}
+                towAssignments={localBP.tow_assignments || {}}
+                onChange={handleTowsChange}
+                onAssignmentChange={handleTowAssignmentChange}
+                volumeAdjustments={localBP.volume_adjustments || {}}
+                durationMonths={localBP.duration_months || 36}
+              />
+
+              {/* Composizione Team (requisiti Poste) */}
+              <TeamCompositionTable
+                team={localBP.team_composition || []}
+                tows={localBP.tows || []}
+                durationMonths={localBP.duration_months || 36}
+                onChange={handleTeamChange}
+                volumeAdjustments={localBP.volume_adjustments || {}}
+                reuseFactor={localBP.reuse_factor || 0}
+              />
+
+              {/* Parametri Poste: Durata + Rettifica Volumi */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <div className="p-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-800">Parametri Poste</h3>
+                      <p className="text-xs text-slate-500">Durata, giorni/anno FTE, tariffa default e rettifica volumi</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-5">
+                  {/* Parametri base (griglia orizzontale) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Durata (mesi) */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Durata Contratto</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={12}
+                          max={60}
+                          value={localBP.duration_months || 36}
+                          onChange={(e) => handleDurationChange(e.target.value)}
+                          className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <span className="text-sm text-slate-500">mesi</span>
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        ({((localBP.duration_months || 36) / 12).toFixed(1)} anni)
+                      </div>
+                    </div>
+
+                    {/* Giorni anno FTE */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Giorni/anno FTE</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={180}
+                          max={260}
+                          value={localBP.days_per_fte || DAYS_PER_FTE}
+                          onChange={(e) => handleDaysPerFteChange(e.target.value)}
+                          className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <span className="text-sm text-slate-500">gg</span>
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        (giorni lavorativi/anno)
+                      </div>
+                    </div>
+
+                    {/* Tariffa giornaliera default */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Tariffa Default</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          step={10}
+                          value={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+                          onChange={(e) => handleDefaultRateChange(e.target.value)}
+                          className="w-24 px-3 py-2 text-right border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <span className="text-sm text-slate-500">€/gg</span>
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        (tariffa giornaliera)
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-slate-100" />
+
+                  {/* Rettifica Volumi */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Rettifica Volumi</label>
+                    <VolumeAdjustments
+                      adjustments={localBP.volume_adjustments || {}}
+                      team={localBP.team_composition || []}
+                      tows={localBP.tows || []}
+                      durationMonths={localBP.duration_months || 36}
+                      onChange={handleVolumeAdjustmentsChange}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ TAB 2: LUTECH ═══ */}
+          {activeTab === 'lutech' && (
+            <div className="space-y-6">
+              {/* Catalogo Profili Lutech */}
+              <PracticeCatalogManager
+                practices={practices}
+                onSavePractice={savePractice}
+                onDeletePractice={deletePractice}
+              />
+
+              {/* Profile Mapping */}
+              <ProfileMappingEditor
+                teamComposition={localBP.team_composition || []}
+                practices={practices}
+                mappings={localBP.profile_mappings || {}}
+                durationMonths={localBP.duration_months || 36}
+                onChange={handleProfileMappingsChange}
+                volumeAdjustments={localBP.volume_adjustments || {}}
+                reuseFactor={localBP.reuse_factor || 0}
+              />
+
+              {/* Subappalto */}
+              <SubcontractPanel
+                config={localBP.subcontract_config || {}}
+                tows={localBP.tows || []}
+                teamCost={calcResult?.team || 0}
+                teamMixRate={teamMixRate}
+                onChange={handleSubcontractChange}
+              />
+
+              {/* Parametri Generali */}
+              <ParametersPanel
+                values={{
+                  governance_pct: localBP.governance_pct,
+                  risk_contingency_pct: localBP.risk_contingency_pct,
+                  reuse_factor: localBP.reuse_factor,
+                  governance_profile_mix: localBP.governance_profile_mix || [],
+                  governance_cost_manual: localBP.governance_cost_manual ?? null,
+                }}
+                practices={practices}
+                totalTeamFte={(localBP.team_composition || []).reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0)}
+                durationMonths={localBP.duration_months || 36}
+                onChange={handleParametersChange}
+              />
+
+              {/* Breakdown Costi */}
+              <CostBreakdown
+                costs={calcResult || {}}
+                towBreakdown={towBreakdown}
+                lutechProfileBreakdown={lutechProfileBreakdown}
+                teamMixRate={teamMixRate}
+                showTowDetail={Object.keys(towBreakdown).length > 0}
+              />
+            </div>
+          )}
+
+          {/* ═══ TAB 3: ANALISI ═══ */}
+          {activeTab === 'analisi' && (
+            <div className="space-y-6">
+              {/* Analisi TOW e Proposte di Ottimizzazione */}
+              <TowAnalysis
+                tows={localBP.tows || []}
+                towBreakdown={towBreakdown}
+                teamComposition={localBP.team_composition || []}
+                profileMappings={localBP.profile_mappings || {}}
+                practices={practices}
+                costs={calcResult || {}}
+                baseAmount={effectiveBaseAmount}
+                discount={discount}
+                onApplyOptimization={(proposal) => {
+                  // TODO: Implement automatic optimization application
+                  console.log('Apply optimization:', proposal);
+                }}
+              />
+
+              {/* Conto Economico di Commessa */}
+              <ProfitAndLoss
+                baseAmount={effectiveBaseAmount}
+                discount={discount}
+                isRti={isRti}
+                quotaLutech={quotaLutech}
+                fullBaseAmount={lotData.base_amount || 0}
+                costs={calcResult || {}}
+                cleanTeamCost={cleanTeamCost}
+                targetMargin={targetMargin}
+                riskContingency={localBP.risk_contingency_pct || 3}
+              />
+
+              {/* Margine */}
+              <MarginSimulator
+                baseAmount={effectiveBaseAmount}
+                totalCost={calcResult?.total || 0}
+                isRti={isRti}
+                quotaLutech={quotaLutech}
+                discount={discount}
+                onDiscountChange={setDiscount}
+                targetMargin={targetMargin}
+                onTargetMarginChange={setTargetMargin}
+                riskContingency={localBP.risk_contingency_pct || 3}
+              />
+
+              {/* Scenari */}
+              <ScenarioCards
+                scenarios={scenarios}
+                selectedScenario={selectedScenario}
+                onSelectScenario={handleSelectScenario}
+                targetMargin={targetMargin}
+              />
+            </div>
+          )}
+
+          {/* ═══ TAB 4: OFFERTA ═══ */}
+          {activeTab === 'offerta' && (
+            <div className="space-y-6">
+              <OfferSchemeTable
+                offerData={offerScheme.data}
+                totalOffer={offerScheme.total}
+              />
+
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                <strong>Nota:</strong> I prezzi unitari sono calcolati ripartendo l'importo totale dell'offerta (Revenue)
+                in proporzione al costo pieno di ogni TOW (Team + Governance + Risk + Subappalto).
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   TrendingUp,
@@ -28,12 +28,28 @@ export default function MarginSimulator({
 }) {
   const { t } = useTranslation();
   const [localDiscount, setLocalDiscount] = useState(discount);
+  const [isFlashing, setIsFlashing] = useState(false);
+  const discountInputRef = useRef(null);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
     setLocalDiscount(discount);
   }, [discount]);
 
+  // Effetto flash quando i dati esterni cambiano
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    setIsFlashing(true);
+    const timer = setTimeout(() => setIsFlashing(false), 1500);
+    return () => clearTimeout(timer);
+  }, [baseAmount, totalCost]);
+
+
   // Calcoli margine
+  // baseAmount e gia la base Lutech (se RTI, gia moltiplicata per quota)
   const calculations = useMemo(() => {
     if (!baseAmount || !totalCost) {
       return {
@@ -45,8 +61,8 @@ export default function MarginSimulator({
       };
     }
 
-    // Revenue dopo sconto (e quota RTI)
-    const revenue = baseAmount * (1 - localDiscount / 100) * (isRti ? quotaLutech : 1);
+    // Revenue dopo sconto - baseAmount e gia la quota Lutech
+    const revenue = baseAmount * (1 - localDiscount / 100);
 
     // Margine
     const margin = revenue - totalCost;
@@ -54,17 +70,16 @@ export default function MarginSimulator({
 
     // Sconto per raggiungere margine target (include risk contingency)
     const targetFraction = (targetMargin + riskContingency) / 100;
-    const q = isRti ? quotaLutech : 1;
-    const denominator = baseAmount * q * (1 - targetFraction);
-    const suggestedDiscount = denominator > 0
-      ? Math.max(0, Math.min(100, (1 - totalCost / denominator) * 100))
-      : 0;
+    const targetRevenue = targetFraction < 1 ? totalCost / (1 - targetFraction) : 0;
+
+    const suggestedDiscount = baseAmount > 0
+      ? Math.max(0, Math.min(100, (1 - targetRevenue / baseAmount) * 100))
+      : 100;
 
     // Break-even: margine = 0 => revenue = cost
-    const breakEvenDenom = baseAmount * q;
-    const breakEvenDiscount = breakEvenDenom > 0
-      ? Math.max(0, Math.min(100, (1 - totalCost / breakEvenDenom) * 100))
-      : 0;
+    const breakEvenDiscount = baseAmount > 0
+      ? Math.max(0, Math.min(100, (1 - totalCost / baseAmount) * 100))
+      : 100;
 
     return {
       revenue: Math.round(revenue),
@@ -73,7 +88,7 @@ export default function MarginSimulator({
       suggestedDiscount: suggestedDiscount.toFixed(2),
       breakEvenDiscount: breakEvenDiscount.toFixed(2)
     };
-  }, [baseAmount, totalCost, localDiscount, isRti, quotaLutech, targetMargin, riskContingency]);
+  }, [baseAmount, totalCost, localDiscount, targetMargin, riskContingency]);
 
   const handleDiscountChange = (value) => {
     const num = parseFloat(value) || 0;
@@ -85,6 +100,8 @@ export default function MarginSimulator({
     const suggested = parseFloat(calculations.suggestedDiscount);
     setLocalDiscount(suggested);
     onDiscountChange?.(suggested);
+    discountInputRef.current?.focus();
+    discountInputRef.current?.select();
   };
 
   // Stato margine (colori): verde se >= target, giallo altrimenti
@@ -108,9 +125,13 @@ export default function MarginSimulator({
       maximumFractionDigits: 0
     }).format(val);
   };
+  
+  const sliderMax = Math.max(50, parseFloat(localDiscount) || 0);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+    <div className={`bg-white rounded-2xl border shadow-sm transition-all duration-500 ${
+      isFlashing ? 'border-blue-500 shadow-md' : 'border-slate-200'
+    }`}>
       {/* Header */}
       <div className="p-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
@@ -141,6 +162,7 @@ export default function MarginSimulator({
               </label>
               <div className="flex items-center gap-2">
                 <input
+                  ref={discountInputRef}
                   type="number"
                   value={localDiscount}
                   onChange={(e) => handleDiscountChange(e.target.value)}
@@ -158,7 +180,7 @@ export default function MarginSimulator({
               <input
                 type="range"
                 min="0"
-                max="50"
+                max={sliderMax}
                 step="0.5"
                 value={localDiscount}
                 onChange={(e) => handleDiscountChange(e.target.value)}
@@ -169,7 +191,7 @@ export default function MarginSimulator({
 
               <div className="flex justify-between text-xs text-slate-400">
                 <span>0%</span>
-                <span>50%</span>
+                <span>{sliderMax}%</span>
               </div>
 
               <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
@@ -264,7 +286,7 @@ export default function MarginSimulator({
                 <div className="p-5 rounded-xl border-2 border-indigo-300 bg-indigo-50">
                   <div className="flex items-center gap-2 mb-3">
                     <Calculator className="w-5 h-5 text-indigo-600" />
-                    <span className="text-sm font-semibold text-slate-700">Configurazione RTI</span>
+                    <span className="text-sm font-semibold text-slate-700">RTI - Quota Lutech</span>
                   </div>
                   <div className="text-4xl font-bold text-indigo-700 mb-3">
                     {(quotaLutech * 100).toFixed(0)}%
@@ -274,15 +296,15 @@ export default function MarginSimulator({
                   </div>
                   <div className="pt-3 border-t border-indigo-200 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-indigo-600">Base gara</span>
+                      <span className="text-indigo-600">Base Lutech</span>
                       <span className="font-semibold text-indigo-700">{formatCurrency(baseAmount)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-indigo-600">Quota Lutech</span>
-                      <span className="font-semibold text-indigo-700">{formatCurrency(baseAmount * quotaLutech)}</span>
+                      <span className="text-indigo-600">Costo totale</span>
+                      <span className="font-semibold text-indigo-700">{formatCurrency(totalCost)}</span>
                     </div>
                     <div className="text-xs text-indigo-500 pt-1">
-                      I calcoli sono applicati sulla quota Lutech
+                      Tutti i calcoli sono sulla quota Lutech
                     </div>
                   </div>
                 </div>
@@ -298,7 +320,7 @@ export default function MarginSimulator({
                   </div>
                   <div className="pt-3 border-t border-slate-200 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Base gara</span>
+                      <span className="text-slate-500">Base d'asta</span>
                       <span className="font-semibold text-slate-700">{formatCurrency(baseAmount)}</span>
                     </div>
                     <div className="flex justify-between text-sm">

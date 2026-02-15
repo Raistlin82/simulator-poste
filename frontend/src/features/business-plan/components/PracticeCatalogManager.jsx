@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   Building2,
   Plus,
@@ -26,7 +25,6 @@ export default function PracticeCatalogManager({
   onDeletePractice,
   disabled = false,
 }) {
-  const { t } = useTranslation();
   const [expandedPractice, setExpandedPractice] = useState(null);
   const [editingPractice, setEditingPractice] = useState(null);
   const [showAddPractice, setShowAddPractice] = useState(false);

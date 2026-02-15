@@ -111,83 +111,291 @@ class BusinessPlanService:
         profile_mappings: Dict[str, List[Dict[str, Any]]],
         profile_rates: Dict[str, float],
         duration_months: int,
+        default_daily_rate: float = 250.0,
     ) -> Dict[str, Any]:
         """
-        Calcola il costo del team basato su un mix di profili (anche time-varying).
+        Calcola il costo del team basato su un motore ad intervalli mensili (alta precisione).
+        Identifica tutti i punti di variazione (rettifica volumi, mix profili) e calcola per ogni intervallo.
         """
         if not duration_months or duration_months <= 0:
             raise ValueError("La durata del contratto (duration_months) deve essere positiva.")
 
-        num_years = (duration_months - 1) // 12 + 1
-        
         result = {
             "total_fte_original": 0.0,
             "total_fte_adjusted": 0.0,
             "total_days": 0.0,
+            "total_days_base": 0.0, # NEW
             "total_cost": 0.0,
             "by_profile": {},
+            "by_tow": {}, # {id: {cost, label, days, days_base, contributions: []}}
+            "by_lutech_profile": {},  # {id: {label, cost, days, days_base, contributions: []}}
+            "intervals": [], # Detailed time-slices for traceability
         }
+
+        # 1. Trova tutte le boundary temporali (mesi di inizio)
+        boundaries = {1, duration_months + 1}
         
-        # Pre-calcola fattori di rettifica
-        global_factor = volume_adjustments.get("global", 1.0)
-        by_profile_factors = volume_adjustments.get("by_profile", {})
+        # Da rettifica volumi
+        vol_periods = volume_adjustments.get("periods") or []
+        for p in vol_periods:
+            boundaries.add(p.get("month_start", 1))
+            boundaries.add(p.get("month_end", duration_months) + 1)
+            
+        # Da mapping profili
+        for profile_id, mappings in profile_mappings.items():
+            for m in mappings:
+                if isinstance(m, dict):
+                    boundaries.add(m.get("month_start", 1))
+                    boundaries.add(m.get("month_end", duration_months) + 1)
+                else: # Pydantic object
+                    boundaries.add(getattr(m, "month_start", 1))
+                    boundaries.add(getattr(m, "month_end", duration_months) + 1)
+
+        sorted_boundaries = sorted([b for b in boundaries if 1 <= b <= duration_months + 1])
+        
+        # 2. Helper per trovare i parametri in un dato mese
+        def get_adj_period_at(month):
+            for p in vol_periods:
+                if p.get("month_start", 1) <= month <= p.get("month_end", duration_months):
+                    return p
+            return {"month_start": 1, "month_end": duration_months, "by_profile": {}, "by_tow": {}}
+
+        def get_mapping_at(poste_profile_id, month):
+            mappings = profile_mappings.get(poste_profile_id, [])
+            for m in mappings:
+                m_start = m.get("month_start") if isinstance(m, dict) else getattr(m, "month_start")
+                m_end = m.get("month_end") if isinstance(m, dict) else getattr(m, "month_end")
+                if (m_start or 1) <= month <= (m_end or duration_months):
+                    return m.get("mix") if isinstance(m, dict) else getattr(m, "mix")
+            return None
+
+        # 3. Iterazione per ogni membro del team
+        reuse_multiplier = 1 - reuse_factor
+        weighted_fte_sum_global = 0.0
 
         for member in team_composition:
             poste_profile_id = member.get("profile_id", member.get("label", "unknown"))
+            member_label = member.get("label", poste_profile_id)
             fte_original = float(member.get("fte", 0))
-
-            profile_factor = by_profile_factors.get(poste_profile_id, 1.0)
-            fte_adjusted_pre_reuse = fte_original * global_factor * profile_factor
-            fte_effective = BusinessPlanService.apply_reuse_factor(fte_adjusted_pre_reuse, reuse_factor)
+            tow_alloc_input = member.get("tow_allocation") # Può essere lista o dict
             
-            days_per_year_effective = fte_effective * BusinessPlanService.DAYS_PER_FTE
+            # Normalizza tow_allocation in dict {tow_id: pct}
+            tow_allocation = {}
+            if isinstance(tow_alloc_input, list):
+                for t in tow_alloc_input:
+                    tow_allocation[t.get("tow_id")] = float(t.get("pct", 0))
+            elif isinstance(tow_alloc_input, dict):
+                tow_allocation = {k: float(v) for k, v in tow_alloc_input.items()}
 
-            total_cost_for_member = 0.0
-            profile_mapping = profile_mappings.get(poste_profile_id)
+            member_total_cost = 0.0
+            member_total_days = 0.0
+            member_weighted_fte_sum = 0.0
 
-            if not profile_mapping:
-                # Se non c'è mapping, usa una tariffa di default (o lancia errore?)
-                # Qui usiamo la tariffa del profilo Poste se esiste, altrimenti default
-                rate = profile_rates.get(poste_profile_id, 350.0)
-                total_cost_for_member = days_per_year_effective * num_years * rate
-            else:
-                for year in range(1, num_years + 1):
-                    yearly_cost = 0
-                    # Trova il mix di profili Lutech per l'anno corrente
-                    mix_for_year = BusinessPlanService._get_mix_for_year(profile_mapping, year)
+            # 4. Iterazione per ogni intervallo temporale
+            for i in range(len(sorted_boundaries) - 1):
+                start = sorted_boundaries[i]
+                next_boundary = sorted_boundaries[i+1]
+                m_end = next_boundary - 1
+                months_in_interval = next_boundary - start
+                years_in_interval = months_in_interval / 12.0
 
-                    if not mix_for_year:
-                        # Fallback se non trova un mix per l'anno (es. "Anno 3" non definito)
-                        # Usiamo l'ultimo mix disponibile
-                        mix_for_year = profile_mapping[-1].get("mix") if "period" in profile_mapping[-1] else profile_mapping
+                # Parametri attivabili
+                adj_period = get_adj_period_at(start)
+                p_factor = adj_period.get("by_profile", {}).get(poste_profile_id, 1.0)
+                
+                # Calcolo TOW factor per questo membro in questo intervallo
+                tow_factor = 1.0
+                total_alloc = sum(tow_allocation.values())
+                if total_alloc > 0:
+                    weighted_sum = 0.0
+                    for tow_id, pct in tow_allocation.items():
+                        t_factor = adj_period.get("by_tow", {}).get(tow_id, 1.0)
+                        weighted_sum += (pct / total_alloc) * t_factor
+                    tow_factor = weighted_sum
 
-                    for lutech_mix_item in mix_for_year:
-                        lutech_profile_id = lutech_mix_item.get("lutech_profile")
-                        mix_pct = lutech_mix_item.get("pct", 0.0)
-                        
-                        rate = profile_rates.get(lutech_profile_id, 400.0) # Tariffa di default se non trovata
-                        
-                        # Calcola il costo per questo slice di profilo Lutech per l'anno corrente
-                        yearly_cost += days_per_year_effective * mix_pct * rate
+                # Logic Parity: Frontend factor = p_factor * tow_factor * reuse
+                interval_raw_days = fte_original * BusinessPlanService.DAYS_PER_FTE * years_in_interval
+                interval_base_days = interval_raw_days * p_factor
+                # interval_days is the effective effort BEFORE rounding
+                interval_days = interval_base_days * (tow_factor * reuse_multiplier)
+
+                # Final combined factor for FTE efficiency
+                final_factor = p_factor * tow_factor * reuse_multiplier
+                effective_fte = fte_original * final_factor
+                
+                # We'll use this list to accurately share costs between Lutech profiles AND TOWs
+                triplets = []
+                
+                # Mix profili e tariffe
+                mix = get_mapping_at(poste_profile_id, start)
+                interval_cost = 0.0
+
+                if not mix:
+                    # Fallback default
+                    rate = profile_rates.get(poste_profile_id, default_daily_rate)
                     
-                    total_cost_for_member += yearly_cost
+                    # WYSIWYG: Round days to 2 decimals BEFORE cost
+                    l_days_eff = round(interval_days, 2)
+                    l_cost = l_days_eff * rate
+                    interval_cost = l_cost
+                    
+                    # Accumula by_lutech_profile (fallback)
+                    lid = poste_profile_id
+                    if lid not in result["by_lutech_profile"]:
+                        result["by_lutech_profile"][lid] = {"cost": 0.0, "days": 0.0, "days_base": 0.0, "days_raw": 0.0, "label": lid, "contributions": []}
+                    
+                    result["by_lutech_profile"][lid]["cost"] += l_cost
+                    result["by_lutech_profile"][lid]["days"] += l_days_eff
+                    result["by_lutech_profile"][lid]["days_base"] += interval_base_days
+                    result["by_lutech_profile"][lid]["days_raw"] += interval_raw_days
+                    result["by_lutech_profile"][lid]["contributions"].append({
+                        "member": member_label, 
+                        "days": l_days_eff, 
+                        "days_base": interval_base_days, 
+                        "days_raw": interval_raw_days,
+                        "cost": l_cost, 
+                        "start": start, "end": m_end,
+                        "p_factor": p_factor,
+                        "eff_factor": (tow_factor * reuse_multiplier)
+                    })
+                    
+                    triplets.append({
+                        "lutech_id": lid,
+                        "days_raw": interval_raw_days,
+                        "days_base": interval_base_days,
+                        "days_eff": l_days_eff,
+                        "cost": l_cost,
+                        "rate": rate,
+                        "p_factor": p_factor,
+                        "eff_factor": (tow_factor * reuse_multiplier)
+                    })
 
-            # Aggiorna i totali
+                    # Store interval for Excel
+                    result["intervals"].append({
+                        "member": member_label, "start": start, "end": m_end, "months": months_in_interval,
+                        "fte_base": fte_original, "factor": final_factor, "fte_eff": (fte_original * final_factor),
+                        "rate": rate, "cost": l_cost, "lutech_profile": lid
+                    })
+                else:
+                    for mix_item in mix:
+                        lutech_id = mix_item.get("lutech_profile") if isinstance(mix_item, dict) else getattr(mix_item, "lutech_profile")
+                        pct = (mix_item.get("pct") if isinstance(mix_item, dict) else getattr(mix_item, "pct")) / 100.0
+                        rate = profile_rates.get(lutech_id, default_daily_rate)
+                        
+                        # WYSIWYG: Round days per profile
+                        mix_days_raw = interval_raw_days * pct
+                        mix_days_base = interval_base_days * pct
+                        mix_days = round(interval_days * pct, 2)
+                        mix_cost = mix_days * rate
+                        interval_cost += mix_cost
+                        
+                        # Accumula by_lutech_profile
+                        if lutech_id not in result["by_lutech_profile"]:
+                            parts = lutech_id.split(':')
+                            label = parts[1] if len(parts) > 1 else lutech_id
+                            result["by_lutech_profile"][lutech_id] = {"cost": 0.0, "days": 0.0, "days_base": 0.0, "days_raw": 0.0, "label": label, "contributions": []}
+                        
+                        result["by_lutech_profile"][lutech_id]["cost"] += mix_cost
+                        result["by_lutech_profile"][lutech_id]["days"] += mix_days
+                        result["by_lutech_profile"][lutech_id]["days_base"] += mix_days_base
+                        result["by_lutech_profile"][lutech_id]["days_raw"] += mix_days_raw
+                        result["by_lutech_profile"][lutech_id]["contributions"].append({
+                            "member": member_label, 
+                            "days": mix_days, 
+                            "days_base": mix_days_base, 
+                            "days_raw": mix_days_raw,
+                            "cost": mix_cost, 
+                            "start": start, "end": m_end,
+                            "p_factor": p_factor,
+                            "eff_factor": (tow_factor * reuse_multiplier)
+                        })
+
+                        triplets.append({
+                            "lutech_id": lutech_id,
+                            "days_raw": mix_days_raw,
+                            "days_base": mix_days_base,
+                            "days_eff": mix_days,
+                            "cost": mix_cost,
+                            "rate": rate,
+                            "p_factor": p_factor,
+                            "eff_factor": (tow_factor * reuse_multiplier)
+                        })
+
+                        # Store interval part for Excel
+                        result["intervals"].append({
+                            "member": member_label, "start": start, "end": m_end, "months": months_in_interval,
+                            "fte_base": fte_original, "factor": final_factor * pct, "fte_eff": (fte_original * final_factor) * pct,
+                            "rate": rate, "cost": mix_cost, "lutech_profile": lutech_id
+                        })
+
+                # Accumulo per membro e per TOW
+                member_total_cost += interval_cost
+                member_total_days += interval_days
+                member_weighted_fte_sum += effective_fte * months_in_interval
+
+                if not tow_allocation:
+                    # Fallback TOW if none allocated
+                    tow_allocation = {"__no_tow__": 100}
+                    total_alloc = 100
+                    
+                for tow_id, pct in tow_allocation.items():
+                    ratio = pct / total_alloc
+                    if tow_id not in result["by_tow"]:
+                         label = "Da Allocare (Membro senza TOW)" if tow_id == "__no_tow__" else tow_id
+                         result["by_tow"][tow_id] = {"cost": 0.0, "days": 0.0, "days_base": 0.0, "days_raw": 0.0, "label": label, "contributions": []}
+                    
+                    for t in triplets:
+                        share_days_raw = t["days_raw"] * ratio
+                        share_days_base = t["days_base"] * ratio
+                        share_days_eff = round(t["days_eff"] * ratio, 2)
+                        share_cost = share_days_eff * t["rate"]
+                        
+                        result["by_tow"][tow_id]["cost"] += share_cost
+                        result["by_tow"][tow_id]["days"] += share_days_eff
+                        result["by_tow"][tow_id]["days_base"] += share_days_base
+                        result["by_tow"][tow_id]["days_raw"] += share_days_raw
+                        result["by_tow"][tow_id]["contributions"].append({
+                            "member": member_label, 
+                            "cost": share_cost, 
+                            "days": share_days_eff, 
+                            "days_base": share_days_base, 
+                            "days_raw": share_days_raw,
+                            "p_factor": t["p_factor"],
+                            "eff_factor": t["eff_factor"]
+                        })
+
+                        result["total_cost"] += share_cost
+                        result["total_days"] += share_days_eff
+                        result["total_days_base"] += share_days_base
+
+            # Update final member stats
             result["total_fte_original"] += fte_original
-            result["total_fte_adjusted"] += fte_effective
-            result["total_days"] += days_per_year_effective * num_years
-            result["total_cost"] += total_cost_for_member
+            # NOTE: total_cost and total_days are already accumulated in the TOW loop (lines 367-369)
+            # Do NOT add member_total_cost/days again here to avoid double counting
+            
+            avg_fte = member_weighted_fte_sum / duration_months
+            weighted_fte_sum_global += avg_fte
+            
             result["by_profile"][poste_profile_id] = {
                 "fte_original": fte_original,
-                "fte_adjusted": round(fte_effective, 2),
-                "days": round(days_per_year_effective * num_years, 0),
-                "cost": round(total_cost_for_member, 2),
+                "fte_adjusted": round(avg_fte, 2),
+                "days": round(member_total_days, 2),
+                "cost": round(member_total_cost, 2),
             }
 
-        # Arrotonda totali finali
-        for key in ["total_fte_original", "total_fte_adjusted", "total_days", "total_cost"]:
-            result[key] = round(result[key], 2)
+        result["total_fte_adjusted"] = round(weighted_fte_sum_global, 2)
         
+        # Arrotondamenti finali
+        result["total_cost"] = round(result["total_cost"], 2)
+        result["total_days"] = round(result["total_days"], 2)
+        
+        for t in result["by_tow"]:
+            result["by_tow"][t]["cost"] = round(result["by_tow"][t]["cost"], 2)
+            result["by_tow"][t]["days"] = round(result["by_tow"][t]["days"], 2)
+        for l in result["by_lutech_profile"]:
+            result["by_lutech_profile"][l]["cost"] = round(result["by_lutech_profile"][l]["cost"], 2)
+            result["by_lutech_profile"][l]["days"] = round(result["by_lutech_profile"][l]["days"], 2)
+
         return result
 
     @staticmethod
@@ -230,7 +438,7 @@ class BusinessPlanService:
             "governance": round(governance_cost, 2),
             "risk": round(risk_cost, 2),
             "subcontract": round(subcontract_cost, 2),
-            "total": round(total, 2),
+            "total": round(team_cost + governance_cost + risk_cost + subcontract_cost, 2),
         }
 
     @staticmethod
@@ -306,20 +514,60 @@ class BusinessPlanService:
         total_cost = float(bp_data.get("total_cost", 0.0))
         
         scenarios = []
-        for name, reuse, vol_adj in [
-            ("Conservativo", 0.05, 0.95),
-            ("Bilanciato", 0.15, 0.90),
-            ("Aggressivo", 0.30, 0.85),
-        ]:
-            adjusted_cost = total_cost * vol_adj * (1 - reuse)
+        # Recupera parametri attuali dal BP
+        current_reuse = float(bp_data.get("reuse_factor", 0.05)) # Il valore nel db è 0.05 per 5%
+        # Volume adjustment è complesso perché è un oggetto. 
+        # Approssimiamo usando il global factor come riferimento per gli scenari
+        vol_adj_dict = bp_data.get("volume_adjustments", {})
+        current_vol_global = float(vol_adj_dict.get("global", 1.0))
+
+        scenarios = []
+        
+        # Definisci delta per i 3 scenari rispetto all'attuale
+        # Format: (Nome, reuse_delta, vol_adj_delta)
+        # Conservative: reuse -2%, vol_adj +5% (meno efficiente, più volumi)
+        # Balanced: current
+        # Aggressive: reuse +5%, vol_adj -5% (più efficiente, meno volumi)
+        
+        scenario_configs = [
+            ("Current/Balanced", 0.0, 0.0), # Scenario attuale
+            ("Conservative", -0.05, 0.05), # Meno riuso, più volume (costi più alti)
+            ("Aggressive", 0.05, -0.05),  # Più riuso, meno volume (costi più bassi)
+        ]
+
+        # Per ricalcolare il costo dobbiamo rieseguire calculate_team_cost? 
+        # Sarebbe ideale, ma richiederebbe tutti i dati (team composition, rates, mappings).
+        # bp_data qui potrebbe essere solo parziale o il risultato.
+        # Se bp_data è il modello db, ha tutto.
+        
+        # Se non possiamo ricalcolare tutto accuratamente, applichiamo i fattori al total_cost attuale
+        # assumendo linearità (non perfetto ma meglio di statico).
+        # Costo ~= Baseline * VolFactor * (1-Reuse)
+        
+        # Recuperiamo il costo base "grezzo" (prima di riuso e vol adj globali attuali)
+        # TotalCost = Raw * CurrentGlobalVol * (1 - CurrentReuse)
+        # Raw = TotalCost / (CurrentGlobalVol * (1 - CurrentReuse))
+        
+        if current_vol_global <= 0: current_vol_global = 1.0
+        denom = current_vol_global * (1 - current_reuse)
+        raw_cost_est = total_cost / denom if denom > 0 else total_cost
+
+        for name, reuse_delta, vol_delta in scenario_configs:
+            # Calcola nuovi parametri (clampati)
+            new_reuse = max(0.0, min(0.8, current_reuse + reuse_delta))
+            new_vol = max(0.5, min(1.5, current_vol_global + vol_delta))
+            
+            # Stima nuovo costo
+            estimated_cost = raw_cost_est * new_vol * (1 - new_reuse)
+            
             margin_result = BusinessPlanService.calculate_margin(
-                base_amount, adjusted_cost, discount_pct=0
+                base_amount, estimated_cost, discount_pct=0
             )
             scenarios.append({
                 "name": name,
-                "reuse_factor": reuse,
-                "volume_adjustment": vol_adj,
-                "total_cost": round(adjusted_cost, 2),
+                "reuse_factor": round(new_reuse, 2),
+                "volume_adjustment": round(new_vol, 2),
+                "total_cost": round(estimated_cost, 2),
                 **margin_result,
             })
 

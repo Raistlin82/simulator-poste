@@ -130,6 +130,8 @@ class BusinessPlanModel(Base):
 
     # Parametri generali
     duration_months = Column(Integer, default=36)
+    days_per_fte = Column(Float, default=220.0)
+    default_daily_rate = Column(Float, default=250.0)
     governance_pct = Column(Float, default=0.10)
     risk_contingency_pct = Column(Float, default=0.05)
 

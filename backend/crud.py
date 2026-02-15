@@ -505,6 +505,8 @@ def create_business_plan(
     db_bp = models.BusinessPlanModel(
         lot_key=lot_key,
         duration_months=data.duration_months,
+        days_per_fte=data.days_per_fte,
+        default_daily_rate=data.default_daily_rate,
         governance_pct=data.governance_pct,
         risk_contingency_pct=data.risk_contingency_pct,
         team_composition=data.team_composition,
@@ -535,6 +537,8 @@ def update_business_plan(
         profile_mappings_dict[profile_id] = [p.model_dump() for p in periods]
 
     db_bp.duration_months = data.duration_months
+    db_bp.days_per_fte = data.days_per_fte
+    db_bp.default_daily_rate = data.default_daily_rate
     db_bp.governance_pct = data.governance_pct
     db_bp.risk_contingency_pct = data.risk_contingency_pct
     db_bp.team_composition = data.team_composition

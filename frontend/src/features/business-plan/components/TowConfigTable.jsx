@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Layers, Plus, Trash2, GripVertical, Percent, Save, X } from 'lucide-react';
+import { Layers, Plus, Trash2, GripVertical, Percent, Save, X, TrendingDown, Info } from 'lucide-react';
 
 /**
  * TowConfigTable - Configurazione Type of Work
@@ -12,6 +12,8 @@ export default function TowConfigTable({
   towAssignments = {},
   onChange,
   onAssignmentChange,
+  volumeAdjustments = {},
+  durationMonths = 36,
   disabled = false
 }) {
   const { t } = useTranslation();
@@ -85,6 +87,54 @@ export default function TowConfigTable({
     return colors[t.color];
   };
 
+  // Calcola riduzioni TOW per periodo
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const adjustedQtyMap = useMemo(() => {
+    const result = {};
+    const periods = volumeAdjustments?.periods || [];
+    if (periods.length === 0) return result;
+
+    for (const tow of tows) {
+      if (!tow.tow_id) continue;
+
+      let totalMonths = 0;
+      let weightedFactor = 0;
+      const periodDetails = [];
+      const qty = tow.type === 'task' ? (tow.num_tasks || 0) : (tow.duration_months || 0);
+
+      for (const period of periods) {
+        const start = period.month_start || 1;
+        const end = period.month_end || durationMonths;
+        const months = end - start + 1;
+        const factor = period.by_tow?.[tow.tow_id] ?? 1.0;
+
+        weightedFactor += factor * months;
+        totalMonths += months;
+
+        periodDetails.push({
+          start,
+          end,
+          factor,
+          effectiveQty: Math.round(qty * factor * 100) / 100
+        });
+      }
+
+      const avgFactor = totalMonths > 0 ? weightedFactor / totalMonths : 1.0;
+      if (avgFactor < 1.0) {
+        result[tow.tow_id] = {
+          avgFactor,
+          adjustedQty: Math.round(qty * avgFactor * 100) / 100,
+          delta: Math.round(qty * (avgFactor - 1) * 100) / 100,
+          periodDetails
+        };
+      }
+    }
+    return result;
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  }, [tows, volumeAdjustments, durationMonths]);
+
+  const hasAdjustments = Object.keys(adjustedQtyMap).length > 0;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Header */}
@@ -135,6 +185,16 @@ export default function TowConfigTable({
               <th className="px-4 py-3 text-center font-semibold text-slate-600 w-24">Tipo</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-600 w-20">Peso %</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-600 w-28">Quantità</th>
+              {hasAdjustments && (
+                <>
+                  <th className="px-4 py-3 text-center font-semibold text-emerald-600 w-28 whitespace-nowrap">
+                    Quantità Eff.
+                  </th>
+                  <th className="px-4 py-3 text-center font-semibold text-rose-600 w-16">
+                    Δ
+                  </th>
+                </>
+              )}
               <th className="px-4 py-3 text-center font-semibold text-slate-600 w-36">Practice</th>
               <th className="px-4 py-3 w-12"></th>
             </tr>
@@ -240,6 +300,44 @@ export default function TowConfigTable({
                       <span className="block text-center text-slate-400 text-xs">-</span>
                     )}
                   </td>
+                  {hasAdjustments && (() => {
+                    const adj = adjustedQtyMap[tow.tow_id];
+                    const qty = tow.type === 'task' ? (tow.num_tasks || 0) : (tow.duration_months || 0);
+                    const isReduced = adj && adj.avgFactor < 1.0;
+
+                    const tooltip = adj?.periodDetails?.length > 1
+                      ? adj.periodDetails.map(p =>
+                        `Mese ${p.start}-${p.end}: ${qty} → ${p.effectiveQty} (${Math.round(p.factor * 100)}%)`
+                      ).join('\n')
+                      : adj?.periodDetails?.[0]
+                        ? `${qty} → ${adj.periodDetails[0].effectiveQty} (${Math.round(adj.periodDetails[0].factor * 100)}%)`
+                        : '';
+
+                    return (
+                      <>
+                        <td className="px-4 py-2">
+                          <div
+                            title={tooltip}
+                            className={`px-2 py-1 text-center rounded font-semibold text-xs cursor-help flex items-center justify-center gap-1
+                                      ${isReduced ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
+                          >
+                            {isReduced && <TrendingDown className="w-3 h-3" />}
+                            {adj ? Math.round(adj.adjustedQty) : qty}
+                            {tooltip && <Info className="w-2.5 h-2.5 opacity-50 ml-0.5" />}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          {isReduced ? (
+                            <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">
+                              {adj.delta > 0 ? `+${adj.delta}` : adj.delta}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
+                        </td>
+                      </>
+                    );
+                  })()}
                   <td className="px-4 py-2">
                     <select
                       value={towAssignments[tow.tow_id] || ''}
@@ -343,6 +441,12 @@ export default function TowConfigTable({
                     <span className="block text-center text-slate-400 text-xs">-</span>
                   )}
                 </td>
+                {hasAdjustments && (
+                  <>
+                    <td className="px-4 py-2 text-center text-slate-400">-</td>
+                    <td className="px-4 py-2 text-center text-slate-400">-</td>
+                  </>
+                )}
                 <td className="px-4 py-2 text-center text-slate-400">-</td>
                 <td className="px-4 py-2">
                   <div className="flex gap-1">
