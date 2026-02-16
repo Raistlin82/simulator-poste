@@ -1,22 +1,22 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 echo "================================================"
-echo "🚀 Starting Backend Application"
+echo "Starting Backend Application"
 echo "================================================"
 
 # Run database migrations
-echo "📊 Running database migrations..."
+echo "Running database migrations..."
 python run_migrations.py
 
 if [ $? -ne 0 ]; then
-    echo "❌ Migration failed, exiting..."
+    echo "Migration failed, exiting..."
     exit 1
 fi
 
-echo "✅ Migrations completed successfully"
+echo "Migrations completed successfully"
 echo ""
-echo "🌐 Starting Gunicorn server..."
+echo "Starting Gunicorn server..."
 echo "================================================"
 
 # Start the application with gunicorn
