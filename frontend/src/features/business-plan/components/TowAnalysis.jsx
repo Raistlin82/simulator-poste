@@ -579,6 +579,7 @@ export default function TowAnalysis({
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-4 py-3 text-left font-medium text-slate-600">TOW</th>
                 <th className="px-4 py-3 text-right font-medium text-slate-600">Peso</th>
+                <th className="px-4 py-3 text-right font-medium text-slate-600">Sconto</th>
                 <th className="px-4 py-3 text-right font-medium text-slate-600">Ricavo</th>
                 <th className="px-4 py-3 text-right font-medium text-slate-600">Costo</th>
                 <th className="px-4 py-3 text-right font-medium text-slate-600">Margine</th>
@@ -594,6 +595,11 @@ export default function TowAnalysis({
                     <div className="text-xs text-slate-400">{tow.towId}</div>
                   </td>
                   <td className="px-4 py-3 text-right text-slate-600">{formatPercent(tow.weight)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={`font-medium ${discount > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
+                      {formatPercent(discount)}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(tow.revenue)}</td>
                   <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(tow.cost)}</td>
                   <td className={`px-4 py-3 text-right font-semibold ${tow.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -631,6 +637,11 @@ export default function TowAnalysis({
               <tr className="bg-slate-100 border-t-2 border-slate-300 font-semibold">
                 <td className="px-4 py-3 text-slate-800">TOTALE</td>
                 <td className="px-4 py-3 text-right text-slate-600">100%</td>
+                <td className="px-4 py-3 text-right">
+                  <span className={`font-semibold ${discount > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
+                    {formatPercent(discount)}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-right text-slate-800">{formatCurrency(revenue)}</td>
                 <td className="px-4 py-3 text-right text-slate-800">{formatCurrency(costs.total || 0)}</td>
                 <td className="px-4 py-3 text-right text-green-700">{formatCurrency(revenue - (costs.total || 0))}</td>
