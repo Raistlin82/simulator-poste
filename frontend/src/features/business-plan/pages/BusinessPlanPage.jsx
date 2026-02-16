@@ -113,8 +113,9 @@ export default function BusinessPlanPage() {
       });
     } else if (selectedLot) {
       // Initialize empty BP (values already in percentage form)
+      const defaultDuration = 36;
       setLocalBP({
-        duration_months: 36,
+        duration_months: defaultDuration,
         days_per_fte: DAYS_PER_FTE,
         default_daily_rate: DEFAULT_DAILY_RATE,
         governance_pct: 4,
@@ -122,7 +123,7 @@ export default function BusinessPlanPage() {
         reuse_factor: 0,
         team_composition: [],
         tows: [],
-        volume_adjustments: { periods: [{ month_start: 1, month_end: 36, by_tow: {}, by_profile: {} }] },
+        volume_adjustments: { periods: [{ month_start: 1, month_end: defaultDuration, by_tow: {}, by_profile: {} }] },
         tow_assignments: {},
         profile_mappings: {},
         subcontract_config: {},
@@ -789,7 +790,31 @@ export default function BusinessPlanPage() {
   };
 
   const handleDurationChange = (months) => {
-    setLocalBP(prev => ({ ...prev, duration_months: parseFloat(months) || 36 }));
+    const newDuration = parseFloat(months) || 36;
+    setLocalBP(prev => {
+      // Update duration_months and adjust volume_adjustments if needed
+      const volumeAdj = prev.volume_adjustments || {};
+      const periods = volumeAdj.periods || [];
+
+      // If there's exactly one period that spans the full old duration, update it to new duration
+      let updatedPeriods = periods;
+      if (periods.length === 1) {
+        const period = periods[0];
+        const oldDuration = prev.duration_months || 36;
+        if (period.month_start === 1 && period.month_end === oldDuration) {
+          updatedPeriods = [{ ...period, month_end: newDuration }];
+        }
+      }
+
+      return {
+        ...prev,
+        duration_months: newDuration,
+        volume_adjustments: {
+          ...volumeAdj,
+          periods: updatedPeriods
+        }
+      };
+    });
   };
 
   const handleDaysPerFteChange = (days) => {
