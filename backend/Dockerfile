@@ -23,6 +23,9 @@ RUN pip install --no-cache-dir -r requirements.txt \
 # Copia il codice sorgente
 COPY . .
 
+# Rendi eseguibile lo startup script
+RUN chmod +x startup.sh run_migrations.py
+
 # Crea un user non-root per security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
@@ -30,5 +33,5 @@ USER appuser
 # Espone la porta del backend
 EXPOSE 8000
 
-# Use single worker to avoid race conditions with SQLite and lifespan seeding
-CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:8000", "--timeout", "120", "--graceful-timeout", "30"]
+# Use startup script to run migrations then start server
+CMD ["./startup.sh"]
