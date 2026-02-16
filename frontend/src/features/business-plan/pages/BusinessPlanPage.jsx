@@ -78,13 +78,14 @@ export default function BusinessPlanPage() {
   // Build Lutech rates lookup from practices
   const buildLutechRates = useCallback(() => {
     const rates = {};
+    const fallbackRate = localBP?.default_daily_rate || DEFAULT_DAILY_RATE;
     for (const practice of practices) {
       for (const profile of (practice.profiles || [])) {
-        rates[`${practice.id}:${profile.id}`] = profile.daily_rate || DEFAULT_DAILY_RATE;
+        rates[`${practice.id}:${profile.id}`] = profile.daily_rate || fallbackRate;
       }
     }
     return rates;
-  }, [practices]);
+  }, [practices, localBP]);
 
   const buildLutechLabels = useCallback(() => {
     const labels = {};
@@ -110,6 +111,9 @@ export default function BusinessPlanPage() {
         reuse_factor: (businessPlan.reuse_factor || 0) * 100,
         days_per_fte: businessPlan.days_per_fte || DAYS_PER_FTE,
         default_daily_rate: businessPlan.default_daily_rate || DEFAULT_DAILY_RATE,
+        governance_mode: businessPlan.governance_mode || 'percentage',
+        governance_fte_periods: businessPlan.governance_fte_periods || [],
+        governance_apply_reuse: businessPlan.governance_apply_reuse || false,
       });
     } else if (selectedLot) {
       // Initialize empty BP (values already in percentage form)
@@ -134,6 +138,9 @@ export default function BusinessPlanPage() {
         subcontract_config: {},
         governance_profile_mix: [],
         governance_cost_manual: null,
+        governance_mode: 'percentage',
+        governance_fte_periods: [],
+        governance_apply_reuse: false,
       });
     }
   }, [businessPlan, selectedLot]);
@@ -1272,14 +1279,15 @@ export default function BusinessPlanPage() {
                 onChange={handleTowsChange}
                 onAssignmentChange={handleTowAssignmentChange}
                 volumeAdjustments={localBP.volume_adjustments || {}}
-                durationMonths={localBP.duration_months || 36}
+                durationMonths={localBP.duration_months}
               />
 
               {/* Composizione Team (requisiti Poste) */}
               <TeamCompositionTable
                 team={localBP.team_composition || []}
                 tows={localBP.tows || []}
-                durationMonths={localBP.duration_months || 36}
+                durationMonths={localBP.duration_months}
+                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
                 onChange={handleTeamChange}
                 volumeAdjustments={localBP.volume_adjustments || {}}
                 reuseFactor={localBP.reuse_factor || 0}
@@ -1438,7 +1446,7 @@ export default function BusinessPlanPage() {
                       adjustments={localBP.volume_adjustments || {}}
                       team={localBP.team_composition || []}
                       tows={localBP.tows || []}
-                      durationMonths={localBP.duration_months || 36}
+                      durationMonths={localBP.duration_months}
                       onChange={handleVolumeAdjustmentsChange}
                     />
                   </div>
@@ -1462,7 +1470,8 @@ export default function BusinessPlanPage() {
                 teamComposition={localBP.team_composition || []}
                 practices={practices}
                 mappings={localBP.profile_mappings || {}}
-                durationMonths={localBP.duration_months || 36}
+                durationMonths={localBP.duration_months}
+                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
                 onChange={handleProfileMappingsChange}
                 volumeAdjustments={localBP.volume_adjustments || {}}
                 reuseFactor={localBP.reuse_factor || 0}
@@ -1474,6 +1483,7 @@ export default function BusinessPlanPage() {
                 tows={localBP.tows || []}
                 teamCost={calcResult?.team || 0}
                 teamMixRate={teamMixRate}
+                defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
                 onChange={handleSubcontractChange}
               />
 
@@ -1485,10 +1495,14 @@ export default function BusinessPlanPage() {
                   reuse_factor: localBP.reuse_factor,
                   governance_profile_mix: localBP.governance_profile_mix || [],
                   governance_cost_manual: localBP.governance_cost_manual ?? null,
+                  governance_mode: localBP.governance_mode || 'percentage',
+                  governance_fte_periods: localBP.governance_fte_periods || [],
+                  governance_apply_reuse: localBP.governance_apply_reuse || false,
                 }}
                 practices={practices}
                 totalTeamFte={(localBP.team_composition || []).reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0)}
-                durationMonths={localBP.duration_months || 36}
+                durationMonths={localBP.duration_months}
+                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
                 onChange={handleParametersChange}
               />
 
@@ -1499,7 +1513,7 @@ export default function BusinessPlanPage() {
                 lutechProfileBreakdown={lutechProfileBreakdown}
                 teamMixRate={teamMixRate}
                 showTowDetail={Object.keys(towBreakdown).length > 0}
-                durationMonths={localBP.duration_months || 36}
+                durationMonths={localBP.duration_months}
                 startYear={localBP.start_year}
                 startMonth={localBP.start_month}
               />
@@ -1519,6 +1533,8 @@ export default function BusinessPlanPage() {
                 costs={calcResult || {}}
                 baseAmount={effectiveBaseAmount}
                 discount={discount}
+                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+                defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
                 onApplyOptimization={handleApplyOptimization}
               />
 

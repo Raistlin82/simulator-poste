@@ -15,8 +15,6 @@ import {
   Clock,
 } from 'lucide-react';
 
-const DAYS_PER_FTE = 220;
-
 /**
  * VolumeAdjustments - Rettifica volumi per periodi temporali
  *
@@ -30,7 +28,7 @@ export default function VolumeAdjustments({
   adjustments = {},
   team = [],
   tows = [],
-  durationMonths = 36,
+  durationMonths,
   onChange,
   disabled = false
 }) {

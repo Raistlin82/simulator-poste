@@ -2,8 +2,6 @@ import { useState, useMemo, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Users, Plus, Trash2, Upload, Calculator, Save, X, GraduationCap, TrendingDown, ChevronDown, ChevronUp, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
-const DAYS_PER_FTE = 220;
-
 const SENIORITY_OPTIONS = [
   { value: 'jr', label: 'Junior', color: 'blue', icon: '🌱' },
   { value: 'mid', label: 'Middle', color: 'emerald', icon: '🌿' },
@@ -29,7 +27,8 @@ const getSeniorityStyle = (seniority) => {
 export default function TeamCompositionTable({
   team = [],
   tows = [],
-  durationMonths = 36,
+  durationMonths,
+  daysPerFte = 220,
   onChange,
   disabled = false,
   volumeAdjustments = {},
@@ -42,7 +41,7 @@ export default function TeamCompositionTable({
     label: '',
     seniority: 'mid',
     fte: 1,
-    days_year: DAYS_PER_FTE,
+    days_year: daysPerFte,
     tow_allocation: {}
   });
   const [expandedRows, setExpandedRows] = useState(new Set());

@@ -34,6 +34,8 @@ export default function TowAnalysis({
   costs = {},
   baseAmount = 0,
   discount = 0,
+  daysPerFte = 220,
+  defaultDailyRate = 350,
   onApplyOptimization,
 }) {
   // Calculate revenue per TOW based on weight
@@ -48,11 +50,11 @@ export default function TowAnalysis({
     const rates = {};
     for (const practice of practices) {
       for (const profile of (practice.profiles || [])) {
-        rates[`${practice.id}:${profile.id}`] = profile.daily_rate || 350;
+        rates[`${practice.id}:${profile.id}`] = profile.daily_rate || defaultDailyRate;
       }
     }
     return rates;
-  }, [practices]);
+  }, [practices, defaultDailyRate]);
 
   // Classify seniority levels
   const getSeniorityLevel = (seniority) => {
@@ -104,18 +106,18 @@ export default function TowAnalysis({
 
           // Get Lutech rate for this profile
           const mapping = profileMappings[profileId] || [];
-          let avgRate = 350;
+          let avgRate = defaultDailyRate;
           if (mapping.length > 0 && mapping[0].mix) {
             const mix = mapping[0].mix;
             let totalPct = 0;
             let weightedRate = 0;
             for (const m of mix) {
-              const rate = lutechRates[m.lutech_profile] || 350;
+              const rate = lutechRates[m.lutech_profile] || defaultDailyRate;
               const pct = (m.pct || 0) / 100;
               weightedRate += rate * pct;
               totalPct += pct;
             }
-            avgRate = totalPct > 0 ? weightedRate / totalPct : 350;
+            avgRate = totalPct > 0 ? weightedRate / totalPct : defaultDailyRate;
           }
 
           contributions.push({
@@ -125,7 +127,7 @@ export default function TowAnalysis({
             level,
             fte: allocatedFte,
             rate: avgRate,
-            cost: allocatedFte * avgRate * 220 * 3, // Approximation
+            cost: allocatedFte * avgRate * daysPerFte * 3, // Approximation
           });
         }
       }
@@ -253,9 +255,8 @@ export default function TowAnalysis({
           const seniorRate = contrib.rate;
           const juniorRate = Math.round(seniorRate * 0.6); // Junior ~ 60% of senior rate
           const savingsPerDay = seniorRate - juniorRate;
-          const daysPerYear = 220;
           const years = 3;
-          const estimatedSavings = contrib.fte * savingsPerDay * daysPerYear * years * 0.3; // 30% conversion
+          const estimatedSavings = contrib.fte * savingsPerDay * daysPerFte * years * 0.3; // 30% conversion
 
           if (estimatedSavings > 10000) { // Only propose if meaningful savings
             const newMarginPct = tow.revenue > 0
@@ -306,7 +307,6 @@ export default function TowAnalysis({
     if (towAnalysis.length === 0) return [];
 
     // Constants for calculation
-    const daysPerFteYear = 220;
     const years = 3;
 
     // Build profile rate lookup from practices
@@ -314,7 +314,7 @@ export default function TowAnalysis({
     for (const practice of practices) {
       for (const profile of (practice.profiles || [])) {
         profileRates[`${practice.id}:${profile.id}`] = {
-          rate: profile.daily_rate || 350,
+          rate: profile.daily_rate || defaultDailyRate,
           label: profile.label || profile.id,
           practice: practice.label || practice.id,
           level: getSeniorityLevel(profile.label || profile.id),
@@ -328,7 +328,7 @@ export default function TowAnalysis({
 
       // Analyze contributions by cost (rate)
       const sortedContribs = [...contributions].sort((a, b) => b.rate - a.rate);
-      const avgRate = totalFte > 0 ? (cost / (totalFte * daysPerFteYear * years)) : 350;
+      const avgRate = totalFte > 0 ? (cost / (totalFte * daysPerFte * years)) : defaultDailyRate;
 
       // Find expensive profiles (rate > avg + 20%)
       const expensiveProfiles = sortedContribs.filter(c => c.rate > avgRate * 1.2);

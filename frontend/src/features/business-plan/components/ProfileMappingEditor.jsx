@@ -28,7 +28,8 @@ export default function ProfileMappingEditor({
   teamComposition = [],    // Profili da capitolato Poste
   practices = [],          // Practice Lutech con catalogo profili
   mappings = {},           // Mappature esistenti (nuova struttura time-varying)
-  durationMonths = 36,     // Durata totale del contratto in mesi
+  durationMonths,          // Durata totale del contratto in mesi
+  daysPerFte = 220,        // Giorni per FTE
   onChange,
   disabled = false,
   volumeAdjustments = {},
@@ -423,10 +424,10 @@ export default function ProfileMappingEditor({
       avgRate,
       totalFte,
       mappedFte,
-      totalDaysYear: Math.round(totalFte * 220),
+      totalDaysYear: Math.round(totalFte * daysPerFte),
       hasMappings: mappedFte > 0,
     };
-  }, [teamComposition, mappings, calculatePeriodMixCost]);
+  }, [teamComposition, mappings, calculatePeriodMixCost, daysPerFte]);
 
   if (teamComposition.length === 0) {
     return (
@@ -471,7 +472,7 @@ export default function ProfileMappingEditor({
                   <div>
                     <div className="font-medium text-slate-800">{posteProfile.label}</div>
                     <div className="text-sm text-slate-500 flex items-center gap-2">
-                      <span>{posteProfile.fte} FTE · {Math.round(posteProfile.fte * 220)} GG/anno</span>
+                      <span>{posteProfile.fte} FTE · {Math.round(posteProfile.fte * daysPerFte)} GG/anno</span>
                       {(() => {
                         const adj = profileAdjustments[profileId];
                         if (adj && adj.delta < 0) {

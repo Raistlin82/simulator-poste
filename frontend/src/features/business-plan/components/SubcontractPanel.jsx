@@ -11,6 +11,7 @@ export default function SubcontractPanel({
   tows = [],
   teamCost = 0,
   teamMixRate = 0,
+  defaultDailyRate = 250,
   onChange,
   disabled = false
 }) {
@@ -206,7 +207,7 @@ export default function SubcontractPanel({
                     disabled={disabled}
                     min="0"
                     step="10"
-                    placeholder={teamMixRate > 0 ? teamMixRate.toFixed(0) : "250"}
+                    placeholder={teamMixRate > 0 ? teamMixRate.toFixed(0) : defaultDailyRate.toFixed(0)}
                     className="w-full px-3 py-2.5 pr-12 text-sm text-right border border-slate-200 rounded-lg
                                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
                                disabled:bg-slate-50 disabled:cursor-not-allowed
