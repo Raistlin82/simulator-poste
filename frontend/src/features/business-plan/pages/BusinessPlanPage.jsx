@@ -795,16 +795,19 @@ export default function BusinessPlanPage() {
       // Update duration_months and adjust volume_adjustments if needed
       const volumeAdj = prev.volume_adjustments || {};
       const periods = volumeAdj.periods || [];
+      const oldDuration = prev.duration_months || 36;
 
-      // If there's exactly one period that spans the full old duration, update it to new duration
-      let updatedPeriods = periods;
-      if (periods.length === 1) {
-        const period = periods[0];
-        const oldDuration = prev.duration_months || 36;
-        if (period.month_start === 1 && period.month_end === oldDuration) {
-          updatedPeriods = [{ ...period, month_end: newDuration }];
+      // Update all periods where month_end matches the old duration
+      const updatedPeriods = periods.map(period => {
+        if (period.month_end === oldDuration) {
+          return { ...period, month_end: newDuration };
         }
-      }
+        // Also clamp month_end if it exceeds new duration
+        if (period.month_end > newDuration) {
+          return { ...period, month_end: newDuration };
+        }
+        return period;
+      });
 
       return {
         ...prev,
