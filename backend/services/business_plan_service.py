@@ -398,18 +398,8 @@ class BusinessPlanService:
 
         return result
 
-    @staticmethod
-    def calculate_tow_cost(
-        bp_data: Dict[str, Any],
-        tow_id: str,
-    ) -> float:
-        """
-        STEP 3-4: Calcola costo singolo TOW.
-        Stub - da implementare con catalogo profili/tariffe.
-        """
-        # TODO: Implement with actual profile catalog and mappings
-        logger.info(f"calculate_tow_cost called for TOW: {tow_id} (stub)")
-        return 0.0
+    # NOTA: calculate_tow_cost() rimosso - i costi per TOW sono già
+    # disponibili in calculate_team_cost()["by_tow"]
 
     @staticmethod
     def calculate_total_cost(bp_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -506,60 +496,82 @@ class BusinessPlanService:
         return round(max(0, min(100, discount * 100)), 2)
 
     @staticmethod
-    def generate_scenarios(bp_data: Dict[str, Any], base_amount: float) -> List[Dict[str, Any]]:
+    def generate_scenarios(
+        bp_data: Dict[str, Any],
+        base_amount: float,
+        team_composition: List[Dict[str, Any]] = None,
+        volume_adjustments: Dict[str, Any] = None,
+        profile_mappings: Dict[str, Any] = None,
+        profile_rates: Dict[str, float] = None,
+        duration_months: int = 36,
+        default_daily_rate: float = 250.0,
+        governance_pct: float = 0.10,
+        risk_contingency_pct: float = 0.05,
+        subcontract_config: Dict[str, Any] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Genera 3 scenari: Conservative/Balanced/Aggressive.
-        Stub - da implementare con calcoli effettivi.
+        Se team_composition è fornito, ricalcola i costi per ogni scenario.
+        Altrimenti usa stima lineare come fallback.
         """
-        total_cost = float(bp_data.get("total_cost", 0.0))
-        
-        scenarios = []
         # Recupera parametri attuali dal BP
-        current_reuse = float(bp_data.get("reuse_factor", 0.05)) # Il valore nel db è 0.05 per 5%
-        # Volume adjustment è complesso perché è un oggetto. 
-        # Approssimiamo usando il global factor come riferimento per gli scenari
-        vol_adj_dict = bp_data.get("volume_adjustments", {})
+        current_reuse = float(bp_data.get("reuse_factor", 0.05))
+        vol_adj_dict = volume_adjustments or bp_data.get("volume_adjustments", {})
         current_vol_global = float(vol_adj_dict.get("global", 1.0))
 
-        scenarios = []
-        
         # Definisci delta per i 3 scenari rispetto all'attuale
-        # Format: (Nome, reuse_delta, vol_adj_delta)
-        # Conservative: reuse -2%, vol_adj +5% (meno efficiente, più volumi)
-        # Balanced: current
-        # Aggressive: reuse +5%, vol_adj -5% (più efficiente, meno volumi)
-        
         scenario_configs = [
-            ("Current/Balanced", 0.0, 0.0), # Scenario attuale
-            ("Conservative", -0.05, 0.05), # Meno riuso, più volume (costi più alti)
-            ("Aggressive", 0.05, -0.05),  # Più riuso, meno volume (costi più bassi)
+            ("Current/Balanced", 0.0, 0.0),
+            ("Conservative", -0.05, 0.05),
+            ("Aggressive", 0.05, -0.05),
         ]
 
-        # Per ricalcolare il costo dobbiamo rieseguire calculate_team_cost? 
-        # Sarebbe ideale, ma richiederebbe tutti i dati (team composition, rates, mappings).
-        # bp_data qui potrebbe essere solo parziale o il risultato.
-        # Se bp_data è il modello db, ha tutto.
-        
-        # Se non possiamo ricalcolare tutto accuratamente, applichiamo i fattori al total_cost attuale
-        # assumendo linearità (non perfetto ma meglio di statico).
-        # Costo ~= Baseline * VolFactor * (1-Reuse)
-        
-        # Recuperiamo il costo base "grezzo" (prima di riuso e vol adj globali attuali)
-        # TotalCost = Raw * CurrentGlobalVol * (1 - CurrentReuse)
-        # Raw = TotalCost / (CurrentGlobalVol * (1 - CurrentReuse))
-        
-        if current_vol_global <= 0: current_vol_global = 1.0
-        denom = current_vol_global * (1 - current_reuse)
-        raw_cost_est = total_cost / denom if denom > 0 else total_cost
+        scenarios = []
+
+        # Se abbiamo tutti i dati, ricalcola per ogni scenario
+        can_recalculate = (
+            team_composition is not None and
+            len(team_composition) > 0 and
+            profile_mappings is not None
+        )
 
         for name, reuse_delta, vol_delta in scenario_configs:
-            # Calcola nuovi parametri (clampati)
             new_reuse = max(0.0, min(0.8, current_reuse + reuse_delta))
             new_vol = max(0.5, min(1.5, current_vol_global + vol_delta))
-            
-            # Stima nuovo costo
-            estimated_cost = raw_cost_est * new_vol * (1 - new_reuse)
-            
+
+            if can_recalculate:
+                # Modifica volume_adjustments con il nuovo global factor
+                scenario_vol_adj = dict(vol_adj_dict)
+                scenario_vol_adj["global"] = new_vol
+
+                # Ricalcola team cost con nuovi parametri
+                team_result = BusinessPlanService.calculate_team_cost(
+                    team_composition=team_composition,
+                    volume_adjustments=scenario_vol_adj,
+                    reuse_factor=new_reuse,
+                    profile_mappings=profile_mappings,
+                    profile_rates=profile_rates or {},
+                    duration_months=duration_months,
+                    default_daily_rate=default_daily_rate,
+                )
+                team_cost = team_result["total_cost"]
+
+                # Aggiungi overhead
+                governance_cost = team_cost * governance_pct
+                risk_cost = team_cost * risk_contingency_pct
+                sub_quota = float((subcontract_config or {}).get("quota_pct", 0.0))
+                subcontract_cost = team_cost * sub_quota
+
+                estimated_cost = team_cost + governance_cost + risk_cost + subcontract_cost
+            else:
+                # Fallback a stima lineare
+                total_cost = float(bp_data.get("total_cost", 0.0))
+                if current_vol_global <= 0:
+                    current_vol_global = 1.0
+                denom = current_vol_global * (1 - current_reuse)
+                raw_cost_est = total_cost / denom if denom > 0 else total_cost
+                estimated_cost = raw_cost_est * new_vol * (1 - new_reuse)
+
             margin_result = BusinessPlanService.calculate_margin(
                 base_amount, estimated_cost, discount_pct=0
             )

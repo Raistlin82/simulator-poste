@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSimulation } from '../../simulation/context/SimulationContext';
 import { useBusinessPlan } from '../context/BusinessPlanContext';
 import { useConfig } from '../../config/context/ConfigContext';
+import { useToast } from '../../../shared/hooks/useToast';
 import axios from 'axios';
 import { API_URL } from '../../../utils/api';
 import {
@@ -44,6 +45,7 @@ export default function BusinessPlanPage() {
   const { t } = useTranslation();
   const { selectedLot } = useSimulation();
   const { config } = useConfig();
+  const toast = useToast();
   const {
     businessPlan,
     practices,
@@ -668,8 +670,9 @@ export default function BusinessPlanPage() {
 
     } catch (err) {
       console.error('Calculation error:', err);
+      toast.error(`Errore nel calcolo: ${err.message || 'Errore sconosciuto'}`);
     }
-  }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, generateScenarios, teamMixRate]);
+  }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, generateScenarios, teamMixRate, toast]);
 
   useEffect(() => {
     runCalculation();
@@ -698,6 +701,7 @@ export default function BusinessPlanPage() {
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (err) {
       console.error('Save error:', err);
+      toast.error(`Errore nel salvataggio: ${err.message || 'Errore sconosciuto'}`);
       setSaveStatus('error');
     } finally {
       setSaving(false);
@@ -745,6 +749,7 @@ export default function BusinessPlanPage() {
       }, 100);
     } catch (err) {
       console.error("Excel Export Error", err);
+      toast.error(`Errore nell'export Excel: ${err.message || 'Errore sconosciuto'}`);
       setSaveStatus('error');
     } finally {
       setExcelExportLoading(false);
@@ -797,6 +802,106 @@ export default function BusinessPlanPage() {
 
   const handleSubcontractChange = (subConfig) => {
     setLocalBP(prev => ({ ...prev, subcontract_config: subConfig }));
+  };
+
+  // Apply optimization proposal (juniorization)
+  const handleApplyOptimization = (proposal) => {
+    if (!proposal?.profileId) return;
+
+    const profileId = proposal.profileId;
+    const currentMappings = { ...(localBP.profile_mappings || {}) };
+    const profileMapping = currentMappings[profileId] || [];
+
+    if (profileMapping.length === 0) {
+      // No mapping exists, cannot apply optimization
+      return;
+    }
+
+    // Build a lookup of Lutech profile seniority from practices
+    const lutechSeniority = {};
+    (practices || []).forEach(practice => {
+      (practice.profiles || []).forEach(profile => {
+        const fullId = `${practice.id}:${profile.id}`;
+        lutechSeniority[fullId] = profile.seniority || 'mid';
+      });
+    });
+
+    // Update each period in the mapping
+    const updatedMapping = profileMapping.map(period => {
+      const currentMix = period.mix || [];
+      if (currentMix.length === 0) return period;
+
+      // Find senior and junior profiles in the mix
+      let seniorProfiles = [];
+      let juniorProfiles = [];
+
+      currentMix.forEach(m => {
+        const seniority = lutechSeniority[m.lutech_profile] || 'mid';
+        if (seniority === 'sr' || seniority === 'senior' || seniority === 'expert') {
+          seniorProfiles.push(m);
+        } else if (seniority === 'jr' || seniority === 'junior') {
+          juniorProfiles.push(m);
+        }
+      });
+
+      // If no senior or no junior profiles, cannot optimize
+      if (seniorProfiles.length === 0 || juniorProfiles.length === 0) {
+        // Try mid profiles as target for junior replacement
+        const midProfiles = currentMix.filter(m => {
+          const s = lutechSeniority[m.lutech_profile] || 'mid';
+          return s === 'mid';
+        });
+        if (seniorProfiles.length === 0 || midProfiles.length === 0) {
+          return period;
+        }
+        juniorProfiles = midProfiles;
+      }
+
+      // Calculate transfer amount (30% of total senior pct)
+      const totalSeniorPct = seniorProfiles.reduce((sum, m) => sum + (m.pct || 0), 0);
+      const transferPct = Math.min(totalSeniorPct * 0.3, totalSeniorPct); // Transfer 30%
+
+      if (transferPct < 1) return period; // Too small to matter
+
+      // Create new mix with adjusted percentages
+      const newMix = currentMix.map(m => {
+        const seniority = lutechSeniority[m.lutech_profile] || 'mid';
+        const isSenior = seniority === 'sr' || seniority === 'senior' || seniority === 'expert';
+        const isJunior = seniority === 'jr' || seniority === 'junior' || seniority === 'mid';
+
+        if (isSenior && seniorProfiles.length > 0) {
+          // Reduce senior by their proportion of transfer
+          const proportion = (m.pct || 0) / totalSeniorPct;
+          const reduction = transferPct * proportion;
+          return { ...m, pct: Math.max(0, (m.pct || 0) - reduction) };
+        } else if (isJunior && juniorProfiles.some(j => j.lutech_profile === m.lutech_profile)) {
+          // Increase junior by their proportion
+          const totalJuniorPct = juniorProfiles.reduce((sum, j) => sum + (j.pct || 0), 0);
+          const proportion = totalJuniorPct > 0 ? (m.pct || 0) / totalJuniorPct : 1 / juniorProfiles.length;
+          const increase = transferPct * proportion;
+          return { ...m, pct: (m.pct || 0) + increase };
+        }
+        return m;
+      });
+
+      // Normalize to 100% and round
+      const total = newMix.reduce((sum, m) => sum + (m.pct || 0), 0);
+      const normalizedMix = newMix.map(m => ({
+        ...m,
+        pct: Math.round((m.pct || 0) * 100 / total)
+      }));
+
+      // Adjust for rounding errors
+      const normalizedTotal = normalizedMix.reduce((sum, m) => sum + m.pct, 0);
+      if (normalizedTotal !== 100 && normalizedMix.length > 0) {
+        normalizedMix[0].pct += (100 - normalizedTotal);
+      }
+
+      return { ...period, mix: normalizedMix };
+    });
+
+    currentMappings[profileId] = updatedMapping;
+    setLocalBP(prev => ({ ...prev, profile_mappings: currentMappings }));
   };
 
   // Apply scenario
@@ -1252,10 +1357,7 @@ export default function BusinessPlanPage() {
                 costs={calcResult || {}}
                 baseAmount={effectiveBaseAmount}
                 discount={discount}
-                onApplyOptimization={(proposal) => {
-                  // TODO: Implement automatic optimization application
-                  console.log('Apply optimization:', proposal);
-                }}
+                onApplyOptimization={handleApplyOptimization}
               />
 
               {/* Conto Economico di Commessa */}

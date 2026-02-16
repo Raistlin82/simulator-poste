@@ -97,22 +97,8 @@ class PracticeModel(Base):
     id = Column(String(50), primary_key=True, index=True)  # e.g. "data_ai"
     label = Column(String(255), nullable=False)  # e.g. "Data & AI"
     profiles = Column(SQLiteJSON, default=list)  # [{id, label, seniority, daily_rate}]
-
-
-class ProfileCatalogModel(Base):
-    """
-    Catalogo profili globale (cross-practice).
-    Ogni profilo ha una tariffa giornaliera e appartiene a una Practice.
-    """
-
-    __tablename__ = "profile_catalog"
-
-    id = Column(String(50), primary_key=True, index=True)
-    label = Column(String(255), nullable=False)
-    seniority = Column(String(20), default="mid")  # jr/mid/sr/expert
-    # Il daily_rate definisce il costo standard giornaliero della risorsa interna
-    daily_rate = Column(Float, default=0.0)
-    practice_id = Column(String(50), ForeignKey("practices.id"), nullable=True)
+    # NOTA: I profili sono gestiti come JSON dentro practices.profiles
+    # La tabella profile_catalog è stata rimossa perché duplicata
 
 
 class BusinessPlanModel(Base):
@@ -173,9 +159,24 @@ class BusinessPlanModel(Base):
     # {"quota_pct": 0.15, "partner": "PartnerX", "tows": ["TOW_03"]}
     subcontract_config = Column(SQLiteJSON, default=dict)
 
-    # Output calcolati
-    tow_costs = Column(SQLiteJSON, default=dict)  # {tow_id: cost}
-    tow_prices = Column(SQLiteJSON, default=dict)  # {tow_id: price}
-    total_cost = Column(Float, default=0.0)
-    total_price = Column(Float, default=0.0)
-    margin_pct = Column(Float, default=0.0)
+    # Governance: Mix profili Lutech per calcolo costo governance
+    # Permette di definire il mix di profili per il team di governance anziché usare solo la %
+    # Formato: [{"lutech_profile": "practice:profile_id", "pct": 50}, ...]
+    # Calcolo: governance_fte * avg_rate * days * years
+    # dove governance_fte = total_fte * governance_pct
+    # e avg_rate = weighted average delle rate in base al mix
+    # Se vuoto, usa fallback: team_cost * governance_pct
+    governance_profile_mix = Column(SQLiteJSON, default=list)
+
+    # Override manuale del costo governance
+    # Se impostato, sovrascrive qualsiasi calcolo automatico
+    governance_cost_manual = Column(Float, nullable=True, default=None)
+
+    # Soglie margine per visualizzazione e warning
+    # margin_warning_threshold: soglia sotto la quale il margine è considerato a rischio (default 5%)
+    # margin_success_threshold: soglia sopra la quale il margine è considerato buono (default 15%)
+    margin_warning_threshold = Column(Float, default=0.05)  # 5%
+    margin_success_threshold = Column(Float, default=0.15)  # 15%
+
+    # NOTA: I campi tow_costs, tow_prices, total_cost, total_price, margin_pct
+    # sono stati rimossi perché ora calcolati dinamicamente da calculate_team_cost()

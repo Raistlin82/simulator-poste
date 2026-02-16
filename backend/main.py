@@ -2390,16 +2390,24 @@ def calculate_business_plan(
     tow_breakdown = {}
     lutech_breakdown = {}
     if bp.team_composition:
-        # Get profile rates for mix calculation
+        # Build profile_rates from practices catalog
+        # Format: {practice_id:profile_id: daily_rate}
+        # Falls back to default_daily_rate if profile not found
+        practices = crud.get_practices(db)
         profile_rates = {}
-        # We need the profile catalog rates. Let's assume we can get them or use defaults.
-        # For simplicity in this refactor, we pass the mappings from the BP.
+        for practice in practices:
+            for profile in (practice.profiles or []):
+                profile_id = profile.get('id', '')
+                if profile_id:
+                    key = f"{practice.id}:{profile_id}"
+                    profile_rates[key] = float(profile.get('daily_rate', 0.0))
+
         team_result = BusinessPlanService.calculate_team_cost(
             team_composition=bp.team_composition,
             volume_adjustments=bp.volume_adjustments or {},
             reuse_factor=bp.reuse_factor or 0.0,
             profile_mappings=bp.profile_mappings or {},
-            profile_rates={}, # Should be populated from catalog in a full implementation
+            profile_rates=profile_rates,
             duration_months=bp.duration_months or 36,
             default_daily_rate=bp.default_daily_rate or 250.0
         )
@@ -2407,10 +2415,40 @@ def calculate_business_plan(
         tow_breakdown = team_result["by_tow"]
         lutech_breakdown = team_result["by_lutech_profile"]
     else:
-        team_cost = bp.total_cost or 0.0
+        # No team composition defined - cannot calculate costs
+        team_cost = 0.0
 
     # Calculate overhead costs
-    governance_cost = team_cost * (bp.governance_pct or 0.10)
+    # Governance: supports manual override, profile mix, or percentage fallback
+    governance_cost = 0.0
+    if bp.governance_cost_manual is not None:
+        # Manual override
+        governance_cost = float(bp.governance_cost_manual)
+    elif bp.governance_profile_mix and len(bp.governance_profile_mix) > 0:
+        # Calculate based on governance FTE and profile mix
+        total_fte = sum(float(m.get("fte", 0)) for m in (bp.team_composition or []))
+        governance_pct = bp.governance_pct or 0.10
+        governance_fte = total_fte * governance_pct
+        duration_months = bp.duration_months or 36
+        duration_years = duration_months / 12
+        days_per_fte = bp.days_per_fte or 220.0
+
+        total_pct = 0.0
+        weighted_rate = 0.0
+        for item in bp.governance_profile_mix:
+            lutech_profile = item.get("lutech_profile", "")
+            pct = float(item.get("pct", 0)) / 100
+            rate = profile_rates.get(lutech_profile, bp.default_daily_rate or 250.0)
+            total_pct += pct
+            weighted_rate += rate * pct
+
+        if total_pct > 0:
+            avg_rate = weighted_rate / total_pct
+            governance_cost = governance_fte * days_per_fte * duration_years * avg_rate
+    else:
+        # Fallback: percentage of team cost
+        governance_cost = team_cost * (bp.governance_pct or 0.10)
+
     risk_cost = team_cost * (bp.risk_contingency_pct or 0.05)
 
     # Subcontract
@@ -2465,14 +2503,49 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
     if not lot:
         raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
 
+    # Calculate team cost dynamically (same logic as calculate endpoint)
+    team_cost = 0.0
+    if bp.team_composition:
+        practices = crud.get_practices(db)
+        profile_rates = {}
+        for practice in practices:
+            for profile in (practice.profiles or []):
+                profile_id = profile.get('id', '')
+                if profile_id:
+                    key = f"{practice.id}:{profile_id}"
+                    profile_rates[key] = float(profile.get('daily_rate', 0.0))
+
+        team_result = BusinessPlanService.calculate_team_cost(
+            team_composition=bp.team_composition,
+            volume_adjustments=bp.volume_adjustments or {},
+            reuse_factor=bp.reuse_factor or 0.0,
+            profile_mappings=bp.profile_mappings or {},
+            profile_rates=profile_rates,
+            duration_months=bp.duration_months or 36,
+            default_daily_rate=bp.default_daily_rate or 250.0
+        )
+        team_cost = team_result["total_cost"]
+
     bp_data = {
-        "total_cost": bp.total_cost or 0.0,
-        "governance_pct": bp.governance_pct,
-        "risk_contingency_pct": bp.risk_contingency_pct,
-        "subcontract_config": bp.subcontract_config or {},
+        "total_cost": team_cost,
+        "reuse_factor": bp.reuse_factor or 0.0,
+        "volume_adjustments": bp.volume_adjustments or {},
     }
 
-    scenarios = BusinessPlanService.generate_scenarios(bp_data, lot.base_amount)
+    # Generate scenarios with full recalculation
+    scenarios = BusinessPlanService.generate_scenarios(
+        bp_data=bp_data,
+        base_amount=lot.base_amount,
+        team_composition=bp.team_composition,
+        volume_adjustments=bp.volume_adjustments or {},
+        profile_mappings=bp.profile_mappings or {},
+        profile_rates=profile_rates if bp.team_composition else {},
+        duration_months=bp.duration_months or 36,
+        default_daily_rate=bp.default_daily_rate or 250.0,
+        governance_pct=bp.governance_pct or 0.10,
+        risk_contingency_pct=bp.risk_contingency_pct or 0.05,
+        subcontract_config=bp.subcontract_config or {},
+    )
     return {"scenarios": scenarios}
 
 
@@ -2491,8 +2564,31 @@ def find_discount_for_target(
     if not lot:
         raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
 
+    # Calculate team cost dynamically
+    team_cost = 0.0
+    if bp.team_composition:
+        practices = crud.get_practices(db)
+        profile_rates = {}
+        for practice in practices:
+            for profile in (practice.profiles or []):
+                profile_id = profile.get('id', '')
+                if profile_id:
+                    key = f"{practice.id}:{profile_id}"
+                    profile_rates[key] = float(profile.get('daily_rate', 0.0))
+
+        team_result = BusinessPlanService.calculate_team_cost(
+            team_composition=bp.team_composition,
+            volume_adjustments=bp.volume_adjustments or {},
+            reuse_factor=bp.reuse_factor or 0.0,
+            profile_mappings=bp.profile_mappings or {},
+            profile_rates=profile_rates,
+            duration_months=bp.duration_months or 36,
+            default_daily_rate=bp.default_daily_rate or 250.0
+        )
+        team_cost = team_result["total_cost"]
+
     bp_data = {
-        "total_cost": bp.total_cost or 0.0,
+        "total_cost": team_cost,
         "governance_pct": bp.governance_pct,
         "risk_contingency_pct": bp.risk_contingency_pct,
         "subcontract_config": bp.subcontract_config or {},
@@ -2619,27 +2715,9 @@ def delete_practice(practice_id: str, db: Session = Depends(get_db)):
     return {"status": "success", "message": f"Practice '{practice_id}' eliminata"}
 
 
-@practice_router.get("/{practice_id}/profiles", response_model=List[schemas.ProfileCatalogResponse])
-def get_practice_profiles(practice_id: str, db: Session = Depends(get_db)):
-    """Get all profiles for a practice"""
-    practice = crud.get_practice(db, practice_id)
-    if not practice:
-        raise HTTPException(status_code=404, detail=f"Practice '{practice_id}' non trovata")
-    return crud.get_practice_profiles(db, practice_id)
-
-
-@practice_router.post("/{practice_id}/profiles", response_model=schemas.ProfileCatalogResponse)
-def create_practice_profile(
-    practice_id: str,
-    data: schemas.ProfileCatalogCreate,
-    db: Session = Depends(get_db)
-):
-    """Add a profile to a practice"""
-    practice = crud.get_practice(db, practice_id)
-    if not practice:
-        raise HTTPException(status_code=404, detail=f"Practice '{practice_id}' non trovata")
-    data.practice_id = practice_id
-    return crud.create_profile(db, data)
+# NOTA: Gli endpoint /{practice_id}/profiles sono stati rimossi
+# I profili sono gestiti come JSON dentro practices.profiles
+# Usare PUT /api/practices/{practice_id} per aggiornare i profili
 
 
 # Register all routers

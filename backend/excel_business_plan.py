@@ -134,10 +134,29 @@ class BusinessPlanExcelGenerator:
         ws.column_dimensions['B'].width = 18
         ws.column_dimensions['C'].width = 45
 
-        ws['A1'] = f"PARAMETRI BUSINESS PLAN - {self.lot_key}"
-        ws['A1'].font = TITLE_FONT
+        row = 2
 
-        row = 3
+        # === HEADER PROFESSIONALE ===
+        ws.merge_cells(f'A{row}:C{row}')
+        ws[f'A{row}'] = 'SIMULATORE GARA POSTE'
+        ws[f'A{row}'].font = Font(name='Calibri', size=12, bold=True, color=COLORS['primary'])
+        ws[f'A{row}'].alignment = CENTER
+        row += 1
+
+        ws.merge_cells(f'A{row}:C{row}')
+        ws[f'A{row}'] = f'BUSINESS PLAN - {self.lot_key}'
+        ws[f'A{row}'].font = Font(name='Calibri', size=20, bold=True, color=COLORS['primary'])
+        ws[f'A{row}'].alignment = CENTER
+        row += 1
+
+        ws.merge_cells(f'A{row}:C{row}')
+        ws[f'A{row}'] = f'Generato il {datetime.now().strftime("%d/%m/%Y alle %H:%M")}'
+        ws[f'A{row}'].font = Font(name='Calibri', size=10, italic=True, color='666666')
+        ws[f'A{row}'].alignment = CENTER
+        row += 2
+
+        # === CONTENUTO PARAMETRI ===
+        row += 1
         ws['A' + str(row)] = "PARAMETRI GARA"
         ws['A' + str(row)].font = SECTION_FONT
         row += 1
@@ -264,6 +283,26 @@ class BusinessPlanExcelGenerator:
         ws['C' + str(row)] = "Formula: Base Effettiva × (1 - Sconto)"
         ws['C' + str(row)].font = Font(italic=True, color='666666')
         self.named_ranges['REVENUE'] = f"PARAMETRI!$B${row}"
+
+        # === FOOTER PROFESSIONALE ===
+        row += 3
+        ws.merge_cells(f'A{row}:C{row}')
+        ws[f'A{row}'] = '─' * 60
+        ws[f'A{row}'].font = Font(size=8, color='666666')
+        ws[f'A{row}'].alignment = CENTER
+        row += 1
+
+        ws.merge_cells(f'A{row}:C{row}')
+        ws[f'A{row}'] = 'https://simulator-poste.c-6dc1be8.kyma.ondemand.com'
+        ws[f'A{row}'].font = Font(name='Calibri', size=9, color='2563EB', underline='single')
+        ws[f'A{row}'].alignment = CENTER
+        ws[f'A{row}'].hyperlink = 'https://simulator-poste.c-6dc1be8.kyma.ondemand.com'
+        row += 1
+
+        ws.merge_cells(f'A{row}:C{row}')
+        ws[f'A{row}'] = 'Sviluppato da Gabriele Rendina'
+        ws[f'A{row}'].font = Font(name='Calibri', size=9, italic=True, color='666666')
+        ws[f'A{row}'].alignment = CENTER
 
     # ========== SHEET 2: CATALOGO LUTECH ==========
     def _create_lutech_catalog_sheet(self):

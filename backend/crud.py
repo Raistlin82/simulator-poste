@@ -619,28 +619,8 @@ def delete_practice(db: Session, practice_id: str) -> bool:
     return False
 
 
-def get_practice_profiles(db: Session, practice_id: str) -> List[models.ProfileCatalogModel]:
-    """Get all profiles for a practice"""
-    return db.query(models.ProfileCatalogModel).filter(
-        models.ProfileCatalogModel.practice_id == practice_id
-    ).all()
-
-
-def create_profile(
-    db: Session, data: schemas.ProfileCatalogCreate
-) -> models.ProfileCatalogModel:
-    """Create a profile in the catalog"""
-    db_profile = models.ProfileCatalogModel(
-        id=data.id,
-        label=data.label,
-        seniority=data.seniority,
-        daily_rate=data.daily_rate,
-        practice_id=data.practice_id,
-    )
-    db.add(db_profile)
-    db.commit()
-    db.refresh(db_profile)
-    return db_profile
+# NOTA: get_practice_profiles e create_profile rimossi
+# I profili sono gestiti come JSON dentro practices.profiles
 
 
 def seed_practices(db: Session) -> None:

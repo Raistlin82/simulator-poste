@@ -2,7 +2,7 @@
 Pydantic schemas for request/response validation
 """
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 
@@ -279,6 +279,28 @@ class TimeVaryingMix(BaseModel):
     month_end: int = Field(default=36, description="Mese finale del periodo (1-based)")
     mix: List[LutechProfileMix] = Field(..., description="Lista dei profili Lutech nel mix")
 
+    @model_validator(mode='after')
+    def validate_mix_sum(self):
+        """Validate that mix percentages sum to approximately 100%"""
+        if self.mix:
+            total_pct = sum(m.pct for m in self.mix)
+            # Allow small tolerance for rounding
+            if abs(total_pct - 100.0) > 1.0:
+                raise ValueError(
+                    f"Mix percentages must sum to 100%, got {total_pct:.1f}% "
+                    f"(months {self.month_start}-{self.month_end})"
+                )
+        return self
+
+    @model_validator(mode='after')
+    def validate_period_range(self):
+        """Validate that month_start <= month_end"""
+        if self.month_start > self.month_end:
+            raise ValueError(
+                f"month_start ({self.month_start}) must be <= month_end ({self.month_end})"
+            )
+        return self
+
 
 class PracticeProfile(BaseModel):
     """Profilo all'interno di una Practice"""
@@ -304,24 +326,8 @@ class PracticeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ProfileCatalogCreate(BaseModel):
-    """Schema per creare un profilo nel catalogo"""
-    id: str
-    label: str
-    seniority: Optional[str] = None  # Opzionale
-    daily_rate: float = 0.0
-    practice_id: Optional[str] = None
-
-
-class ProfileCatalogResponse(BaseModel):
-    """Schema di risposta per profilo catalogo"""
-    id: str
-    label: str
-    seniority: Optional[str] = None
-    daily_rate: float
-    practice_id: Optional[str] = None
-
-    model_config = ConfigDict(from_attributes=True)
+# NOTA: ProfileCatalogCreate e ProfileCatalogResponse rimossi
+# I profili sono gestiti come JSON dentro practices.profiles
 
 
 class VolumeAdjustmentPeriod(BaseModel):
@@ -367,8 +373,77 @@ class BusinessPlanCreate(BaseModel):
     tow_assignments: Dict[str, str] = Field(default_factory=dict)
     profile_mappings: Dict[str, List[TimeVaryingMix]] = Field(default_factory=dict)
     subcontract_config: Dict[str, Any] = Field(default_factory=dict)
-    governance_profile_mix: List[Dict[str, Any]] = Field(default_factory=list)  # Mix profili per governance
-    governance_cost_manual: Optional[float] = None  # Costo governance manuale (override)
+    # Governance Profile Mix: permette di calcolare il costo governance basato su un mix
+    # di profili Lutech anziché usare solo la percentuale sul team cost.
+    # Formato: [{"lutech_profile": "practice:profile_id", "pct": 50}, ...]
+    # Calcolo: governance_fte * weighted_avg_rate * days_per_fte * years
+    # Se vuoto, usa fallback: team_cost * governance_pct
+    governance_profile_mix: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Mix profili Lutech per calcolo governance (alternativa a %)"
+    )
+    # Override manuale: se impostato, sovrascrive qualsiasi calcolo automatico
+    governance_cost_manual: Optional[float] = Field(
+        default=None,
+        description="Costo governance manuale (sovrascrive calcolo automatico)"
+    )
+    # Soglie margine per visualizzazione e warning
+    margin_warning_threshold: float = Field(
+        default=0.05,
+        ge=0.0,
+        le=1.0,
+        description="Soglia sotto la quale il margine è a rischio (default 5%)"
+    )
+    margin_success_threshold: float = Field(
+        default=0.15,
+        ge=0.0,
+        le=1.0,
+        description="Soglia sopra la quale il margine è buono (default 15%)"
+    )
+
+    @model_validator(mode='after')
+    def validate_profile_mappings_periods(self):
+        """Validate that profile_mappings periods don't have gaps or overlaps"""
+        if not self.profile_mappings:
+            return self
+
+        duration = self.duration_months
+        errors = []
+
+        for profile_id, periods in self.profile_mappings.items():
+            if not periods:
+                continue
+
+            # Sort periods by month_start
+            sorted_periods = sorted(periods, key=lambda p: p.month_start)
+
+            # Check for gaps and overlaps
+            covered_months = set()
+            for period in sorted_periods:
+                period_months = set(range(period.month_start, period.month_end + 1))
+
+                # Check for overlap
+                overlap = covered_months & period_months
+                if overlap:
+                    errors.append(
+                        f"Profile '{profile_id}': overlap in months {sorted(overlap)}"
+                    )
+
+                covered_months |= period_months
+
+            # Check for gaps (only warn, don't fail)
+            expected_months = set(range(1, duration + 1))
+            missing_months = expected_months - covered_months
+            if missing_months and len(covered_months) > 0:
+                # Only add error if there are some mappings but incomplete coverage
+                errors.append(
+                    f"Profile '{profile_id}': gap in months {sorted(missing_months)[:5]}{'...' if len(missing_months) > 5 else ''}"
+                )
+
+        if errors:
+            raise ValueError(f"Profile mappings validation errors: {'; '.join(errors)}")
+
+        return self
 
 
 class BusinessPlanResponse(BaseModel):
@@ -391,11 +466,10 @@ class BusinessPlanResponse(BaseModel):
     subcontract_config: Dict[str, Any] = Field(default_factory=dict)
     governance_profile_mix: List[Dict[str, Any]] = Field(default_factory=list)
     governance_cost_manual: Optional[float] = None
-    tow_costs: Dict[str, float] = Field(default_factory=dict)
-    tow_prices: Dict[str, float] = Field(default_factory=dict)
-    total_cost: float = 0.0
-    total_price: float = 0.0
-    margin_pct: float = 0.0
+    margin_warning_threshold: float = 0.05
+    margin_success_threshold: float = 0.15
+    # NOTA: tow_costs, tow_prices, total_cost, total_price, margin_pct rimossi
+    # Questi valori sono ora calcolati dinamicamente dall'endpoint /calculate
 
     model_config = ConfigDict(from_attributes=True)
 
