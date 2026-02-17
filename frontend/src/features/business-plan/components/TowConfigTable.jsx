@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Layers, Plus, Trash2, GripVertical, Percent, Save, X, TrendingDown, Info } from 'lucide-react';
+import { Layers, Plus, Trash2, GripVertical, Percent, Save, X, TrendingDown, Info, AlertTriangle } from 'lucide-react';
 
 /**
  * TowConfigTable - Configurazione Type of Work
