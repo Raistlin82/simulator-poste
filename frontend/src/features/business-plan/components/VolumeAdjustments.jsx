@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DAYS_PER_FTE } from '../constants';
 import {
   SlidersHorizontal,
   Layers,

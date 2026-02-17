@@ -25,10 +25,13 @@ def migrate_database(db_path):
     Esegue tutte le migrazioni necessarie
     """
     print(f"📊 Checking database: {db_path}")
+    print(f"   Path exists: {db_path.exists()}")
+    print(f"   Absolute path: {db_path.absolute()}")
 
     if not db_path.exists():
-        print(f"❌ Database not found at {db_path}")
-        return False
+        print(f"⚠️  Database not found at {db_path}")
+        print(f"   This is normal for first startup - database will be created by the application")
+        return True  # Return success - let the app create the DB
 
     try:
         conn = sqlite3.connect(db_path)

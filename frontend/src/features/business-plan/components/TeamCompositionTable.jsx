@@ -1,6 +1,7 @@
 import { useState, useMemo, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Users, Plus, Trash2, Upload, Calculator, Save, X, GraduationCap, TrendingDown, ChevronDown, ChevronUp, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { DAYS_PER_FTE } from '../constants';
 
 const SENIORITY_OPTIONS = [
   { value: 'jr', label: 'Junior', color: 'blue', icon: '🌱' },

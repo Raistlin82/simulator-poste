@@ -38,8 +38,7 @@ import {
 
 
 
-const DEFAULT_DAILY_RATE = 250;
-const DAYS_PER_FTE = 220;
+import { DEFAULT_DAILY_RATE, DAYS_PER_FTE } from '../constants';
 
 export default function BusinessPlanPage() {
   const { t } = useTranslation();

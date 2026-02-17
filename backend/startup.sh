@@ -1,20 +1,23 @@
 #!/bin/sh
-set -e
 
 echo "================================================"
 echo "Starting Backend Application"
 echo "================================================"
+echo "Working directory: $(pwd)"
+echo "User: $(whoami)"
+echo "Python version: $(python --version)"
+echo ""
 
-# Run database migrations
-echo "Running database migrations..."
-python run_migrations.py
-
-if [ $? -ne 0 ]; then
-    echo "Migration failed, exiting..."
-    exit 1
+# Run database migrations (non-blocking - app will create DB on first run if needed)
+echo "Attempting database migrations..."
+if python run_migrations.py; then
+    echo "Migrations completed successfully"
+else
+    echo "WARNING: Migration script failed or DB not ready"
+    echo "The application will create the database on first startup if needed"
+    echo "This is normal for first deployment"
 fi
 
-echo "Migrations completed successfully"
 echo ""
 echo "Starting Gunicorn server..."
 echo "================================================"
