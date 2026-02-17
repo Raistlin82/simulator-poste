@@ -36,8 +36,10 @@ export default function TowAnalysis({
   discount = 0,
   daysPerFte = 220,
   defaultDailyRate = 350,
+  durationMonths = 36,
   onApplyOptimization,
 }) {
+  const durationYears = durationMonths / 12;
   // Calculate revenue per TOW based on weight
   const totalWeight = useMemo(() => {
     return tows.reduce((sum, t) => sum + (parseFloat(t.weight_pct) || 0), 0) || 100;
@@ -127,7 +129,7 @@ export default function TowAnalysis({
             level,
             fte: allocatedFte,
             rate: avgRate,
-            cost: allocatedFte * avgRate * daysPerFte * 3, // Approximation
+            cost: allocatedFte * avgRate * daysPerFte * durationYears,
           });
         }
       }
@@ -212,7 +214,7 @@ export default function TowAnalysis({
 
     // 3. Concentrazione costi
     const totalCost = towAnalysis.reduce((sum, t) => sum + t.cost, 0);
-    const maxCost = Math.max(...towAnalysis.map(t => t.cost));
+    const maxCost = towAnalysis.length > 0 ? Math.max(...towAnalysis.map(t => t.cost)) : 0;
     const concentration = totalCost > 0 ? (maxCost / totalCost) * 100 : 0;
     if (concentration > 50) {
       const topTow = towAnalysis.find(t => t.cost === maxCost);
@@ -360,7 +362,7 @@ export default function TowAnalysis({
         // Propose replacing expensive profiles with cheaper alternatives
         for (const contrib of expensiveProfiles) {
           const juniorRate = contrib.rate * 0.6; // Assume junior is 60% of senior rate
-          const potentialSavings = contrib.fte * (contrib.rate - juniorRate) * daysPerFteYear * years;
+          const potentialSavings = contrib.fte * (contrib.rate - juniorRate) * daysPerFte * years;
 
           if (potentialSavings > 5000) {
             proposalActions.push({
@@ -396,7 +398,7 @@ export default function TowAnalysis({
           for (const contrib of expensiveProfiles.slice(0, 2)) {
             const moveableFte = Math.min(contrib.fte * 0.3, excessExpensive);
             if (moveableFte > 0.2) {
-              const savingsPerFte = (contrib.rate - avgRate * 0.7) * daysPerFteYear * years;
+              const savingsPerFte = (contrib.rate - avgRate * 0.7) * daysPerFte * years;
 
               proposalActions.push({
                 type: 'reduce',

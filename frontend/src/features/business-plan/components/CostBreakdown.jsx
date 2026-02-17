@@ -156,6 +156,13 @@ export default function CostBreakdown({
     setExpandedMain(next);
   };
 
+  const [expandedYears, setExpandedYears] = useState(new Set());
+  const toggleYear = (year) => {
+    const next = new Set(expandedYears);
+    if (next.has(year)) next.delete(year); else next.add(year);
+    setExpandedYears(next);
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
       {/* Header */}
@@ -219,10 +226,13 @@ export default function CostBreakdown({
           /* Vista Annuale */
           <div className="space-y-4">
             <div className="text-xs text-slate-500 italic mb-3">
-              I costi sono ripartiti proporzionalmente ai mesi di ciascun anno.
+              I costi sono ripartiti proporzionalmente ai mesi di ciascun anno. Clicca su un anno per vedere il dettaglio.
             </div>
             {yearlyBreakdown.map((yearData, idx) => {
               const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+              const yearFraction = yearData.months / durationMonths;
+              const isYearExpanded = expandedYears.has(yearData.year);
+
               const yearBreakdown = [
                 { key: 'team', label: 'Costo Team', value: yearData.team, icon: Users, color: 'blue' },
                 { key: 'governance', label: 'Governance', value: yearData.governance, icon: Shield, color: 'indigo' },
@@ -232,26 +242,58 @@ export default function CostBreakdown({
                 yearBreakdown.push({ key: 'subcontract', label: 'Subappalto', value: yearData.subcontract, icon: Building, color: 'purple' });
               }
 
+              // TOW breakdown proporzionale all'anno
+              const yearTowItems = Object.entries(towBreakdown)
+                .map(([towId, data]) => ({
+                  towId,
+                  label: data.label ?? towId,
+                  cost: (data.cost ?? 0) * yearFraction
+                }))
+                .filter(t => t.cost > 0)
+                .sort((a, b) => b.cost - a.cost);
+
+              // Profili Lutech proporzionali all'anno
+              const yearProfileItems = Object.entries(lutechProfileBreakdown)
+                .map(([id, data]) => ({
+                  id,
+                  label: data.label ?? id,
+                  practice: data.practice ?? '',
+                  cost: (data.cost ?? 0) * yearFraction,
+                  days: (data.days ?? 0) * yearFraction,
+                  rate: data.rate ?? 0
+                }))
+                .filter(p => p.cost > 0)
+                .sort((a, b) => b.cost - a.cost);
+
               return (
-                <div key={idx} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-                  {/* Header Anno */}
-                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
+                <div key={idx} className={`rounded-xl border transition-all ${isYearExpanded ? 'border-emerald-300 shadow-md' : 'border-slate-200'} bg-slate-50`}>
+                  {/* Header Anno — cliccabile */}
+                  <button
+                    type="button"
+                    onClick={() => toggleYear(yearData.year)}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-100 rounded-xl transition-colors"
+                  >
                     <div>
                       <div className="text-lg font-bold text-slate-800">{yearData.year}</div>
                       <div className="text-xs text-slate-500">
                         {monthNames[yearData.startMonth - 1]} - {monthNames[yearData.endMonth - 1]} ({yearData.months} mesi)
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs text-slate-500 uppercase font-bold">Totale Anno</div>
-                      <div className="text-lg font-bold text-emerald-600">{formatCurrency(yearData.total)}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-xs text-slate-500 uppercase font-bold">Totale Anno</div>
+                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(yearData.total)}</div>
+                      </div>
+                      <div className="text-slate-400">
+                        {isYearExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                      </div>
                     </div>
-                  </div>
+                  </button>
 
-                  {/* Barra breakdown anno */}
-                  <div className="h-6 rounded-lg overflow-hidden flex shadow-inner mb-3">
+                  {/* Barra breakdown anno (sempre visibile) */}
+                  <div className="h-3 rounded-b-none rounded-t-none overflow-hidden flex mx-4 mb-3">
                     {yearBreakdown.map((item) => {
-                      const pct = (item.value / yearData.total) * 100;
+                      const pct = yearData.total > 0 ? (item.value / yearData.total) * 100 : 0;
                       return (
                         <div
                           key={item.key}
@@ -262,8 +304,8 @@ export default function CostBreakdown({
                     })}
                   </div>
 
-                  {/* Dettaglio voci anno */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {/* Dettaglio voci anno (sempre visibili) */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-4 pb-4">
                     {yearBreakdown.map(item => (
                       <div key={item.key} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-100">
                         <div className={`w-8 h-8 rounded-lg ${colorMap[item.color].bg} flex items-center justify-center flex-shrink-0`}>
@@ -276,6 +318,76 @@ export default function CostBreakdown({
                       </div>
                     ))}
                   </div>
+
+                  {/* Dettaglio espanso: TOW + Profili */}
+                  {isYearExpanded && (
+                    <div className="px-4 pb-4 space-y-4 border-t border-slate-200 pt-4">
+                      {/* TOW Breakdown */}
+                      {yearTowItems.length > 0 && (
+                        <div>
+                          <h5 className="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1.5">
+                            <TrendingDown className="w-3.5 h-3.5" />
+                            Costi per Type of Work — {yearData.year}
+                          </h5>
+                          <div className="space-y-1.5">
+                            {yearTowItems.map((item, tidx) => {
+                              const color = towColors[tidx % towColors.length];
+                              const pct = yearData.team > 0 ? (item.cost / yearData.team) * 100 : 0;
+                              return (
+                                <div key={item.towId} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-100">
+                                  <div className={`w-2.5 h-2.5 rounded-full ${colorMap[color].bar} shrink-0`} />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-0.5">
+                                      <span className="text-xs font-medium text-slate-700 truncate">{item.label}</span>
+                                      <span className="text-xs font-bold text-slate-800 ml-2">{formatCurrency(item.cost)}</span>
+                                    </div>
+                                    <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                                      <div className={`h-full ${colorMap[color].bar}`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Profili Lutech */}
+                      {yearProfileItems.length > 0 && (
+                        <div>
+                          <h5 className="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5" />
+                            Profili Lutech — {yearData.year}
+                          </h5>
+                          <div className="overflow-hidden border border-slate-100 rounded-lg">
+                            <table className="w-full text-xs text-left">
+                              <thead className="bg-slate-50 text-slate-400 font-semibold">
+                                <tr>
+                                  <th className="px-2 py-1.5">Profilo</th>
+                                  <th className="px-2 py-1.5 text-center">GG</th>
+                                  <th className="px-2 py-1.5 text-right">Tariffa</th>
+                                  <th className="px-2 py-1.5 text-right">Costo</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {yearProfileItems.map(item => (
+                                  <tr key={item.id} className="bg-white">
+                                    <td className="px-2 py-1.5">
+                                      <div className="font-medium text-slate-700">{item.label}</div>
+                                      <div className="text-[9px] text-slate-400 uppercase">{item.practice}</div>
+                                    </td>
+                                    <td className="px-2 py-1.5 text-center text-slate-600 font-bold">{item.days.toFixed(1)}</td>
+                                    <td className="px-2 py-1.5 text-right text-slate-500 italic">{formatCurrency(item.rate)}</td>
+                                    <td className="px-2 py-1.5 text-right font-semibold text-slate-800">{formatCurrency(item.cost)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

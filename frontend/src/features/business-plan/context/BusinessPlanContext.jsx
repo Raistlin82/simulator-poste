@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../../utils/api';
 import { useSimulation } from '../../simulation/context/SimulationContext';
@@ -13,6 +13,15 @@ export function BusinessPlanProvider({ children, activeView }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fetchedLot, setFetchedLot] = useState(null);
+
+  // Save trigger: BusinessPlanPage registers its save fn; App.jsx calls triggerSave()
+  const saveTriggerRef = useRef(null);
+  const registerSaveTrigger = useCallback((fn) => { saveTriggerRef.current = fn; }, []);
+  const triggerSave = useCallback(async () => {
+    if (saveTriggerRef.current) {
+      return saveTriggerRef.current();
+    }
+  }, []);
 
   // Fetch business plan when lot/view changes
   useEffect(() => {
@@ -188,6 +197,8 @@ export function BusinessPlanProvider({ children, activeView }) {
     savePractice,
     deletePractice,
     refreshPractices,
+    registerSaveTrigger,
+    triggerSave,
   };
 
   return (

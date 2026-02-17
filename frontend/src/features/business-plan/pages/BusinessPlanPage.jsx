@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { bpSaveTrigger } from '../../../utils/bpSaveTrigger';
 import { useSimulation } from '../../simulation/context/SimulationContext';
 import { useBusinessPlan } from '../context/BusinessPlanContext';
 import { useConfig } from '../../config/context/ConfigContext';
@@ -42,7 +43,7 @@ import { DEFAULT_DAILY_RATE, DAYS_PER_FTE } from '../constants';
 
 export default function BusinessPlanPage() {
   const { t } = useTranslation();
-  const { selectedLot } = useSimulation();
+  const { selectedLot, myDiscount } = useSimulation();
   const { config } = useConfig();
   const toast = useToast();
   const {
@@ -53,6 +54,7 @@ export default function BusinessPlanPage() {
     saveBusinessPlan,
     savePractice,
     deletePractice,
+    registerSaveTrigger,
   } = useBusinessPlan();
 
   const lotData = config && selectedLot ? config[selectedLot] : null;
@@ -67,7 +69,7 @@ export default function BusinessPlanPage() {
   const [teamMixRate, setTeamMixRate] = useState(0);
   const [scenarios, setScenarios] = useState([]);
   const [selectedScenario, setSelectedScenario] = useState(null);
-  const [discount, setDiscount] = useState(0);
+  const [discount, setDiscount] = useState(() => myDiscount ?? 0);
   const [targetMargin, setTargetMargin] = useState(15);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -98,6 +100,12 @@ export default function BusinessPlanPage() {
     }
     return labels;
   }, [practices]);
+
+  // Sync discount with sidebar myDiscount only when lot changes (not on every myDiscount tweak)
+  useEffect(() => {
+    setDiscount(myDiscount ?? 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLot]);
 
   // Initialize local state from fetched BP
   useEffect(() => {
@@ -499,60 +507,85 @@ export default function BusinessPlanPage() {
     };
   }, [buildLutechRates, buildLutechLabels, lotData?.tows]);
 
-  // Calculate governance cost based on FTE + Lutech profile mix
+  // Calculate governance cost based on governance_mode
   const calculateGovernanceCost = useCallback((bp, teamCost) => {
-    // Manual override
-    if (bp.governance_cost_manual !== null && bp.governance_cost_manual !== undefined) {
-      return {
-        value: bp.governance_cost_manual,
-        meta: { method: 'manuale' }
-      };
-    }
-
+    const mode = bp.governance_mode || 'percentage';
     const durationMonths = bp.duration_months || 36;
     const durationYears = durationMonths / 12;
     const daysPerFte = bp.days_per_fte || DAYS_PER_FTE;
-    const totalFte = (bp.team_composition || []).reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0);
-    const governanceFte = totalFte * (bp.governance_pct / 100);
 
-    const govMix = bp.governance_profile_mix || [];
-    if (govMix.length > 0) {
-      const lutechRates = buildLutechRates();
-
-      let totalPct = 0;
-      let weightedRate = 0;
-
-      for (const item of govMix) {
-        const rate = lutechRates[item.lutech_profile] || 0;
-        const pct = (item.pct || 0) / 100;
-        totalPct += pct;
-        weightedRate += rate * pct;
-      }
-
-      if (totalPct > 0) {
-        const avgRate = weightedRate / totalPct;
-        const result = governanceFte * daysPerFte * durationYears * avgRate;
-        return {
-          value: Math.round(result * 100) / 100,
-          meta: {
-            method: 'mix_profili',
-            fte: governanceFte,
-            daysPerFte,
-            years: durationYears,
-            avgRate
-          }
-        };
+    // MODE: manual
+    if (mode === 'manual') {
+      const val = bp.governance_cost_manual;
+      if (val !== null && val !== undefined) {
+        return { value: val, meta: { method: 'manuale' } };
       }
     }
 
-    // Fallback: % su team cost
-    const result = teamCost * (bp.governance_pct / 100);
+    // MODE: fte — somma costi per time slice
+    if (mode === 'fte' && (bp.governance_fte_periods || []).length > 0) {
+      const lutechRates = buildLutechRates();
+      let totalCost = 0;
+
+      for (const period of bp.governance_fte_periods) {
+        const periodFte = parseFloat(period.fte) || 0;
+        const periodMonths = (period.month_end || durationMonths) - (period.month_start || 1) + 1;
+        const periodYears = periodMonths / 12;
+        const mix = period.team_mix || [];
+
+        let periodAvgRate = 0;
+        let totalPct = 0;
+        for (const item of mix) {
+          const rate = lutechRates[item.lutech_profile] || 0;
+          const pct = (item.pct || 0) / 100;
+          totalPct += pct;
+          periodAvgRate += rate * pct;
+        }
+        if (totalPct > 0) periodAvgRate = periodAvgRate / totalPct;
+
+        totalCost += periodFte * (periodAvgRate || 0) * daysPerFte * periodYears;
+      }
+
+      return {
+        value: Math.round(totalCost * 100) / 100,
+        meta: { method: 'fte', periods: bp.governance_fte_periods.length }
+      };
+    }
+
+    // MODE: team_mix — governance FTE * tariffa media profili
+    if (mode === 'team_mix') {
+      const totalFte = (bp.team_composition || []).reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0);
+      const governanceFte = totalFte * ((bp.governance_pct || 0) / 100);
+      const govMix = bp.governance_profile_mix || [];
+
+      if (govMix.length > 0) {
+        const lutechRates = buildLutechRates();
+        let totalPct = 0;
+        let weightedRate = 0;
+
+        for (const item of govMix) {
+          const rate = lutechRates[item.lutech_profile] || 0;
+          const pct = (item.pct || 0) / 100;
+          totalPct += pct;
+          weightedRate += rate * pct;
+        }
+
+        if (totalPct > 0) {
+          const avgRate = weightedRate / totalPct;
+          const result = governanceFte * daysPerFte * durationYears * avgRate;
+          return {
+            value: Math.round(result * 100) / 100,
+            meta: { method: 'mix_profili', fte: governanceFte, daysPerFte, years: durationYears, avgRate }
+          };
+        }
+      }
+    }
+
+    // MODE: percentage (default/fallback)
+    const result = teamCost * ((bp.governance_pct || 0) / 100);
     return {
       value: Math.round(result * 100) / 100,
-      meta: {
-        method: 'percentuale_team',
-        pct: bp.governance_pct
-      }
+      meta: { method: 'percentuale_team', pct: bp.governance_pct }
     };
   }, [buildLutechRates]);
 
@@ -690,6 +723,9 @@ export default function BusinessPlanPage() {
     runCalculation();
   }, [runCalculation]);
 
+  // Ref to always hold the latest handleSave (for registerSaveTrigger)
+  const handleSaveRef = useRef(null);
+
   // Handle save
   const handleSave = async () => {
     if (!localBP) return;
@@ -720,6 +756,16 @@ export default function BusinessPlanPage() {
       setSaving(false);
     }
   };
+
+  // Keep ref updated and register with singleton so App.jsx top-bar Salva triggers BP save
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  });
+  useEffect(() => {
+    bpSaveTrigger.fn = () => handleSaveRef.current?.();
+    return () => { bpSaveTrigger.fn = null; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleExcelExport = async () => {
     if (!localBP || !lotData || !calcResult) return;
@@ -793,11 +839,7 @@ export default function BusinessPlanPage() {
   const handleParametersChange = (params) => {
     setLocalBP(prev => ({
       ...prev,
-      governance_pct: params.governance_pct,
-      risk_contingency_pct: params.risk_contingency_pct,
-      reuse_factor: params.reuse_factor,
-      governance_profile_mix: params.governance_profile_mix,
-      governance_cost_manual: params.governance_cost_manual,
+      ...params
     }));
   };
 
@@ -1199,20 +1241,13 @@ export default function BusinessPlanPage() {
               )}
               Export Excel
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg
-                         font-medium text-sm hover:bg-blue-700 transition-colors shadow-sm
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? (
+            {/* Save status indicator (no separate save button — use global top-bar Salva) */}
+            {saving && (
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600">
                 <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              Salva
-            </button>
+                Salvataggio...
+              </div>
+            )}
           </div>
         </div>
 
@@ -1534,6 +1569,7 @@ export default function BusinessPlanPage() {
                 discount={discount}
                 daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
                 defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+                durationMonths={localBP.duration_months || 36}
                 onApplyOptimization={handleApplyOptimization}
               />
 

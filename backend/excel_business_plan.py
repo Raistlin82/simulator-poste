@@ -410,19 +410,22 @@ class BusinessPlanExcelGenerator:
         num_tows = len(tow_ids)
 
         # Column widths
-        ws.column_dimensions['A'].width = 25  # Profilo
-        ws.column_dimensions['B'].width = 12  # Seniority
-        ws.column_dimensions['C'].width = 10  # FTE Base
-        ws.column_dimensions['D'].width = 10  # GG/Anno
+        ws.column_dimensions['A'].width = 28  # Profilo
+        ws.column_dimensions['B'].width = 14  # Seniority
+        ws.column_dimensions['C'].width = 13  # FTE Base
+        ws.column_dimensions['D'].width = 13  # GG/Anno
         # Dynamic TOW columns start at E
         for i in range(num_tows):
             col_letter = get_column_letter(5 + i)
-            ws.column_dimensions[col_letter].width = 10
+            ws.column_dimensions[col_letter].width = 13
         # FTE Eff and GG Totali after TOW columns
         fte_eff_col = 5 + num_tows  # FTE Effettivo
         gg_tot_col = 6 + num_tows   # GG Totali
-        ws.column_dimensions[get_column_letter(fte_eff_col)].width = 12
-        ws.column_dimensions[get_column_letter(gg_tot_col)].width = 12
+        ws.column_dimensions[get_column_letter(fte_eff_col)].width = 14
+        ws.column_dimensions[get_column_letter(gg_tot_col)].width = 14
+
+        # Freeze header row and profile column
+        ws.freeze_panes = 'B5'
 
         ws['A1'] = "COMPOSIZIONE TEAM POSTE"
         ws['A1'].font = TITLE_FONT
@@ -716,12 +719,13 @@ class BusinessPlanExcelGenerator:
     # ========== SHEET 6: MAPPING PROFILI (with cost calculation and VALIDATIONS) ==========
     def _create_mapping_sheet(self):
         ws = self.wb.create_sheet("MAPPING")
-        ws.column_dimensions['A'].width = 25
-        ws.column_dimensions['B'].width = 25
-        ws.column_dimensions['C'].width = 12
-        ws.column_dimensions['D'].width = 15
-        ws.column_dimensions['E'].width = 15
-        ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['A'].width = 28
+        ws.column_dimensions['B'].width = 28
+        ws.column_dimensions['C'].width = 14
+        ws.column_dimensions['D'].width = 16
+        ws.column_dimensions['E'].width = 16
+        ws.column_dimensions['F'].width = 16
+        ws.freeze_panes = 'A5'
 
         ws['A1'] = "MAPPING PROFILI POSTE → LUTECH E CALCOLO COSTO"
         ws['A1'].font = TITLE_FONT
@@ -1058,8 +1062,9 @@ class BusinessPlanExcelGenerator:
         # Column widths
         for col in range(1, 15):
             ws.column_dimensions[get_column_letter(col)].width = 15
-        ws.column_dimensions['A'].width = 20
-        ws.column_dimensions['B'].width = 25
+        ws.column_dimensions['A'].width = 22
+        ws.column_dimensions['B'].width = 28
+        ws.freeze_panes = 'C4'
 
         tows = self.bp.get('tows') or self.bp.get('tow_config') or []
         team = self.bp.get('team_composition', []) or self.bp.get('team', [])
@@ -1660,13 +1665,14 @@ class BusinessPlanExcelGenerator:
     # ========== SHEET 10: SCHEMA OFFERTA (PxQ) ==========
     def _create_offer_sheet(self):
         ws = self.wb.create_sheet("SCHEMA_OFFERTA")
-        ws.column_dimensions['A'].width = 15
-        ws.column_dimensions['B'].width = 35
-        ws.column_dimensions['C'].width = 12
-        ws.column_dimensions['D'].width = 12
-        ws.column_dimensions['E'].width = 18
-        ws.column_dimensions['F'].width = 18
-        ws.column_dimensions['G'].width = 12
+        ws.column_dimensions['A'].width = 16
+        ws.column_dimensions['B'].width = 38
+        ws.column_dimensions['C'].width = 13
+        ws.column_dimensions['D'].width = 13
+        ws.column_dimensions['E'].width = 20
+        ws.column_dimensions['F'].width = 20
+        ws.column_dimensions['G'].width = 14
+        ws.freeze_panes = 'A4'
 
         ws['A1'] = "SCHEMA OFFERTA ECONOMICA"
         ws['A1'].font = TITLE_FONT

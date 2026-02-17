@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { bpSaveTrigger } from './utils/bpSaveTrigger';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
@@ -167,11 +168,15 @@ function AppContent() {
     try {
       logger.info("Starting unified save", { lot: selectedLot });
 
-      // Save both state AND configuration
-      const [stateSuccess, configResult] = await Promise.all([
-        handleSaveState(),
-        updateConfig(config)
-      ]);
+      // Save simulation state, configuration, and (if BP is open) the Business Plan
+      const savePromises = [handleSaveState(), updateConfig(config)];
+      if (bpSaveTrigger.fn) {
+        savePromises.push(Promise.resolve(bpSaveTrigger.fn()).catch(err => {
+          logger.warn("BP save failed during unified save", err);
+        }));
+      }
+
+      const [stateSuccess, configResult] = await Promise.all(savePromises);
 
       logger.info("Save results", { stateSuccess, configSuccess: configResult.success });
 

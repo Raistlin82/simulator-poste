@@ -323,16 +323,18 @@ export default function ParametersPanel({
                 const isActive = current.governance_mode === mode.value;
                 return (
                   <button
+                    type="button"
                     key={mode.value}
                     onClick={() => handleFieldChange('governance_mode', mode.value)}
                     disabled={disabled}
-                    className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all ${
+                    className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-left
+                      disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
                       isActive
                         ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                        : 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50'
+                        : 'bg-white border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-400'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-4 h-4 shrink-0" />
                     <div className="text-left">
                       <div className="text-xs font-semibold">{mode.label}</div>
                       <div className={`text-[10px] ${isActive ? 'text-blue-100' : 'text-blue-500'}`}>
@@ -660,25 +662,31 @@ export default function ParametersPanel({
             </div>
           )}
 
-          {/* Checkbox: Apply Reuse to Governance */}
-          <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-200">
-            <input
-              type="checkbox"
-              id="governance_apply_reuse"
-              checked={current.governance_apply_reuse}
-              onChange={(e) => handleFieldChange('governance_apply_reuse', e.target.checked)}
-              disabled={disabled}
-              className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="governance_apply_reuse" className="text-xs text-blue-700 cursor-pointer">
+          {/* Toggle: Apply Reuse to Governance */}
+          <button
+            type="button"
+            onClick={() => !disabled && handleFieldChange('governance_apply_reuse', !current.governance_apply_reuse)}
+            disabled={disabled}
+            className="flex items-center gap-3 p-2 bg-white rounded-lg border border-blue-200 w-full text-left
+                       hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {/* Toggle switch */}
+            <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+              current.governance_apply_reuse ? 'bg-blue-600' : 'bg-slate-200'
+            }`}>
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                current.governance_apply_reuse ? 'translate-x-4' : 'translate-x-0'
+              }`} />
+            </div>
+            <span className="text-xs text-blue-700">
               Applica fattore riuso alla governance
               {current.governance_apply_reuse && current.reuse_factor > 0 && (
                 <span className="ml-1 text-emerald-600 font-semibold">
                   (-{current.reuse_factor}%)
                 </span>
               )}
-            </label>
-          </div>
+            </span>
+          </button>
         </div>
 
         <div className="h-px bg-slate-100" />
