@@ -104,7 +104,7 @@ export default function BusinessPlanPage() {
   // Sync discount with sidebar myDiscount only when lot changes (not on every myDiscount tweak)
   useEffect(() => {
     setDiscount(myDiscount ?? 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally ignore myDiscount changes - only sync when lot changes
   }, [selectedLot]);
 
   // Initialize local state from fetched BP
@@ -769,7 +769,7 @@ export default function BusinessPlanPage() {
   useEffect(() => {
     bpSaveTrigger.fn = () => handleSaveRef.current?.();
     return () => { bpSaveTrigger.fn = null; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Setup cleanup for save trigger - intentionally empty deps (runs on mount/unmount)
   }, []);
 
   const handleExcelExport = async () => {
