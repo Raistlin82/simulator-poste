@@ -10,7 +10,7 @@ import MasterDataConfig from './components/MasterDataConfig';
 import CertVerificationPage from './components/CertVerificationPage';
 import BusinessPlanPage from './features/business-plan/pages/BusinessPlanPage';
 import { BusinessPlanProvider } from './features/business-plan/context/BusinessPlanContext';
-import { Settings, Menu, X, Save, Briefcase } from 'lucide-react';
+import { Settings, Menu, Save, Briefcase, Sun, Moon } from 'lucide-react';
 import { logger } from './utils/logger';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -20,11 +20,30 @@ import { SimulationProvider, useSimulation } from './features/simulation/context
 import { ToastProvider, useToast } from './shared/components/ui/Toast';
 import { API_URL } from './utils/api';
 
+/* ─── Dark mode hook ──────────────────────────────────────────────────────── */
+function useDarkMode() {
+  const [isDark, setIsDark] = useState(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch { return false; }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch { /* noop */ }
+  }, [isDark]);
+
+  return [isDark, () => setIsDark(d => !d)];
+}
+
 // Main app content (to be wrapped with auth)
 function AppContent() {
   const { getAccessToken, handleCallback, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslation();
   const { success, error: showError } = useToast();
+  const [isDark, toggleDark] = useDarkMode();
 
   // Use contexts instead of local state
   const { config, loading: configLoading, updateConfig, refetch: refetchConfig } = useConfig();
@@ -373,6 +392,18 @@ function AppContent() {
               >
                 <Save className="w-4 h-4" />
                 <span className="hidden md:inline">{t('common.save')}</span>
+              </button>
+              {/* Dark / Light mode toggle */}
+              <button
+                onClick={toggleDark}
+                className="p-2 rounded-xl transition-all hover:bg-black/10"
+                aria-label={isDark ? 'Passa a tema chiaro' : 'Passa a tema scuro'}
+                title={isDark ? 'Tema chiaro' : 'Tema scuro'}
+              >
+                {isDark
+                  ? <Sun className="w-5 h-5 text-amber-400" />
+                  : <Moon className="w-5 h-5 text-slate-500" />
+                }
               </button>
               <LogoutButton />
             </div>

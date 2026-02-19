@@ -4,44 +4,226 @@
   --font-sans: 'Inter', sans-serif;
 }
 
-/* ─── App-wide Background ─────────────────────────────────────────────────── */
-body {
-  background-color: #eef2ff;
-  background-image:
-    radial-gradient(ellipse at 15% 10%, rgba(99, 102, 241, 0.08) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 90%, rgba(59, 130, 246, 0.08) 0%, transparent 55%),
-    radial-gradient(ellipse at 55% 0%,  rgba(139, 92, 246, 0.05) 0%, transparent 40%),
-    radial-gradient(ellipse at 0%  60%, rgba(16, 185, 129, 0.04) 0%, transparent 40%);
-  background-attachment: fixed;
-  font-family: var(--font-sans);
+/* ─── Theme Tokens ────────────────────────────────────────────────────────── */
+:root {
+  /* Background palette */
+  --bg-base: #dde3f5;
+
+  /* Glass – primary (sidebar, header, major cards) */
+  --glass-bg:     rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --glass-shadow:
+    0 8px 32px rgba(15, 23, 42, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+
+  /* Glass – subtle (inner panels, section headers) */
+  --glass-subtle-bg:     rgba(255, 255, 255, 0.48);
+  --glass-subtle-border: rgba(255, 255, 255, 0.70);
+  --glass-subtle-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+
+  /* Surfaces (content cards, bg-white overrides) */
+  --surface-1: rgba(255, 255, 255, 0.90);
+  --surface-2: rgba(248, 250, 252, 0.85);
+  --surface-3: rgba(241, 245, 249, 0.75);
+
+  /* Text */
+  --text-1: #0f172a;
+  --text-2: #334155;
+  --text-3: #64748b;
+  --text-4: #94a3b8;
+
+  /* Borders */
+  --border-1: rgba(148, 163, 184, 0.28);
+  --border-2: rgba(148, 163, 184, 0.48);
+
+  /* White alpha helpers */
+  --white-10:  rgba(255, 255, 255, 0.08);
+  --white-20:  rgba(255, 255, 255, 0.16);
 }
 
-/* ─── Glass Utility ───────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* Background palette */
+  --bg-base: #060c1a;
+
+  /* Glass – primary */
+  --glass-bg:     rgba(8, 14, 30, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.11);
+  --glass-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+  /* Glass – subtle */
+  --glass-subtle-bg:     rgba(8, 14, 30, 0.52);
+  --glass-subtle-border: rgba(255, 255, 255, 0.07);
+  --glass-subtle-shadow: 0 2px 8px rgba(0, 0, 0, 0.30);
+
+  /* Surfaces */
+  --surface-1: rgba(12, 20, 44, 0.90);
+  --surface-2: rgba(22, 33, 62, 0.82);
+  --surface-3: rgba(36, 50, 85, 0.72);
+
+  /* Text */
+  --text-1: #f1f5f9;
+  --text-2: #cbd5e1;
+  --text-3: #94a3b8;
+  --text-4: #64748b;
+
+  /* Borders */
+  --border-1: rgba(255, 255, 255, 0.09);
+  --border-2: rgba(255, 255, 255, 0.17);
+
+  /* White alpha helpers */
+  --white-10: rgba(255, 255, 255, 0.05);
+  --white-20: rgba(255, 255, 255, 0.09);
+}
+
+/* ─── App-wide Background ─────────────────────────────────────────────────── */
+body {
+  background-color: var(--bg-base);
+  background-image:
+    radial-gradient(ellipse at 15% 10%, rgba(99, 102, 241, 0.13) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 90%, rgba(59, 130, 246, 0.13) 0%, transparent 55%),
+    radial-gradient(ellipse at 55%  0%, rgba(139, 92, 246, 0.09) 0%, transparent 40%),
+    radial-gradient(ellipse at  0% 60%, rgba(16, 185, 129, 0.07) 0%, transparent 40%);
+  background-attachment: fixed;
+  font-family: var(--font-sans);
+  color: var(--text-1);
+  transition: background-color 0.45s ease, color 0.25s ease;
+}
+
+/* ─── iOS / macOS Glass Utilities ─────────────────────────────────────────── */
 /*
- * .glass        — translucent panel (headers, sidebars, cards)
- * .glass-subtle — lighter tint for inner surfaces
+ * .glass        — primary frosted panel (headers, sidebars, major cards)
+ * .glass-subtle — lighter variant for nested surfaces
+ *
+ * iOS-strength: blur 28px, saturation 210%, 65% opaque
  */
 .glass {
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: saturate(180%) blur(16px);
-  -webkit-backdrop-filter: saturate(180%) blur(16px);
-  border-color: rgba(255, 255, 255, 0.55) !important;
+  background: var(--glass-bg);
+  backdrop-filter: saturate(210%) blur(28px);
+  -webkit-backdrop-filter: saturate(210%) blur(28px);
+  border-color: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow);
+  transition:
+    background 0.45s ease,
+    border-color 0.45s ease,
+    box-shadow 0.45s ease;
 }
 
 .glass-subtle {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: saturate(150%) blur(10px);
-  -webkit-backdrop-filter: saturate(150%) blur(10px);
-  border-color: rgba(255, 255, 255, 0.4) !important;
+  background: var(--glass-subtle-bg);
+  backdrop-filter: saturate(170%) blur(18px);
+  -webkit-backdrop-filter: saturate(170%) blur(18px);
+  border-color: var(--glass-subtle-border) !important;
+  box-shadow: var(--glass-subtle-shadow);
+  transition: background 0.45s ease;
 }
 
-/* Custom Range Slider Styling - Touch Friendly */
+/* ─── Dark-mode: surface colour overrides ─────────────────────────────────── */
+/*
+ * These override Tailwind utility classes so every component in the tree
+ * automatically adapts to dark mode without individual file edits.
+ * Inputs/selects get their own block to preserve usability.
+ */
+
+/* neutral backgrounds */
+[data-theme="dark"] .bg-white {
+  background-color: var(--surface-1) !important;
+}
+[data-theme="dark"] .bg-slate-50 {
+  background-color: var(--surface-2) !important;
+}
+[data-theme="dark"] .bg-slate-100 {
+  background-color: var(--surface-3) !important;
+}
+[data-theme="dark"] .bg-slate-200 {
+  background-color: rgba(51, 65, 105, 0.55) !important;
+}
+
+/* semi-transparent whites used in sidebar internal sections */
+[data-theme="dark"] .bg-white\/30 {
+  background-color: var(--white-10) !important;
+}
+[data-theme="dark"] .bg-white\/40 {
+  background-color: var(--white-20) !important;
+}
+
+/* borders */
+[data-theme="dark"] .border-slate-100 {
+  border-color: var(--border-1) !important;
+}
+[data-theme="dark"] .border-slate-200 {
+  border-color: var(--border-1) !important;
+}
+[data-theme="dark"] .border-slate-300 {
+  border-color: var(--border-2) !important;
+}
+
+/* dividers */
+[data-theme="dark"] .h-px.bg-slate-200,
+[data-theme="dark"] .h-px.bg-slate-100 {
+  background-color: var(--border-1) !important;
+}
+
+/* text */
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800 { color: var(--text-1) !important; }
+[data-theme="dark"] .text-slate-700  { color: var(--text-2) !important; }
+[data-theme="dark"] .text-slate-600  { color: var(--text-3) !important; }
+[data-theme="dark"] .text-slate-500  { color: var(--text-4) !important; }
+[data-theme="dark"] .text-slate-400  { color: rgba(100, 116, 139, 0.80) !important; }
+
+/* form controls */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: rgba(22, 33, 62, 0.85) !important;
+  color: var(--text-1) !important;
+  border-color: var(--border-2) !important;
+}
+
+/* Prevent blue/indigo/green/red/amber accent chips from becoming
+   transparent on top of dark surfaces — keep them readable */
+[data-theme="dark"] .bg-blue-50   { background-color: rgba(37, 99, 235, 0.18) !important; }
+[data-theme="dark"] .bg-indigo-50 { background-color: rgba(79, 70, 229, 0.18) !important; }
+[data-theme="dark"] .bg-green-50  { background-color: rgba(22, 163, 74, 0.18) !important; }
+[data-theme="dark"] .bg-red-50    { background-color: rgba(220, 38, 38, 0.18) !important; }
+[data-theme="dark"] .bg-amber-50  { background-color: rgba(217, 119, 6, 0.18) !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: rgba(5, 150, 105, 0.18) !important; }
+[data-theme="dark"] .bg-purple-50 { background-color: rgba(124, 58, 237, 0.18) !important; }
+[data-theme="dark"] .bg-orange-50 { background-color: rgba(234, 88, 12, 0.18) !important; }
+
+/* icon-chip backgrounds (*-100 variants) */
+[data-theme="dark"] .bg-blue-100   { background-color: rgba(37, 99, 235, 0.22) !important; }
+[data-theme="dark"] .bg-indigo-100 { background-color: rgba(79, 70, 229, 0.22) !important; }
+[data-theme="dark"] .bg-green-100  { background-color: rgba(22, 163, 74, 0.22) !important; }
+[data-theme="dark"] .bg-red-100    { background-color: rgba(220, 38, 38, 0.22) !important; }
+[data-theme="dark"] .bg-amber-100  { background-color: rgba(217, 119, 6, 0.22) !important; }
+[data-theme="dark"] .bg-emerald-100 { background-color: rgba(5, 150, 105, 0.22) !important; }
+[data-theme="dark"] .bg-purple-100 { background-color: rgba(124, 58, 237, 0.22) !important; }
+[data-theme="dark"] .bg-orange-100 { background-color: rgba(234, 88, 12, 0.22) !important; }
+[data-theme="dark"] .bg-slate-300  { background-color: rgba(71, 85, 105, 0.60) !important; }
+
+/* coloured borders stay vivid */
+[data-theme="dark"] .border-blue-100   { border-color: rgba(37, 99, 235, 0.25) !important; }
+[data-theme="dark"] .border-blue-200   { border-color: rgba(37, 99, 235, 0.40) !important; }
+[data-theme="dark"] .border-indigo-100 { border-color: rgba(79, 70, 229, 0.25) !important; }
+[data-theme="dark"] .border-indigo-200 { border-color: rgba(79, 70, 229, 0.40) !important; }
+[data-theme="dark"] .border-green-100  { border-color: rgba(22, 163, 74, 0.25) !important; }
+[data-theme="dark"] .border-green-200  { border-color: rgba(22, 163, 74, 0.40) !important; }
+[data-theme="dark"] .border-red-100    { border-color: rgba(220, 38, 38, 0.25) !important; }
+[data-theme="dark"] .border-red-200    { border-color: rgba(220, 38, 38, 0.40) !important; }
+[data-theme="dark"] .border-amber-100  { border-color: rgba(217, 119, 6, 0.25) !important; }
+[data-theme="dark"] .border-amber-200  { border-color: rgba(217, 119, 6, 0.40) !important; }
+[data-theme="dark"] .border-emerald-100 { border-color: rgba(5, 150, 105, 0.25) !important; }
+[data-theme="dark"] .border-emerald-200 { border-color: rgba(5, 150, 105, 0.40) !important; }
+
+/* ─── Custom Range Slider ─────────────────────────────────────────────────── */
 input[type="range"] {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Range slider thumb - larger for touch */
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -64,43 +246,37 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* Mobile scroll indicators */
+/* ─── Mobile Scroll helpers ───────────────────────────────────────────────── */
 .overflow-x-auto {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
 
-/* Horizontal scroll shadow indicators */
 .scroll-shadow-x {
   background:
     linear-gradient(to right, white 30%, rgba(255,255,255,0)),
-    linear-gradient(to left, white 30%, rgba(255,255,255,0)),
+    linear-gradient(to left,  white 30%, rgba(255,255,255,0)),
     linear-gradient(to right, rgba(0,0,0,0.1) 0%, transparent 30%),
-    linear-gradient(to left, rgba(0,0,0,0.1) 0%, transparent 30%);
+    linear-gradient(to left,  rgba(0,0,0,0.1) 0%, transparent 30%);
   background-position: left, right, left, right;
   background-repeat: no-repeat;
   background-size: 40px 100%, 40px 100%, 20px 100%, 20px 100%;
   background-attachment: local, local, scroll, scroll;
 }
 
-/* iOS Safari input appearance fix */
+/* ─── iOS Safari fixes ────────────────────────────────────────────────────── */
 input, button, select, textarea {
   -webkit-appearance: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Minimum touch target size helper */
 .touch-target {
   min-width: 44px;
   min-height: 44px;
 }
 
-/* Responsive text sizes */
+/* ─── Responsive text ─────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .text-responsive-xs {
-    font-size: 0.75rem;
-  }
-  .text-responsive-sm {
-    font-size: 0.875rem;
-  }
+  .text-responsive-xs { font-size: 0.75rem; }
+  .text-responsive-sm { font-size: 0.875rem; }
 }
