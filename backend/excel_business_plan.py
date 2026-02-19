@@ -255,7 +255,35 @@ class BusinessPlanExcelGenerator:
         ws['B' + str(row)].number_format = '0.0%'
         self._style_input_cell(ws['B' + str(row)])
         self.named_ranges['REUSE_FACTOR'] = f"PARAMETRI!$B${row}"
-        row += 2
+        row += 1
+
+        # Inflazione YoY
+        inflation_pct_val = self.bp.get('inflation_pct', 0.0) or 0.0
+        ws['A' + str(row)] = "Inflazione YoY (% annua)"
+        ws['B' + str(row)] = inflation_pct_val
+        ws['B' + str(row)].number_format = '0.0'
+        self._style_input_cell(ws['B' + str(row)])
+        ws['C' + str(row)] = "Escalation tariffe Lutech anno su anno (es: 3.0 = +3%/anno)"
+        ws['C' + str(row)].font = Font(italic=True, color='666666')
+        self.named_ranges['INFLATION_PCT'] = f"PARAMETRI!$B${row}"
+        row += 1
+
+        # Average inflation multiplier using geometric series formula:
+        # avg = ((1+p)^N - 1) / (N*p) where N = duration in years, p = inflation rate decimal
+        infl_ref = self.named_ranges['INFLATION_PCT']
+        dur_ref = self.named_ranges['DURATA_MESI']
+        ws['A' + str(row)] = "Fattore Inflazione Medio"
+        ws['B' + str(row)] = (
+            f"=IF({infl_ref}=0,1,"
+            f"((1+{infl_ref}/100)^({dur_ref}/12)-1)"
+            f"/(({dur_ref}/12)*({infl_ref}/100)))"
+        )
+        ws['B' + str(row)].number_format = '0.000'
+        self._style_formula_cell(ws['B' + str(row)])
+        ws['C' + str(row)] = "Moltiplicatore medio escalation (formula serie geometrica)"
+        ws['C' + str(row)].font = Font(italic=True, color='666666')
+        self.named_ranges['FATTORE_INFLAZIONE'] = f"PARAMETRI!$B${row}"
+        row += 1
 
         # OFFERTA
         ws['A' + str(row)] = "OFFERTA"
@@ -946,8 +974,20 @@ class BusinessPlanExcelGenerator:
             ws.cell(row=row, column=6).border = THIN_BORDER
             ws.cell(row=row, column=6).fill = LIGHT_FILL
 
-            self.named_ranges['TEAM_COST'] = f"MAPPING!$F${row}"
+            team_cost_base_ref = f"MAPPING!$F${row}"
             self.named_ranges['MAPPING_GG'] = f"MAPPING!$E${row}"
+            row += 1
+
+            # Costo Team con Escalation Inflazione
+            infl_factor_ref = self.named_ranges.get('FATTORE_INFLAZIONE', '1')
+            ws.cell(row=row, column=1, value="COSTO TEAM (con Inflazione)").font = BOLD_FONT
+            ws.cell(row=row, column=1).border = THIN_BORDER
+            ws.cell(row=row, column=6, value=f"={team_cost_base_ref}*{infl_factor_ref}")
+            ws.cell(row=row, column=6).number_format = '#,##0'
+            ws.cell(row=row, column=6).font = BOLD_FONT
+            ws.cell(row=row, column=6).border = THIN_BORDER
+            ws.cell(row=row, column=6).fill = LIGHT_FILL
+            self.named_ranges['TEAM_COST'] = f"MAPPING!$F${row}"
         else:
             # No team data - use fallback values
             ws.cell(row=row, column=1, value="(Nessun team definito)")

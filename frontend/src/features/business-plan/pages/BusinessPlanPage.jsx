@@ -1584,6 +1584,7 @@ export default function BusinessPlanPage() {
                 durationMonths={localBP.duration_months}
                 startYear={localBP.start_year}
                 startMonth={localBP.start_month}
+                inflationPct={localBP.inflation_pct ?? 0}
               />
             </div>
           )}

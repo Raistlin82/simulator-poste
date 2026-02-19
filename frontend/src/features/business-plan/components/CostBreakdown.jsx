@@ -23,7 +23,8 @@ export default function CostBreakdown({
   showTowDetail = true,
   durationMonths = 36,
   startYear = null,
-  startMonth = null
+  startMonth = null,
+  inflationPct = 0
 }) {
   const { t } = useTranslation();
   const [expandedTows, setExpandedTows] = useState(new Set());
@@ -227,6 +228,11 @@ export default function CostBreakdown({
           <div className="space-y-4">
             <div className="text-xs text-slate-500 italic mb-3">
               I costi sono ripartiti proporzionalmente ai mesi di ciascun anno. Clicca su un anno per vedere il dettaglio.
+              {inflationPct > 0 && (
+                <span className="ml-1 text-violet-600 not-italic font-medium">
+                  Le tariffe Lutech incluono escalation YoY del {inflationPct}% — il badge ×N indica il moltiplicatore applicato alle tariffe di quell'anno.
+                </span>
+              )}
             </div>
             {yearlyBreakdown.map((yearData, idx) => {
               const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
@@ -265,6 +271,9 @@ export default function CostBreakdown({
                 .filter(p => p.cost > 0)
                 .sort((a, b) => b.cost - a.cost);
 
+              const yearIndex = startYear ? yearData.year - startYear : idx;
+              const yearInflationFactor = inflationPct > 0 ? Math.pow(1 + inflationPct / 100, yearIndex) : null;
+
               return (
                 <div key={idx} className={`rounded-xl border transition-all ${isYearExpanded ? 'border-emerald-300 shadow-md' : 'border-slate-200'} bg-slate-50`}>
                   {/* Header Anno — cliccabile */}
@@ -274,7 +283,14 @@ export default function CostBreakdown({
                     className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-100 rounded-xl transition-colors"
                   >
                     <div>
-                      <div className="text-lg font-bold text-slate-800">{yearData.year}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-slate-800">{yearData.year}</span>
+                        {yearInflationFactor !== null && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">
+                            Tariffa ×{yearInflationFactor.toFixed(3)}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-slate-500">
                         {monthNames[yearData.startMonth - 1]} - {monthNames[yearData.endMonth - 1]} ({yearData.months} mesi)
                       </div>
@@ -457,6 +473,19 @@ export default function CostBreakdown({
                               <div className="bg-slate-50 p-2 rounded border border-slate-100 font-mono text-[10px] text-slate-600">
                                 &sum; (GG Effettivi * Tariffa Lutech) per ogni Membro/Intervallo
                               </div>
+                              {inflationPct > 0 && (
+                                <div className="bg-violet-50 border border-violet-200 rounded p-2 text-[10px] text-violet-700 space-y-1">
+                                  <div className="font-semibold flex items-center gap-1">
+                                    <span>Escalation Inflazione YoY: {inflationPct}%/anno</span>
+                                  </div>
+                                  <div className="font-mono text-violet-600">
+                                    Tariffa Anno N = Tariffa Base × (1 + {inflationPct}%)^N
+                                  </div>
+                                  <div className="text-violet-500">
+                                    Anno 1: ×1.000 · Anno 2: ×{Math.pow(1 + inflationPct / 100, 1).toFixed(3)} · Anno 3: ×{Math.pow(1 + inflationPct / 100, 2).toFixed(3)}
+                                  </div>
+                                </div>
+                              )}
                               <p className="text-slate-500 italic">Vedi i breakdown dettagliati per TOW e Profilo sotto per l'esplosione dei componenti.</p>
                             </div>
                           )}
