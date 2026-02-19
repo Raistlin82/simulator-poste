@@ -45,7 +45,7 @@ export default function Dashboard({ onNavigate }) {
     useEffect(() => {
         if (!results || !lotData) return;
 
-        let isMounted = true;
+        const controller = new AbortController();
 
         const runMC = async () => {
             try {
@@ -56,23 +56,22 @@ export default function Dashboard({ onNavigate }) {
                     competitor_discount_mean: competitorDiscount,
                     competitor_discount_std: 3.5, // assumed volatility
                     current_tech_score: results.technical_score,
-                    competitor_tech_score_mean: competitorTechScore, // use actual competitor tech score
+                    competitor_tech_score_mean: competitorTechScore,
                     competitor_tech_score_std: 3.0, // assumed volatility
                     iterations: 500
-                });
-                if (isMounted) setMonteCarlo(res.data);
+                }, { signal: controller.signal });
+                setMonteCarlo(res.data);
             } catch (err) {
-                if (isMounted) {
-                    logger.error("Monte Carlo simulation failed", err, { component: "Dashboard" });
-                    showError(t('errors.monte_carlo_failed'));
-                }
+                if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+                logger.error("Monte Carlo simulation failed", err, { component: "Dashboard" });
+                showError(t('errors.monte_carlo_failed'));
             }
         };
 
         const timer = setTimeout(runMC, 1000); // debounce
         return () => {
-            isMounted = false;
             clearTimeout(timer);
+            controller.abort();
         };
     }, [myDiscount, competitorDiscount, results, lotKey, lotData, competitorTechScore, showError, t]);
 
@@ -80,10 +79,10 @@ export default function Dashboard({ onNavigate }) {
     useEffect(() => {
         if (!results || !lotData) return;
 
-        let isMounted = true;
+        const controller = new AbortController();
 
         const runOptimizer = async () => {
-            if (isMounted) setOptimizerLoading(true);
+            setOptimizerLoading(true);
             try {
                 const res = await axios.post(`${API_URL}/optimize-discount`, {
                     lot_key: lotKey,
@@ -92,22 +91,21 @@ export default function Dashboard({ onNavigate }) {
                     competitor_tech_score: competitorTechScore,
                     competitor_discount: competitorEconDiscount,
                     best_offer_discount: competitorDiscount
-                });
-                if (isMounted) setOptimizerResults(res.data);
+                }, { signal: controller.signal });
+                setOptimizerResults(res.data);
             } catch (err) {
-                if (isMounted) {
-                    logger.error("Optimizer failed", err, { component: "Dashboard" });
-                    showError(t('errors.optimizer_failed'));
-                }
+                if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+                logger.error("Optimizer failed", err, { component: "Dashboard" });
+                showError(t('errors.optimizer_failed'));
             } finally {
-                if (isMounted) setOptimizerLoading(false);
+                if (!controller.signal.aborted) setOptimizerLoading(false);
             }
         };
 
         const timer = setTimeout(runOptimizer, 1000); // debounce
         return () => {
-            isMounted = false;
             clearTimeout(timer);
+            controller.abort();
         };
     }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount, lotData, results, showError, t]);
 
@@ -151,7 +149,7 @@ export default function Dashboard({ onNavigate }) {
                 window.URL.revokeObjectURL(url);
             }, 100);
         } catch (err) {
-            console.error("Export Error", err);
+            logger.error('PDF Export Error', err, { lot: lotKey });
         } finally {
             setExportLoading(false);
         }
@@ -199,7 +197,7 @@ export default function Dashboard({ onNavigate }) {
                 window.URL.revokeObjectURL(url);
             }, 100);
         } catch (err) {
-            console.error("Excel Export Error", err);
+            logger.error('Excel Export Error', err, { lot: lotKey });
             showError(t('errors.excel_export_failed') || 'Esportazione Excel fallita');
         } finally {
             setExcelExportLoading(false);
@@ -259,6 +257,7 @@ export default function Dashboard({ onNavigate }) {
                                         onChange={(e) => setCompetitorParam('competitorTechScore', parseFloat(e.target.value))}
                                         className="flex-1 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 touch-pan-x"
                                         style={{ minHeight: '44px' }}
+                                        aria-label={t('dashboard.competitor_tech_score')}
                                     />
                                     <span className="text-sm font-bold text-slate-800 w-12 text-right">
                                         {formatNumber(competitorTechScore, 2)}
@@ -282,6 +281,7 @@ export default function Dashboard({ onNavigate }) {
                                         onChange={(e) => setCompetitorParam('competitorEconDiscount', parseFloat(e.target.value))}
                                         className="flex-1 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 touch-pan-x"
                                         style={{ minHeight: '44px' }}
+                                        aria-label={t('dashboard.competitor_econ_discount')}
                                     />
                                     <span className="text-sm font-bold text-slate-800 w-12 text-right">
                                         {formatNumber(competitorEconDiscount, 2)}%

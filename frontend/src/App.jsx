@@ -237,6 +237,9 @@ function AppContent() {
     // Additional guard: ensure we have valid data from config
     if (!config[selectedLot] || baseAmount <= 0) return;
 
+    // Skip calculation during state load to avoid 499 race condition at startup
+    if (isLoadingState.current) return;
+
     const controller = new AbortController();
 
     const payload = {
@@ -397,8 +400,8 @@ function AppContent() {
               <button
                 onClick={toggleDark}
                 className="p-2 rounded-xl transition-all hover:bg-black/10"
-                aria-label={isDark ? 'Passa a tema chiaro' : 'Passa a tema scuro'}
-                title={isDark ? 'Tema chiaro' : 'Tema scuro'}
+                aria-label={isDark ? t('app.theme_light') : t('app.theme_dark')}
+                title={isDark ? t('app.theme_light') : t('app.theme_dark')}
               >
                 {isDark
                   ? <Sun className="w-5 h-5 text-amber-400" />

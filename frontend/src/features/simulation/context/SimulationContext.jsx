@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useReducer } from 'react';
+import { createContext, useContext, useState, useReducer, useMemo } from 'react';
 
 const SimulationContext = createContext(null);
 
@@ -109,7 +109,9 @@ export const SimulationProvider = ({ children }) => {
     dispatch({ type: 'RESET', payload: newState });
   };
 
-  const value = {
+  // Memoize context value to prevent unnecessary re-renders in consumers
+  // when unrelated state changes (e.g. results update shouldn't recreate the whole value)
+  const value = useMemo(() => ({
     ...state,
     results,
     simulationData,
@@ -121,7 +123,8 @@ export const SimulationProvider = ({ children }) => {
     resetState,
     setResults,
     setSimulationData
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [state, results, simulationData]);
 
   return (
     <SimulationContext.Provider value={value}>

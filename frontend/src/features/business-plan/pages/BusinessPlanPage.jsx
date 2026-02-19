@@ -7,6 +7,7 @@ import { useConfig } from '../../config/context/ConfigContext';
 import { useToast } from '../../../shared/hooks/useToast';
 import axios from 'axios';
 import { API_URL } from '../../../utils/api';
+import { logger } from '../../../utils/logger';
 import {
   Briefcase,
   Building2,
@@ -274,7 +275,7 @@ export default function BusinessPlanPage() {
 
         // YoY inflation escalation: year 0 = no change, year 1 = +inflationPct%, etc.
         const yearIndex = Math.floor((start - 1) / 12);
-        const inflationFactor = inflationPct > 0 ? Math.pow(1 + inflationPct / 100, yearIndex) : 1;
+        const inflationFactor = inflationPct > 0 ? Math.round(Math.pow(1 + inflationPct / 100, yearIndex) * 1e8) / 1e8 : 1;
         const escalatedRate = rate * inflationFactor;
 
         // TOW Reduction for this member in this interval
@@ -556,7 +557,7 @@ export default function BusinessPlanPage() {
 
         // YoY inflation: escalate based on the period's start year
         const periodYearIndex = Math.floor(((period.month_start || 1) - 1) / 12);
-        const periodInflationFactor = inflationPct > 0 ? Math.pow(1 + inflationPct / 100, periodYearIndex) : 1;
+        const periodInflationFactor = inflationPct > 0 ? Math.round(Math.pow(1 + inflationPct / 100, periodYearIndex) * 1e8) / 1e8 : 1;
 
         totalCost += periodFte * (periodAvgRate || 0) * periodInflationFactor * daysPerFte * periodYears;
       }
@@ -592,7 +593,7 @@ export default function BusinessPlanPage() {
               const yrStartMonth = yr * 12 + 1;
               const yrEndMonth = Math.min((yr + 1) * 12, durationMonths);
               const yrFraction = (yrEndMonth - yrStartMonth + 1) / 12;
-              const yrInflationFactor = Math.pow(1 + inflationPct / 100, yr);
+              const yrInflationFactor = Math.round(Math.pow(1 + inflationPct / 100, yr) * 1e8) / 1e8;
               inflatedCost += governanceFte * daysPerFte * yrFraction * avgRate * yrInflationFactor;
             }
             baseCost = inflatedCost;
@@ -745,7 +746,7 @@ export default function BusinessPlanPage() {
       setScenarios(newScenarios);
 
     } catch (err) {
-      console.error('Calculation error:', err);
+      logger.error('Calculation error', err, { lot: selectedLot });
       toast.error(`Errore nel calcolo: ${err.message || 'Errore sconosciuto'}`);
     }
   }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, generateScenarios, teamMixRate, toast]);
@@ -779,7 +780,7 @@ export default function BusinessPlanPage() {
       setSaveStatus('success');
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (err) {
-      console.error('Save error:', err);
+      logger.error('Save error', err, { lot: selectedLot });
       const errorMsg = err.response?.data?.detail || err.message || 'Errore sconosciuto';
       toast.error(`Errore nel salvataggio: ${errorMsg}`);
       setSaveStatus('error');
@@ -788,14 +789,23 @@ export default function BusinessPlanPage() {
     }
   };
 
-  // Keep ref updated and register with singleton so App.jsx top-bar Salva triggers BP save
+  // Keep ref updated without re-registering on every render
   useEffect(() => {
     handleSaveRef.current = handleSave;
   });
+  // Register with singleton on mount; use a generation token so stale cleanup
+  // cannot null-out a handler registered by a newer mount (e.g. React StrictMode double-invoke)
   useEffect(() => {
+    const id = Symbol('bpSaveTrigger');
     bpSaveTrigger.fn = () => handleSaveRef.current?.();
-    return () => { bpSaveTrigger.fn = null; };
-    // Setup cleanup for save trigger - intentionally empty deps (runs on mount/unmount)
+    bpSaveTrigger._id = id;
+    return () => {
+      if (bpSaveTrigger._id === id) {
+        bpSaveTrigger.fn = null;
+        bpSaveTrigger._id = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleExcelExport = async () => {
@@ -839,7 +849,7 @@ export default function BusinessPlanPage() {
         window.URL.revokeObjectURL(url);
       }, 100);
     } catch (err) {
-      console.error("Excel Export Error", err);
+      logger.error('Excel Export Error', err, { lot: selectedLot });
       toast.error(`Errore nell'export Excel: ${err.message || 'Errore sconosciuto'}`);
       setSaveStatus('error');
     } finally {
@@ -1106,7 +1116,8 @@ export default function BusinessPlanPage() {
     if (!calcResult || !localBP || !lotData) return { data: [], total: 0 };
 
     // Revenue Target (Base d'asta effettiva - Sconto)
-    const effectiveBase = (lotData.base_amount || 0) * (isRti && lotData.rti_quotas?.Lutech ? lotData.rti_quotas.Lutech / 100 : 1.0);
+    // Use the same quotaLutech already computed at component level (avoids duplication)
+    const effectiveBase = (lotData.base_amount || 0) * quotaLutech;
     const revenue = effectiveBase * (1 - discount / 100);
 
     // TOW Breakdown logic:

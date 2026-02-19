@@ -404,8 +404,8 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                 type="text"
                                 value={currentLot.name}
                                 onChange={(e) => {
-                                    currentLot.name = e.target.value;
-                                    setEditedConfig({ ...editedConfig });
+                                    const name = e.target.value;
+                                    updateLot(lot => { lot.name = name; });
                                 }}
                                 className="w-full p-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                             />
@@ -445,14 +445,11 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                         setDisplayBase(e.target.value);
                                         const parsed = parseFloat(raw);
                                         if (!isNaN(parsed) && parsed >= 0) {
-                                            currentLot.base_amount = parsed;
-                                            setEditedConfig({ ...editedConfig });
+                                            updateLot(lot => { lot.base_amount = parsed; });
                                         }
                                     }}
                                     onBlur={() => {
-                                        // Ensure non-negative on blur
-                                        if (currentLot.base_amount < 0) currentLot.base_amount = 0;
-                                        setDisplayBase(formatNumber(currentLot.base_amount || 0, 2));
+                                        setDisplayBase(formatNumber(Math.max(0, currentLot.base_amount || 0), 2));
                                     }}
                                     placeholder="0,00"
                                     className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 bg-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono text-right text-lg font-semibold text-slate-900 hover:border-slate-300 transition-colors"
@@ -620,8 +617,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                         let val = parseFloat(e.target.value);
                                         if (isNaN(val)) val = 0.3;
                                         val = Math.max(0, Math.min(1, val)); // Clamp 0-1
-                                        currentLot.alpha = val;
-                                        setEditedConfig({ ...editedConfig });
+                                        updateLot(lot => { lot.alpha = val; });
                                     }}
                                     className="w-full p-2 border border-green-300 bg-white rounded-lg focus:ring-2 focus:ring-green-500 outline-none font-bold text-lg text-green-700"
                                 />
@@ -643,8 +639,8 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                     className="w-full p-2 border border-blue-300 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-sm text-blue-700"
                                     value={currentLot.economic_formula || 'interp_alpha'}
                                     onChange={(e) => {
-                                        currentLot.economic_formula = e.target.value;
-                                        setEditedConfig({ ...editedConfig });
+                                        const formula = e.target.value;
+                                        updateLot(lot => { lot.economic_formula = formula; });
                                     }}
                                 >
                                     {masterData?.economic_formulas?.map(f => (

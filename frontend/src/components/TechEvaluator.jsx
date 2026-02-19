@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Star, Info, ChevronDown, ChevronUp, Plus, Minus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
@@ -49,6 +49,49 @@ export default function TechEvaluator() {
         setCompanyCert(label, status);  // "all", "partial", "none"
     };
 
+    // Memoize heavy array operations — must be before any early returns (Rules of Hooks)
+    const maxCompanyCerts = useMemo(
+        () => results?.max_company_certs_raw ?? (lotData?.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0),
+        [lotData, results?.max_company_certs_raw]
+    );
+    const maxProfCerts = useMemo(
+        () => lotData?.reqs?.filter(r => r.type === 'resource').reduce((sum, r) =>
+            sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0,
+        [lotData, results?.max_raw_scores]
+    );
+    const maxProjectRefs = useMemo(
+        () => lotData?.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) =>
+            sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0,
+        [lotData, results?.max_raw_scores]
+    );
+    const rawProfCerts = useMemo(
+        () => lotData?.reqs?.filter(r => r.type === 'resource').reduce((sum, req) =>
+            sum + (results?.details?.[req.id] || 0), 0) || 0,
+        [lotData, results?.details]
+    );
+    const weightedProjectRefs = useMemo(
+        () => lotData?.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) =>
+            sum + (results?.details?.[r.id] || 0), 0) || 0,
+        [lotData, results?.details]
+    );
+    const rawProjectRefs = useMemo(
+        () => lotData?.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, req) => {
+            const cur = inputs[req.id] || { sub_req_vals: [], bonus_active: false, attestazione_active: false, custom_metric_vals: {} };
+            const subSum = cur.sub_req_vals?.reduce((subSum, sv) => {
+                const sub = (req.sub_reqs || req.criteria || []).find(s => s.id === sv.sub_id);
+                const weight = sub?.weight || 1;
+                return subSum + ((sv.val || 0) * weight);
+            }, 0) || 0;
+            const attSum = cur.attestazione_active ? (req.attestazione_score || 0) : 0;
+            const customSum = Object.entries(cur.custom_metric_vals || {}).reduce((cSum, [, mVal]) =>
+                cSum + (parseFloat(mVal) || 0), 0);
+            const bonusSum = cur.bonus_active ? (req.bonus_val || 0) : 0;
+            const maxRaw = req.max_points || 0;
+            return sum + Math.min(subSum + attSum + customSum + bonusSum, maxRaw);
+        }, 0) || 0,
+        [lotData, inputs]
+    );
+
     // Guard clause - return early if no lotData
     if (!lotData) {
         return (
@@ -62,59 +105,11 @@ export default function TechEvaluator() {
         );
     }
 
-    // Dynamic Category Totals
-    // Use backend-calculated values when available for consistency
-    const maxCompanyCerts = results?.max_company_certs_raw ?? (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0);
-    // Use backend-calculated max_raw_scores when available (respects max_points_manual)
-    const maxProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, r) => 
-        sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0;
-    const maxProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) => 
-        sum + (results?.max_raw_scores?.[r.id] ?? r.max_points ?? 0), 0) || 0;
-
-    // Calculate raw scores for each category
-    // Use backend-calculated score for consistency
+    // Raw company certs score — trivial expression, no memoization needed
     const rawCompanyCerts = results?.company_certs_score ?? 0;
 
-
-    const rawProfCerts = lotData.reqs?.filter(r => r.type === 'resource').reduce((sum, req) => {
-        // Use backend-calculated score from results?.details instead of recalculating locally
-        return sum + (results?.details?.[req.id] || 0);
-    }, 0) || 0;
-
-    const weightedProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, r) =>
-        sum + (results?.details[r.id] || 0), 0) || 0;
-
-    const rawProjectRefs = lotData.reqs?.filter(r => ['reference', 'project'].includes(r.type)).reduce((sum, req) => {
-        const cur = inputs[req.id] || { sub_req_vals: [], bonus_active: false, attestazione_active: false, custom_metric_vals: {} };
-
-        // 1. Sub-reqs/Criteria raw (WITH INTERNAL WEIGHTS)
-        const subSum = cur.sub_req_vals?.reduce((subSum, sv) => {
-            const sub = (req.sub_reqs || req.criteria || []).find(s => s.id === sv.sub_id);
-            const weight = sub?.weight || 1;
-            return subSum + ((sv.val || 0) * weight);
-        }, 0) || 0;
-
-        // 2. Attestazione Cliente raw
-        const attSum = cur.attestazione_active ? (req.attestazione_score || 0) : 0;
-
-        // 3. Custom Metrics raw
-        const customSum = Object.entries(cur.custom_metric_vals || {}).reduce((cSum, [, mVal]) =>
-            cSum + (parseFloat(mVal) || 0), 0);
-
-        // 4. Legacy bonus raw
-        const bonusSum = cur.bonus_active ? (req.bonus_val || 0) : 0;
-
-        // Use max_points from config (already calculated with internal weights)
-        const maxRaw = req.max_points || 0;
-
-        // Final pts for this req (raw is capped at max_raw)
-        const reqPts = Math.min(subSum + attSum + customSum + bonusSum, maxRaw);
-
-        return sum + reqPts;
-    }, 0) || 0;
-
     // Safety check
-    if (!lotData || !Array.isArray(lotData.reqs)) {
+    if (!Array.isArray(lotData.reqs)) {
         return (
             <div className="text-center text-red-500 font-bold p-8">
                 {t('errors.lot_data_unavailable')}
@@ -240,11 +235,12 @@ export default function TechEvaluator() {
                                                 <input
                                                     type="range" min="0" max={maxR}
                                                     value={cur.r_val}
+                                                    aria-label={t('tech.num_resources')}
                                                     onChange={(e) => {
                                                         const newR = parseInt(e.target.value);
                                                         updateInput(req.id, 'r_val', newR);
 
-                                                        // Informative cap for C based on R if needed, 
+                                                        // Informative cap for C based on R if needed,
                                                         // though formula 2R + RC works mathematically with any C
                                                         if (cur.c_val > newR) {
                                                             // Optional: auto-adjust total C if it exceeds R
@@ -438,6 +434,7 @@ export default function TechEvaluator() {
                                                             value={cur.c_val || 0}
                                                             onChange={(e) => updateInput(req.id, 'c_val', parseInt(e.target.value))}
                                                             className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                                            aria-label={t('tech.manual_adjustment')}
                                                         />
                                                     </div>
                                                 )}

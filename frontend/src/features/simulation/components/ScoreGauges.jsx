@@ -91,7 +91,7 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
   const totalAttributable = Object.values(companyContributions).reduce((sum, c) => sum + c.total, 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <div className="glass-card rounded-xl p-6">
       <div className="flex justify-between items-center mb-6">
         <h3 className="font-semibold text-slate-800">{t('dashboard.performance_score')}</h3>
         <div className="flex gap-2">

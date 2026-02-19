@@ -39,12 +39,15 @@
         "no_config_to_save": "Nessuna configurazione da salvare",
         "demo_mode": "DEMO MODE - Frontend Only (Backend non disponibile)",
         "toggle_menu": "Toggle menu",
-        "poste_italiane_logo": "Poste Italiane"
+        "poste_italiane_logo": "Poste Italiane",
+        "theme_light": "Passa a tema chiaro",
+        "theme_dark": "Passa a tema scuro"
     },
     "dashboard": {
         "strategic_report": "Report Strategico",
         "performance_score": "Performance Score",
         "export_pdf": "Esporta PDF",
+        "export_excel": "Esporta Excel",
         "technical": "Tecnico",
         "economic": "Economico",
         "total": "Totale",
