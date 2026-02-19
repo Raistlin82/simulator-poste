@@ -274,7 +274,7 @@ function AppContent() {
   if (loading) return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
+    <div className="flex h-screen overflow-hidden font-sans text-slate-900">
       {/* Mobile overlay backdrop */}
       {sidebarOpen && (
         <div
@@ -307,7 +307,7 @@ function AppContent() {
           </div>
         )}
 
-        <header className="bg-white border-b border-slate-200 p-4 shadow-sm z-10">
+        <header className="glass border-b p-4 shadow-sm z-10 sticky top-0">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3 md:gap-6">
               {/* Hamburger button - mobile only */}

@@ -124,9 +124,9 @@ export default function Sidebar({
     const allRtiCompanies = isRti ? ['Lutech', ...rtiCompanies] : [];
 
     return (
-        <div className="w-[85vw] max-w-80 md:w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg z-20">
+        <div className="w-[85vw] max-w-80 md:w-80 glass border-r flex flex-col h-full shadow-xl z-20">
             {/* Lutech Logo Banner */}
-            <div className="p-4 bg-gradient-to-br from-slate-50 to-white border-b border-slate-200 flex justify-between items-center">
+            <div className="p-4 glass-subtle border-b flex justify-between items-center">
                 <button
                     onClick={() => {
                         if (onNavigate) onNavigate('dashboard');
@@ -147,7 +147,7 @@ export default function Sidebar({
                 </button>
             </div>
 
-            <div className="p-6 border-b border-slate-100 bg-slate-50">
+            <div className="p-6 border-b border-white/60 bg-white/30">
                 <div className="flex items-center gap-2 mb-4">
                     <Settings className="w-5 h-5 text-blue-600" />
                     <h2 className="font-semibold text-lg">{t('simulation.title')}</h2>
@@ -368,7 +368,7 @@ export default function Sidebar({
             </div>
 
             {/* Bottom Section - Business Plan & Cert Verification */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 space-y-2">
+            <div className="p-4 border-t border-white/60 bg-white/30 space-y-2">
                 <button
                     onClick={() => {
                         if (onNavigate) onNavigate('businessPlan');
@@ -400,7 +400,7 @@ export default function Sidebar({
             </div>
 
             {/* Footer - Credits */}
-            <div className="p-3 border-t border-slate-200 bg-white">
+            <div className="p-3 border-t border-white/60 bg-white/40">
                 <a
                     href="https://it.linkedin.com/in/gabrielerendina"
                     target="_blank"
