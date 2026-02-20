@@ -22,7 +22,16 @@ spec:
 
   # Access rules
   rules:
-    # API routes - forward to backend
+    # OPTIONS preflight - must be noAuth for CORS to work
+    - path: /api/{**}
+      methods:
+        - OPTIONS
+      noAuth: true
+      service:
+        name: backend-service
+        port: 8000
+
+    # API routes - JWT required (token issued by SAP IAS)
     - path: /api/{**}
       methods:
         - GET
@@ -30,13 +39,15 @@ spec:
         - PUT
         - DELETE
         - PATCH
-        - OPTIONS
-      noAuth: true
+      jwt:
+        authentications:
+          - issuer: "https://asojzafbi.accounts.ondemand.com"
+            jwksUri: "https://asojzafbi.accounts.ondemand.com/oauth2/certs"
       service:
         name: backend-service
         port: 8000
 
-    # Health endpoints for backend
+    # Health endpoints - no auth (used by Kyma health checks)
     - path: /health/{**}
       methods:
         - GET
@@ -45,12 +56,9 @@ spec:
         name: backend-service
         port: 8000
 
-    # All other routes - forward to frontend (SPA)
+    # All other routes - frontend SPA (OIDC handled client-side)
     - path: /*
       methods:
         - GET
-        - POST
-        - PUT
-        - DELETE
         - OPTIONS
       noAuth: true
