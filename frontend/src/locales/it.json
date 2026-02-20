@@ -26,7 +26,7 @@
         "config_btn": "Configurazione"
     },
     "app": {
-        "title": "Simulatore Gara Poste",
+        "title": "Tender Simulation",
         "delete_confirm": "Sei sicuro di voler eliminare la Gara/Lotto \"{{name}}\"?",
         "delete_success": "Gara/Lotto \"{{name}}\" eliminato",
         "add_success": "Gara/Lotto \"{{name}}\" creato con successo",

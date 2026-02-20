@@ -328,7 +328,7 @@ function AppContent() {
               <div className="flex items-center gap-2 md:gap-3">
                 <img src="/poste-italiane-logo.svg" alt={t('app.poste_italiane_logo')} className="h-6 md:h-8 object-contain" />
                 <div className="hidden md:block w-px h-8 bg-slate-200"></div>
-                <h1 className="hidden md:block text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                <h1 className="hidden md:block text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
                   {t('app.title')}
                 </h1>
                 <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full shadow-sm">
