@@ -9,8 +9,8 @@ import ConfigPage from './components/ConfigPage';
 import MasterDataConfig from './components/MasterDataConfig';
 import CertVerificationPage from './components/CertVerificationPage';
 import BusinessPlanPage from './features/business-plan/pages/BusinessPlanPage';
-import PilotaDashboard from './components/PilotaDashboard';
 import { BusinessPlanProvider } from './features/business-plan/context/BusinessPlanContext';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Menu, Save } from 'lucide-react';
 import { logger } from './utils/logger';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -368,14 +368,6 @@ function AppContent() {
                 <span className="hidden md:inline">{t('common.master_data')}</span>
               </button>
               <button
-                onClick={() => setView('pilota')}
-                className={`hidden sm:flex items-center gap-2 px-2 md:px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'pilota' ? 'bg-purple-50 text-purple-700 ring-1 ring-purple-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                aria-label="Pilota UX"
-              >
-                <span className="text-xs">✦</span>
-                <span className="hidden md:inline">Pilota</span>
-              </button>
-              <button
                 onClick={handleUnifiedSave}
                 className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl transition-all font-medium text-sm bg-green-500 text-white hover:bg-green-600 shadow-sm"
                 aria-label={t('common.save')}
@@ -388,59 +380,68 @@ function AppContent() {
           </div>
         </header>
 
-        {view === 'config' ? (
-          <ConfigPage
-            onAddLot={async (lotName) => {
-              try {
-                await axios.post(`${API_URL}/config/add?lot_key=${encodeURIComponent(lotName)}`);
-                await refetchConfig();
-                setLot(lotName);
-                success(t('app.add_success', { name: lotName }) || `Lotto "${lotName}" aggiunto con successo`);
-              } catch (err) {
-                logger.error("Failed to add lot", err, { component: "ConfigPage", lotName });
-                showError(t('app.add_error') || 'Errore durante l\'aggiunta del lotto');
-              }
-            }}
-            onDeleteLot={async (lotKey) => {
-              if (!window.confirm(t('app.delete_confirm', { name: lotKey }))) return;
-              try {
-                await axios.delete(`${API_URL}/config/${encodeURIComponent(lotKey)}`);
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="flex-1 overflow-auto flex flex-col min-h-0"
+          >
+            {view === 'config' ? (
+              <ConfigPage
+                onAddLot={async (lotName) => {
+                  try {
+                    await axios.post(`${API_URL}/config/add?lot_key=${encodeURIComponent(lotName)}`);
+                    await refetchConfig();
+                    setLot(lotName);
+                    success(t('app.add_success', { name: lotName }) || `Lotto "${lotName}" aggiunto con successo`);
+                  } catch (err) {
+                    logger.error("Failed to add lot", err, { component: "ConfigPage", lotName });
+                    showError(t('app.add_error') || 'Errore durante l\'aggiunta del lotto');
+                  }
+                }}
+                onDeleteLot={async (lotKey) => {
+                  if (!window.confirm(t('app.delete_confirm', { name: lotKey }))) return;
+                  try {
+                    await axios.delete(`${API_URL}/config/${encodeURIComponent(lotKey)}`);
 
-                // Reset selected lot to trigger auto-select after refetch
-                if (selectedLot === lotKey) {
-                  setLot(null);
-                }
+                    // Reset selected lot to trigger auto-select after refetch
+                    if (selectedLot === lotKey) {
+                      setLot(null);
+                    }
 
-                await refetchConfig();
-                // Refresh will trigger auto-select of first available lot
-                setView('dashboard');
-                success(t('app.delete_success', { name: lotKey }) || `Lotto "${lotKey}" eliminato con successo`);
-              } catch (err) {
-                logger.error("Failed to delete lot", err, { component: "ConfigPage", lotKey });
-                showError(t('app.delete_error') || 'Errore durante l\'eliminazione del lotto');
-              }
-            }}
-          />
-        ) : view === 'pilota' ? (
-          <PilotaDashboard />
-        ) : view === 'master' ? (
-          <MasterDataConfig />
-        ) : view === 'certs' ? (
-          <CertVerificationPage />
-        ) : view === 'businessPlan' ? (
-          <BusinessPlanProvider activeView={view}>
-            <BusinessPlanPage />
-          </BusinessPlanProvider>
-        ) : (
-          <div className="flex-1 overflow-auto p-3 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-            <div className="lg:col-span-7 space-y-4 md:space-y-6">
-              <TechEvaluator />
-            </div>
-            <div className="lg:col-span-5 space-y-4 md:space-y-6">
-              <Dashboard onNavigate={setView} />
-            </div>
-          </div>
-        )}
+                    await refetchConfig();
+                    // Refresh will trigger auto-select of first available lot
+                    setView('dashboard');
+                    success(t('app.delete_success', { name: lotKey }) || `Lotto "${lotKey}" eliminato con successo`);
+                  } catch (err) {
+                    logger.error("Failed to delete lot", err, { component: "ConfigPage", lotKey });
+                    showError(t('app.delete_error') || 'Errore durante l\'eliminazione del lotto');
+                  }
+                }}
+              />
+            ) : view === 'master' ? (
+              <MasterDataConfig />
+            ) : view === 'certs' ? (
+              <CertVerificationPage />
+            ) : view === 'businessPlan' ? (
+              <BusinessPlanProvider activeView={view}>
+                <BusinessPlanPage />
+              </BusinessPlanProvider>
+            ) : (
+              <div className="flex-1 overflow-auto p-3 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+                <div className="lg:col-span-7 space-y-4 md:space-y-6">
+                  <TechEvaluator />
+                </div>
+                <div className="lg:col-span-5 space-y-4 md:space-y-6">
+                  <Dashboard onNavigate={setView} />
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );
