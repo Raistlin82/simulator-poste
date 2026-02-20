@@ -253,3 +253,78 @@ input, button, select, textarea {
   .text-responsive-xs { font-size: 0.75rem; }
   .text-responsive-sm { font-size: 0.875rem; }
 }
+
+/* ─── shadcn/ui CSS variables (Tailwind v4, slate theme) ──────────────────── */
+@layer base {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0.028 262);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0.028 262);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0.028 262);
+    --primary: oklch(0.546 0.245 262.88);
+    --primary-foreground: oklch(0.985 0.002 247.86);
+    --secondary: oklch(0.967 0.003 264.5);
+    --secondary-foreground: oklch(0.21 0.034 264.67);
+    --muted: oklch(0.967 0.003 264.5);
+    --muted-foreground: oklch(0.556 0.014 285.86);
+    --accent: oklch(0.967 0.003 264.5);
+    --accent-foreground: oklch(0.21 0.034 264.67);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0.002 247.86);
+    --border: oklch(0.929 0.013 255.51);
+    --input: oklch(0.929 0.013 255.51);
+    --ring: oklch(0.546 0.245 262.88);
+    --radius: 0.75rem;
+  }
+
+  [data-theme="dark"] {
+    --background: oklch(0.145 0.028 262);
+    --foreground: oklch(0.985 0.002 247.86);
+    --card: oklch(0.205 0.034 264.67);
+    --card-foreground: oklch(0.985 0.002 247.86);
+    --popover: oklch(0.205 0.034 264.67);
+    --popover-foreground: oklch(0.985 0.002 247.86);
+    --primary: oklch(0.623 0.214 259.08);
+    --primary-foreground: oklch(0.985 0.002 247.86);
+    --secondary: oklch(0.269 0.034 264.67);
+    --secondary-foreground: oklch(0.985 0.002 247.86);
+    --muted: oklch(0.269 0.034 264.67);
+    --muted-foreground: oklch(0.71 0.01 286.07);
+    --accent: oklch(0.269 0.034 264.67);
+    --accent-foreground: oklch(0.985 0.002 247.86);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0.002 247.86);
+    --border: oklch(0.269 0.034 264.67);
+    --input: oklch(0.269 0.034 264.67);
+    --ring: oklch(0.623 0.214 259.08);
+  }
+}
+
+/* ─── shadcn/ui → Tailwind v4 theme mapping ───────────────────────────────── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
