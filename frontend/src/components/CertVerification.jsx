@@ -13,6 +13,7 @@
 import { useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from '../utils/api';
+import { logger } from '../utils/logger';
 
 // Status badge colors
 const STATUS_COLORS = {
@@ -115,7 +116,7 @@ export default function CertVerification({ onClose }) {
       const res = await axios.post(`${API_URL}/verify-certs`, null, { params });
       setResults(res.data);
     } catch (err) {
-      console.error('[CertVerification] Error:', err);
+      logger.error('[CertVerification] Error', err);
       const errorMsg = err.response?.data?.detail || err.message || 'Errore sconosciuto';
       setError(errorMsg);
     } finally {
@@ -160,7 +161,7 @@ export default function CertVerification({ onClose }) {
       setResults(res.data);
       setUploadProgress(null);
     } catch (err) {
-      console.error('[CertVerification] Upload error:', err);
+      logger.error('[CertVerification] Upload error', err);
       const errorMsg = err.response?.data?.detail || err.message || 'Errore sconosciuto';
       setError(errorMsg);
       setUploadProgress(null);

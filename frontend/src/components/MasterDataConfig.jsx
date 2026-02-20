@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2 } from 'lucide-react';
 import { API_URL } from '../utils/api';
 import { useConfig } from '../features/config/context/ConfigContext';
+import { logger } from '../utils/logger';
 
 export default function MasterDataConfig() {
     const { t } = useTranslation();
@@ -41,7 +42,7 @@ export default function MasterDataConfig() {
             // Refresh ConfigContext so other components (TechEvaluator) get updated masterData
             if (refetchConfig) refetchConfig();
         } catch (error) {
-            console.error('Error saving master data:', error);
+            logger.error('Error saving master data', error);
             showToast('error', `Errore: ${error.response?.data?.detail || error.message}`);
         }
     }, [refetchConfig]);
@@ -83,7 +84,7 @@ export default function MasterDataConfig() {
                 setData(cleanedData);
                 setVendors(vendorRes.data || []);
             } catch (error) {
-                console.error("Error fetching master data:", error);
+                logger.error('Error fetching master data', error);
             } finally {
                 setLoading(false);
             }
@@ -137,7 +138,7 @@ export default function MasterDataConfig() {
             ));
             showToast('success', `${vendor.name} ${!vendor.enabled ? 'abilitato' : 'disabilitato'}`);
         } catch (error) {
-            console.error("Error toggling vendor:", error);
+            logger.error('Error toggling vendor', error);
             showToast('error', `Errore: ${error.response?.data?.detail || error.message}`);
         }
     };
@@ -152,7 +153,7 @@ export default function MasterDataConfig() {
             ));
             showToast('success', 'Salvato');
         } catch (error) {
-            console.error("Error updating vendor:", error);
+            logger.error('Error updating vendor', error);
             showToast('error', `Errore: ${error.response?.data?.detail || error.message}`);
         }
     };
@@ -225,7 +226,7 @@ export default function MasterDataConfig() {
             setShowAddVendor(false);
             showToast('success', `Vendor "${newVendor.name}" creato`);
         } catch (error) {
-            console.error("Error creating vendor:", error);
+            logger.error('Error creating vendor', error);
             showToast('error', `Errore: ${error.response?.data?.detail || error.message}`);
         }
     };
@@ -250,7 +251,7 @@ export default function MasterDataConfig() {
             
             showToast('success', `Vendor "${vendor.name}" eliminato`);
         } catch (error) {
-            console.error("Error deleting vendor:", error);
+            logger.error('Error deleting vendor', error);
             showToast('error', `Errore: ${error.response?.data?.detail || error.message}`);
         }
     };

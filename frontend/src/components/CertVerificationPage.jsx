@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_URL } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { logger } from '../utils/logger';
 import { 
   Search, 
   FileSearch, 
@@ -141,7 +142,7 @@ export default function CertVerificationPage() {
         setLots(lotKeys);
         // Don't auto-select - keep it optional
       } catch (err) {
-        console.error('Failed to fetch lots:', err);
+        logger.error('Failed to fetch lots', err);
       }
     };
     fetchLots();
@@ -357,7 +358,7 @@ export default function CertVerificationPage() {
                 setError(event.message);
               }
             } catch (parseErr) {
-              console.error('Failed to parse SSE event:', parseErr);
+              logger.error('Failed to parse SSE event', parseErr);
             }
           }
         }
@@ -480,7 +481,7 @@ export default function CertVerificationPage() {
         return { ...prev, results: newResults, summary };
       });
     } catch (err) {
-      console.error('Retry failed:', err);
+      logger.error('Retry failed', err);
     } finally {
       setRetryingFile(null);
     }

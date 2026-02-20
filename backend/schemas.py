@@ -362,7 +362,7 @@ class SubcontractConfig(BaseModel):
 
 class BusinessPlanCreate(BaseModel):
     """Schema per creare/aggiornare un Business Plan"""
-    duration_months: int = 36
+    duration_months: int = Field(default=36, ge=1, le=240, description="Durata contratto in mesi (1-240)")
     start_year: Optional[int] = Field(default=None, description="Anno inizio contratto (es. 2026)")
     start_month: Optional[int] = Field(default=None, ge=1, le=12, description="Mese inizio contratto (1-12)")
     days_per_fte: float = 220.0

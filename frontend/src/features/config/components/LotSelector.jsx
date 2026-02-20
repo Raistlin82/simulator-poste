@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_URL } from '../../../utils/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import { logger } from '../../../utils/logger';
 
 /**
  * LotSelector - Dropdown lot selector with add/delete/import/export actions
@@ -51,7 +52,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Export lot error:', err);
+      logger.error('Export lot error', err);
       alert(t('config.export_error', 'Errore durante l\'export del lotto'));
     }
   };
@@ -74,7 +75,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Download template error:', err);
+      logger.error('Download template error', err);
       alert(t('config.template_download_error', 'Errore nel download del template'));
     }
   };
@@ -142,7 +143,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
         onImportSuccess(result.lot_key);
       }
     } catch (err) {
-      console.error('Import error:', err);
+      logger.error('Import error', err);
       setImportResult({
         success: false,
         message: err.response?.data?.detail || t('config.import_error', 'Errore durante l\'importazione'),

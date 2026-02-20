@@ -79,13 +79,17 @@ export function BusinessPlanProvider({ children, activeView }) {
   useEffect(() => {
     if (activeView !== 'businessPlan') return;
 
-    axios.get(`${API_URL}/practices/`)
+    const controller = new AbortController();
+
+    axios.get(`${API_URL}/practices/`, { signal: controller.signal })
       .then(res => setPractices(res.data))
       .catch(err => {
-        if (err.name !== 'CanceledError') {
+        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
           logger.error('Failed to fetch practices', err);
         }
       });
+
+    return () => controller.abort();
   }, [activeView]);
 
   // Save / create BP

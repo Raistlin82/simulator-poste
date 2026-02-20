@@ -4,8 +4,13 @@ SQLAlchemy database models for Poste Tender Simulator
 
 from sqlalchemy import Column, String, Float, JSON, Text, Boolean, Integer, DateTime, ForeignKey
 from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
-from datetime import datetime
+from datetime import datetime, timezone
 from database import Base
+
+
+def utc_now():
+    """Return timezone-aware UTC datetime"""
+    return datetime.now(timezone.utc)
 
 
 class LotConfigModel(Base):
@@ -110,9 +115,9 @@ class BusinessPlanModel(Base):
     __tablename__ = "business_plans"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lot_key = Column(String(255), ForeignKey("lot_configs.name"), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    lot_key = Column(String(255), ForeignKey("lot_configs.name", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Parametri generali
     duration_months = Column(Integer, default=36)
