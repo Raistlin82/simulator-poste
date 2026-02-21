@@ -819,6 +819,11 @@ export default function BusinessPlanPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const isRti = lotData?.rti_enabled || false;
+  const quotaLutech = isRti && lotData?.rti_quotas?.Lutech
+    ? lotData.rti_quotas.Lutech / 100
+    : 1.0;
+
   const handleExcelExport = async () => {
     if (!localBP || !lotData || !calcResult) return;
 
@@ -1114,11 +1119,6 @@ export default function BusinessPlanPage() {
     }
   };
 
-  const isRti = lotData?.rti_enabled || false;
-  const quotaLutech = isRti && lotData?.rti_quotas?.Lutech
-    ? lotData.rti_quotas.Lutech / 100
-    : 1.0;
-
   // Base d'asta effettiva per Lutech: se RTI, e gia la quota Lutech
   const effectiveBaseAmount = (lotData?.base_amount || 0) * quotaLutech;
 
@@ -1187,7 +1187,7 @@ export default function BusinessPlanPage() {
       let quantity = 0;
       if (tow.type === 'task') {
         quantity = parseInt(tow.num_tasks) || 0;
-      } else if (tow.type === 'corpo') {
+      } else if (tow.type === 'corpo' || tow.type === 'canone') {
         quantity = parseInt(tow.duration_months) || parseInt(localBP.duration_months) || 36;
       } else {
         quantity = 1; // Consumo default

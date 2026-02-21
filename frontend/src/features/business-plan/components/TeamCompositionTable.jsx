@@ -91,7 +91,9 @@ export default function TeamCompositionTable({
 
       // Auto-calculate days when FTE changes
       if (field === 'fte') {
-        updatedProfile.days_year = parseFloat(value) * DAYS_PER_FTE;
+        const clampedFte = Math.max(0, parseFloat(value) || 0);
+        updatedProfile.fte = clampedFte;
+        updatedProfile.days_year = clampedFte * DAYS_PER_FTE;
       }
 
       return updatedProfile;
@@ -106,7 +108,7 @@ export default function TeamCompositionTable({
         ...p,
         tow_allocation: {
           ...p.tow_allocation,
-          [towId]: parseFloat(pct) || 0
+          [towId]: Math.min(100, Math.max(0, parseFloat(pct) || 0))
         }
       };
     });

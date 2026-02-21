@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Target, Loader2, FileSearch } from 'lucide-react';
 import axios from 'axios';
@@ -11,6 +12,15 @@ import { useSimulation } from '../features/simulation/context/SimulationContext'
 import { useToast } from '../shared/components/ui/Toast';
 import { logger } from '../utils/logger';
 import { API_URL } from '../utils/api';
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.09, duration: 0.35, ease: 'easeOut' },
+  }),
+};
 
 export default function Dashboard({ onNavigate }) {
     const { t } = useTranslation();
@@ -223,6 +233,7 @@ export default function Dashboard({ onNavigate }) {
         <div className="space-y-6 sticky top-6">
 
             {/* 1. Score Cards */}
+            <motion.div custom={0} initial="hidden" animate="visible" variants={fadeUp}>
             <ScoreGauges
                 results={results}
                 lotData={lotData}
@@ -232,9 +243,10 @@ export default function Dashboard({ onNavigate }) {
                 exportLoading={exportLoading}
                 excelExportLoading={excelExportLoading}
             />
+            </motion.div>
 
             {/* Strategic Analysis (Monte Carlo) */}
-            <div className="glass-card rounded-xl p-6 overflow-hidden relative">
+            <motion.div custom={1} initial="hidden" animate="visible" variants={fadeUp} className="glass-card rounded-xl p-6 overflow-hidden relative">
                 <div className="relative z-10">
                     {/* Competitor Inputs for Optimizer */}
                     <div className="mb-6 pb-6 border-b border-slate-100">
@@ -379,7 +391,7 @@ export default function Dashboard({ onNavigate }) {
                                 {/* Scenarios Grid */}
                                 <div className="text-[10px] text-slate-600 uppercase font-bold mb-2">{t('dashboard.discount_scenarios')}</div>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {optimizerResults.scenarios?.map((scenario) => {
+                                    {optimizerResults.scenarios?.map((scenario, i) => {
                                         const colorClasses = {
                                             'Conservativo': 'border-yellow-200 bg-yellow-50',
                                             'Bilanciato': 'border-blue-200 bg-blue-50',
@@ -394,9 +406,12 @@ export default function Dashboard({ onNavigate }) {
                                         };
 
                                         return (
-                                            <div
+                                            <motion.div
                                                 key={scenario.name}
-                                                className={`p-3 rounded-lg border-2 ${colorClasses[scenario.name] || 'border-slate-200 bg-slate-50'} transition-all hover:shadow-md cursor-pointer`}
+                                                className={`p-3 rounded-lg border-2 ${colorClasses[scenario.name] || 'border-slate-200 bg-slate-50'} cursor-pointer`}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.28, ease: 'easeOut' } }}
+                                                whileHover={{ scale: 1.02, y: -3, transition: { duration: 0.15, ease: 'easeOut' } }}
                                             >
                                                 <div className={`text-xs font-bold mb-2 ${textColorClasses[scenario.name] || 'text-slate-700'}`}>
                                                     {t(`dashboard.scenarios.${scenario.name.toLowerCase()}`)}
@@ -435,7 +450,7 @@ export default function Dashboard({ onNavigate }) {
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </motion.div>
                                         );
                                     })}
                                 </div>
@@ -444,9 +459,10 @@ export default function Dashboard({ onNavigate }) {
                     </div>
 
                 </div>
-            </div>
+            </motion.div>
 
             {/* 2. Simulation Chart */}
+            <motion.div custom={2} initial="hidden" animate="visible" variants={fadeUp}>
             <SimulationChart
                 simulationData={simulationData}
                 monteCarlo={monteCarlo}
@@ -454,10 +470,10 @@ export default function Dashboard({ onNavigate }) {
                 myDiscount={myDiscount}
                 competitorDiscount={competitorDiscount}
             />
-
+            </motion.div>
 
             {/* 3. Detailed Score Table */}
-            <div className="glass-card rounded-xl overflow-hidden">
+            <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="glass-card rounded-xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                     <h3 className="font-semibold text-slate-800">{t('dashboard.detail_table')}</h3>
                     <div className="flex gap-2">
@@ -550,7 +566,7 @@ export default function Dashboard({ onNavigate }) {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </motion.div>
 
         </div>
     );

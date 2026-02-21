@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 import {
   Receipt,
   TrendingUp,
@@ -59,15 +60,6 @@ export default function ProfitAndLoss({
       effectiveTarget,
     };
   }, [baseAmount, discount, costs, cleanTeamCost, targetMargin, riskContingency]);
-
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val);
-  };
 
   const getMarginStatus = () => {
     if (pnl.marginPct >= pnl.effectiveTarget) {
@@ -234,27 +226,30 @@ export default function ProfitAndLoss({
               </div>
             </div>
 
-            {pnl.effectiveTarget > 0 && (
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-slate-500">
-                  <span>0%</span>
-                  <span>Target {pnl.effectiveTarget.toFixed(0)}%</span>
+            {pnl.effectiveTarget > 0 && (() => {
+              const barMax = Math.max(pnl.effectiveTarget, pnl.marginPct, 30);
+              return (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>0%</span>
+                    <span>Target {pnl.effectiveTarget.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden relative">
+                    <div
+                      className="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10"
+                      style={{ left: `${(pnl.effectiveTarget / barMax) * 100}%` }}
+                    />
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        status.color === 'green' ? 'bg-green-500' :
+                        status.color === 'amber' ? 'bg-amber-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.max(0, Math.min(pnl.marginPct, barMax)) / barMax * 100}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden relative">
-                  <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10"
-                    style={{ left: `${Math.min(pnl.effectiveTarget, 50) / 50 * 100}%` }}
-                  />
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      status.color === 'green' ? 'bg-green-500' :
-                      status.color === 'amber' ? 'bg-amber-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${Math.max(0, Math.min(pnl.marginPct, 50)) / 50 * 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -265,15 +260,6 @@ export default function ProfitAndLoss({
 // --- Sub-components ---
 
 function Row({ label, value, negative = false, bold = false }) {
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(Math.abs(val));
-  };
-
   return (
     <div className={`flex justify-between items-center text-sm ${bold ? 'pt-1' : ''}`}>
       <span className={`${bold ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
@@ -283,7 +269,7 @@ function Row({ label, value, negative = false, bold = false }) {
         ${bold ? 'font-bold text-slate-800' : 'font-medium text-slate-700'}
         ${negative ? 'text-red-600' : ''}
       `}>
-        {negative ? '- ' : ''}{formatCurrency(value)}
+        {negative ? '- ' : ''}{formatCurrency(Math.abs(value))}
       </span>
     </div>
   );

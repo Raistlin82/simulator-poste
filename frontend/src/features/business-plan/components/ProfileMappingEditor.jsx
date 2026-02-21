@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRightLeft,
@@ -37,6 +38,7 @@ export default function ProfileMappingEditor({
 }) {
   const { t } = useTranslation();
   const [expandedProfile, setExpandedProfile] = useState(null);
+  const [splitModal, setSplitModal] = useState(null); // { profileId, periodIndex, value }
 
   const lutechProfiles = useMemo(() => {
     return practices.flatMap(practice =>
@@ -288,7 +290,7 @@ export default function ProfileMappingEditor({
     });
   };
 
-  const formatCurrency = (val) => `€${val.toFixed(2)}`;
+
 
   // Compute per-profile adjusted FTE from volume adjustments (Integrated: Profile + Reuse + TOW)
   const profileAdjustments = useMemo(() => {
@@ -624,10 +626,13 @@ export default function ProfileMappingEditor({
                             </div>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => {
-                                  const split = prompt("Inserisci il mese in cui dividere questo periodo:", (periodMapping.month_start || 1) + 1);
-                                  if (split) handleSplitPeriod(profileId, periodIndex, parseInt(split));
-                                }}
+                                onClick={() => setSplitModal({
+                                  profileId,
+                                  periodIndex,
+                                  value: String((periodMapping.month_start || 1) + 1),
+                                  min: (periodMapping.month_start || 1) + 1,
+                                  max: periodMapping.month_end || durationMonths,
+                                })}
                                 className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                                 title="Dividi manualmente questo periodo"
                                 disabled={disabled}
@@ -929,6 +934,59 @@ export default function ProfileMappingEditor({
               </div>
             </div>
           </details>
+        </div>
+      )}
+
+      {/* Split Period Modal */}
+      {splitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-80 flex flex-col gap-4">
+            <h3 className="text-sm font-semibold text-slate-800">Dividi periodo</h3>
+            <p className="text-xs text-slate-500">
+              Inserisci il mese in cui dividere il periodo
+              ({splitModal.min} – {splitModal.max}):
+            </p>
+            <input
+              type="number"
+              min={splitModal.min}
+              max={splitModal.max}
+              value={splitModal.value}
+              onChange={(e) => setSplitModal(prev => ({ ...prev, value: e.target.value }))}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const month = parseInt(splitModal.value);
+                  if (month >= splitModal.min && month <= splitModal.max) {
+                    handleSplitPeriod(splitModal.profileId, splitModal.periodIndex, month);
+                    setSplitModal(null);
+                  }
+                } else if (e.key === 'Escape') {
+                  setSplitModal(null);
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setSplitModal(null)}
+                className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  const month = parseInt(splitModal.value);
+                  if (month >= splitModal.min && month <= splitModal.max) {
+                    handleSplitPeriod(splitModal.profileId, splitModal.periodIndex, month);
+                    setSplitModal(null);
+                  }
+                }}
+                className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Dividi
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

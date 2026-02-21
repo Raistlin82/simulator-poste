@@ -32,7 +32,8 @@ export default function TowConfigTable({
   const towTypes = [
     { value: 'task', label: 'Task', color: 'blue' },
     { value: 'corpo', label: 'A Corpo', color: 'purple' },
-    { value: 'consumo', label: 'A Consumo', color: 'amber' }
+    { value: 'consumo', label: 'A Consumo', color: 'amber' },
+    { value: 'canone', label: 'Canone Mensile', color: 'green' }
   ];
 
   const handleAddTow = () => {
@@ -58,9 +59,15 @@ export default function TowConfigTable({
   };
 
   const handleUpdateTow = (index, field, value) => {
+    let processed = value;
+    if (field === 'weight_pct') {
+      processed = Math.min(100, Math.max(0, parseFloat(value) || 0));
+    } else if (field === 'num_tasks' || field === 'duration_months') {
+      processed = Math.max(0, parseInt(value) || 0);
+    }
     const updated = tows.map((t, i) => {
       if (i !== index) return t;
-      return { ...t, [field]: value };
+      return { ...t, [field]: processed };
     });
     onChange?.(updated);
   };
@@ -82,7 +89,8 @@ export default function TowConfigTable({
     const colors = {
       blue: 'bg-blue-100 text-blue-700',
       purple: 'bg-purple-100 text-purple-700',
-      amber: 'bg-amber-100 text-amber-700'
+      amber: 'bg-amber-100 text-amber-700',
+      green: 'bg-green-100 text-green-700'
     };
     return colors[t.color];
   };
@@ -100,7 +108,7 @@ export default function TowConfigTable({
       let totalMonths = 0;
       let weightedFactor = 0;
       const periodDetails = [];
-      const qty = tow.type === 'task' ? (tow.num_tasks || 0) : (tow.duration_months || 0);
+      const qty = tow.type === 'task' ? (tow.num_tasks || 0) : (tow.type === 'consumo' ? 0 : (tow.duration_months || 0));
 
       for (const period of periods) {
         const start = period.month_start || 1;
@@ -284,7 +292,7 @@ export default function TowConfigTable({
                                    focus:border-indigo-300 focus:outline-none text-xs
                                    disabled:bg-slate-50 disabled:cursor-not-allowed"
                       />
-                    ) : tow.type === 'corpo' ? (
+                    ) : tow.type === 'corpo' || tow.type === 'canone' ? (
                       <input
                         type="number"
                         value={tow.duration_months || ''}
@@ -427,7 +435,7 @@ export default function TowConfigTable({
                       className="w-full px-2 py-1 text-center text-xs border border-indigo-300 rounded
                                  focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
-                  ) : newTow.type === 'corpo' ? (
+                  ) : newTow.type === 'corpo' || newTow.type === 'canone' ? (
                     <input
                       type="number"
                       value={newTow.duration_months || ''}

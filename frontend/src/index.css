@@ -1,92 +1,7 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: 'Inter', sans-serif;
-}
-
-/* ─── Theme Tokens ────────────────────────────────────────────────────────── */
-:root {
-  /* Background palette */
-  --bg-base: #dde3f5;
-
-  /* Glass – primary (sidebar, header, major cards) */
-  --glass-bg:     rgba(255, 255, 255, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.85);
-  --glass-shadow:
-    0 8px 32px rgba(15, 23, 42, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-
-  /* Glass – subtle (inner panels, section headers) */
-  --glass-subtle-bg:     rgba(255, 255, 255, 0.48);
-  --glass-subtle-border: rgba(255, 255, 255, 0.70);
-  --glass-subtle-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-
-  /* Surfaces (content cards, bg-white overrides) */
-  --surface-1: rgba(255, 255, 255, 0.90);
-  --surface-2: rgba(248, 250, 252, 0.85);
-  --surface-3: rgba(241, 245, 249, 0.75);
-
-  /* Text */
-  --text-1: #0f172a;
-  --text-2: #334155;
-  --text-3: #64748b;
-  --text-4: #94a3b8;
-
-  /* Borders */
-  --border-1: rgba(148, 163, 184, 0.28);
-  --border-2: rgba(148, 163, 184, 0.48);
-
-  /* White alpha helpers */
-  --white-10:  rgba(255, 255, 255, 0.08);
-  --white-20:  rgba(255, 255, 255, 0.16);
-}
-
-[data-theme="dark"] {
-  /* Background palette */
-  --bg-base: #060c1a;
-
-  /* Glass – primary */
-  --glass-bg:     rgba(8, 14, 30, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.11);
-  --glass-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-
-  /* Glass – subtle */
-  --glass-subtle-bg:     rgba(8, 14, 30, 0.52);
-  --glass-subtle-border: rgba(255, 255, 255, 0.07);
-  --glass-subtle-shadow: 0 2px 8px rgba(0, 0, 0, 0.30);
-
-  /* Surfaces */
-  --surface-1: rgba(12, 20, 44, 0.90);
-  --surface-2: rgba(22, 33, 62, 0.82);
-  --surface-3: rgba(36, 50, 85, 0.72);
-
-  /* Text */
-  --text-1: #f1f5f9;
-  --text-2: #cbd5e1;
-  --text-3: #94a3b8;
-  --text-4: #64748b;
-
-  /* Borders */
-  --border-1: rgba(255, 255, 255, 0.09);
-  --border-2: rgba(255, 255, 255, 0.17);
-
-  /* White alpha helpers */
-  --white-10: rgba(255, 255, 255, 0.05);
-  --white-20: rgba(255, 255, 255, 0.09);
-}
-
-/* ─── App-wide Background ─────────────────────────────────────────────────── */
 body {
   background-color: var(--bg-base);
-  background-image:
-    radial-gradient(ellipse at 15% 10%, rgba(99, 102, 241, 0.13) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 90%, rgba(59, 130, 246, 0.13) 0%, transparent 55%),
-    radial-gradient(ellipse at 55%  0%, rgba(139, 92, 246, 0.09) 0%, transparent 40%),
-    radial-gradient(ellipse at  0% 60%, rgba(16, 185, 129, 0.07) 0%, transparent 40%);
-  background-attachment: fixed;
-  font-family: var(--font-sans);
   color: var(--text-1);
   transition: background-color 0.45s ease, color 0.25s ease;
 }
@@ -337,4 +252,79 @@ input, button, select, textarea {
 @media (max-width: 640px) {
   .text-responsive-xs { font-size: 0.75rem; }
   .text-responsive-sm { font-size: 0.875rem; }
+}
+
+/* ─── shadcn/ui CSS variables (Tailwind v4, slate theme) ──────────────────── */
+@layer base {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0.028 262);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0.028 262);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0.028 262);
+    --primary: oklch(0.546 0.245 262.88);
+    --primary-foreground: oklch(0.985 0.002 247.86);
+    --secondary: oklch(0.967 0.003 264.5);
+    --secondary-foreground: oklch(0.21 0.034 264.67);
+    --muted: oklch(0.967 0.003 264.5);
+    --muted-foreground: oklch(0.556 0.014 285.86);
+    --accent: oklch(0.967 0.003 264.5);
+    --accent-foreground: oklch(0.21 0.034 264.67);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0.002 247.86);
+    --border: oklch(0.929 0.013 255.51);
+    --input: oklch(0.929 0.013 255.51);
+    --ring: oklch(0.546 0.245 262.88);
+    --radius: 0.75rem;
+  }
+
+  [data-theme="dark"] {
+    --background: oklch(0.145 0.028 262);
+    --foreground: oklch(0.985 0.002 247.86);
+    --card: oklch(0.205 0.034 264.67);
+    --card-foreground: oklch(0.985 0.002 247.86);
+    --popover: oklch(0.205 0.034 264.67);
+    --popover-foreground: oklch(0.985 0.002 247.86);
+    --primary: oklch(0.623 0.214 259.08);
+    --primary-foreground: oklch(0.985 0.002 247.86);
+    --secondary: oklch(0.269 0.034 264.67);
+    --secondary-foreground: oklch(0.985 0.002 247.86);
+    --muted: oklch(0.269 0.034 264.67);
+    --muted-foreground: oklch(0.71 0.01 286.07);
+    --accent: oklch(0.269 0.034 264.67);
+    --accent-foreground: oklch(0.985 0.002 247.86);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0.002 247.86);
+    --border: oklch(0.269 0.034 264.67);
+    --input: oklch(0.269 0.034 264.67);
+    --ring: oklch(0.623 0.214 259.08);
+  }
+}
+
+/* ─── shadcn/ui → Tailwind v4 theme mapping ───────────────────────────────── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }

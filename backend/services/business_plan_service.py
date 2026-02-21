@@ -73,24 +73,40 @@ class BusinessPlanService:
     def _get_mix_for_year(profile_mapping: List[Dict[str, Any]], year: int) -> Optional[List[Dict[str, Any]]]:
         """
         Trova il mix di profili corretto per un dato anno da una mappatura time-varying.
+        Supporta due formati:
+        - Nuovo (TimeVaryingMix): [{"month_start": 1, "month_end": 12, "mix": [...]}]
+        - Vecchio (label): [{"period": "Anno 1", "mix": [...]}]
+        - Semplice (lista diretta): [{"lutech_profile": "...", "pct": ...}]
         """
         if not profile_mapping:
             return None
 
-        # Caso 1: Mapping semplice, non time-varying (formato vecchio/semplificato)
-        # [{"lutech_profile": "dev_sr", "pct": 1.0}]
-        if "period" not in profile_mapping[0]:
+        first = profile_mapping[0]
+
+        # Caso 1: Mapping semplice, non time-varying (lista diretta di profili)
+        if "lutech_profile" in first:
             return profile_mapping
 
-        # Caso 2: Mapping time-varying
+        # Caso 2: Formato nuovo con month_start/month_end (schema TimeVaryingMix)
+        if "month_start" in first:
+            year_start_month = (year - 1) * 12 + 1
+            year_end_month = year * 12
+            last_valid = None
+            for item in profile_mapping:
+                ms = item.get("month_start", 1)
+                me = item.get("month_end", year_end_month)
+                if ms <= year_end_month and me >= year_start_month:
+                    return item.get("mix")
+                if ms <= year_start_month:
+                    last_valid = item.get("mix")
+            return last_valid
+
+        # Caso 3: Formato vecchio con label "Anno X" / "Anno X+"
         best_match = None
         for item in profile_mapping:
             period_label = item.get("period", "").strip()
-            # Match esatto "Anno X"
             if period_label == f"Anno {year}":
                 return item.get("mix")
-            
-            # Match generico "Anno X+"
             if period_label.endswith("+"):
                 try:
                     start_year = int(period_label.replace("Anno", "").replace("+", "").strip())
@@ -98,8 +114,7 @@ class BusinessPlanService:
                         best_match = item.get("mix")
                 except ValueError:
                     continue
-        
-        # Se nessun match esatto, ritorna l'ultimo "X+" valido o None
+
         return best_match
 
 
@@ -283,8 +298,8 @@ class BusinessPlanService:
                     })
                 else:
                     for mix_item in mix:
-                        lutech_id = mix_item.get("lutech_profile") if isinstance(mix_item, dict) else getattr(mix_item, "lutech_profile")
-                        pct = (mix_item.get("pct") if isinstance(mix_item, dict) else getattr(mix_item, "pct")) / 100.0
+                        lutech_id = (mix_item.get("lutech_profile") if isinstance(mix_item, dict) else getattr(mix_item, "lutech_profile")) or ""
+                        pct = (mix_item.get("pct") or 0 if isinstance(mix_item, dict) else getattr(mix_item, "pct") or 0) / 100.0
                         rate = profile_rates.get(lutech_id, default_daily_rate) * inflation_factor
                         
                         # WYSIWYG: Round days per profile
@@ -505,15 +520,15 @@ class BusinessPlanService:
     def generate_scenarios(
         bp_data: Dict[str, Any],
         base_amount: float,
-        team_composition: List[Dict[str, Any]] = None,
-        volume_adjustments: Dict[str, Any] = None,
-        profile_mappings: Dict[str, Any] = None,
-        profile_rates: Dict[str, float] = None,
+        team_composition: Optional[List[Dict[str, Any]]] = None,
+        volume_adjustments: Optional[Dict[str, Any]] = None,
+        profile_mappings: Optional[Dict[str, Any]] = None,
+        profile_rates: Optional[Dict[str, float]] = None,
         duration_months: int = 36,
         default_daily_rate: float = 250.0,
         governance_pct: float = 0.04,
         risk_contingency_pct: float = 0.03,
-        subcontract_config: Dict[str, Any] = None,
+        subcontract_config: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Genera 3 scenari: Conservative/Balanced/Aggressive.
@@ -552,10 +567,10 @@ class BusinessPlanService:
 
                 # Ricalcola team cost con nuovi parametri
                 team_result = BusinessPlanService.calculate_team_cost(
-                    team_composition=team_composition,
+                    team_composition=team_composition or [],
                     volume_adjustments=scenario_vol_adj,
                     reuse_factor=new_reuse,
-                    profile_mappings=profile_mappings,
+                    profile_mappings=profile_mappings or {},
                     profile_rates=profile_rates or {},
                     duration_months=duration_months,
                     default_daily_rate=default_daily_rate,

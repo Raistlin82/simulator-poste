@@ -68,13 +68,14 @@ class ExcelConfigService:
             BytesIO object containing the Excel file
         """
         wb = Workbook()
-        
+
         # Remove default sheet
-        wb.remove(wb.active)
-        
+        if wb.active is not None:
+            wb.remove(wb.active)
+
         # Create master data sheets first (for named ranges)
         ExcelConfigService._create_md_sheets(wb, master_data)
-        
+
         # Create and populate input sheets
         ExcelConfigService._export_lotto_sheet(wb, lot_config, master_data)
         ExcelConfigService._export_cert_aziendali_sheet(wb, lot_config)
@@ -290,13 +291,14 @@ class ExcelConfigService:
             BytesIO object containing the Excel file
         """
         wb = Workbook()
-        
+
         # Remove default sheet
-        wb.remove(wb.active)
-        
+        if wb.active is not None:
+            wb.remove(wb.active)
+
         # Create master data sheets first (for named ranges)
         ExcelConfigService._create_md_sheets(wb, master_data)
-        
+
         # Create input sheets
         ExcelConfigService._create_lotto_sheet(wb, master_data)
         ExcelConfigService._create_cert_aziendali_sheet(wb, master_data)
@@ -566,7 +568,7 @@ class ExcelConfigService:
         ws.append(["REF_001", "M1", "Voce tabellare esempio", 0, 5])
 
     @staticmethod
-    def parse_upload(file_content: bytes, master_data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    def parse_upload(file_content: bytes, master_data: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], List[str]]:
         """
         Parse an uploaded Excel file and build a LotConfig.
         

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 import { useTranslation } from 'react-i18next';
 import {
   Settings2,
@@ -57,8 +58,8 @@ export default function ParametersPanel({
 
   const current = { ...defaults, ...values };
 
-  const handleChange = (field, value) => {
-    const numValue = parseFloat(value) || 0;
+  const handleChange = (field, value, min = -Infinity, max = Infinity) => {
+    const numValue = Math.min(max, Math.max(min, parseFloat(value) || 0));
     onChange?.({ ...current, [field]: numValue });
   };
 
@@ -99,7 +100,7 @@ export default function ParametersPanel({
       details = { manual: true };
     } else if (mode === 'fte') {
       let totalCost = 0;
-      let totalFte = 0;
+      let totalFteMonths = 0;
       let avgRate = 0;
 
       for (const period of current.governance_fte_periods || []) {
@@ -126,19 +127,16 @@ export default function ParametersPanel({
         if (totalPct > 0) periodAvgRate = periodAvgRate / totalPct;
 
         totalCost += periodFte * periodAvgRate * daysPerFte * periodYears;
-        totalFte += periodFte;
-        avgRate += periodAvgRate * periodFte;
+        totalFteMonths += periodFte * periodMonths;
+        avgRate += periodAvgRate * periodFte * periodMonths;
       }
 
+      const totalFte = durationMonths > 0 ? totalFteMonths / durationMonths : 0;
       baseCost = totalCost;
-      const avgFte =
-        (current.governance_fte_periods || []).length > 0
-          ? totalFte / (current.governance_fte_periods || []).length
-          : 0;
-      description = `${avgFte.toFixed(1)} FTE medi`;
+      description = `${totalFte.toFixed(1)} FTE medi`;
       details = {
         totalFte,
-        avgRate: totalFte > 0 ? avgRate / totalFte : 0,
+        avgRate: totalFteMonths > 0 ? avgRate / totalFteMonths : 0,
         periods: (current.governance_fte_periods || []).length,
       };
     } else if (mode === 'team_mix') {
@@ -332,14 +330,6 @@ export default function ParametersPanel({
     handleFieldChange('governance_profile_mix', mix);
   };
 
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
   const getPeriodLabel = (period) => {
     const start = period.month_start || 1;
     const end = period.month_end || durationMonths;
@@ -467,7 +457,7 @@ export default function ParametersPanel({
                       step={0.5}
                       value={current.governance_pct}
                       onChange={(e) =>
-                        handleChange('governance_pct', e.target.value)
+                        handleChange('governance_pct', e.target.value, 0, 25)
                       }
                       disabled={disabled}
                       className="w-16 px-2 py-1.5 text-center text-sm font-semibold border border-slate-200 rounded-lg
@@ -601,7 +591,7 @@ export default function ParametersPanel({
                                     handleUpdateFtePeriod(
                                       idx,
                                       'fte',
-                                      parseFloat(e.target.value) || 0
+                                      Math.max(0, parseFloat(e.target.value) || 0)
                                     )
                                   }
                                   disabled={disabled}
@@ -656,7 +646,7 @@ export default function ParametersPanel({
                                         idx,
                                         mixIdx,
                                         'pct',
-                                        e.target.value
+                                        Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
                                       )
                                     }
                                     disabled={disabled}
@@ -722,10 +712,11 @@ export default function ParametersPanel({
                     onChange={(e) =>
                       handleFieldChange(
                         'governance_cost_manual',
-                        parseFloat(e.target.value) || 0
+                        Math.max(0, parseFloat(e.target.value) || 0)
                       )
                     }
                     disabled={disabled}
+                    min={0}
                     step={1000}
                     className="flex-1 px-3 py-1.5 text-sm font-semibold text-right border border-slate-200 rounded-lg
                                focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -899,7 +890,7 @@ export default function ParametersPanel({
                 step={0.5}
                 value={current.risk_contingency_pct}
                 onChange={(e) =>
-                  handleChange('risk_contingency_pct', e.target.value)
+                  handleChange('risk_contingency_pct', e.target.value, 0, 20)
                 }
                 disabled={disabled}
                 className="w-16 px-2 py-1.5 text-center text-sm font-semibold border border-amber-200 rounded-lg
@@ -986,7 +977,7 @@ export default function ParametersPanel({
                   step={0.1}
                   value={current.inflation_pct}
                   onChange={(e) =>
-                    handleChange('inflation_pct', e.target.value)
+                    handleChange('inflation_pct', e.target.value, 0, 20)
                   }
                   disabled={disabled}
                   className="w-16 px-2 py-1.5 text-center text-sm font-semibold border border-violet-200 rounded-lg

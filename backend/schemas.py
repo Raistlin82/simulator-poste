@@ -3,7 +3,7 @@ Pydantic schemas for request/response validation
 """
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
 
 
@@ -391,9 +391,9 @@ class BusinessPlanCreate(BaseModel):
         description="Costo governance manuale (sovrascrive calcolo automatico)"
     )
     # Governance mode: definisce come calcolare la governance
-    governance_mode: str = Field(
+    governance_mode: Literal['percentage', 'fte', 'manual', 'team_mix'] = Field(
         default='percentage',
-        description="Modalità calcolo governance: 'percentage', 'fte', 'manual', 'team_mix'"
+        description="Modalità calcolo governance"
     )
     # Time slices per governance FTE (quando mode='fte')
     governance_fte_periods: List[Dict[str, Any]] = Field(
@@ -493,7 +493,7 @@ class BusinessPlanResponse(BaseModel):
     subcontract_config: Dict[str, Any] = Field(default_factory=dict)
     governance_profile_mix: List[Dict[str, Any]] = Field(default_factory=list)
     governance_cost_manual: Optional[float] = None
-    governance_mode: str = 'percentage'
+    governance_mode: Literal['percentage', 'fte', 'manual', 'team_mix'] = 'percentage'
     governance_fte_periods: List[Dict[str, Any]] = Field(default_factory=list)
     governance_apply_reuse: bool = False
     margin_warning_threshold: float = 0.05
@@ -521,6 +521,7 @@ class BusinessPlanCalculateResponse(BaseModel):
     total_cost: float = 0.0
     total_revenue: float = 0.0
     margin: float = 0.0
+    margin_pct: float = 0.0
     tow_breakdown: Dict[str, Any] = Field(default_factory=dict)
     lutech_breakdown: Dict[str, Any] = Field(default_factory=dict)
     intervals: List[Dict[str, Any]] = Field(default_factory=list)
