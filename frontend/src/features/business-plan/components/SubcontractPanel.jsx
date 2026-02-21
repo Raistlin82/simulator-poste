@@ -1,4 +1,5 @@
 import { Building, Percent, Users, Euro, AlertCircle, CheckCircle } from 'lucide-react';
+import { formatCurrency } from '../../../utils/formatters';
 import { useMemo } from 'react';
 
 /**
@@ -45,15 +46,6 @@ export default function SubcontractPanel({
   const subcontractCost = Math.round(teamCost * (totalQuotaPct / 100));
   const isOverLimit = totalQuotaPct > 20;
   const hasSubcontract = totalQuotaPct > 0;
-
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val);
-  };
 
   return (
     <div className="glass-card rounded-2xl">

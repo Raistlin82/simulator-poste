@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 import {
   TrendingUp,
   TrendingDown,
@@ -566,10 +567,6 @@ export default function TowAnalysis({
       .filter(p => p.savings > 0)
       .reduce((sum, p) => sum + p.savings, 0);
   }, [resourceMixProposals]);
-
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
-  };
 
   const formatPercent = (val) => `${val.toFixed(1)}%`;
 

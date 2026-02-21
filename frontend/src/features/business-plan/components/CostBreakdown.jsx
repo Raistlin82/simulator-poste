@@ -1,4 +1,5 @@
 import { useMemo, useState, Fragment } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
@@ -130,15 +131,6 @@ export default function CostBreakdown({
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.cost - a.cost);
   }, [lutechProfileBreakdown]);
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(val);
-  };
-
   const colorMap = {
     blue: { bar: 'bg-blue-500', bg: 'bg-blue-100', text: 'text-blue-700' },
     indigo: { bar: 'bg-indigo-500', bg: 'bg-indigo-100', text: 'text-indigo-700' },
@@ -348,7 +340,7 @@ export default function CostBreakdown({
                           <div className="space-y-1.5">
                             {yearTowItems.map((item, tidx) => {
                               const color = towColors[tidx % towColors.length];
-                              const pct = yearData.team > 0 ? (item.cost / yearData.team) * 100 : 0;
+                              const pct = yearData.total > 0 ? (item.cost / yearData.total) * 100 : 0;
                               return (
                                 <div key={item.towId} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-100">
                                   <div className={`w-2.5 h-2.5 rounded-full ${colorMap[color].bar} shrink-0`} />

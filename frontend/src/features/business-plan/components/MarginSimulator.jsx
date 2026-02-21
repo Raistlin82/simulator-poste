@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 import { useTranslation } from 'react-i18next';
 import {
   TrendingUp,
@@ -118,14 +119,6 @@ export default function MarginSimulator({
 
   const marginStatus = getMarginStatus();
 
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(val);
-  };
 
   const sliderMax = Math.max(50, parseFloat(localDiscount) || 0);
 

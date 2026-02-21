@@ -8,8 +8,27 @@ const simulationReducer = (state, action) => {
   switch (action.type) {
     case 'SET_LOT':
       return { ...state, selectedLot: action.payload };
-    case 'SET_DISCOUNT':
-      return { ...state, [action.key]: action.value };
+    case 'SET_DISCOUNT': {
+      const next = { ...state, [action.key]: action.value };
+
+      // Sync: when myDiscount increases past competitorDiscount, drag it up
+      if (action.key === 'myDiscount' &&
+          state.myDiscount >= state.competitorDiscount &&
+          action.value > state.myDiscount) {
+        const delta = action.value - state.myDiscount;
+        next.competitorDiscount = Math.min(state.competitorDiscount + delta, 100);
+        if (state.competitorEconDiscount > next.competitorDiscount) {
+          next.competitorEconDiscount = next.competitorDiscount;
+        }
+      }
+
+      // Sync: clamp competitorEconDiscount when competitorDiscount decreases
+      if (action.key === 'competitorDiscount' && state.competitorEconDiscount > action.value) {
+        next.competitorEconDiscount = action.value;
+      }
+
+      return next;
+    }
     case 'SET_COMPETITOR_PARAM':
       return { ...state, [action.key]: action.value };
     case 'SET_TECH_INPUT':
@@ -63,33 +82,6 @@ export const SimulationProvider = ({ children }) => {
   };
 
   const setDiscount = (key, value) => {
-    // Sync logic: when Sconto Lutech >= Best Offer and user increases Sconto Lutech,
-    // Best Offer should also increase to match
-    if (key === 'myDiscount') {
-      const currentMyDiscount = state.myDiscount;
-      const currentCompetitorDiscount = state.competitorDiscount;
-
-      // If Sconto Lutech was >= Best Offer AND is being increased
-      if (currentMyDiscount >= currentCompetitorDiscount && value > currentMyDiscount) {
-        // Increase Best Offer by the same delta
-        const delta = value - currentMyDiscount;
-        const newCompetitorDiscount = Math.min(currentCompetitorDiscount + delta, 100);
-        dispatch({ type: 'SET_DISCOUNT', key: 'competitorDiscount', value: newCompetitorDiscount });
-
-        // Also clamp competitorEconDiscount if needed
-        if (state.competitorEconDiscount > newCompetitorDiscount) {
-          dispatch({ type: 'SET_DISCOUNT', key: 'competitorEconDiscount', value: newCompetitorDiscount });
-        }
-      }
-    }
-
-    // When Best Offer changes, clamp Competitor Economic Discount
-    if (key === 'competitorDiscount') {
-      if (state.competitorEconDiscount > value) {
-        dispatch({ type: 'SET_DISCOUNT', key: 'competitorEconDiscount', value: value });
-      }
-    }
-
     dispatch({ type: 'SET_DISCOUNT', key, value });
   };
 

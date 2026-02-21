@@ -1,4 +1,5 @@
 import { Table, Euro, Calculator } from 'lucide-react';
+import { formatCurrency } from '../../../utils/formatters';
 
 /**
  * OfferSchemeTable - Tabella Schema di Offerta (PxQ)
@@ -8,15 +9,6 @@ export default function OfferSchemeTable({
     offerData = [],
     totalOffer = 0,
 }) {
-
-    const formatCurrency = (val) => {
-        return new Intl.NumberFormat('it-IT', {
-            style: 'currency',
-            currency: 'EUR',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(val);
-    };
 
     const formatNumber = (val) => {
         return new Intl.NumberFormat('it-IT', {

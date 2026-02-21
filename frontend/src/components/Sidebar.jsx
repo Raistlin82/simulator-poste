@@ -126,7 +126,7 @@ export default function Sidebar({
     return (
         <div className="w-[85vw] max-w-80 md:w-80 glass border-r flex flex-col h-full shadow-xl z-20">
             {/* Lutech Logo Banner */}
-            <div className="p-4 glass-subtle border-b flex justify-between items-center">
+            <div className="p-4 glass-subtle flex justify-between items-center">
                 <button
                     onClick={() => {
                         if (onNavigate) onNavigate('dashboard');

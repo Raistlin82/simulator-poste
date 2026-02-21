@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../../utils/formatters';
 import {
   Sparkles,
   Shield,
@@ -68,14 +69,6 @@ export default function ScenarioCards({
     },
   };
 
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val);
-  };
 
   const formatPct = (val) => {
     return (val * 100).toFixed(0) + '%';

@@ -59,9 +59,15 @@ export default function TowConfigTable({
   };
 
   const handleUpdateTow = (index, field, value) => {
+    let processed = value;
+    if (field === 'weight_pct') {
+      processed = Math.min(100, Math.max(0, parseFloat(value) || 0));
+    } else if (field === 'num_tasks' || field === 'duration_months') {
+      processed = Math.max(0, parseInt(value) || 0);
+    }
     const updated = tows.map((t, i) => {
       if (i !== index) return t;
-      return { ...t, [field]: value };
+      return { ...t, [field]: processed };
     });
     onChange?.(updated);
   };

@@ -13,6 +13,7 @@ import numpy as np
 import io
 import os
 import time
+import re
 import zipfile
 import tempfile
 import shutil
@@ -254,9 +255,11 @@ MAX_PAYLOAD_SIZE = 100 * 1024 * 1024  # 100 MB
 async def limit_upload_size(request: Request, call_next):
     if request.method in ["POST", "PUT", "PATCH"]:
         if "content-length" in request.headers:
-            content_length = int(request.headers["content-length"])
+            try:
+                content_length = int(request.headers["content-length"])
+            except ValueError:
+                return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length header"})
             if content_length > MAX_PAYLOAD_SIZE:
-                from fastapi.responses import JSONResponse
                 return JSONResponse(
                     status_code=413,
                     content={
@@ -760,8 +763,9 @@ def export_lot_config(lot_key: str, db: Session = Depends(get_db)):
     try:
         excel_bytes = ExcelConfigService.export_lot_config(lot_config, master_data)
         
-        # Sanitize filename
-        safe_name = lot_config.get("name", lot_key).replace("/", "_").replace("\\", "_")
+        # Sanitize filename — whitelist approach (alphanumeric, dash, underscore only)
+        raw_name = lot_config.get("name", lot_key) or lot_key
+        safe_name = re.sub(r'[^\w\-]', '_', raw_name)
         filename = f"export_{safe_name}.xlsx"
         
         return StreamingResponse(
@@ -1351,7 +1355,7 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
 
     # Calculate the minimum discount needed to beat competitor
     # IMPORTANT: When our price beats the market best, competitor's score must be recalculated!
-    min_discount_to_beat = None
+    min_discount_to_beat = 0
     can_beat = False
 
     for test_disc in range(0, 71, 1):
@@ -1606,8 +1610,9 @@ def get_cert_verification_status():
 @api_router.post("/verify-certs")
 def verify_certificates(
     folder_path: str,
-    lot_key: str = None,
+    lot_key: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Verify all PDF certificates in a folder using OCR.
@@ -1694,8 +1699,9 @@ def verify_certificates(
 @api_router.post("/verify-certs/stream")
 def verify_certificates_stream(
     folder_path: str,
-    lot_key: str = None,
+    lot_key: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Stream certificate verification progress using Server-Sent Events (SSE).
@@ -2200,9 +2206,9 @@ async def verify_certs_upload_stream(
 
 @api_router.get("/vendor-configs", response_model=List[schemas.VendorConfig])
 def get_vendor_configs(
-    enabled_only: bool = False, 
+    enabled_only: bool = False,
     skip: int = 0,
-    limit: int = None,
+    limit: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     """Get all vendor configurations for certificate verification with optional pagination."""
@@ -2395,6 +2401,8 @@ def calculate_business_plan(
     team_cost = 0.0
     tow_breakdown = {}
     lutech_breakdown = {}
+    profile_rates: Dict[str, float] = {}
+    team_result: Dict[str, Any] = {}
     if bp.team_composition:
         # Build profile_rates from practices catalog
         # Format: {practice_id:profile_id: daily_rate}
@@ -2531,6 +2539,7 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
 
     # Calculate team cost dynamically (same logic as calculate endpoint)
     team_cost = 0.0
+    profile_rates: Dict[str, float] = {}
     if bp.team_composition:
         practices = crud.get_practices(db)
         profile_rates = {}

@@ -49,6 +49,10 @@ class OIDCConfig:
         if self.jwks_cache:
             return self.jwks_cache
 
+        if not self.jwks_uri:
+            logger.error("JWKS URI is not configured")
+            return {"keys": []}
+
         try:
             response = requests.get(self.jwks_uri, timeout=5)
             response.raise_for_status()

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatCurrency } from '../../../utils/formatters';
 import {
   Building2,
   Plus,
@@ -137,7 +138,7 @@ export default function PracticeCatalogManager({
     });
   };
 
-  const formatCurrency = (val) => `€${val.toFixed(2)}`;
+
 
   return (
     <div className="glass-card rounded-2xl">
