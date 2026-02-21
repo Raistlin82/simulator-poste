@@ -422,6 +422,279 @@ class BusinessPlanService:
     # disponibili in calculate_team_cost()["by_tow"]
 
     @staticmethod
+    def _compute_lutech_rate_from_mapping(
+        mappings: List[Any],
+        profile_rates: Dict[str, float],
+        duration_months: int,
+        default_daily_rate: float,
+    ) -> float:
+        """Compute duration-weighted average Lutech daily rate from a time-varying mapping."""
+        if not mappings:
+            return default_daily_rate
+
+        total_weighted = 0.0
+        total_months = 0
+
+        for m in mappings:
+            if isinstance(m, dict):
+                month_start = m.get("month_start", 1)
+                month_end = m.get("month_end", duration_months)
+                mix = m.get("mix", [])
+            else:
+                month_start = getattr(m, "month_start", 1)
+                month_end = getattr(m, "month_end", duration_months)
+                mix = getattr(m, "mix", [])
+
+            months = max(0, month_end - month_start + 1)
+            if months <= 0 or not mix:
+                continue
+
+            period_rate = 0.0
+            for mix_item in mix:
+                if isinstance(mix_item, dict):
+                    lutech_id = mix_item.get("lutech_profile", "")
+                    mix_pct = float(mix_item.get("pct", 0) or 0) / 100.0
+                else:
+                    lutech_id = getattr(mix_item, "lutech_profile", "")
+                    mix_pct = float(getattr(mix_item, "pct", 0) or 0) / 100.0
+                period_rate += mix_pct * profile_rates.get(lutech_id, default_daily_rate)
+
+            total_weighted += period_rate * months
+            total_months += months
+
+        if total_months <= 0:
+            return default_daily_rate
+        return total_weighted / total_months
+
+    @staticmethod
+    def _compute_catalog_item_rate(
+        profile_mix: List[Any],
+        profile_mappings: Dict[str, Any],
+        profile_rates: Dict[str, float],
+        duration_months: int,
+        default_daily_rate: float,
+    ) -> float:
+        """
+        Compute weighted average Lutech daily rate for a catalog item.
+        profile_mix: [{"poste_profile": "ios_dev", "pct": 30}, ...]
+        Each Poste profile is resolved via profile_mappings → Lutech profiles → rates.
+        """
+        total_weighted_rate = 0.0
+        total_pct = 0.0
+
+        for entry in profile_mix:
+            if isinstance(entry, dict):
+                poste_profile = entry.get("poste_profile", "")
+                pct = float(entry.get("pct", 0) or 0) / 100.0
+            else:
+                poste_profile = getattr(entry, "poste_profile", "")
+                pct = float(getattr(entry, "pct", 0) or 0) / 100.0
+
+            if pct <= 0:
+                continue
+
+            mappings = profile_mappings.get(poste_profile, [])
+            if mappings:
+                lutech_rate = BusinessPlanService._compute_lutech_rate_from_mapping(
+                    mappings, profile_rates, duration_months, default_daily_rate
+                )
+            else:
+                lutech_rate = profile_rates.get(poste_profile, default_daily_rate)
+
+            total_weighted_rate += pct * lutech_rate
+            total_pct += pct
+
+        if total_pct <= 0:
+            return default_daily_rate
+        return total_weighted_rate / total_pct
+
+    @staticmethod
+    def _compute_cluster_distribution(
+        catalog_items: List[Any],
+        catalog_clusters: List[Any],
+    ) -> Dict[str, Any]:
+        """
+        Compute actual FTE% distribution across clusters.
+        Returns {cluster_id: {label, profiles, required_pct, actual_pct, delta, ok}}
+        """
+        if not catalog_clusters:
+            return {}
+
+        profile_to_cluster: Dict[str, str] = {}
+        for cluster in catalog_clusters:
+            cid = cluster.get("id", "") if isinstance(cluster, dict) else getattr(cluster, "id", "")
+            profiles = cluster.get("poste_profiles", []) if isinstance(cluster, dict) else getattr(cluster, "poste_profiles", [])
+            for p in profiles:
+                profile_to_cluster[p] = cid
+
+        cluster_actual: Dict[str, float] = {}
+        for cluster in catalog_clusters:
+            cid = cluster.get("id", "") if isinstance(cluster, dict) else getattr(cluster, "id", "")
+            cluster_actual[cid] = 0.0
+
+        for item in catalog_items:
+            if isinstance(item, dict):
+                item_fte_pct = float(item.get("fte_pct", 0) or 0)
+                profile_mix = item.get("profile_mix", []) or []
+            else:
+                item_fte_pct = float(getattr(item, "fte_pct", 0) or 0)
+                profile_mix = getattr(item, "profile_mix", []) or []
+
+            for entry in profile_mix:
+                if isinstance(entry, dict):
+                    poste_profile = entry.get("poste_profile", "")
+                    pct = float(entry.get("pct", 0) or 0)
+                else:
+                    poste_profile = getattr(entry, "poste_profile", "")
+                    pct = float(getattr(entry, "pct", 0) or 0)
+
+                cid = profile_to_cluster.get(poste_profile)
+                if cid and cid in cluster_actual:
+                    cluster_actual[cid] += item_fte_pct * pct / 100.0
+
+        result: Dict[str, Any] = {}
+        for cluster in catalog_clusters:
+            if isinstance(cluster, dict):
+                cid = cluster.get("id", "")
+                label = cluster.get("label", cid)
+                required_pct = float(cluster.get("required_pct", 0) or 0)
+                profiles = cluster.get("poste_profiles", [])
+            else:
+                cid = getattr(cluster, "id", "")
+                label = getattr(cluster, "label", cid)
+                required_pct = float(getattr(cluster, "required_pct", 0) or 0)
+                profiles = getattr(cluster, "poste_profiles", [])
+
+            actual_pct = cluster_actual.get(cid, 0.0)
+            delta = actual_pct - required_pct
+            result[cid] = {
+                "label": label,
+                "profiles": profiles,
+                "required_pct": required_pct,
+                "actual_pct": round(actual_pct, 2),
+                "delta": round(delta, 2),
+                "ok": abs(delta) <= 2.0,
+            }
+
+        return result
+
+    @staticmethod
+    def calculate_catalog_cost(
+        tows: List[Any],
+        profile_mappings: Dict[str, Any],
+        profile_rates: Dict[str, float],
+        duration_months: int,
+        default_daily_rate: float = 250.0,
+    ) -> Dict[str, Any]:
+        """
+        Calcola il costo dei TOW tipo 'catalogo'.
+
+        Per ogni TOW catalogo:
+          - Ogni voce ha fte_pct (% degli FTE totali del TOW) e profile_mix (figure Poste in %)
+          - item_fte = total_fte × (fte_pct / 100)
+          - item_days = item_fte × (duration_months / 12) × 220
+          - lutech_rate = weighted_avg(profile_mix → profile_mappings → profile_rates)
+          - item_cost = item_days × lutech_rate
+
+        Returns: { total_cost, by_tow: { tow_id: { cost, revenue, margin, items, cluster_distribution } } }
+        """
+        total_cost = 0.0
+        by_tow: Dict[str, Any] = {}
+        duration_years = (duration_months or 36) / 12.0
+
+        for tow in tows:
+            if isinstance(tow, dict):
+                tow_type = tow.get("type", "")
+            else:
+                tow_type = getattr(tow, "type", "")
+
+            if tow_type != "catalogo":
+                continue
+
+            if isinstance(tow, dict):
+                tow_id = tow.get("tow_id", "")
+                tow_label = tow.get("label", tow_id)
+                total_fte = float(tow.get("total_fte", 0) or 0)
+                catalog_items = tow.get("catalog_items", []) or []
+                catalog_clusters = tow.get("catalog_clusters", []) or []
+            else:
+                tow_id = getattr(tow, "tow_id", "")
+                tow_label = getattr(tow, "label", tow_id)
+                total_fte = float(getattr(tow, "total_fte", 0) or 0)
+                catalog_items = getattr(tow, "catalog_items", []) or []
+                catalog_clusters = getattr(tow, "catalog_clusters", []) or []
+
+            tow_cost = 0.0
+            tow_revenue = 0.0
+            items_result = []
+
+            for item in catalog_items:
+                if isinstance(item, dict):
+                    item_id = item.get("id", "")
+                    item_label = item.get("label", item_id)
+                    fte_pct = float(item.get("fte_pct", 0) or 0)
+                    price_base = float(item.get("price_base", 0) or 0)
+                    profile_mix = item.get("profile_mix", []) or []
+                else:
+                    item_id = getattr(item, "id", "")
+                    item_label = getattr(item, "label", item_id)
+                    fte_pct = float(getattr(item, "fte_pct", 0) or 0)
+                    price_base = float(getattr(item, "price_base", 0) or 0)
+                    profile_mix = getattr(item, "profile_mix", []) or []
+
+                item_fte = total_fte * (fte_pct / 100.0)
+                item_days = item_fte * duration_years * BusinessPlanService.DAYS_PER_FTE
+
+                lutech_rate = BusinessPlanService._compute_catalog_item_rate(
+                    profile_mix, profile_mappings, profile_rates,
+                    duration_months, default_daily_rate
+                )
+
+                item_cost = round(item_days * lutech_rate, 2)
+                item_margin = round(price_base - item_cost, 2)
+
+                tow_cost += item_cost
+                tow_revenue += price_base
+
+                items_result.append({
+                    "id": item_id,
+                    "label": item_label,
+                    "fte_pct": fte_pct,
+                    "item_fte": round(item_fte, 4),
+                    "item_days": round(item_days, 2),
+                    "price_base": price_base,
+                    "avg_daily_rate": round(lutech_rate, 2),
+                    "cost": item_cost,
+                    "margin": item_margin,
+                })
+
+            tow_margin = round(tow_revenue - tow_cost, 2)
+            tow_margin_pct = round((tow_margin / tow_revenue * 100) if tow_revenue > 0 else 0.0, 2)
+
+            cluster_distribution = BusinessPlanService._compute_cluster_distribution(
+                catalog_items, catalog_clusters
+            )
+
+            by_tow[tow_id] = {
+                "label": tow_label,
+                "type": "catalogo",
+                "cost": round(tow_cost, 2),
+                "revenue": round(tow_revenue, 2),
+                "margin": tow_margin,
+                "margin_pct": tow_margin_pct,
+                "total_fte": total_fte,
+                "items": items_result,
+                "cluster_distribution": cluster_distribution,
+            }
+
+            total_cost += tow_cost
+
+        return {
+            "total_cost": round(total_cost, 2),
+            "by_tow": by_tow,
+        }
+
+    @staticmethod
     def calculate_total_cost(bp_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         STEP 5: Calcola costi totali con breakdown.

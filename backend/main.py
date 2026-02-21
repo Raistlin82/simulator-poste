@@ -2433,6 +2433,20 @@ def calculate_business_plan(
         # No team composition defined - cannot calculate costs
         team_cost = 0.0
 
+    # Calculate catalog cost (TOW tipo 'catalogo')
+    catalog_result = BusinessPlanService.calculate_catalog_cost(
+        tows=bp.tows or [],
+        profile_mappings=bp.profile_mappings or {},
+        profile_rates=profile_rates,
+        duration_months=bp.duration_months or 36,
+        default_daily_rate=bp.default_daily_rate or 250.0,
+    )
+    catalog_cost = catalog_result["total_cost"]
+    tow_breakdown.update(catalog_result["by_tow"])
+
+    # Base for overhead = team cost + catalog cost
+    base_for_overhead = team_cost + catalog_cost
+
     # Calculate overhead costs
     # Governance: supports manual override, profile mix, or percentage fallback
     governance_cost = 0.0
@@ -2474,8 +2488,8 @@ def calculate_business_plan(
             else:
                 governance_cost = governance_fte * days_per_fte * duration_years * avg_rate
     else:
-        # Fallback: percentage of team cost (team_cost already has inflation applied)
-        governance_cost = team_cost * (bp.governance_pct or 0.04)
+        # Fallback: percentage of base_for_overhead (team + catalog, already has inflation applied)
+        governance_cost = base_for_overhead * (bp.governance_pct or 0.04)
 
     # Apply reuse factor to governance if enabled
     if bp.governance_apply_reuse and (bp.reuse_factor or 0) > 0:
@@ -2483,14 +2497,14 @@ def calculate_business_plan(
         governance_cost = governance_cost * (1 - reuse_factor)
 
     # Risk includes governance cost (aligned with frontend calculation)
-    risk_cost = (team_cost + governance_cost) * (bp.risk_contingency_pct or 0.03)
+    risk_cost = (base_for_overhead + governance_cost) * (bp.risk_contingency_pct or 0.03)
 
     # Subcontract
     sub_config = bp.subcontract_config or {}
     sub_quota = float(sub_config.get("quota_pct", 0.0))
-    subcontract_cost = team_cost * sub_quota
+    subcontract_cost = base_for_overhead * sub_quota
 
-    total_cost = team_cost + governance_cost + risk_cost + subcontract_cost
+    total_cost = base_for_overhead + governance_cost + risk_cost + subcontract_cost
 
     # Calculate margin
     margin_result = BusinessPlanService.calculate_margin(
@@ -2512,6 +2526,7 @@ def calculate_business_plan(
 
     return schemas.BusinessPlanCalculateResponse(
         team_cost=round(team_cost, 2),
+        catalog_cost=round(catalog_cost, 2),
         governance_cost=round(governance_cost, 2),
         risk_cost=round(risk_cost, 2),
         subcontract_cost=round(subcontract_cost, 2),
@@ -2562,8 +2577,18 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
         )
         team_cost = team_result["total_cost"]
 
+    # Calculate catalog cost for scenarios baseline
+    catalog_result_s = BusinessPlanService.calculate_catalog_cost(
+        tows=bp.tows or [],
+        profile_mappings=bp.profile_mappings or {},
+        profile_rates=profile_rates,
+        duration_months=bp.duration_months or 36,
+        default_daily_rate=bp.default_daily_rate or 250.0,
+    )
+    catalog_cost_s = catalog_result_s["total_cost"]
+
     bp_data = {
-        "total_cost": team_cost,
+        "total_cost": team_cost + catalog_cost_s,
         "reuse_factor": bp.reuse_factor or 0.0,
         "volume_adjustments": bp.volume_adjustments or {},
     }

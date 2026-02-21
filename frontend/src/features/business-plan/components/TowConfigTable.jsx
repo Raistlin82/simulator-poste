@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Layers, Plus, Trash2, GripVertical, Percent, Save, X, TrendingDown, Info, AlertTriangle } from 'lucide-react';
+import { Layers, Plus, Trash2, GripVertical, Percent, Save, X, TrendingDown, Info, AlertTriangle, BookOpen, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { formatCurrency } from '../../../utils/formatters';
 
 /**
  * TowConfigTable - Configurazione Type of Work
@@ -12,12 +13,18 @@ export default function TowConfigTable({
   towAssignments = {},
   onChange,
   onAssignmentChange,
+  onOpenCatalogModal,
   volumeAdjustments = {},
   durationMonths = 36,
-  disabled = false
+  disabled = false,
+  // For catalog preview calculations
+  profileMappings = {},
+  profileRates = {},
+  defaultDailyRate = 250,
 }) {
   const { t } = useTranslation();
   const [showAddRow, setShowAddRow] = useState(false);
+  const [expandedCatalog, setExpandedCatalog] = useState(new Set());
   const [newTow, setNewTow] = useState({
     tow_id: '',
     label: '',
@@ -33,8 +40,15 @@ export default function TowConfigTable({
     { value: 'task', label: 'Task', color: 'blue' },
     { value: 'corpo', label: 'A Corpo', color: 'purple' },
     { value: 'consumo', label: 'A Consumo', color: 'amber' },
-    { value: 'canone', label: 'Canone Mensile', color: 'green' }
+    { value: 'canone', label: 'Canone Mensile', color: 'green' },
+    { value: 'catalogo', label: 'Catalogo', color: 'rose' },
   ];
+
+  const toggleCatalogExpand = (idx) => {
+    const next = new Set(expandedCatalog);
+    if (next.has(idx)) next.delete(idx); else next.add(idx);
+    setExpandedCatalog(next);
+  };
 
   const handleAddTow = () => {
     if (!newTow.tow_id.trim() || !newTow.label.trim()) return;
@@ -90,9 +104,36 @@ export default function TowConfigTable({
       blue: 'bg-blue-100 text-blue-700',
       purple: 'bg-purple-100 text-purple-700',
       amber: 'bg-amber-100 text-amber-700',
-      green: 'bg-green-100 text-green-700'
+      green: 'bg-green-100 text-green-700',
+      rose: 'bg-rose-100 text-rose-700',
     };
-    return colors[t.color];
+    return colors[t.color] || 'bg-slate-100 text-slate-600';
+  };
+
+  // Compute catalog item preview (rate only, for summary)
+  const computeCatalogItemRate = (profileMix) => {
+    if (!profileMix || profileMix.length === 0) return defaultDailyRate;
+    let totalWeighted = 0;
+    let totalPct = 0;
+    for (const entry of profileMix) {
+      const pct = (parseFloat(entry.pct) || 0) / 100;
+      if (pct <= 0) continue;
+      const mappings = profileMappings[entry.poste_profile];
+      let rate = defaultDailyRate;
+      if (mappings && mappings.length > 0) {
+        const mix = mappings[0].mix || [];
+        let pr = 0;
+        for (const mi of mix) {
+          pr += ((parseFloat(mi.pct) || 0) / 100) * (profileRates[mi.lutech_profile] || defaultDailyRate);
+        }
+        if (pr > 0) rate = pr;
+      } else {
+        rate = profileRates[entry.poste_profile] || defaultDailyRate;
+      }
+      totalWeighted += pct * rate;
+      totalPct += pct;
+    }
+    return totalPct > 0 ? totalWeighted / totalPct : defaultDailyRate;
   };
 
   // Calcola riduzioni TOW per periodo
@@ -226,6 +267,7 @@ export default function TowConfigTable({
               </tr>
             ) : (
               tows.map((tow, idx) => (
+                <>
                 <tr key={idx} className="hover:bg-slate-50 transition-colors group">
                   <td className="px-4 py-2">
                     <input
@@ -304,6 +346,39 @@ export default function TowConfigTable({
                                    focus:border-indigo-300 focus:outline-none text-xs
                                    disabled:bg-slate-50 disabled:cursor-not-allowed"
                       />
+                    ) : tow.type === 'catalogo' ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-slate-500">FTE:</span>
+                        <input
+                          type="number"
+                          value={tow.total_fte ?? ''}
+                          onChange={(e) => handleUpdateTow(idx, 'total_fte', parseFloat(e.target.value) || 0)}
+                          disabled={disabled}
+                          min="0"
+                          step="0.5"
+                          placeholder="0"
+                          className="w-16 px-1.5 py-1 text-center border border-slate-200 rounded
+                                     focus:border-indigo-300 focus:outline-none text-xs
+                                     disabled:bg-slate-50 disabled:cursor-not-allowed"
+                        />
+                        <button
+                          onClick={() => onOpenCatalogModal?.(idx)}
+                          disabled={disabled}
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600
+                                     hover:bg-rose-50 rounded border border-rose-200 transition-colors
+                                     disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Apri editor catalogo"
+                        >
+                          <BookOpen className="w-3 h-3" />
+                          {(tow.catalog_items || []).length}
+                        </button>
+                        <button
+                          onClick={() => toggleCatalogExpand(idx)}
+                          className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                        >
+                          {expandedCatalog.has(idx) ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     ) : (
                       <span className="block text-center text-slate-400 text-xs">-</span>
                     )}
@@ -373,6 +448,73 @@ export default function TowConfigTable({
                     </button>
                   </td>
                 </tr>
+                {/* Catalog summary sub-row */}
+                {tow.type === 'catalogo' && expandedCatalog.has(idx) && (() => {
+                  const items = tow.catalog_items || [];
+                  const totalFte = parseFloat(tow.total_fte || 0);
+                  const durationYears = durationMonths / 12;
+                  const colCount = hasAdjustments ? 9 : 7;
+                  return (
+                    <tr key={`cat-${idx}`} className="bg-rose-50">
+                      <td colSpan={colCount} className="px-6 py-3">
+                        {items.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">Nessuna voce. Apri l'editor per aggiungerne.</p>
+                        ) : (
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-slate-500 font-semibold">
+                                <th className="text-left pb-1">Voce</th>
+                                <th className="text-center pb-1 w-32">Tipo</th>
+                                <th className="text-center pb-1 w-24">Complessità</th>
+                                <th className="text-right pb-1 w-20">FTE %</th>
+                                <th className="text-right pb-1 w-24">Prezzo Base</th>
+                                <th className="text-right pb-1 w-24">Costo FTE</th>
+                                <th className="text-center pb-1 w-16">Margine</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-rose-100">
+                              {items.map((item, iidx) => {
+                                const fte_pct = parseFloat(item.fte_pct) || 0;
+                                const item_fte = totalFte * (fte_pct / 100);
+                                const item_days = item_fte * durationYears * 220;
+                                const rate = computeCatalogItemRate(item.profile_mix || []);
+                                const cost = item_days * rate;
+                                const margin = (parseFloat(item.price_base) || 0) - cost;
+                                const isOk = margin >= 0;
+                                return (
+                                  <tr key={iidx}>
+                                    <td className="py-1 text-slate-700 font-medium">{item.label || '—'}</td>
+                                    <td className="py-1 text-center text-slate-500">
+                                      {item.tipo === 'nuovo_sviluppo' ? 'Nuovo' : 'Evolut.'}
+                                    </td>
+                                    <td className="py-1 text-center capitalize text-slate-500">{item.complessita || '—'}</td>
+                                    <td className="py-1 text-right text-slate-600">{fte_pct.toFixed(0)}%</td>
+                                    <td className="py-1 text-right text-slate-600">{formatCurrency(parseFloat(item.price_base) || 0, 0)}</td>
+                                    <td className="py-1 text-right text-slate-700 font-medium">{formatCurrency(cost, 0)}</td>
+                                    <td className="py-1 text-center">
+                                      {isOk
+                                        ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600 mx-auto" />
+                                        : <AlertTriangle className="w-3.5 h-3.5 text-red-500 mx-auto" />
+                                      }
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        )}
+                        <button
+                          onClick={() => onOpenCatalogModal?.(idx)}
+                          disabled={disabled}
+                          className="mt-2 text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1"
+                        >
+                          <BookOpen className="w-3 h-3" /> Modifica voci →
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })()}
+                </>
               ))
             )}
 

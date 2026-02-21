@@ -37,6 +37,7 @@ import {
   OfferSchemeTable,
   TowAnalysis,
 } from '../components';
+import CatalogEditorModal from '../components/CatalogEditorModal';
 
 
 
@@ -63,6 +64,7 @@ export default function BusinessPlanPage() {
   // Local state for editing
   const [localBP, setLocalBP] = useState(null);
   const [calcResult, setCalcResult] = useState(null);
+  const [catalogModalTow, setCatalogModalTow] = useState(null); // { tow, index } | null
   const [cleanTeamCost, setCleanTeamCost] = useState(0);
   const [towBreakdown, setTowBreakdown] = useState({});
   const [lutechProfileBreakdown, setLutechProfileBreakdown] = useState({});
@@ -1242,6 +1244,7 @@ export default function BusinessPlanPage() {
   const offerScheme = calculateOfferData();
 
   return (
+    <>
     <div className="flex-1 overflow-auto p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
@@ -1355,14 +1358,21 @@ export default function BusinessPlanPage() {
                 towAssignments={localBP.tow_assignments || {}}
                 onChange={handleTowsChange}
                 onAssignmentChange={handleTowAssignmentChange}
+                onOpenCatalogModal={(towIndex) => {
+                  const tow = (localBP.tows || [])[towIndex];
+                  if (tow) setCatalogModalTow({ tow, index: towIndex });
+                }}
                 volumeAdjustments={localBP.volume_adjustments || {}}
                 durationMonths={localBP.duration_months}
+                profileMappings={localBP.profile_mappings || {}}
+                profileRates={buildLutechRates()}
+                defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
               />
 
               {/* Composizione Team (requisiti Poste) */}
               <TeamCompositionTable
                 team={localBP.team_composition || []}
-                tows={localBP.tows || []}
+                tows={(localBP.tows || []).filter(t => t.type !== 'catalogo')}
                 durationMonths={localBP.duration_months}
                 daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
                 onChange={handleTeamChange}
@@ -1596,6 +1606,7 @@ export default function BusinessPlanPage() {
                 startYear={localBP.start_year}
                 startMonth={localBP.start_month}
                 inflationPct={localBP.inflation_pct ?? 0}
+                catalogCost={calcResult?.catalog_cost ?? 0}
               />
             </div>
           )}
@@ -1672,5 +1683,25 @@ export default function BusinessPlanPage() {
         </div>
       </div>
     </div>
+
+    {/* Catalog Editor Modal */}
+    {catalogModalTow && localBP && (
+      <CatalogEditorModal
+        tow={catalogModalTow.tow}
+        onChange={(updatedTow) => {
+          const updatedTows = (localBP.tows || []).map((t, i) =>
+            i === catalogModalTow.index ? updatedTow : t
+          );
+          setLocalBP(prev => ({ ...prev, tows: updatedTows }));
+          setCatalogModalTow({ ...catalogModalTow, tow: updatedTow });
+        }}
+        profileMappings={localBP.profile_mappings || {}}
+        profileRates={buildLutechRates()}
+        durationMonths={localBP.duration_months || 36}
+        defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+        onClose={() => setCatalogModalTow(null)}
+      />
+    )}
+    </>
   );
 }

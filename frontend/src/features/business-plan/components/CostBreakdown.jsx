@@ -25,7 +25,8 @@ export default function CostBreakdown({
   durationMonths = 36,
   startYear = null,
   startMonth = null,
-  inflationPct = 0
+  inflationPct = 0,
+  catalogCost = 0,
 }) {
   const { t } = useTranslation();
   const [expandedTows, setExpandedTows] = useState(new Set());
@@ -57,10 +58,17 @@ export default function CostBreakdown({
     if (total === 0) return [];
 
     const items = [
-      { key: 'team', label: 'Costo Team', value: team, icon: Users, color: 'blue' },
+      { key: 'team', label: 'Costo Team (FTE)', value: team, icon: Users, color: 'blue' },
+    ];
+
+    if (catalogCost > 0) {
+      items.push({ key: 'catalog', label: 'Catalogo - FTE Delivery', value: catalogCost, icon: Calculator, color: 'rose' });
+    }
+
+    items.push(
       { key: 'governance', label: 'Governance', value: governance, icon: Shield, color: 'indigo' },
       { key: 'risk', label: 'Risk Contingency', value: risk, icon: AlertTriangle, color: 'amber' },
-    ];
+    );
 
     if (subcontract > 0) {
       items.push({ key: 'subcontract', label: 'Subappalto', value: subcontract, icon: Building, color: 'purple' });
@@ -70,7 +78,7 @@ export default function CostBreakdown({
       ...item,
       pct: (item.value / total) * 100
     }));
-  }, [team, governance, risk, subcontract, total]);
+  }, [team, catalogCost, governance, risk, subcontract, total]);
 
   // Calcola breakdown annuale
   const yearlyBreakdown = useMemo(() => {
@@ -136,7 +144,8 @@ export default function CostBreakdown({
     indigo: { bar: 'bg-indigo-500', bg: 'bg-indigo-100', text: 'text-indigo-700' },
     amber: { bar: 'bg-amber-500', bg: 'bg-amber-100', text: 'text-amber-700' },
     purple: { bar: 'bg-purple-500', bg: 'bg-purple-100', text: 'text-purple-700' },
-    emerald: { bar: 'bg-emerald-500', bg: 'bg-emerald-100', text: 'text-emerald-700' }
+    emerald: { bar: 'bg-emerald-500', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    rose: { bar: 'bg-rose-500', bg: 'bg-rose-100', text: 'text-rose-700' },
   };
 
   // Colori per TOW (ciclici)
