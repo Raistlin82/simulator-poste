@@ -37,6 +37,7 @@ import {
   OfferSchemeTable,
   TowAnalysis,
 } from '../components';
+import CatalogEditorModal from '../components/CatalogEditorModal';
 
 
 
@@ -63,6 +64,7 @@ export default function BusinessPlanPage() {
   // Local state for editing
   const [localBP, setLocalBP] = useState(null);
   const [calcResult, setCalcResult] = useState(null);
+  const [catalogModalTow, setCatalogModalTow] = useState(null); // { tow, index } | null
   const [cleanTeamCost, setCleanTeamCost] = useState(0);
   const [towBreakdown, setTowBreakdown] = useState({});
   const [lutechProfileBreakdown, setLutechProfileBreakdown] = useState({});
@@ -634,9 +636,214 @@ export default function BusinessPlanPage() {
     };
   }, [buildLutechRates]);
 
+  /**
+   * Compute catalog cost — modello MARGINE-FIRST (mirrors backend calculate_catalog_cost).
+   * Per ogni item: item_lutech_cost = total_price × (1 - target_margin/100) × lutech_pct/100
+   * Ritorna { total, detail: { byTow } } per CostBreakdown drill-down.
+   */
+  const computeCatalogCost = useCallback((bp) => {
+    const catalogTows = (bp.tows || []).filter(t => t.type === 'catalogo');
+    if (catalogTows.length === 0) return { total: 0, detail: null };
+
+    const lutechRates = buildLutechRates();
+    const durationMonths = bp.duration_months || 36;
+    const durationYears = durationMonths / 12;
+    const daysPerFte = bp.days_per_fte || DAYS_PER_FTE;
+    const defaultRate = bp.default_daily_rate || DEFAULT_DAILY_RATE;
+    const profileMappings = bp.profile_mappings || {};
+
+    // Compute weighted avg Lutech rate for a profile_mix array
+    const computeRate = (mix) => {
+      if (!mix || mix.length === 0) return defaultRate;
+      let totalWeighted = 0, totalPctSum = 0;
+      for (const entry of mix) {
+        const pct = (parseFloat(entry.pct) || 0) / 100;
+        if (pct <= 0) continue;
+        const mappings = profileMappings[entry.poste_profile];
+        let entryRate = defaultRate;
+        if (mappings && mappings.length > 0) {
+          let pWeighted = 0, pMonths = 0;
+          for (const m of mappings) {
+            const ms = parseFloat(m.month_start ?? 1);
+            const me = parseFloat(m.month_end ?? durationMonths);
+            const months = Math.max(0, me - ms + 1);
+            if (months <= 0) continue;
+            let pRate = 0;
+            for (const mi of (m.mix || [])) {
+              const mpct = (parseFloat(mi.pct) || 0) / 100;
+              pRate += mpct * (lutechRates[mi.lutech_profile] || defaultRate);
+            }
+            pWeighted += pRate * months;
+            pMonths += months;
+          }
+          entryRate = pMonths > 0 ? pWeighted / pMonths : defaultRate;
+          if (entryRate <= 0) entryRate = defaultRate;
+        } else {
+          entryRate = lutechRates[entry.poste_profile] || defaultRate;
+        }
+        totalWeighted += pct * entryRate;
+        totalPctSum += pct;
+      }
+      return totalPctSum > 0 ? totalWeighted / totalPctSum : defaultRate;
+    };
+
+    let total = 0;
+    const byTow = [];
+
+    for (const tow of catalogTows) {
+      // Modello FTE-from-group:
+      //   group_fte = (group.target_value / total_catalog_value) × tow.total_fte
+      //   item_fte  = group_fte × item.group_pct / 100
+      //   item_cost = item_fte × rate × anni × DAYS_PER_FTE
+      //   item_sell = item_cost / (1 − margine_target/100)
+      const refTotalFte = parseFloat(tow.total_fte ?? 0);
+      const totalCatalogValue = parseFloat(tow.total_catalog_value ?? 0);
+      const defaultTargetMarginPct = parseFloat(tow.target_margin_pct ?? 20);
+      const groups = tow.catalog_groups || [];
+
+      // Build group lookup: item.id → group
+      const itemGroupMap = {};
+      for (const g of groups) {
+        for (const id of (g.item_ids || [])) itemGroupMap[id] = g;
+      }
+
+      let towCost = 0, towSellPrice = 0;
+      const itemsDetail = [];
+
+      for (const item of (tow.catalog_items || [])) {
+        const group = itemGroupMap[item.id];
+        const group_target = group ? (parseFloat(group.target_value) || 0) : 0;
+        const group_fte = (totalCatalogValue > 0 && group_target > 0)
+          ? (group_target / totalCatalogValue) * refTotalFte
+          : 0;
+        const item_pct = parseFloat(item.group_pct) || 0;
+        const item_fte = group_fte * item_pct / 100;
+
+        const rate = computeRate(item.profile_mix);
+
+        // Costo Tot. = FTE × tariffa × anni × daysPerFte
+        const item_cost = item_fte * rate * durationYears * daysPerFte;
+
+        const isDefaultMargin = item.target_margin_pct === null || item.target_margin_pct === undefined;
+        const effectiveMarginPct = isDefaultMargin ? defaultTargetMarginPct : parseFloat(item.target_margin_pct);
+        const marginFactor = 1 - effectiveMarginPct / 100;
+
+        // Prezzo Vendita Tot. = Costo / (1 − margine)
+        const item_sell_price = marginFactor > 0.001 ? item_cost / marginFactor : item_cost;
+
+        const priceBase = parseFloat(item.price_base) || 0;
+
+        // Applica sconto gara/lotto ai valori Poste (proporzionale, non tocca costi Lutech)
+        const scontoGaraPct = parseFloat(tow.sconto_gara_pct ?? 0);
+        const scontoGaraFactor = 1 - scontoGaraPct / 100;
+        const effective_price_base = priceBase * scontoGaraFactor;
+        const effective_group_target = group_target * scontoGaraFactor;
+
+        // Pz. Poste Tot. (effettivo post sconto gara)
+        const item_poste_total = effective_group_target * item_pct / 100;
+
+        // Pz. Unitario Lutech = (sell / effective_poste_total) × effective_price_base
+        const item_lutech_unit = (item_poste_total > 0 && effective_price_base > 0)
+          ? (item_sell_price / item_poste_total) * effective_price_base
+          : 0;
+
+        // Sconto % = (1 − lutech_unit / effective_price_base) × 100
+        const item_sconto_pct = (effective_price_base > 0 && item_lutech_unit > 0)
+          ? (1 - item_lutech_unit / effective_price_base) * 100
+          : 0;
+
+        towCost += item_cost;
+        towSellPrice += item_sell_price;
+        itemsDetail.push({
+          label: item.label || '',
+          tipo: item.tipo,
+          complessita: item.complessita,
+          price_base: priceBase,
+          group_pct: item_pct,
+          poste_total: Math.round(item_poste_total),
+          lutech_cost: Math.round(item_cost),
+          lutech_revenue: Math.round(item_sell_price),
+          lutech_margin: Math.round(item_sell_price - item_cost),
+          effective_margin_pct: effectiveMarginPct,
+          fte: Math.round(item_fte * 100) / 100,
+          lutech_unit_price: Math.round(item_lutech_unit * 100) / 100,
+          sconto_pct: Math.round(item_sconto_pct * 100) / 100,
+        });
+      }
+
+      // Cluster distribution pesata su FTE
+      const clusters = tow.catalog_clusters || [];
+      const clusterDetail = [];
+      if (clusters.length > 0) {
+        const profileToCluster = {};
+        for (const c of clusters) {
+          for (const p of (c.poste_profiles || [])) profileToCluster[p] = c.id;
+        }
+        const clusterAccum = {};
+        for (const c of clusters) clusterAccum[c.id] = 0;
+        const totalFteItems = itemsDetail.reduce((s, it) => s + it.fte, 0);
+        if (totalFteItems > 0) {
+          (tow.catalog_items || []).forEach((item, i) => {
+            const weight = itemsDetail[i].fte / totalFteItems;
+            for (const entry of (item.profile_mix || [])) {
+              const cid = profileToCluster[entry.poste_profile];
+              if (cid !== undefined) {
+                clusterAccum[cid] = (clusterAccum[cid] || 0) + weight * (parseFloat(entry.pct) || 0);
+              }
+            }
+          });
+        }
+        for (const c of clusters) {
+          const actualPct = clusterAccum[c.id] || 0;
+          clusterDetail.push({
+            label: c.label,
+            required_pct: parseFloat(c.required_pct) || 0,
+            actual_pct: Math.round(actualPct * 10) / 10,
+            ok: Math.abs(actualPct - (parseFloat(c.required_pct) || 0)) <= 2,
+          });
+        }
+      }
+
+      // Groups totals
+      const groupsDetail = groups.map(g => {
+        const gItemIdxs = (tow.catalog_items || []).reduce((arr, it, i) => {
+          if ((g.item_ids || []).includes(it.id)) arr.push(i);
+          return arr;
+        }, []);
+        const gItems = gItemIdxs.map(i => itemsDetail[i]).filter(Boolean);
+        return {
+          label: g.label || '',
+          target_value: parseFloat(g.target_value) || 0,
+          lutech_cost: gItems.reduce((s, it) => s + it.lutech_cost, 0),
+          lutech_revenue: gItems.reduce((s, it) => s + it.lutech_revenue, 0),
+          lutech_margin: gItems.reduce((s, it) => s + it.lutech_margin, 0),
+          fte: gItems.reduce((s, it) => s + it.fte, 0),
+        };
+      });
+
+      total += towCost;
+      byTow.push({
+        tow_id: tow.tow_id || '',
+        label: tow.label || tow.tow_id || 'Catalogo',
+        cost: Math.round(towCost),
+        revenue: Math.round(towSellPrice),
+        margin: Math.round(towSellPrice - towCost),
+        items: itemsDetail,
+        groups: groupsDetail,
+        clusters: clusterDetail,
+      });
+    }
+
+    return {
+      total: Math.round(total * 100) / 100,
+      detail: { byTow },
+    };
+  }, [buildLutechRates]);
+
   // Generate scenarios with real recalculation and suggested discount
   // effectiveBase is already Lutech's share (baseAmount * quotaLutech)
-  const generateScenarios = useCallback((bp, effectiveBase, currentCost) => {
+  // catalogCost is fixed across scenarios (FTE from the tender, not optimizable)
+  const generateScenarios = useCallback((bp, effectiveBase, currentCost, catalogCost = 0) => {
     if (!effectiveBase || !currentCost) return [];
 
     return SCENARIO_PARAMS.map(({ name, reuse, profileReduction }) => {
@@ -653,14 +860,16 @@ export default function BusinessPlanPage() {
         volume_adjustments: neutralVolAdj,
       });
 
+      // Base overhead = team cost (variabile) + catalog cost (fisso dal bando)
       const scenarioCost = scenarioResult.total;
-      const govResult = calculateGovernanceCost(bp, scenarioCost);
+      const scenarioBase = scenarioCost + catalogCost;
+      const govResult = calculateGovernanceCost(bp, scenarioBase);
       const govCost = govResult.value;
-      const riskCost = (scenarioCost + govCost) * ((bp.risk_contingency_pct || 3) / 100);
+      const riskCost = (scenarioBase + govCost) * ((bp.risk_contingency_pct || 3) / 100);
       const towSplit = bp.subcontract_config?.tow_split || {};
       const subPct = Object.values(towSplit).reduce((sum, pct) => sum + (parseFloat(pct) || 0), 0);
-      const subCost = scenarioCost * (subPct / 100);
-      const totalScenarioCost = scenarioCost + govCost + riskCost + subCost;
+      const subCost = scenarioBase * (subPct / 100);
+      const totalScenarioCost = scenarioBase + govCost + riskCost + subCost;
 
       const revenue = effectiveBase;
       const margin = revenue - totalScenarioCost;
@@ -702,33 +911,41 @@ export default function BusinessPlanPage() {
         volume_adjustments: { periods: [{ month_start: 1, month_end: localBP.duration_months || 36, by_tow: {}, by_profile: {} }] },
       });
 
-      // Governance
-      const govResult = calculateGovernanceCost(localBP, teamCost);
+      // Catalog cost (margine-first, fisso dal bando — entra nella base overhead)
+      const { total: catalogCost, detail: catalogDetail } = computeCatalogCost(localBP);
+
+      // Base overhead = team cost + catalog cost
+      const baseCost = teamCost + catalogCost;
+
+      // Governance (calcolata sulla base overhead completa)
+      const govResult = calculateGovernanceCost(localBP, baseCost);
       const governanceCost = govResult.value;
 
-      // Risk (calcolato su team + governance)
+      // Risk (calcolato su base + governance)
       const riskPct = localBP.risk_contingency_pct || 0;
-      const riskCost = Math.round((teamCost + governanceCost) * (riskPct / 100) * 100) / 100;
+      const riskCost = Math.round((baseCost + governanceCost) * (riskPct / 100) * 100) / 100;
 
-      // Subcontract
+      // Subcontract (su base overhead)
       const towSplit = localBP.subcontract_config?.tow_split || {};
       const subQuotaPct = Object.values(towSplit).reduce((sum, pct) => sum + (parseFloat(pct) || 0), 0);
-      const subcontractCost = Math.round(teamCost * (subQuotaPct / 100) * 100) / 100;
+      const subcontractCost = Math.round(baseCost * (subQuotaPct / 100) * 100) / 100;
       const subAvgRate = localBP.subcontract_config?.avg_daily_rate ?? teamMixRate;
       const subPartner = localBP.subcontract_config?.partner || 'Non specificato';
 
-      const totalCostRaw = teamCost + governanceCost + riskCost + subcontractCost;
+      const totalCostRaw = baseCost + governanceCost + riskCost + subcontractCost;
       const totalCost = Math.round(totalCostRaw * 100) / 100;
 
       setCalcResult({
         team: teamCost,
+        catalog_cost: catalogCost,
+        catalog_detail: catalogDetail,
         governance: governanceCost,
         risk: riskCost,
         subcontract: subcontractCost,
         total: totalCost,
         explanation: {
           governance: govResult.meta,
-          risk: { pct: riskPct, base: teamCost + governanceCost },
+          risk: { pct: riskPct, base: baseCost + governanceCost },
           subcontract: {
             pct: subQuotaPct,
             avg_daily_rate: subAvgRate,
@@ -749,14 +966,14 @@ export default function BusinessPlanPage() {
       const qLutechCalc = isRtiCalc && lotData.rti_quotas?.Lutech
         ? lotData.rti_quotas.Lutech / 100 : 1.0;
       const effectiveBase = rawBase * qLutechCalc;
-      const newScenarios = generateScenarios(localBP, effectiveBase, totalCost);
+      const newScenarios = generateScenarios(localBP, effectiveBase, totalCost, catalogCost);
       setScenarios(newScenarios);
 
     } catch (err) {
       logger.error('Calculation error', err, { lot: selectedLot });
       toast.error(`Errore nel calcolo: ${err.message || 'Errore sconosciuto'}`);
     }
-  }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, generateScenarios, teamMixRate, toast]);
+  }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, computeCatalogCost, generateScenarios, teamMixRate, toast]);
 
   useEffect(() => {
     runCalculation();
@@ -1177,6 +1394,69 @@ export default function BusinessPlanPage() {
 
     for (const tow of tows) {
       const towId = tow.tow_id;
+
+      // TOW Catalogo: usa pricing dal modello FTE-from-group (già calcolato in catalog_detail)
+      if (tow.type === 'catalogo') {
+        const items = tow.catalog_items || [];
+        const groups = tow.catalog_groups || [];
+
+        // Recupera i valori calcolati da calcResult.catalog_detail per evitare doppio calcolo
+        // Lookup per tow_id (fallback a label per backward compat)
+        const towDetail = (calcResult.catalog_detail?.byTow || []).find(
+          d => (tow.tow_id && d.tow_id === tow.tow_id) || d.label === (tow.label || tow.tow_id || 'Catalogo')
+        );
+        const itemDetailMap = {};
+        if (towDetail) {
+          items.forEach((it, i) => {
+            if (towDetail.items[i]) itemDetailMap[it.id] = towDetail.items[i];
+          });
+        }
+
+        // Prezzo catalogo = Σ lutech_revenue (Prezzo Vendita Tot. per voce)
+        const catalogTotal = towDetail ? towDetail.revenue : 0;
+
+        const itemMap = Object.fromEntries(items.map(it => [it.id, it]));
+        const groupedIds = new Set(groups.flatMap(g => g.item_ids || []));
+
+        const mapItem = (it) => {
+          const detail = itemDetailMap[it.id] || {};
+          return {
+            id: it.id,
+            label: it.label,
+            price_base: parseFloat(it.price_base) || 0,
+            group_pct: parseFloat(it.group_pct) || 0,
+            fte: detail.fte ?? 0,
+            lutech_cost: detail.lutech_cost ?? 0,
+            lutech_unit_price: detail.lutech_unit_price ?? 0,
+            poste_total: detail.poste_total ?? 0,
+            sconto_pct: detail.sconto_pct ?? 0,
+            effective_margin_pct: detail.effective_margin_pct ?? 0,
+            total: detail.lutech_revenue ?? 0,  // Prezzo Vendita Tot.
+          };
+        };
+
+        const catalogGroups = groups.map(g => ({
+          id: g.id,
+          label: g.label,
+          target_value: parseFloat(g.target_value) || 0,
+          items: (g.item_ids || []).map(id => itemMap[id]).filter(Boolean).map(mapItem),
+        }));
+
+        const ungrouped = items.filter(it => !groupedIds.has(it.id)).map(mapItem);
+
+        offerData.push({
+          tow_id: towId,
+          label: tow.label,
+          type: 'catalogo',
+          quantity: items.length,
+          unit_price: null,
+          total_price: catalogTotal,
+          catalog_detail: { groups: catalogGroups, ungrouped },
+        });
+        checkTotal += catalogTotal;
+        continue;
+      }
+
       const fullCost = fullCostByTow[towId] || 0;
 
       // Share di revenue
@@ -1253,6 +1533,7 @@ export default function BusinessPlanPage() {
   const offerScheme = calculateOfferData();
 
   return (
+    <>
     <div className="flex-1 overflow-auto p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
@@ -1366,14 +1647,22 @@ export default function BusinessPlanPage() {
                 towAssignments={localBP.tow_assignments || {}}
                 onChange={handleTowsChange}
                 onAssignmentChange={handleTowAssignmentChange}
+                onOpenCatalogModal={(towIndex) => {
+                  const tow = (localBP.tows || [])[towIndex];
+                  if (tow) setCatalogModalTow({ tow, index: towIndex });
+                }}
                 volumeAdjustments={localBP.volume_adjustments || {}}
                 durationMonths={localBP.duration_months}
+                profileMappings={localBP.profile_mappings || {}}
+                profileRates={buildLutechRates()}
+                defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
               />
 
-              {/* Composizione Team (requisiti Poste) */}
+              {/* Composizione Team (requisiti Poste) — i TOW tipo catalogo non partecipano all'allocazione FTE */}
               <TeamCompositionTable
                 team={localBP.team_composition || []}
-                tows={localBP.tows || []}
+                tows={(localBP.tows || []).filter(t => t.type !== 'catalogo')}
                 durationMonths={localBP.duration_months}
                 daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
                 onChange={handleTeamChange}
@@ -1607,6 +1896,8 @@ export default function BusinessPlanPage() {
                 startYear={localBP.start_year}
                 startMonth={localBP.start_month}
                 inflationPct={localBP.inflation_pct ?? 0}
+                catalogCost={calcResult?.catalog_cost ?? 0}
+                catalogDetail={calcResult?.catalog_detail ?? null}
               />
             </div>
           )}
@@ -1683,5 +1974,27 @@ export default function BusinessPlanPage() {
         </div>
       </div>
     </div>
+
+    {/* Catalog Editor Modal */}
+    {catalogModalTow && localBP && (
+      <CatalogEditorModal
+        tow={catalogModalTow.tow}
+        onChange={(updatedTow) => {
+          const index = catalogModalTow.index; // constant while modal is open
+          setLocalBP(prev => ({
+            ...prev,
+            tows: (prev.tows || []).map((t, i) => i === index ? updatedTow : t),
+          }));
+          setCatalogModalTow(prev => ({ ...prev, tow: updatedTow }));
+        }}
+        profileMappings={localBP.profile_mappings || {}}
+        profileRates={buildLutechRates()}
+        durationMonths={localBP.duration_months || 36}
+        defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+        daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+        onClose={() => setCatalogModalTow(null)}
+      />
+    )}
+    </>
   );
 }

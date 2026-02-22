@@ -515,6 +515,7 @@ class BusinessPlanCalculateRequest(BaseModel):
 class BusinessPlanCalculateResponse(BaseModel):
     """Risposta calcolo Business Plan"""
     team_cost: float = 0.0
+    catalog_cost: float = 0.0
     governance_cost: float = 0.0
     risk_cost: float = 0.0
     subcontract_cost: float = 0.0
