@@ -1005,7 +1005,7 @@ export default function CatalogEditorModal({
                           {scontoGaraPct > 0 ? (
                             <div>
                               <div className="text-right text-xs font-semibold tabular-nums text-amber-700 whitespace-nowrap">
-                                {calc.has_valid_data ? formatCurrency(calc.effective_price_base, 0) : '—'}
+                                {calc.price_base_orig > 0 ? formatCurrency(calc.effective_price_base, 0) : '—'}
                               </div>
                               <div className="flex items-center justify-end gap-0.5 mt-0.5">
                                 <input
