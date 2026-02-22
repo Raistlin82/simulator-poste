@@ -129,6 +129,7 @@ export default function BusinessPlanPage() {
         margin_warning_threshold: businessPlan.margin_warning_threshold ?? 0.05,
         margin_success_threshold: businessPlan.margin_success_threshold ?? 0.15,
         inflation_pct: businessPlan.inflation_pct ?? 0,
+        max_subcontract_pct: businessPlan.max_subcontract_pct ?? 20,
       });
     } else if (selectedLot) {
       // Initialize empty BP (values already in percentage form)
@@ -159,6 +160,7 @@ export default function BusinessPlanPage() {
         inflation_pct: 0,
         margin_warning_threshold: 0.05,
         margin_success_threshold: 0.15,
+        max_subcontract_pct: 20,
       });
     }
   }, [businessPlan, selectedLot]);
@@ -1173,6 +1175,10 @@ export default function BusinessPlanPage() {
     setLocalBP(prev => ({ ...prev, days_per_fte: parseFloat(days) || DAYS_PER_FTE }));
   };
 
+  const handleMaxSubcontractPctChange = (val) => {
+    setLocalBP(prev => ({ ...prev, max_subcontract_pct: parseFloat(val) || 20 }));
+  };
+
   const handleDefaultRateChange = (rate) => {
     setLocalBP(prev => ({ ...prev, default_daily_rate: parseFloat(rate) || DEFAULT_DAILY_RATE }));
   };
@@ -1752,7 +1758,7 @@ export default function BusinessPlanPage() {
                   </div>
 
                   {/* Parametri base (griglia orizzontale) */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {/* Durata (mesi) */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">Durata Contratto</label>
@@ -1812,6 +1818,27 @@ export default function BusinessPlanPage() {
                         (tariffa giornaliera)
                       </div>
                     </div>
+
+                    {/* Max Subappalto % */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Max Subappalto</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={localBP.max_subcontract_pct ?? 20}
+                          onChange={(e) => handleMaxSubcontractPctChange(e.target.value)}
+                          className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <span className="text-sm text-slate-500">%</span>
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        (limite massimo consentito)
+                      </div>
+                    </div>
                   </div>
 
                   <div className="h-px bg-slate-100" />
@@ -1861,6 +1888,7 @@ export default function BusinessPlanPage() {
                 teamCost={calcResult?.team || 0}
                 teamMixRate={teamMixRate}
                 defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+                maxSubcontractPct={localBP.max_subcontract_pct ?? 20}
                 onChange={handleSubcontractChange}
               />
 

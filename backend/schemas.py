@@ -376,6 +376,7 @@ class BusinessPlanCreate(BaseModel):
     tow_assignments: Dict[str, str] = Field(default_factory=dict)
     profile_mappings: Dict[str, List[TimeVaryingMix]] = Field(default_factory=dict)
     subcontract_config: Dict[str, Any] = Field(default_factory=dict)
+    max_subcontract_pct: float = Field(default=20.0, ge=0.0, le=100.0, description="Quota massima subappalto consentita (%)")
     # Governance Profile Mix: permette di calcolare il costo governance basato su un mix
     # di profili Lutech anziché usare solo la percentuale sul team cost.
     # Formato: [{"lutech_profile": "practice:profile_id", "pct": 50}, ...]
@@ -491,6 +492,7 @@ class BusinessPlanResponse(BaseModel):
     tow_assignments: Dict[str, str] = Field(default_factory=dict)
     profile_mappings: Dict[str, List[TimeVaryingMix]] = Field(default_factory=dict)
     subcontract_config: Dict[str, Any] = Field(default_factory=dict)
+    max_subcontract_pct: float = 20.0
     governance_profile_mix: List[Dict[str, Any]] = Field(default_factory=list)
     governance_cost_manual: Optional[float] = None
     governance_mode: Literal['percentage', 'fte', 'manual', 'team_mix'] = 'percentage'

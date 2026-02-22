@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, BookOpen, Wand2, Save } from 'lucide-react';
+import { useState, useMemo, useCallback, Fragment } from 'react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CheckCircle2, BookOpen, Wand2, Save } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 import { bpSaveTrigger } from '../../../utils/bpSaveTrigger';
 
@@ -512,6 +512,7 @@ export default function CatalogEditorModal({
 }) {
   const [activeTab, setActiveTab] = useState('items');
   const [expandedMix, setExpandedMix] = useState(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
 
   const items = tow?.catalog_items || [];
   const clusters = tow?.catalog_clusters || [];
@@ -747,6 +748,35 @@ export default function CatalogEditorModal({
     return map;
   }, [catalogGroups, items, itemCalcs]);
 
+  // Raggruppa gli item per gruppo (usato per collapse nel tab Voci)
+  const groupedItems = useMemo(() => {
+    const groupMap = new Map(); // groupId → { group, colorIdx, indices }
+    const ungrouped = [];
+    items.forEach((item, idx) => {
+      const info = itemToGroup[item.id];
+      if (info) {
+        if (!groupMap.has(info.group.id)) {
+          groupMap.set(info.group.id, { group: info.group, colorIdx: info.colorIdx, indices: [] });
+        }
+        groupMap.get(info.group.id).indices.push(idx);
+      } else {
+        ungrouped.push(idx);
+      }
+    });
+    const result = Array.from(groupMap.values());
+    if (ungrouped.length > 0) result.push({ group: null, colorIdx: -1, indices: ungrouped });
+    return result;
+  }, [items, itemToGroup]);
+
+  const toggleCollapsedGroup = useCallback((groupId) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }, []);
+
   // Distribuzione cluster pesata sugli FTE
   const clusterDist = useMemo(() => {
     if (clusters.length === 0) return {};
@@ -941,7 +971,38 @@ export default function CatalogEditorModal({
                       </td>
                     </tr>
                   )}
-                  {items.map((item, idx) => {
+                  {groupedItems.map(({ group, colorIdx, indices }) => {
+                    const gId = group?.id ?? '__ungrouped__';
+                    const isCollapsed = group && collapsedGroups.has(gId);
+                    const groupCalc = indices.reduce((acc, i) => ({
+                      fte: acc.fte + (itemCalcs[i]?.item_fte || 0),
+                      cost: acc.cost + (itemCalcs[i]?.item_cost || 0),
+                    }), { fte: 0, cost: 0 });
+                    return (
+                      <Fragment key={gId}>
+                        {/* Group header row */}
+                        {group && (
+                          <tr
+                            className="bg-slate-100/70 hover:bg-slate-100 cursor-pointer select-none"
+                            onClick={() => toggleCollapsedGroup(gId)}
+                          >
+                            <td colSpan={13} className="px-3 py-1.5">
+                              <div className="flex items-center gap-2 text-xs">
+                                {isCollapsed
+                                  ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                }
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${GROUP_DOTS[colorIdx % GROUP_DOTS.length]}`} />
+                                <span className="font-semibold text-slate-700">{group.label}</span>
+                                <span className="text-slate-400">({indices.length} {indices.length === 1 ? 'voce' : 'voci'})</span>
+                                <span className="ml-auto font-semibold text-indigo-600 tabular-nums">{groupCalc.fte.toFixed(2)} FTE</span>
+                                <span className="font-medium text-slate-600 tabular-nums">{formatCurrency(groupCalc.cost, 0)}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {!isCollapsed && indices.map((idx) => {
+                    const item = items[idx];
                     const calc = itemCalcs[idx];
                     const mixExpanded = expandedMix.has(item.id);
                     const groupInfo = itemToGroup[item.id];
@@ -1167,6 +1228,9 @@ export default function CatalogEditorModal({
                           </button>
                         </td>
                       </tr>
+                    );
+                        })}
+                      </Fragment>
                     );
                   })}
                 </tbody>

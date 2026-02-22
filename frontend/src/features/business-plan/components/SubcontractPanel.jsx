@@ -13,6 +13,7 @@ export default function SubcontractPanel({
   teamCost = 0,
   teamMixRate = 0,
   defaultDailyRate = 250,
+  maxSubcontractPct = 20,
   onChange,
   disabled = false
 }) {
@@ -44,7 +45,7 @@ export default function SubcontractPanel({
   };
 
   const subcontractCost = Math.round(teamCost * (totalQuotaPct / 100));
-  const isOverLimit = totalQuotaPct > 20;
+  const isOverLimit = totalQuotaPct > maxSubcontractPct;
   const hasSubcontract = totalQuotaPct > 0;
 
   return (
@@ -63,7 +64,7 @@ export default function SubcontractPanel({
             <div>
               <h3 className="font-semibold text-slate-800">Subappalto</h3>
               <p className="text-xs text-slate-500">
-                Configura la quota di lavoro in subappalto (max 20%)
+                Configura la quota di lavoro in subappalto (max {maxSubcontractPct}%)
               </p>
             </div>
           </div>
@@ -94,7 +95,7 @@ export default function SubcontractPanel({
           <div className="flex items-center justify-between text-xs mb-1">
             <span className="font-medium text-slate-600">Quota Totale</span>
             <span className={`font-semibold ${isOverLimit ? 'text-red-600' : 'text-slate-500'}`}>
-              {totalQuotaPct.toFixed(1)}% / 20%
+              {totalQuotaPct.toFixed(1)}% / {maxSubcontractPct}%
             </span>
           </div>
           <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -102,7 +103,7 @@ export default function SubcontractPanel({
               className={`h-full rounded-full transition-all duration-300 ${
                 isOverLimit ? 'bg-red-500' : 'bg-purple-500'
               }`}
-              style={{ width: `${Math.min(100, (totalQuotaPct / 20) * 100)}%` }}
+              style={{ width: `${maxSubcontractPct > 0 ? Math.min(100, (totalQuotaPct / maxSubcontractPct) * 100) : 0}%` }}
             />
           </div>
         </div>
@@ -141,7 +142,7 @@ export default function SubcontractPanel({
                         onChange={e => handleSplitChange(tow.tow_id, e.target.value)}
                         disabled={disabled}
                         min="0"
-                        max="20"
+                        max={maxSubcontractPct}
                         step="1"
                         placeholder="0"
                         className={`w-16 px-2 py-1.5 text-center text-sm font-semibold border rounded-lg
@@ -248,7 +249,7 @@ export default function SubcontractPanel({
             {isOverLimit && (
               <div className="mt-3 flex items-center gap-2 text-xs text-red-600 bg-red-100 px-3 py-2 rounded-lg">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>La quota totale supera il limite massimo del 20%</span>
+                <span>La quota totale supera il limite massimo del {maxSubcontractPct}%</span>
               </div>
             )}
           </div>
