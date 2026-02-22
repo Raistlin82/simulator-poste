@@ -21,6 +21,7 @@ export default function TowConfigTable({
   profileMappings = {},
   profileRates = {},
   defaultDailyRate = 250,
+  daysPerFte = 220,
 }) {
   const { t } = useTranslation();
   const [showAddRow, setShowAddRow] = useState(false);
@@ -110,7 +111,7 @@ export default function TowConfigTable({
     return colors[t.color] || 'bg-slate-100 text-slate-600';
   };
 
-  // Compute catalog item preview (rate only, for summary)
+  // Compute catalog item rate — duration-weighted average across all mapping periods (full version)
   const computeCatalogItemRate = (profileMix) => {
     if (!profileMix || profileMix.length === 0) return defaultDailyRate;
     let totalWeighted = 0;
@@ -119,18 +120,28 @@ export default function TowConfigTable({
       const pct = (parseFloat(entry.pct) || 0) / 100;
       if (pct <= 0) continue;
       const mappings = profileMappings[entry.poste_profile];
-      let rate = defaultDailyRate;
+      let lutech_rate = defaultDailyRate;
       if (mappings && mappings.length > 0) {
-        const mix = mappings[0].mix || [];
-        let pr = 0;
-        for (const mi of mix) {
-          pr += ((parseFloat(mi.pct) || 0) / 100) * (profileRates[mi.lutech_profile] || defaultDailyRate);
+        let periodWeighted = 0, periodMonthsTotal = 0;
+        for (const m of mappings) {
+          const ms = parseFloat(m.month_start ?? 1);
+          const me = parseFloat(m.month_end ?? durationMonths);
+          const months = Math.max(0, me - ms + 1);
+          if (months <= 0) continue;
+          let pRate = 0;
+          for (const mi of (m.mix || [])) {
+            const mpct = (parseFloat(mi.pct) || 0) / 100;
+            pRate += mpct * (profileRates[mi.lutech_profile] || defaultDailyRate);
+          }
+          periodWeighted += pRate * months;
+          periodMonthsTotal += months;
         }
-        if (pr > 0) rate = pr;
+        lutech_rate = periodMonthsTotal > 0 ? periodWeighted / periodMonthsTotal : defaultDailyRate;
+        if (lutech_rate <= 0) lutech_rate = defaultDailyRate;
       } else {
-        rate = profileRates[entry.poste_profile] || defaultDailyRate;
+        lutech_rate = profileRates[entry.poste_profile] || defaultDailyRate;
       }
-      totalWeighted += pct * rate;
+      totalWeighted += pct * lutech_rate;
       totalPct += pct;
     }
     return totalPct > 0 ? totalWeighted / totalPct : defaultDailyRate;
@@ -231,8 +242,9 @@ export default function TowConfigTable({
             <tr>
               <th className="px-4 py-3 text-left font-semibold text-slate-600 w-24">ID</th>
               <th className="px-4 py-3 text-left font-semibold text-slate-600">Descrizione</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-24">Tipo</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-20">Peso %</th>
+              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-36">Tipo</th>
+              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-24">Peso %</th>
+              <th className="px-4 py-3 text-center font-semibold text-indigo-600 w-20" title="Quota % del TOW svolta da Lutech (es. in RTI)">Lutech %</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-600 w-28">Quantità</th>
               {hasAdjustments && (
                 <>
@@ -251,7 +263,7 @@ export default function TowConfigTable({
           <tbody className="divide-y divide-slate-100">
             {tows.length === 0 && !showAddRow ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                   <div className="flex flex-col items-center gap-2">
                     <Layers className="w-8 h-8 text-slate-300" />
                     <p>Nessun TOW configurato</p>
@@ -321,6 +333,29 @@ export default function TowConfigTable({
                                  disabled:bg-slate-50 disabled:cursor-not-allowed"
                     />
                   </td>
+                  {/* Lutech % — editabile per TOW FTE-based, sempre 100% per catalogo */}
+                  <td className="px-4 py-2">
+                    {tow.type === 'catalogo' ? (
+                      <div className="text-center">
+                        <span className="text-xs text-slate-400">100%</span>
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        value={tow.lutech_pct ?? 100}
+                        onChange={(e) => handleUpdateTow(idx, 'lutech_pct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                        disabled={disabled}
+                        min="0"
+                        max="100"
+                        step="5"
+                        className={`w-full px-2 py-1 text-center border rounded focus:outline-none text-xs
+                          ${(tow.lutech_pct ?? 100) < 100
+                            ? 'border-indigo-300 bg-indigo-50 text-indigo-700 focus:border-indigo-500'
+                            : 'border-slate-200 focus:border-indigo-300'}
+                          disabled:bg-slate-50 disabled:cursor-not-allowed`}
+                      />
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     {tow.type === 'task' ? (
                       <input
@@ -347,37 +382,55 @@ export default function TowConfigTable({
                                    disabled:bg-slate-50 disabled:cursor-not-allowed"
                       />
                     ) : tow.type === 'catalogo' ? (
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-500">FTE:</span>
-                        <input
-                          type="number"
-                          value={tow.total_fte ?? ''}
-                          onChange={(e) => handleUpdateTow(idx, 'total_fte', parseFloat(e.target.value) || 0)}
-                          disabled={disabled}
-                          min="0"
-                          step="0.5"
-                          placeholder="0"
-                          className="w-16 px-1.5 py-1 text-center border border-slate-200 rounded
-                                     focus:border-indigo-300 focus:outline-none text-xs
-                                     disabled:bg-slate-50 disabled:cursor-not-allowed"
-                        />
-                        <button
-                          onClick={() => onOpenCatalogModal?.(idx)}
-                          disabled={disabled}
-                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600
-                                     hover:bg-rose-50 rounded border border-rose-200 transition-colors
-                                     disabled:opacity-40 disabled:cursor-not-allowed"
-                          title="Apri editor catalogo"
-                        >
-                          <BookOpen className="w-3 h-3" />
-                          {(tow.catalog_items || []).length}
-                        </button>
-                        <button
-                          onClick={() => toggleCatalogExpand(idx)}
-                          className="p-1 text-slate-400 hover:text-slate-600 rounded"
-                        >
-                          {expandedCatalog.has(idx) ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                        </button>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => onOpenCatalogModal?.(idx)}
+                            disabled={disabled}
+                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600
+                                       hover:bg-rose-50 rounded border border-rose-200 transition-colors
+                                       disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Apri editor catalogo"
+                          >
+                            <BookOpen className="w-3 h-3" />
+                            {(tow.catalog_items || []).length} voci
+                          </button>
+                          <button
+                            onClick={() => toggleCatalogExpand(idx)}
+                            className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                          >
+                            {expandedCatalog.has(idx) ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                        {(() => {
+                          // Modello FTE-from-group: derivedFte = Σ(group_fte × item_pct/100)
+                          const items = tow.catalog_items || [];
+                          const refFte = parseFloat(tow.total_fte || 0);
+                          const totalCatalogValue = parseFloat(tow.total_catalog_value || 0);
+                          const groups = tow.catalog_groups || [];
+                          const itemGroupMap = {};
+                          for (const g of groups) {
+                            for (const id of (g.item_ids || [])) itemGroupMap[id] = g;
+                          }
+                          let derivedFte = 0;
+                          for (const item of items) {
+                            const group = itemGroupMap[item.id];
+                            const group_target = group ? (parseFloat(group.target_value) || 0) : 0;
+                            const group_fte = (totalCatalogValue > 0 && group_target > 0)
+                              ? (group_target / totalCatalogValue) * refFte
+                              : 0;
+                            derivedFte += group_fte * (parseFloat(item.group_pct) || 0) / 100;
+                          }
+                          if (items.length === 0) return null;
+                          const ok = refFte > 0 && Math.abs(derivedFte - refFte) / refFte < 0.05;
+                          return (
+                            <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1
+                              ${ok ? 'text-green-700 bg-green-50' : 'text-amber-700 bg-amber-50'}`}>
+                              {ok ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                              FTE derivati: {derivedFte.toFixed(2)}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <span className="block text-center text-slate-400 text-xs">-</span>
@@ -448,59 +501,77 @@ export default function TowConfigTable({
                     </button>
                   </td>
                 </tr>
-                {/* Catalog summary sub-row */}
+                {/* Catalog cluster split sub-row */}
                 {tow.type === 'catalogo' && expandedCatalog.has(idx) && (() => {
-                  const items = tow.catalog_items || [];
-                  const totalFte = parseFloat(tow.total_fte || 0);
+                  const clusters = tow.catalog_clusters || [];
+                  const totalFteInput = parseFloat(tow.total_fte || 0);
                   const durationYears = durationMonths / 12;
-                  const colCount = hasAdjustments ? 9 : 7;
+                  const colCount = hasAdjustments ? 10 : 8;
+
+                  // Compute cluster split: FTE, avg rate, cost per cluster
+                  const clusterRows = clusters.map(cluster => {
+                    const requiredPct = parseFloat(cluster.required_pct) || 0;
+                    const clusterFte = totalFteInput * requiredPct / 100;
+                    const clusterDays = clusterFte * durationYears * daysPerFte;
+                    // Average rate of profiles in cluster (equal weight per profile type)
+                    const profiles = cluster.poste_profiles || [];
+                    let avgRate = defaultDailyRate;
+                    if (profiles.length > 0) {
+                      const rates = profiles.map(p => computeCatalogItemRate([{ poste_profile: p, pct: 100 }]));
+                      avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+                    }
+                    const clusterCost = clusterDays * avgRate;
+                    return { ...cluster, requiredPct, clusterFte, clusterDays, avgRate, clusterCost };
+                  });
+
+                  const totalClusterCost = clusterRows.reduce((s, c) => s + c.clusterCost, 0);
+
                   return (
                     <tr key={`cat-${idx}`} className="bg-rose-50">
                       <td colSpan={colCount} className="px-6 py-3">
-                        {items.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">Nessuna voce. Apri l'editor per aggiungerne.</p>
+                        {clusters.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">
+                            Nessun cluster configurato. Apri l'editor e vai alla tab Cluster.
+                          </p>
                         ) : (
                           <table className="w-full text-xs">
                             <thead>
-                              <tr className="text-slate-500 font-semibold">
-                                <th className="text-left pb-1">Voce</th>
-                                <th className="text-center pb-1 w-32">Tipo</th>
-                                <th className="text-center pb-1 w-24">Complessità</th>
-                                <th className="text-right pb-1 w-20">FTE %</th>
-                                <th className="text-right pb-1 w-24">Prezzo Base</th>
-                                <th className="text-right pb-1 w-24">Costo FTE</th>
-                                <th className="text-center pb-1 w-16">Margine</th>
+                              <tr className="text-slate-500 font-semibold border-b border-rose-200">
+                                <th className="text-left pb-1.5">Cluster</th>
+                                <th className="text-right pb-1.5 w-20">% Richiesta</th>
+                                <th className="text-right pb-1.5 w-20">FTE</th>
+                                <th className="text-right pb-1.5 w-20">Gg/uomo</th>
+                                <th className="text-right pb-1.5 w-28">Tariffa media</th>
+                                <th className="text-right pb-1.5 w-28">Costo cluster</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-rose-100">
-                              {items.map((item, iidx) => {
-                                const fte_pct = parseFloat(item.fte_pct) || 0;
-                                const item_fte = totalFte * (fte_pct / 100);
-                                const item_days = item_fte * durationYears * 220;
-                                const rate = computeCatalogItemRate(item.profile_mix || []);
-                                const cost = item_days * rate;
-                                const margin = (parseFloat(item.price_base) || 0) - cost;
-                                const isOk = margin >= 0;
-                                return (
-                                  <tr key={iidx}>
-                                    <td className="py-1 text-slate-700 font-medium">{item.label || '—'}</td>
-                                    <td className="py-1 text-center text-slate-500">
-                                      {item.tipo === 'nuovo_sviluppo' ? 'Nuovo' : 'Evolut.'}
-                                    </td>
-                                    <td className="py-1 text-center capitalize text-slate-500">{item.complessita || '—'}</td>
-                                    <td className="py-1 text-right text-slate-600">{fte_pct.toFixed(0)}%</td>
-                                    <td className="py-1 text-right text-slate-600">{formatCurrency(parseFloat(item.price_base) || 0, 0)}</td>
-                                    <td className="py-1 text-right text-slate-700 font-medium">{formatCurrency(cost, 0)}</td>
-                                    <td className="py-1 text-center">
-                                      {isOk
-                                        ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600 mx-auto" />
-                                        : <AlertTriangle className="w-3.5 h-3.5 text-red-500 mx-auto" />
-                                      }
-                                    </td>
-                                  </tr>
-                                );
-                              })}
+                              {clusterRows.map((cr) => (
+                                <tr key={cr.id}>
+                                  <td className="py-1.5">
+                                    <div className="font-medium text-slate-700">{cr.label}</div>
+                                    {(cr.poste_profiles || []).length > 0 && (
+                                      <div className="text-[10px] text-slate-400">{cr.poste_profiles.join(', ')}</div>
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 text-right font-semibold text-rose-700">{cr.requiredPct.toFixed(0)}%</td>
+                                  <td className="py-1.5 text-right tabular-nums text-slate-700">{cr.clusterFte.toFixed(2)}</td>
+                                  <td className="py-1.5 text-right tabular-nums text-slate-600">{Math.round(cr.clusterDays)}</td>
+                                  <td className="py-1.5 text-right text-slate-600">{formatCurrency(cr.avgRate, 0)}/gg</td>
+                                  <td className="py-1.5 text-right font-semibold text-slate-700">{formatCurrency(cr.clusterCost, 0)}</td>
+                                </tr>
+                              ))}
                             </tbody>
+                            <tfoot className="border-t border-rose-200">
+                              <tr className="font-semibold text-slate-700">
+                                <td className="pt-1.5">TOTALE</td>
+                                <td className="pt-1.5 text-right">100%</td>
+                                <td className="pt-1.5 text-right tabular-nums">{totalFteInput.toFixed(2)}</td>
+                                <td className="pt-1.5 text-right tabular-nums">{Math.round(totalFteInput * durationYears * 220)}</td>
+                                <td></td>
+                                <td className="pt-1.5 text-right">{formatCurrency(totalClusterCost, 0)}</td>
+                              </tr>
+                            </tfoot>
                           </table>
                         )}
                         <button
@@ -508,7 +579,7 @@ export default function TowConfigTable({
                           disabled={disabled}
                           className="mt-2 text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1"
                         >
-                          <BookOpen className="w-3 h-3" /> Modifica voci →
+                          <BookOpen className="w-3 h-3" /> Modifica voci e cluster →
                         </button>
                       </td>
                     </tr>
@@ -563,6 +634,18 @@ export default function TowConfigTable({
                     min="0"
                     max="100"
                     className="w-full px-2 py-1 text-center border border-indigo-300 rounded
+                               focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </td>
+                <td className="px-4 py-2">
+                  <input
+                    type="number"
+                    value={newTow.lutech_pct ?? 100}
+                    onChange={(e) => setNewTow({ ...newTow, lutech_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })}
+                    min="0"
+                    max="100"
+                    step="5"
+                    className="w-full px-2 py-1 text-center text-xs border border-indigo-300 rounded
                                focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </td>

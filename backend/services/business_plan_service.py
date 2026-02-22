@@ -128,6 +128,7 @@ class BusinessPlanService:
         duration_months: int,
         default_daily_rate: float = 250.0,
         inflation_pct: float = 0.0,
+        days_per_fte: int = 220,
     ) -> Dict[str, Any]:
         """
         Calcola il costo del team basato su un motore ad intervalli mensili (alta precisione).
@@ -234,7 +235,7 @@ class BusinessPlanService:
                     tow_factor = weighted_sum
 
                 # Logic Parity: Frontend factor = p_factor * tow_factor * reuse
-                interval_raw_days = fte_original * BusinessPlanService.DAYS_PER_FTE * years_in_interval
+                interval_raw_days = fte_original * days_per_fte * years_in_interval
                 interval_base_days = interval_raw_days * p_factor
                 # interval_days is the effective effort BEFORE rounding
                 interval_days = interval_base_days * (tow_factor * reuse_multiplier)
@@ -512,9 +513,10 @@ class BusinessPlanService:
     def _compute_cluster_distribution(
         catalog_items: List[Any],
         catalog_clusters: List[Any],
+        item_days_list: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
         """
-        Compute actual FTE% distribution across clusters.
+        Compute actual distribution across clusters, weighted by item FTE (o item_days nel vecchio modello).
         Returns {cluster_id: {label, profiles, required_pct, actual_pct, delta, ok}}
         """
         if not catalog_clusters:
@@ -532,13 +534,16 @@ class BusinessPlanService:
             cid = cluster.get("id", "") if isinstance(cluster, dict) else getattr(cluster, "id", "")
             cluster_actual[cid] = 0.0
 
-        for item in catalog_items:
-            if isinstance(item, dict):
-                item_fte_pct = float(item.get("fte_pct", 0) or 0)
-                profile_mix = item.get("profile_mix", []) or []
-            else:
-                item_fte_pct = float(getattr(item, "fte_pct", 0) or 0)
-                profile_mix = getattr(item, "profile_mix", []) or []
+        # Weight each item's profile distribution by its days relative to total
+        days_list = item_days_list or [1.0] * len(catalog_items)
+        total_days = sum(days_list) or 1.0
+
+        for i, item in enumerate(catalog_items):
+            item_days = days_list[i] if i < len(days_list) else 0.0
+            weight = item_days / total_days  # fraction of total days
+
+            profile_mix = item.get("profile_mix", []) if isinstance(item, dict) else getattr(item, "profile_mix", [])
+            profile_mix = profile_mix or []
 
             for entry in profile_mix:
                 if isinstance(entry, dict):
@@ -550,7 +555,7 @@ class BusinessPlanService:
 
                 cid = profile_to_cluster.get(poste_profile)
                 if cid and cid in cluster_actual:
-                    cluster_actual[cid] += item_fte_pct * pct / 100.0
+                    cluster_actual[cid] += weight * pct
 
         result: Dict[str, Any] = {}
         for cluster in catalog_clusters:
@@ -585,16 +590,20 @@ class BusinessPlanService:
         profile_rates: Dict[str, float],
         duration_months: int,
         default_daily_rate: float = 250.0,
+        days_per_fte: int = 220,
     ) -> Dict[str, Any]:
         """
-        Calcola il costo dei TOW tipo 'catalogo'.
+        Calcola il costo dei TOW tipo 'catalogo' con modello FTE-FROM-GROUP.
 
-        Per ogni TOW catalogo:
-          - Ogni voce ha fte_pct (% degli FTE totali del TOW) e profile_mix (figure Poste in %)
-          - item_fte = total_fte × (fte_pct / 100)
-          - item_days = item_fte × (duration_months / 12) × 220
-          - lutech_rate = weighted_avg(profile_mix → profile_mappings → profile_rates)
-          - item_cost = item_days × lutech_rate
+        Gerarchia:
+          TOW (total_fte, total_catalog_value, target_margin_pct)
+            └─ Raggruppamento (target_value → group_fte = target_value/total_catalog × total_fte)
+                 └─ Voce (group_pct → item_fte = group_fte × pct/100)
+                      item_cost = item_fte × rate × anni × days_per_fte
+                      item_sell = item_cost / (1 − margine_target/100)
+                      item_poste_total = group_target × pct/100
+                      item_lutech_unit = (sell / poste_total) × price_base
+                      item_sconto_pct = (1 − lutech_unit / price_base) × 100
 
         Returns: { total_cost, by_tow: { tow_id: { cost, revenue, margin, items, cluster_distribution } } }
         """
@@ -614,75 +623,141 @@ class BusinessPlanService:
             if isinstance(tow, dict):
                 tow_id = tow.get("tow_id", "")
                 tow_label = tow.get("label", tow_id)
-                total_fte = float(tow.get("total_fte", 0) or 0)
+                ref_total_fte = float(tow.get("total_fte", 0) or 0)
+                total_catalog_value = float(tow.get("total_catalog_value", 0) or 0)
+                default_target_margin_pct = float(tow.get("target_margin_pct", 20.0) or 20.0)
+                sconto_gara_pct = float(tow.get("sconto_gara_pct", 0) or 0)
                 catalog_items = tow.get("catalog_items", []) or []
                 catalog_clusters = tow.get("catalog_clusters", []) or []
+                catalog_groups = tow.get("catalog_groups", []) or []
             else:
                 tow_id = getattr(tow, "tow_id", "")
                 tow_label = getattr(tow, "label", tow_id)
-                total_fte = float(getattr(tow, "total_fte", 0) or 0)
+                ref_total_fte = float(getattr(tow, "total_fte", 0) or 0)
+                total_catalog_value = float(getattr(tow, "total_catalog_value", 0) or 0)
+                default_target_margin_pct = float(getattr(tow, "target_margin_pct", 20.0) or 20.0)
+                sconto_gara_pct = float(getattr(tow, "sconto_gara_pct", 0) or 0)
                 catalog_items = getattr(tow, "catalog_items", []) or []
                 catalog_clusters = getattr(tow, "catalog_clusters", []) or []
+                catalog_groups = getattr(tow, "catalog_groups", []) or []
+
+            # Fattore sconto gara/lotto (proporzionale su valori Poste, non tocca costi Lutech)
+            sconto_gara_factor = 1.0 - sconto_gara_pct / 100.0
+
+            # Build group lookup: item_id → group
+            item_group_map: Dict[str, Any] = {}
+            for g in catalog_groups:
+                g_ids = g.get("item_ids", []) if isinstance(g, dict) else getattr(g, "item_ids", [])
+                for iid in (g_ids or []):
+                    item_group_map[iid] = g
 
             tow_cost = 0.0
-            tow_revenue = 0.0
+            tow_sell_price = 0.0
             items_result = []
+            item_fte_list = []
 
             for item in catalog_items:
                 if isinstance(item, dict):
                     item_id = item.get("id", "")
                     item_label = item.get("label", item_id)
-                    fte_pct = float(item.get("fte_pct", 0) or 0)
                     price_base = float(item.get("price_base", 0) or 0)
+                    item_pct = float(item.get("group_pct", 0) or 0)
+                    raw_margin = item.get("target_margin_pct")
                     profile_mix = item.get("profile_mix", []) or []
                 else:
                     item_id = getattr(item, "id", "")
                     item_label = getattr(item, "label", item_id)
-                    fte_pct = float(getattr(item, "fte_pct", 0) or 0)
                     price_base = float(getattr(item, "price_base", 0) or 0)
+                    item_pct = float(getattr(item, "group_pct", 0) or 0)
+                    raw_margin = getattr(item, "target_margin_pct", None)
                     profile_mix = getattr(item, "profile_mix", []) or []
 
-                item_fte = total_fte * (fte_pct / 100.0)
-                item_days = item_fte * duration_years * BusinessPlanService.DAYS_PER_FTE
+                # FTE dalla gerarchia gruppo → voce
+                group = item_group_map.get(item_id)
+                if group is not None:
+                    group_target = float(group.get("target_value", 0) if isinstance(group, dict) else getattr(group, "target_value", 0) or 0)
+                else:
+                    group_target = 0.0
 
+                group_fte = (
+                    (group_target / total_catalog_value) * ref_total_fte
+                    if total_catalog_value > 0 and group_target > 0
+                    else 0.0
+                )
+                item_fte = group_fte * item_pct / 100.0
+
+                # Tariffa Lutech media dal mix figure
                 lutech_rate = BusinessPlanService._compute_catalog_item_rate(
                     profile_mix, profile_mappings, profile_rates,
                     duration_months, default_daily_rate
                 )
 
-                item_cost = round(item_days * lutech_rate, 2)
-                item_margin = round(price_base - item_cost, 2)
+                # FTE-FROM-GROUP: FTE → costo → prezzo vendita
+                item_cost = item_fte * lutech_rate * duration_years * days_per_fte
+
+                effective_margin = default_target_margin_pct if (raw_margin is None) else float(raw_margin)
+                margin_factor = 1.0 - effective_margin / 100.0
+                item_sell = (item_cost / margin_factor) if margin_factor > 0.001 else item_cost
+
+                # Applica sconto gara/lotto ai valori Poste
+                effective_group_target = group_target * sconto_gara_factor
+                effective_price_base = price_base * sconto_gara_factor
+
+                # Pz. Poste Tot. effettivo (post sconto gara)
+                item_poste_total = effective_group_target * item_pct / 100.0
+
+                # Pz. Unitario Lutech e Sconto %
+                item_lutech_unit = (
+                    (item_sell / item_poste_total) * effective_price_base
+                    if item_poste_total > 0 and effective_price_base > 0
+                    else 0.0
+                )
+                item_sconto_pct = (
+                    (1.0 - item_lutech_unit / effective_price_base) * 100.0
+                    if effective_price_base > 0 and item_lutech_unit > 0
+                    else 0.0
+                )
 
                 tow_cost += item_cost
-                tow_revenue += price_base
+                tow_sell_price += item_sell
+                item_fte_list.append(item_fte)
 
                 items_result.append({
                     "id": item_id,
                     "label": item_label,
-                    "fte_pct": fte_pct,
-                    "item_fte": round(item_fte, 4),
-                    "item_days": round(item_days, 2),
                     "price_base": price_base,
+                    "group_pct": round(item_pct, 2),
+                    "poste_total": round(item_poste_total, 2),
+                    "effective_margin_pct": round(effective_margin, 2),
+                    "item_fte": round(item_fte, 4),
                     "avg_daily_rate": round(lutech_rate, 2),
-                    "cost": item_cost,
-                    "margin": item_margin,
+                    "lutech_cost": round(item_cost, 2),
+                    "lutech_revenue": round(item_sell, 2),
+                    "lutech_margin": round(item_sell - item_cost, 2),
+                    "lutech_unit_price": round(item_lutech_unit, 2),
+                    "sconto_pct": round(item_sconto_pct, 2),
                 })
 
-            tow_margin = round(tow_revenue - tow_cost, 2)
-            tow_margin_pct = round((tow_margin / tow_revenue * 100) if tow_revenue > 0 else 0.0, 2)
+            # Totali TOW
+            total_derived_fte = sum(item_fte_list)
+            tow_margin = tow_sell_price - tow_cost
+            tow_margin_pct = (tow_margin / tow_sell_price * 100.0) if tow_sell_price > 0 else 0.0
 
+            # Cluster distribution pesata su FTE (non giorni)
             cluster_distribution = BusinessPlanService._compute_cluster_distribution(
-                catalog_items, catalog_clusters
+                catalog_items, catalog_clusters, item_fte_list
             )
 
             by_tow[tow_id] = {
                 "label": tow_label,
                 "type": "catalogo",
+                "ref_total_fte": round(ref_total_fte, 4),
+                "total_derived_fte": round(total_derived_fte, 4),
+                "total_catalog_value": round(total_catalog_value, 2),
                 "cost": round(tow_cost, 2),
-                "revenue": round(tow_revenue, 2),
-                "margin": tow_margin,
-                "margin_pct": tow_margin_pct,
-                "total_fte": total_fte,
+                "revenue": round(tow_sell_price, 2),
+                "margin": round(tow_margin, 2),
+                "margin_pct": round(tow_margin_pct, 2),
                 "items": items_result,
                 "cluster_distribution": cluster_distribution,
             }
@@ -802,6 +877,7 @@ class BusinessPlanService:
         governance_pct: float = 0.04,
         risk_contingency_pct: float = 0.03,
         subcontract_config: Optional[Dict[str, Any]] = None,
+        catalog_cost: float = 0.0,
     ) -> List[Dict[str, Any]]:
         """
         Genera 3 scenari: Conservative/Balanced/Aggressive.
@@ -850,14 +926,17 @@ class BusinessPlanService:
                 )
                 team_cost = team_result["total_cost"]
 
-                # Aggiungi overhead
-                governance_cost = team_cost * governance_pct
-                # Risk includes governance cost (aligned with frontend calculation)
-                risk_cost = (team_cost + governance_cost) * risk_contingency_pct
-                sub_quota = float((subcontract_config or {}).get("quota_pct", 0.0))
-                subcontract_cost = team_cost * sub_quota
+                # Il catalog_cost è fisso (FTE dal bando, non variano per scenario)
+                base_for_overhead = team_cost + catalog_cost
 
-                estimated_cost = team_cost + governance_cost + risk_cost + subcontract_cost
+                # Aggiungi overhead sulla base completa (team + catalog)
+                governance_cost = base_for_overhead * governance_pct
+                # Risk includes governance cost (aligned with frontend calculation)
+                risk_cost = (base_for_overhead + governance_cost) * risk_contingency_pct
+                sub_quota = float((subcontract_config or {}).get("quota_pct", 0.0))
+                subcontract_cost = base_for_overhead * sub_quota
+
+                estimated_cost = base_for_overhead + governance_cost + risk_cost + subcontract_cost
             else:
                 # Fallback a stima lineare
                 total_cost = float(bp_data.get("total_cost", 0.0))

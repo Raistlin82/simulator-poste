@@ -27,6 +27,7 @@ export default function CostBreakdown({
   startMonth = null,
   inflationPct = 0,
   catalogCost = 0,
+  catalogDetail = null,
 }) {
   const { t } = useTranslation();
   const [expandedTows, setExpandedTows] = useState(new Set());
@@ -119,13 +120,14 @@ export default function CostBreakdown({
         startMonth: yearData.startMonth,
         endMonth: yearData.endMonth,
         team: team * yearFraction,
+        catalog: catalogCost * yearFraction,
         governance: governance * yearFraction,
         risk: risk * yearFraction,
         subcontract: subcontract * yearFraction,
         total: total * yearFraction
       };
     });
-  }, [team, governance, risk, subcontract, total, durationMonths, startYear, startMonth]);
+  }, [team, catalogCost, governance, risk, subcontract, total, durationMonths, startYear, startMonth]);
 
   // Ordina TOW per costo
   const towItems = useMemo(() => {
@@ -242,9 +244,14 @@ export default function CostBreakdown({
 
               const yearBreakdown = [
                 { key: 'team', label: 'Costo Team', value: yearData.team, icon: Users, color: 'blue' },
+              ];
+              if (yearData.catalog > 0) {
+                yearBreakdown.push({ key: 'catalog', label: 'Catalogo', value: yearData.catalog, icon: Calculator, color: 'rose' });
+              }
+              yearBreakdown.push(
                 { key: 'governance', label: 'Governance', value: yearData.governance, icon: Shield, color: 'indigo' },
                 { key: 'risk', label: 'Risk Contingency', value: yearData.risk, icon: AlertTriangle, color: 'amber' },
-              ];
+              );
               if (yearData.subcontract > 0) {
                 yearBreakdown.push({ key: 'subcontract', label: 'Subappalto', value: yearData.subcontract, icon: Building, color: 'purple' });
               }
@@ -466,8 +473,8 @@ export default function CostBreakdown({
                       <div className="ml-14 mb-3 animate-in fade-in slide-in-from-top-1 duration-200">
                         <div className="bg-white rounded-lg border border-slate-100 p-3 shadow-sm text-xs space-y-2">
                           {item.key === 'team' && (
-                            <div className="flex flex-col gap-1">
-                              <div className="flex items-center gap-2 text-blue-600 font-bold mb-1">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex items-center gap-2 text-blue-600 font-bold mb-0">
                                 <Users className="w-3.5 h-3.5" />
                                 Formula di Calcolo
                               </div>
@@ -487,7 +494,211 @@ export default function CostBreakdown({
                                   </div>
                                 </div>
                               )}
-                              <p className="text-slate-500 italic">Vedi i breakdown dettagliati per TOW e Profilo sotto per l'esplosione dei componenti.</p>
+
+                              {/* TOW Breakdown (nested) */}
+                              {showTowDetail && towItems.length > 0 && (
+                                <div>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                                      <TrendingDown className="w-3 h-3" />
+                                      Costi per Type of Work
+                                    </div>
+                                    {teamMixRate > 0 && (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold">
+                                        Mix: {formatCurrency(teamMixRate)}/gg
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    {towItems.map((towItem, tidx) => {
+                                      const color = towColors[tidx % towColors.length];
+                                      const pct = total > 0 ? (towItem.cost / total) * 100 : 0;
+                                      const isTowExpanded = expandedTows.has(towItem.towId);
+                                      return (
+                                        <Fragment key={towItem.towId}>
+                                          <div
+                                            onClick={() => toggleTow(towItem.towId)}
+                                            className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-white ${isTowExpanded ? 'bg-white ring-1 ring-slate-100' : ''}`}
+                                          >
+                                            <div className={`w-2 h-2 rounded ${colorMap[color].bar} shrink-0`} />
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center justify-between mb-0.5">
+                                                <span className="text-xs font-medium text-slate-700 truncate">{towItem.label}</span>
+                                                <span className="text-xs font-bold text-slate-800 ml-2">{formatCurrency(towItem.cost)}</span>
+                                              </div>
+                                              <div className="flex items-center gap-1.5">
+                                                <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                  <div className={`h-full ${colorMap[color].bar}`} style={{ width: `${pct}%` }} />
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 w-8 text-right">{pct.toFixed(1)}%</span>
+                                              </div>
+                                            </div>
+                                            <div className="text-slate-300">
+                                              {isTowExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                            </div>
+                                          </div>
+                                          {isTowExpanded && towItem.contributions.length > 0 && (
+                                            <div className="ml-4 mt-0.5 mb-1.5 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-1">
+                                              <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                <Info className="w-3 h-3" />
+                                                Calcolo Contributi Team
+                                              </div>
+                                              <div className="p-3 space-y-2">
+                                                {towItem.contributions.map((c, cIdx) => (
+                                                  <div key={cIdx} className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-[11px] space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                      <div className="flex flex-col">
+                                                        <span className="font-bold text-slate-700">{c.memberLabel}</span>
+                                                        <span className="text-[9px] text-slate-400 font-medium">{c.profileLabel}</span>
+                                                      </div>
+                                                      <div className="text-right">
+                                                        <span className="text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded tracking-tight">Alloc. {c.allocationPct}%</span>
+                                                      </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-1 items-stretch">
+                                                      <div className="flex flex-col bg-slate-50 p-1.5 rounded border border-slate-100 mb-0.5">
+                                                        <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
+                                                          <span>1. Rettifica Profilo</span>
+                                                          <span className="font-bold text-emerald-600">-{Number(c.reductions?.profile || 0).toFixed(1)}%</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center">
+                                                          <span className="text-slate-400">GG Iniz: {Number(c.daysRaw).toFixed(2)}</span>
+                                                          <span className="font-bold text-slate-600 tracking-tight text-[10px]">&rarr; GG Base: {Number(c.daysBase).toFixed(2)}</span>
+                                                        </div>
+                                                      </div>
+                                                      <div className="flex flex-col bg-blue-50/50 p-1.5 rounded border border-blue-100/50 mb-0.5">
+                                                        <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
+                                                          <span>2. Efficienza (TOW {c.reductions?.tow > 0 ? `-${c.reductions.tow.toFixed(1)}%` : '0%'} + Riuso {c.reductions?.reuse > 0 ? `-${c.reductions.reuse.toFixed(1)}%` : '0%'})</span>
+                                                          <span className="font-bold text-blue-600">Fattore: {Number(c.efficiencyFactor || 1).toFixed(3)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center">
+                                                          <span className="text-slate-400">GG Base: {Number(c.daysBase).toFixed(2)}</span>
+                                                          <span className="font-bold text-emerald-700 tracking-tight text-[10px]">&rarr; GG Effettivi: {Number(c.days).toFixed(2)}</span>
+                                                        </div>
+                                                      </div>
+                                                      <div className="flex justify-between px-1.5 py-1 bg-amber-50/30 rounded border border-amber-100/30">
+                                                        <span className="text-slate-500">3. Tariffa: {formatCurrency(c.rate)}/gg</span>
+                                                        <span className="font-medium text-slate-700">{Number(c.days).toFixed(2)} * {c.rate}</span>
+                                                      </div>
+                                                    </div>
+                                                    <div className="pt-2 border-t border-slate-50 text-right font-bold text-slate-800">
+                                                      Quotato: {formatCurrency(c.cost)}
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </Fragment>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Lutech Profiles (nested) */}
+                              {profileItems.length > 0 && (
+                                <div>
+                                  <div className="text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1.5">
+                                    <User className="w-3 h-3" />
+                                    Dettaglio Profili Lutech
+                                  </div>
+                                  <div className="overflow-hidden border border-slate-100 rounded-xl">
+                                    <table className="w-full text-xs text-left">
+                                      <thead className="bg-slate-50 text-slate-500 font-semibold">
+                                        <tr>
+                                          <th className="px-3 py-2">Profilo</th>
+                                          <th className="px-3 py-2 text-center">GG</th>
+                                          <th className="px-3 py-2 text-right">Tariffa</th>
+                                          <th className="px-3 py-2 text-right">Costo</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100">
+                                        {profileItems.map(pItem => {
+                                          const isExpanded = expandedProfiles.has(pItem.id);
+                                          return (
+                                            <Fragment key={pItem.id}>
+                                              <tr
+                                                onClick={() => toggleProfile(pItem.id)}
+                                                className={`hover:bg-slate-50 cursor-pointer transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}
+                                              >
+                                                <td className="px-3 py-2">
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="text-slate-300">
+                                                      {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                      <div className="font-medium text-slate-700">{pItem.label}</div>
+                                                      <div className="text-[10px] text-slate-400 uppercase tracking-tighter">{pItem.practice}</div>
+                                                    </div>
+                                                  </div>
+                                                </td>
+                                                <td className="px-3 py-2 text-center text-slate-600">
+                                                  <div className="flex flex-col items-center">
+                                                    <span className="font-bold text-slate-700">{Number(pItem.days).toFixed(2)}</span>
+                                                    <span className="text-[9px] text-slate-400 line-through">{Number(pItem.daysBase).toFixed(2)}</span>
+                                                  </div>
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-slate-500 italic">{formatCurrency(pItem.rate)}</td>
+                                                <td className="px-3 py-2 text-right font-semibold text-slate-800">{formatCurrency(pItem.cost)}</td>
+                                              </tr>
+                                              {isExpanded && pItem.contributions && (
+                                                <tr className="bg-white">
+                                                  <td colSpan={4} className="px-8 py-3 bg-slate-50/30">
+                                                    <div className="border-l-2 border-emerald-200 pl-4 space-y-2">
+                                                      <div className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-2">
+                                                        <Calculator className="w-3 h-3" />
+                                                        Logica di Calcolo: GG * Tariffa
+                                                      </div>
+                                                      {pItem.contributions.map((c, cIdx) => (
+                                                        <div key={cIdx} className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-[11px]">
+                                                          <div className="flex items-center justify-between mb-1.5">
+                                                            <span className="font-bold text-slate-700">{c.memberLabel}</span>
+                                                            <span className="text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded">Mesi {c.months}</span>
+                                                          </div>
+                                                          <div className="grid grid-cols-1 gap-1 items-stretch">
+                                                            <div className="flex flex-col bg-slate-50 p-1.5 rounded border border-slate-100 mb-0.5">
+                                                              <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
+                                                                <span>1. Rettifica Profilo</span>
+                                                                <span className="font-bold text-emerald-600">-{c.reductions?.profile?.toFixed(1)}%</span>
+                                                              </div>
+                                                              <div className="flex justify-between items-center">
+                                                                <span className="text-slate-400">GG Iniziali: {Number(c.daysRaw || (c.daysBase / (c.profileFactor || 1))).toFixed(2)}</span>
+                                                                <span className="font-bold text-slate-600 tracking-tight text-[10px]">&rarr; GG Base: {Number(c.daysBase).toFixed(2)}</span>
+                                                              </div>
+                                                            </div>
+                                                            <div className="flex flex-col bg-blue-50/50 p-1.5 rounded border border-blue-100/50 mb-0.5">
+                                                              <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
+                                                                <span>2. Efficienza (TOW {c.reductions?.tow > 0 ? `-${c.reductions.tow.toFixed(1)}%` : '0%'} + Riuso {c.reductions?.reuse > 0 ? `-${c.reductions.reuse.toFixed(1)}%` : '0%'})</span>
+                                                                <span className="font-bold text-blue-600">Fattore: {Number(c.efficiencyFactor || 1).toFixed(3)}</span>
+                                                              </div>
+                                                              <div className="flex justify-between items-center">
+                                                                <span className="text-slate-400">GG Base: {Number(c.daysBase).toFixed(2)}</span>
+                                                                <span className="font-bold text-emerald-700 tracking-tight text-[10px]">&rarr; GG Effettivi: {Number(c.days).toFixed(2)}</span>
+                                                              </div>
+                                                            </div>
+                                                            <div className="flex justify-between px-1.5 py-1 bg-amber-50/30 rounded border border-amber-100/30">
+                                                              <span className="text-slate-500">3. Tariffa: {formatCurrency(c.rate)}/gg</span>
+                                                              <span className="font-medium text-slate-700">{Number(c.days).toFixed(2)} * {c.rate}</span>
+                                                            </div>
+                                                          </div>
+                                                          <div className="mt-2 pt-1 border-t border-slate-50 text-right font-bold text-slate-800">
+                                                            Contributo: {formatCurrency(c.cost)}
+                                                          </div>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              )}
+                                            </Fragment>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -511,7 +722,7 @@ export default function CostBreakdown({
                                 </div>
                               ) : (
                                 <div className="bg-slate-50 p-2 rounded border border-slate-100 font-mono text-[10px] text-slate-600">
-                                  Costo Team ({formatCurrency(team)}) * {expl.pct}%
+                                  Base costo ({formatCurrency(team + catalogCost)}) * {expl.pct}%
                                   <br />
                                   = {formatCurrency(item.value)}
                                 </div>
@@ -526,9 +737,9 @@ export default function CostBreakdown({
                                 Calcolo Risk Contingency
                               </div>
                               <div className="bg-slate-50 p-2 rounded border border-slate-100 font-mono text-[10px] text-slate-600">
-                                (Costo Team + Governance) * {expl.pct}% (Risk Factor)
+                                (Base costo + Governance) * {expl.pct}% (Risk Factor)
                                 <br />
-                                ({formatCurrency(team)} + {formatCurrency(governance)}) * {expl.pct}%
+                                ({formatCurrency(team + catalogCost)} + {formatCurrency(governance)}) * {expl.pct}%
                                 <br />
                                 = {formatCurrency(item.value)}
                               </div>
@@ -543,7 +754,7 @@ export default function CostBreakdown({
                               </div>
                               <div className="bg-slate-50 p-2 rounded border border-slate-100 space-y-2">
                                 <div className="font-mono text-[10px] text-slate-600">
-                                  Costo Team ({formatCurrency(team)}) * {expl.pct}% (Quota totale)
+                                  Base costo ({formatCurrency(team + catalogCost)}) * {expl.pct}% (Quota totale)
                                   <br />
                                   = {formatCurrency(item.value)}
                                 </div>
@@ -560,6 +771,87 @@ export default function CostBreakdown({
                               </div>
                             </div>
                           )}
+
+                          {item.key === 'catalog' && catalogDetail && (
+                            <div className="flex flex-col gap-3">
+                              {catalogDetail.byTow.map((towData, ti) => (
+                                <div key={ti} className="border border-rose-100 rounded-xl overflow-hidden">
+                                  {/* TOW Header */}
+                                  <div className="px-3 py-2 bg-rose-50 flex items-center justify-between">
+                                    <span className="font-semibold text-rose-800 text-xs">{towData.label}</span>
+                                    <div className="flex gap-3 text-[10px]">
+                                      <span className="text-slate-500">{formatCurrency(towData.revenue)} ricavi Lu.</span>
+                                      <span className="font-bold text-slate-700">{formatCurrency(towData.cost)} costo Lu.</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Items table */}
+                                  {towData.items.length > 0 && (
+                                    <table className="w-full text-xs">
+                                      <thead className="bg-slate-50 text-slate-400 font-semibold">
+                                        <tr>
+                                          <th className="px-3 py-1.5 text-left">Voce</th>
+                                          <th className="px-3 py-1.5 text-right">FTE</th>
+                                          <th className="px-3 py-1.5 text-right">Pz. Poste Tot.</th>
+                                          <th className="px-3 py-1.5 text-right">Costo Lu.</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {towData.items.map((it, ii) => (
+                                          <tr key={ii} className="border-t border-slate-100 hover:bg-slate-50">
+                                            <td className="px-3 py-1.5">
+                                              <div className="font-medium text-slate-700">{it.label || '—'}</div>
+                                              <div className="text-[10px] text-slate-400">{it.tipo} · {it.complessita}</div>
+                                            </td>
+                                            <td className="px-3 py-1.5 text-right text-slate-600">{(it.fte ?? 0).toFixed(2)}</td>
+                                            <td className="px-3 py-1.5 text-right text-slate-600">{formatCurrency(it.poste_total ?? 0, 0)}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-slate-700">{formatCurrency(it.lutech_cost, 0)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  )}
+
+                                  {/* Raggruppamenti */}
+                                  {towData.groups.length > 0 && (
+                                    <div className="px-3 py-2 border-t border-slate-100">
+                                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Raggruppamenti</div>
+                                      <div className="space-y-1">
+                                        {towData.groups.map((g, gi) => (
+                                          <div key={gi} className="flex justify-between items-center text-xs py-0.5">
+                                            <span className="text-slate-700 font-medium">{g.label}</span>
+                                            <div className="flex gap-3 text-[10px]">
+                                              <span className="text-slate-400">{formatCurrency(g.target_value ?? 0, 0)} target</span>
+                                              <span className="font-medium text-slate-600">{formatCurrency(g.lutech_cost, 0)} costo</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Cluster distribution */}
+                                  {towData.clusters.length > 0 && (
+                                    <div className="px-3 py-2 border-t border-slate-100">
+                                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Distribuzione Cluster</div>
+                                      <div className="space-y-1">
+                                        {towData.clusters.map((c, ci) => (
+                                          <div key={ci} className="flex items-center gap-2 text-[10px]">
+                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.ok ? 'bg-green-500' : 'bg-red-500'}`} />
+                                            <span className="flex-1 text-slate-600">{c.label}</span>
+                                            <span className="text-slate-400">{c.required_pct}% req.</span>
+                                            <span className={`font-semibold ${c.ok ? 'text-green-700' : 'text-red-700'}`}>
+                                              {(c.actual_pct ?? 0).toFixed(1)}% att.
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -568,241 +860,6 @@ export default function CostBreakdown({
               })}
             </div>
 
-            {/* Breakdown per TOW */}
-            {showTowDetail && towItems.length > 0 && (
-              <>
-                <div className="h-px bg-slate-100 my-4" />
-
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                      <TrendingDown className="w-4 h-4" />
-                      Costi per Type of Work
-                    </h4>
-                    {teamMixRate > 0 && (
-                      <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg border border-blue-100">
-                        <Calculator className="w-3.5 h-3.5" />
-                        <span className="text-xs font-bold whitespace-nowrap">
-                          Mix: {formatCurrency(teamMixRate)}/gg
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    {towItems.map((item, idx) => {
-                      const color = towColors[idx % towColors.length];
-                      const pct = total > 0 ? (item.cost / total) * 100 : 0;
-                      const isExpanded = expandedTows.has(item.towId);
-                      return (
-                        <Fragment key={item.towId}>
-                          <div
-                            onClick={() => toggleTow(item.towId)}
-                            className={`flex items-center gap-3 p-2 rounded-xl transition-colors cursor-pointer hover:bg-slate-50 ${isExpanded ? 'bg-slate-50 ring-1 ring-slate-100' : ''}`}
-                          >
-                            <div className={`w-3 h-3 rounded ${colorMap[color].bar} shrink-0`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm font-semibold text-slate-700 truncate">{item.label}</span>
-                                <span className="text-sm font-bold text-slate-800">{formatCurrency(item.cost)}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full ${colorMap[color].bar}`}
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 w-8 text-right">{pct.toFixed(1)}%</span>
-                              </div>
-                            </div>
-                            <div className="text-slate-300">
-                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            </div>
-                          </div>
-
-                          {isExpanded && item.contributions.length > 0 && (
-                            <div className="ml-6 mt-1 mb-3 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-1">
-                              <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                <Info className="w-3 h-3" />
-                                Calcolo Contributi Team
-                              </div>
-                              <div className="p-3 space-y-2">
-                                {item.contributions.map((c, cIdx) => (
-                                  <div key={cIdx} className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-[11px] space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex flex-col">
-                                        <span className="font-bold text-slate-700">{c.memberLabel}</span>
-                                        <span className="text-[9px] text-slate-400 font-medium">{c.profileLabel}</span>
-                                      </div>
-                                      <div className="text-right">
-                                        <span className="text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded tracking-tight">Alloc. {c.allocationPct}%</span>
-                                      </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 gap-1 items-stretch">
-                                      {/* Step 1: Iniziali -> Base */}
-                                      <div className="flex flex-col bg-slate-50 p-1.5 rounded border border-slate-100 mb-0.5">
-                                        <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
-                                          <span>1. Rettifica Profilo</span>
-                                          <span className="font-bold text-emerald-600">-{Number(c.reductions?.profile || 0).toFixed(1)}%</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                          <span className="text-slate-400">GG Iniz: {Number(c.daysRaw).toFixed(2)}</span>
-                                          <span className="font-bold text-slate-600 tracking-tight text-[10px]">&rarr; GG Base: {Number(c.daysBase).toFixed(2)}</span>
-                                        </div>
-                                      </div>
-
-                                      {/* Step 2: Base -> Effettivi */}
-                                      <div className="flex flex-col bg-blue-50/50 p-1.5 rounded border border-blue-100/50 mb-0.5">
-                                        <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
-                                          <span>2. Efficienza (TOW {c.reductions?.tow > 0 ? `-${c.reductions.tow.toFixed(1)}%` : '0%'} + Riuso {c.reductions?.reuse > 0 ? `-${c.reductions.reuse.toFixed(1)}%` : '0%'})</span>
-                                          <span className="font-bold text-blue-600">Fattore: {Number(c.efficiencyFactor || 1).toFixed(3)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                          <span className="text-slate-400">GG Base: {Number(c.daysBase).toFixed(2)}</span>
-                                          <span className="font-bold text-emerald-700 tracking-tight text-[10px]">&rarr; GG Effettivi: {Number(c.days).toFixed(2)}</span>
-                                        </div>
-                                      </div>
-
-                                      {/* Step 3: Tariffa */}
-                                      <div className="flex justify-between px-1.5 py-1 bg-amber-50/30 rounded border border-amber-100/30">
-                                        <span className="text-slate-500">3. Tariffa: {formatCurrency(c.rate)}/gg</span>
-                                        <span className="font-medium text-slate-700">{Number(c.days).toFixed(2)} * {c.rate}</span>
-                                      </div>
-                                    </div>
-
-                                    <div className="pt-2 border-t border-slate-50 text-right font-bold text-slate-800">
-                                      Quotato: {formatCurrency(c.cost)}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Breakdown per Profilo Lutech */}
-            {profileItems.length > 0 && (
-              <>
-                <div className="h-px bg-slate-100 my-4" />
-
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Dettaglio Profili Lutech (Costi Team)
-                  </h4>
-                  <div className="overflow-hidden border border-slate-100 rounded-xl">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-slate-50 text-slate-500 font-semibold">
-                        <tr>
-                          <th className="px-3 py-2">Profilo</th>
-                          <th className="px-3 py-2 text-center">GG</th>
-                          <th className="px-3 py-2 text-right">Tariffa</th>
-                          <th className="px-3 py-2 text-right">Costo</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {profileItems.map(item => {
-                          const isExpanded = expandedProfiles.has(item.id);
-                          return (
-                            <Fragment key={item.id}>
-                              <tr
-                                onClick={() => toggleProfile(item.id)}
-                                className={`hover:bg-slate-50 cursor-pointer transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}
-                              >
-                                <td className="px-3 py-2">
-                                  <div className="flex items-center gap-2">
-                                    <div className="text-slate-300">
-                                      {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                                    </div>
-                                    <div className="flex-1">
-                                      <div className="font-medium text-slate-700">{item.label}</div>
-                                      <div className="text-[10px] text-slate-400 uppercase tracking-tighter">{item.practice}</div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2 text-center text-slate-600">
-                                  <div className="flex flex-col items-center">
-                                    <span className="font-bold text-slate-700">{Number(item.days).toFixed(2)}</span>
-                                    <span className="text-[9px] text-slate-400 line-through">{Number(item.daysBase).toFixed(2)}</span>
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2 text-right text-slate-500 italic">
-                                  {formatCurrency(item.rate)}
-                                </td>
-                                <td className="px-3 py-2 text-right font-semibold text-slate-800">
-                                  {formatCurrency(item.cost)}
-                                </td>
-                              </tr>
-                              {isExpanded && item.contributions && (
-                                <tr className="bg-white">
-                                  <td colSpan={4} className="px-8 py-3 bg-slate-50/30">
-                                    <div className="border-l-2 border-emerald-200 pl-4 space-y-2">
-                                      <div className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-2">
-                                        <Calculator className="w-3 h-3" />
-                                        Logica di Calcolo: GG * Tariffa
-                                      </div>
-                                      {item.contributions.map((c, cIdx) => (
-                                        <div key={cIdx} className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-[11px]">
-                                          <div className="flex items-center justify-between mb-1.5">
-                                            <span className="font-bold text-slate-700">{c.memberLabel}</span>
-                                            <span className="text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded">Mesi {c.months}</span>
-                                          </div>
-                                          <div className="grid grid-cols-1 gap-1 items-stretch">
-                                            {/* Step 1: Iniziali -> Base */}
-                                            <div className="flex flex-col bg-slate-50 p-1.5 rounded border border-slate-100 mb-0.5">
-                                              <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
-                                                <span>1. Rettifica Profilo</span>
-                                                <span className="font-bold text-emerald-600">-{c.reductions?.profile?.toFixed(1)}%</span>
-                                              </div>
-                                              <div className="flex justify-between items-center">
-                                                <span className="text-slate-400">GG Iniziali: {Number(c.daysRaw || (c.daysBase / (c.profileFactor || 1))).toFixed(2)}</span>
-                                                <span className="font-bold text-slate-600 tracking-tight text-[10px]">&rarr; GG Base: {Number(c.daysBase).toFixed(2)}</span>
-                                              </div>
-                                            </div>
-
-                                            {/* Step 2: Base -> Effettivi */}
-                                            <div className="flex flex-col bg-blue-50/50 p-1.5 rounded border border-blue-100/50 mb-0.5">
-                                              <div className="flex justify-between text-[9px] text-slate-500 mb-0.5">
-                                                <span>2. Efficienza (TOW {c.reductions?.tow > 0 ? `-${c.reductions.tow.toFixed(1)}%` : '0%'} + Riuso {c.reductions?.reuse > 0 ? `-${c.reductions.reuse.toFixed(1)}%` : '0%'})</span>
-                                                <span className="font-bold text-blue-600">Fattore: {Number(c.efficiencyFactor || 1).toFixed(3)}</span>
-                                              </div>
-                                              <div className="flex justify-between items-center">
-                                                <span className="text-slate-400">GG Base: {Number(c.daysBase).toFixed(2)}</span>
-                                                <span className="font-bold text-emerald-700 tracking-tight text-[10px]">&rarr; GG Effettivi: {Number(c.days).toFixed(2)}</span>
-                                              </div>
-                                            </div>
-
-                                            {/* Step 3: Tariffa */}
-                                            <div className="flex justify-between px-1.5 py-1 bg-amber-50/30 rounded border border-amber-100/30">
-                                              <span className="text-slate-500">3. Tariffa: {formatCurrency(c.rate)}/gg</span>
-                                              <span className="font-medium text-slate-700">{Number(c.days).toFixed(2)} * {c.rate}</span>
-                                            </div>
-                                          </div>
-                                          <div className="mt-2 pt-1 border-t border-slate-50 text-right font-bold text-slate-800">
-                                            Contributo: {formatCurrency(c.cost)}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         )}
       </div>

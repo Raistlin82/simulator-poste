@@ -5,10 +5,12 @@ import LoginButton from './LoginButton';
 export default function ProtectedRoute({ children }) {
     const { isAuthenticated, isLoading, error, login } = useAuth();
 
-    // Auto-redirect to IAS when not authenticated and not loading/error
-    // Hook must be at top level, before any conditional returns
+    // Auto-redirect to IAS when not authenticated and not loading/error.
+    // Skip if the user just explicitly logged out (flag set in AuthContext.logout).
     useEffect(() => {
-        if (!isLoading && !isAuthenticated && !error && window.location.pathname !== '/callback') {
+        const justLoggedOut = sessionStorage.getItem('just_logged_out');
+        if (!isLoading && !isAuthenticated && !error &&
+            window.location.pathname !== '/callback' && !justLoggedOut) {
             login();
         }
     }, [isLoading, isAuthenticated, error, login]);

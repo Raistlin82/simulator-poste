@@ -2425,6 +2425,7 @@ def calculate_business_plan(
             duration_months=bp.duration_months or 36,
             default_daily_rate=bp.default_daily_rate or 250.0,
             inflation_pct=bp.inflation_pct or 0.0,
+            days_per_fte=bp.days_per_fte or 220,
         )
         team_cost = team_result["total_cost"]
         tow_breakdown = team_result["by_tow"]
@@ -2440,6 +2441,7 @@ def calculate_business_plan(
         profile_rates=profile_rates,
         duration_months=bp.duration_months or 36,
         default_daily_rate=bp.default_daily_rate or 250.0,
+        days_per_fte=bp.days_per_fte or 220,
     )
     catalog_cost = catalog_result["total_cost"]
     tow_breakdown.update(catalog_result["by_tow"])
@@ -2574,6 +2576,7 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
             duration_months=bp.duration_months or 36,
             default_daily_rate=bp.default_daily_rate or 250.0,
             inflation_pct=bp.inflation_pct or 0.0,
+            days_per_fte=bp.days_per_fte or 220,
         )
         team_cost = team_result["total_cost"]
 
@@ -2584,6 +2587,7 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
         profile_rates=profile_rates,
         duration_months=bp.duration_months or 36,
         default_daily_rate=bp.default_daily_rate or 250.0,
+        days_per_fte=bp.days_per_fte or 220,
     )
     catalog_cost_s = catalog_result_s["total_cost"]
 
@@ -2606,6 +2610,7 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
         governance_pct=bp.governance_pct or 0.04,
         risk_contingency_pct=bp.risk_contingency_pct or 0.03,
         subcontract_config=bp.subcontract_config or {},
+        catalog_cost=catalog_cost_s,
     )
     return {"scenarios": scenarios}
 
@@ -2626,17 +2631,17 @@ def find_discount_for_target(
         raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
 
     # Calculate team cost dynamically
+    practices = crud.get_practices(db)
+    profile_rates = {}
+    for practice in practices:
+        for profile in (practice.profiles or []):
+            profile_id = profile.get('id', '')
+            if profile_id:
+                key = f"{practice.id}:{profile_id}"
+                profile_rates[key] = float(profile.get('daily_rate', 0.0))
+
     team_cost = 0.0
     if bp.team_composition:
-        practices = crud.get_practices(db)
-        profile_rates = {}
-        for practice in practices:
-            for profile in (practice.profiles or []):
-                profile_id = profile.get('id', '')
-                if profile_id:
-                    key = f"{practice.id}:{profile_id}"
-                    profile_rates[key] = float(profile.get('daily_rate', 0.0))
-
         team_result = BusinessPlanService.calculate_team_cost(
             team_composition=bp.team_composition,
             volume_adjustments=bp.volume_adjustments or {},
@@ -2646,11 +2651,22 @@ def find_discount_for_target(
             duration_months=bp.duration_months or 36,
             default_daily_rate=bp.default_daily_rate or 250.0,
             inflation_pct=bp.inflation_pct or 0.0,
+            days_per_fte=bp.days_per_fte or 220,
         )
         team_cost = team_result["total_cost"]
 
+    catalog_result_d = BusinessPlanService.calculate_catalog_cost(
+        tows=bp.tows or [],
+        profile_mappings=bp.profile_mappings or {},
+        profile_rates=profile_rates,
+        duration_months=bp.duration_months or 36,
+        default_daily_rate=bp.default_daily_rate or 250.0,
+        days_per_fte=bp.days_per_fte or 220,
+    )
+    catalog_cost_d = catalog_result_d["total_cost"]
+
     bp_data = {
-        "total_cost": team_cost,
+        "total_cost": team_cost + catalog_cost_d,
         "governance_pct": bp.governance_pct,
         "risk_contingency_pct": bp.risk_contingency_pct,
         "subcontract_config": bp.subcontract_config or {},

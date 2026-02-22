@@ -119,6 +119,8 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
+            // Clear any "just logged out" flag so explicit login always works
+            sessionStorage.removeItem('just_logged_out');
             setError(null);
             await userManager.signinRedirect({
                 state: { returnUrl: window.location.pathname },
@@ -153,6 +155,9 @@ export const AuthProvider = ({ children }) => {
             if (currentUser?.id_token) {
                 logoutUrl.searchParams.set('id_token_hint', currentUser.id_token);
             }
+
+            // Mark that the user explicitly logged out — prevents ProtectedRoute from auto-re-authenticating
+            sessionStorage.setItem('just_logged_out', '1');
 
             // Redirect to IAS logout
             window.location.href = logoutUrl.toString();

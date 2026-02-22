@@ -164,10 +164,17 @@ export default function Sidebar({
                     className="w-full p-2 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                 >
                     {config && Object.keys(config)
-                        .filter(k => config[k]?.is_active !== false)  // Show only active lots
-                        .sort((a, b) => a.localeCompare(b, 'it'))    // Sort by name
+                        .sort((a, b) => {
+                            // Active lots first, then inactive
+                            const aActive = config[a]?.is_active !== false;
+                            const bActive = config[b]?.is_active !== false;
+                            if (aActive !== bActive) return aActive ? -1 : 1;
+                            return a.localeCompare(b, 'it');
+                        })
                         .map(k => (
-                        <option key={k} value={k}>{k}</option>
+                        <option key={k} value={k}>
+                            {config[k]?.is_active === false ? '⏸ ' : ''}{k}
+                        </option>
                     ))}
                 </select>
                 {config && selectedLot && config[selectedLot] && (

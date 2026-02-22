@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
-import { Plus, Trash2, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X, Building2 } from 'lucide-react';
+import { Plus, Trash2, Copy, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X, Building2, PauseCircle } from 'lucide-react';
 import LotSelector from '../features/config/components/LotSelector';
 import CompanyCertsEditor from '../features/config/components/CompanyCertsEditor';
 import { useConfig } from '../features/config/context/ConfigContext';
@@ -185,6 +185,25 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
     const deleteRequirement = (reqId) => {
         updateLot(lot => {
             lot.reqs = lot.reqs.filter(r => r.id !== reqId);
+        });
+    };
+
+    const duplicateRequirement = (reqId) => {
+        updateLot(lot => {
+            const src = lot.reqs?.find(r => r.id === reqId);
+            if (!src) return;
+            const clone = JSON.parse(JSON.stringify(src));
+            // Generate a unique ID: try srcId_copy, srcId_copy2, ...
+            const existingIds = new Set((lot.reqs || []).map(r => r.id));
+            let newId = src.id ? `${src.id}_copy` : 'REQ_copy';
+            let counter = 2;
+            while (existingIds.has(newId)) {
+                newId = src.id ? `${src.id}_copy${counter}` : `REQ_copy${counter}`;
+                counter++;
+            }
+            clone.id = newId;
+            clone.label = `${src.label} (Copia)`;
+            lot.reqs.push(clone);
         });
     };
 
@@ -426,9 +445,14 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                         currentLot.is_active !== false ? 'translate-x-4' : ''
                                     }`} />
                                 </button>
-                                <span className={`text-xs font-medium ${currentLot.is_active !== false ? 'text-green-600' : 'text-slate-500'}`}>
-                                    {currentLot.is_active !== false ? 'Gara Attiva' : 'Gara Chiusa'}
-                                </span>
+                                {currentLot.is_active !== false ? (
+                                    <span className="text-xs font-medium text-green-600">Gara Attiva</span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-full border border-slate-300">
+                                        <PauseCircle className="w-3.5 h-3.5 text-slate-500" />
+                                        Gara Chiusa
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <div>
@@ -762,12 +786,23 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                 />
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => deleteRequirement(req.id)}
-                                            className="text-slate-400 hover:text-red-600 hover:bg-red-100 p-2 rounded transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {(req.type === 'reference' || req.type === 'project') && (
+                                                <button
+                                                    onClick={() => duplicateRequirement(req.id)}
+                                                    title="Duplica questa referenza"
+                                                    className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded transition-colors"
+                                                >
+                                                    <Copy className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => deleteRequirement(req.id)}
+                                                className="text-slate-400 hover:text-red-600 hover:bg-red-100 p-2 rounded transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Gara Weight Field - Common to all requirement types */}
