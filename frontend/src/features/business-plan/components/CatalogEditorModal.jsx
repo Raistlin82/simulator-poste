@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, Fragment } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CheckCircle2, BookOpen, Wand2, Save } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, Fragment } from 'react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CheckCircle2, BookOpen, Wand2, Save, Upload } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 import { bpSaveTrigger } from '../../../utils/bpSaveTrigger';
 
@@ -513,6 +513,8 @@ export default function CatalogEditorModal({
   const [activeTab, setActiveTab] = useState('items');
   const [expandedMix, setExpandedMix] = useState(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const [importFeedback, setImportFeedback] = useState(null); // { imported, skipped, errors }
+  const csvInputRef = useRef(null);
 
   const items = tow?.catalog_items || [];
   const clusters = tow?.catalog_clusters || [];
@@ -566,6 +568,72 @@ export default function CatalogEditorModal({
       profile_mix: [],
     };
     updateTow({ catalog_items: [...items, newItem] });
+  };
+
+  const handleImportCSV = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
+
+    const TIPO_MAP = { n: 'nuovo_sviluppo', m: 'modifica_evolutiva' };
+    const COMPL_MAP = { l: 'bassa', m: 'media', h: 'alta' };
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) {
+        setImportFeedback({ imported: 0, skipped: 0, errors: ['File vuoto o senza righe dati'] });
+        return;
+      }
+
+      // Skip header (first line)
+      const dataLines = lines.slice(1);
+      const newItems = [];
+      const errorRows = [];
+
+      dataLines.forEach((line, idx) => {
+        // Split on comma, respecting quoted fields
+        const cols = [];
+        let cur = '';
+        let inQuote = false;
+        for (const ch of line) {
+          if (ch === '"') { inQuote = !inQuote; }
+          else if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
+          else { cur += ch; }
+        }
+        cols.push(cur.trim());
+
+        const [rawLabel = '', rawTipo = '', rawCompl = '', rawPrice = ''] = cols;
+
+        const label = rawLabel.replace(/^"|"$/g, '').trim();
+        const tipo = TIPO_MAP[rawTipo.trim().toLowerCase()];
+        const complessita = COMPL_MAP[rawCompl.trim().toLowerCase()];
+        const price = parseFloat(rawPrice.replace(',', '.'));
+
+        const rowNum = idx + 2; // 1-based, accounting for header
+        if (!label) { errorRows.push(`Riga ${rowNum}: descrizione vuota`); return; }
+        if (!tipo) { errorRows.push(`Riga ${rowNum}: Tipo non valido ('${rawTipo}') — usa N o M`); return; }
+        if (!complessita) { errorRows.push(`Riga ${rowNum}: Complessità non valida ('${rawCompl}') — usa L, M o H`); return; }
+        if (isNaN(price) || price < 0) { errorRows.push(`Riga ${rowNum}: PrezzoUnitario non valido ('${rawPrice}')`); return; }
+
+        newItems.push({
+          id: generateId(),
+          label,
+          tipo,
+          complessita,
+          price_base: Math.round(price * 100) / 100,
+          target_margin_pct: null,
+          group_pct: 0,
+          profile_mix: [],
+        });
+      });
+
+      updateTow({ catalog_items: [...items, ...newItems] });
+      setImportFeedback({ imported: newItems.length, skipped: errorRows.length, errors: errorRows });
+    };
+    reader.readAsText(file, 'UTF-8');
   };
 
   const handleRemoveItem = (idx) => {
@@ -1262,14 +1330,57 @@ export default function CatalogEditorModal({
                   </tfoot>
                 )}
               </table>
-              <div className="px-4 py-3 border-t border-slate-100">
-                <button
-                  onClick={handleAddItem}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Aggiungi voce
-                </button>
+              <div className="px-4 py-3 border-t border-slate-100 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleAddItem}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Aggiungi voce
+                  </button>
+                  <button
+                    onClick={() => csvInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    title="Importa voci da file CSV (DescrizioneVoce,Tipo,Complessita,PrezzoUnitario)"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Importa CSV
+                  </button>
+                  <input
+                    ref={csvInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={handleImportCSV}
+                  />
+                  <span className="text-xs text-slate-400 ml-1">
+                    Formato: <code className="bg-slate-100 px-1 rounded">DescrizioneVoce,Tipo,Complessita,PrezzoUnitario</code>
+                    &nbsp;—&nbsp;Tipo: <strong>N</strong>/M &nbsp;Compl.: <strong>L</strong>/M/H
+                  </span>
+                </div>
+
+                {/* Feedback import */}
+                {importFeedback && (
+                  <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg text-xs ${
+                    importFeedback.errors.length > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-emerald-50 border border-emerald-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={importFeedback.errors.length > 0 ? 'text-amber-700 font-medium' : 'text-emerald-700 font-medium'}>
+                        {importFeedback.imported > 0
+                          ? `✓ ${importFeedback.imported} voce${importFeedback.imported !== 1 ? 'i' : ''} importata${importFeedback.imported !== 1 ? 'e' : ''}`
+                          : 'Nessuna voce importata'}
+                        {importFeedback.skipped > 0 && ` · ${importFeedback.skipped} riga${importFeedback.skipped !== 1 ? 'e' : ''} ignorata${importFeedback.skipped !== 1 ? 'e' : ''}`}
+                      </span>
+                      <button onClick={() => setImportFeedback(null)} className="text-slate-400 hover:text-slate-600 ml-4">✕</button>
+                    </div>
+                    {importFeedback.errors.length > 0 && (
+                      <ul className="list-disc list-inside text-amber-600 space-y-0.5">
+                        {importFeedback.errors.map((e, i) => <li key={i}>{e}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
