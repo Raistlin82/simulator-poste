@@ -512,7 +512,7 @@ export default function CatalogEditorModal({
 }) {
   const [activeTab, setActiveTab] = useState('items');
   const [expandedMix, setExpandedMix] = useState(new Set());
-  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const [expandedGroups, setExpandedGroups] = useState(new Set()); // default: tutti collassati
   const [importFeedback, setImportFeedback] = useState(null); // { imported, skipped, errors }
   const csvInputRef = useRef(null);
 
@@ -579,59 +579,104 @@ export default function CatalogEditorModal({
     const TIPO_MAP = { n: 'nuovo_sviluppo', m: 'modifica_evolutiva' };
     const COMPL_MAP = { l: 'bassa', m: 'media', h: 'alta' };
 
+    const parseCsvLine = (line) => {
+      const cols = [];
+      let cur = '';
+      let inQuote = false;
+      for (const ch of line) {
+        if (ch === '"') { inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+      cols.push(cur.trim());
+      return cols.map(c => c.replace(/^"|"$/g, '').trim());
+    };
+
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = ev.target.result;
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      // Strip BOM if present
+      const raw = ev.target.result.replace(/^\uFEFF/, '');
+      const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       if (lines.length < 2) {
-        setImportFeedback({ imported: 0, skipped: 0, errors: ['File vuoto o senza righe dati'] });
+        setImportFeedback({ imported: 0, updated: 0, skipped: 0, errors: ['File vuoto o senza righe dati'] });
         return;
       }
 
-      // Skip header (first line)
       const dataLines = lines.slice(1);
-      const newItems = [];
+      // Mutable copy of existing items for upsert
+      const resultItems = items.map(it => ({ ...it }));
       const errorRows = [];
+      let importedCount = 0;
+      let updatedCount = 0;
 
       dataLines.forEach((line, idx) => {
-        // Split on comma, respecting quoted fields
-        const cols = [];
-        let cur = '';
-        let inQuote = false;
-        for (const ch of line) {
-          if (ch === '"') { inQuote = !inQuote; }
-          else if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
-          else { cur += ch; }
-        }
-        cols.push(cur.trim());
+        const cols = parseCsvLine(line);
+        // DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1,Ruolo2,Ruolo3,Ruolo4,Perc1,Perc2,Perc3,Perc4
+        const [
+          rawLabel = '', rawTipo = '', rawCompl = '', rawPrice = '',
+          r1 = '', r2 = '', r3 = '', r4 = '',
+          p1 = '', p2 = '', p3 = '', p4 = '',
+        ] = cols;
 
-        const [rawLabel = '', rawTipo = '', rawCompl = '', rawPrice = ''] = cols;
-
-        const label = rawLabel.replace(/^"|"$/g, '').trim();
+        const label = rawLabel.trim();
         const tipo = TIPO_MAP[rawTipo.trim().toLowerCase()];
         const complessita = COMPL_MAP[rawCompl.trim().toLowerCase()];
         const price = parseFloat(rawPrice.replace(',', '.'));
+        const rowNum = idx + 2;
 
-        const rowNum = idx + 2; // 1-based, accounting for header
         if (!label) { errorRows.push(`Riga ${rowNum}: descrizione vuota`); return; }
         if (!tipo) { errorRows.push(`Riga ${rowNum}: Tipo non valido ('${rawTipo}') — usa N o M`); return; }
         if (!complessita) { errorRows.push(`Riga ${rowNum}: Complessità non valida ('${rawCompl}') — usa L, M o H`); return; }
         if (isNaN(price) || price < 0) { errorRows.push(`Riga ${rowNum}: PrezzoUnitario non valido ('${rawPrice}')`); return; }
 
-        newItems.push({
-          id: generateId(),
-          label,
-          tipo,
-          complessita,
-          price_base: Math.round(price * 100) / 100,
-          target_margin_pct: null,
-          group_pct: 0,
-          profile_mix: [],
-        });
+        // Build profile_mix from Ruolo/Perc pairs (skip empty ruoli)
+        const ruoli = [r1, r2, r3, r4];
+        const percs = [p1, p2, p3, p4];
+        const profile_mix = [];
+        for (let i = 0; i < 4; i++) {
+          const ruolo = ruoli[i].trim();
+          if (!ruolo) continue;
+          const pct = parseFloat(percs[i]);
+          if (isNaN(pct) || pct <= 0) {
+            errorRows.push(`Riga ${rowNum}: Perc${i + 1} non valida per Ruolo${i + 1} '${ruolo}'`);
+            continue;
+          }
+          profile_mix.push({ poste_profile: ruolo, pct });
+        }
+
+        // Upsert: cerca corrispondenza case-insensitive per label
+        const existingIdx = resultItems.findIndex(
+          it => it.label.trim().toLowerCase() === label.toLowerCase()
+        );
+
+        if (existingIdx >= 0) {
+          // Update existing item
+          resultItems[existingIdx] = {
+            ...resultItems[existingIdx],
+            tipo,
+            complessita,
+            price_base: Math.round(price * 100) / 100,
+            ...(profile_mix.length > 0 ? { profile_mix } : {}),
+          };
+          updatedCount++;
+        } else {
+          // Insert new item
+          resultItems.push({
+            id: generateId(),
+            label,
+            tipo,
+            complessita,
+            price_base: Math.round(price * 100) / 100,
+            target_margin_pct: null,
+            group_pct: 0,
+            profile_mix,
+          });
+          importedCount++;
+        }
       });
 
-      updateTow({ catalog_items: [...items, ...newItems] });
-      setImportFeedback({ imported: newItems.length, skipped: errorRows.length, errors: errorRows });
+      updateTow({ catalog_items: resultItems });
+      setImportFeedback({ imported: importedCount, updated: updatedCount, skipped: errorRows.length, errors: errorRows });
     };
     reader.readAsText(file, 'UTF-8');
   };
@@ -836,14 +881,25 @@ export default function CatalogEditorModal({
     return result;
   }, [items, itemToGroup]);
 
-  const toggleCollapsedGroup = useCallback((groupId) => {
-    setCollapsedGroups(prev => {
+  const toggleExpandedGroup = useCallback((groupId) => {
+    setExpandedGroups(prev => {
       const next = new Set(prev);
       if (next.has(groupId)) next.delete(groupId);
       else next.add(groupId);
       return next;
     });
   }, []);
+
+  const allGroupIds = useMemo(() => catalogGroups.map(g => g.id), [catalogGroups]);
+  const allExpanded = allGroupIds.length > 0 && allGroupIds.every(id => expandedGroups.has(id));
+
+  const toggleAllGroups = useCallback(() => {
+    if (allExpanded) {
+      setExpandedGroups(new Set());
+    } else {
+      setExpandedGroups(new Set(allGroupIds));
+    }
+  }, [allExpanded, allGroupIds]);
 
   // Distribuzione cluster pesata sugli FTE
   const clusterDist = useMemo(() => {
@@ -1012,6 +1068,21 @@ export default function CatalogEditorModal({
           {/* ── Tab: Voci ── */}
           {activeTab === 'items' && (
             <div>
+              {/* Toolbar gruppi */}
+              {catalogGroups.length > 0 && (
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-100 bg-slate-50/60">
+                  <button
+                    onClick={toggleAllGroups}
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                  >
+                    {allExpanded
+                      ? <><ChevronUp className="w-3.5 h-3.5" />Comprimi tutti</>
+                      : <><ChevronDown className="w-3.5 h-3.5" />Espandi tutti</>
+                    }
+                  </button>
+                  <span className="text-xs text-slate-400">{catalogGroups.length} raggruppament{catalogGroups.length === 1 ? 'o' : 'i'}</span>
+                </div>
+              )}
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 sticky top-0 z-10">
                   <tr>
@@ -1041,7 +1112,7 @@ export default function CatalogEditorModal({
                   )}
                   {groupedItems.map(({ group, colorIdx, indices }) => {
                     const gId = group?.id ?? '__ungrouped__';
-                    const isCollapsed = group && collapsedGroups.has(gId);
+                    const isCollapsed = group && !expandedGroups.has(gId);
                     const groupCalc = indices.reduce((acc, i) => ({
                       fte: acc.fte + (itemCalcs[i]?.item_fte || 0),
                       cost: acc.cost + (itemCalcs[i]?.item_cost || 0),
@@ -1052,7 +1123,7 @@ export default function CatalogEditorModal({
                         {group && (
                           <tr
                             className="bg-slate-100/70 hover:bg-slate-100 cursor-pointer select-none"
-                            onClick={() => toggleCollapsedGroup(gId)}
+                            onClick={() => toggleExpandedGroup(gId)}
                           >
                             <td colSpan={13} className="px-3 py-1.5">
                               <div className="flex items-center gap-2 text-xs">
@@ -1342,7 +1413,7 @@ export default function CatalogEditorModal({
                   <button
                     onClick={() => csvInputRef.current?.click()}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                    title="Importa voci da file CSV (DescrizioneVoce,Tipo,Complessita,PrezzoUnitario)"
+                    title="Importa/aggiorna voci da CSV. Le voci con stessa descrizione vengono aggiornate."
                   >
                     <Upload className="w-4 h-4" />
                     Importa CSV
@@ -1355,7 +1426,7 @@ export default function CatalogEditorModal({
                     onChange={handleImportCSV}
                   />
                   <span className="text-xs text-slate-400 ml-1">
-                    Formato: <code className="bg-slate-100 px-1 rounded">DescrizioneVoce,Tipo,Complessita,PrezzoUnitario</code>
+                    <code className="bg-slate-100 px-1 rounded">DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1..4,Perc1..4</code>
                     &nbsp;—&nbsp;Tipo: <strong>N</strong>/M &nbsp;Compl.: <strong>L</strong>/M/H
                   </span>
                 </div>
@@ -1367,10 +1438,10 @@ export default function CatalogEditorModal({
                   }`}>
                     <div className="flex items-center justify-between">
                       <span className={importFeedback.errors.length > 0 ? 'text-amber-700 font-medium' : 'text-emerald-700 font-medium'}>
-                        {importFeedback.imported > 0
-                          ? `✓ ${importFeedback.imported} voce${importFeedback.imported !== 1 ? 'i' : ''} importata${importFeedback.imported !== 1 ? 'e' : ''}`
-                          : 'Nessuna voce importata'}
-                        {importFeedback.skipped > 0 && ` · ${importFeedback.skipped} riga${importFeedback.skipped !== 1 ? 'e' : ''} ignorata${importFeedback.skipped !== 1 ? 'e' : ''}`}
+                        {importFeedback.imported > 0 && `✓ ${importFeedback.imported} nuova${importFeedback.imported !== 1 ? 'e' : ''}`}
+                        {importFeedback.updated > 0 && `${importFeedback.imported > 0 ? ' · ' : '✓ '}${importFeedback.updated} aggiornata${importFeedback.updated !== 1 ? 'e' : ''}`}
+                        {importFeedback.imported === 0 && importFeedback.updated === 0 && 'Nessuna voce importata'}
+                        {importFeedback.skipped > 0 && ` · ${importFeedback.skipped} riga${importFeedback.skipped !== 1 ? 'e' : ''} con errori`}
                       </span>
                       <button onClick={() => setImportFeedback(null)} className="text-slate-400 hover:text-slate-600 ml-4">✕</button>
                     </div>
