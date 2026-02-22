@@ -1,13 +1,13 @@
 import { useState, useMemo, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Users, Plus, Trash2, Upload, Calculator, Save, X, GraduationCap, TrendingDown, ChevronDown, ChevronUp, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { DAYS_PER_FTE } from '../constants';
 
 const SENIORITY_OPTIONS = [
   { value: 'jr', label: 'Junior', color: 'blue', icon: '🌱' },
   { value: 'mid', label: 'Middle', color: 'emerald', icon: '🌿' },
-  { value: 'sr', label: 'Senior', color: 'purple', icon: '🌳' },
-  { value: 'expert', label: 'Expert', color: 'amber', icon: '⭐' },
+  { value: 'expert', label: 'Expert', color: 'amber', icon: '🌳' },
+  { value: 'sr', label: 'Senior', color: 'purple', icon: '⭐' },
+  { value: 'master', label: 'Master', color: 'rose', icon: '👑' },
 ];
 
 const getSeniorityStyle = (seniority) => {
@@ -16,7 +16,8 @@ const getSeniorityStyle = (seniority) => {
     blue: 'bg-blue-100 text-blue-700 border-blue-300',
     emerald: 'bg-emerald-100 text-emerald-700 border-emerald-300',
     purple: 'bg-purple-100 text-purple-700 border-purple-300',
-    amber: 'bg-amber-100 text-amber-700 border-amber-300'
+    amber: 'bg-amber-100 text-amber-700 border-amber-300',
+    rose: 'bg-rose-100 text-rose-700 border-rose-300',
   };
   return { ...opt, className: colors[opt.color] };
 };
@@ -63,7 +64,7 @@ export default function TeamCompositionTable({
     const profile = {
       ...newProfile,
       profile_id: newProfile.profile_id || newProfile.label.toLowerCase().replace(/\s+/g, '_'),
-      days_year: newProfile.fte * DAYS_PER_FTE,
+      days_year: newProfile.fte * daysPerFte,
     };
 
     onChange?.([...team, profile]);
@@ -72,7 +73,7 @@ export default function TeamCompositionTable({
       label: '',
       seniority: 'mid',
       fte: 1,
-      days_year: DAYS_PER_FTE,
+      days_year: daysPerFte,
       tow_allocation: {}
     });
     setShowAddRow(false);
@@ -93,7 +94,7 @@ export default function TeamCompositionTable({
       if (field === 'fte') {
         const clampedFte = Math.max(0, parseFloat(value) || 0);
         updatedProfile.fte = clampedFte;
-        updatedProfile.days_year = clampedFte * DAYS_PER_FTE;
+        updatedProfile.days_year = clampedFte * daysPerFte;
       }
 
       return updatedProfile;
@@ -206,7 +207,7 @@ export default function TeamCompositionTable({
   const durationYears = durationMonths / 12;
   const totalFte = team.reduce((sum, p) => sum + (parseFloat(p.fte) || 0), 0);
   const totalAdjustedFte = Object.values(adjustedFteMap).reduce((sum, v) => sum + v.adjustedFte, 0);
-  const totalDays = team.reduce((sum, p) => sum + (parseFloat(p.days_year) || 0), 0);
+  const totalDays = team.reduce((sum, p) => sum + (parseFloat(p.fte) || 0) * daysPerFte, 0);
   const totalDaysOverall = totalDays * durationYears;
   const savingsPct = totalFte > 0 ? ((totalFte - totalAdjustedFte) / totalFte * 100) : 0;
 
@@ -393,12 +394,12 @@ export default function TeamCompositionTable({
                       })()}
                       <td className="px-4 py-2">
                         <div className="px-2 py-1 text-center bg-slate-100 rounded text-slate-600">
-                          {Math.round(profile.days_year || profile.fte * DAYS_PER_FTE)}
+                          {Math.round(profile.fte * daysPerFte)}
                         </div>
                       </td>
                       <td className="px-4 py-2">
                         <div className="px-2 py-1 text-center bg-blue-50 rounded text-blue-700 font-semibold">
-                          {Math.round((profile.days_year || profile.fte * DAYS_PER_FTE) * durationYears)}
+                          {Math.round(profile.fte * daysPerFte * durationYears)}
                         </div>
                       </td>
                       {tows.map(tow => (
@@ -550,12 +551,12 @@ export default function TeamCompositionTable({
                 </td>
                 <td className="px-4 py-2">
                   <div className="px-2 py-1 text-center bg-blue-100 rounded text-blue-700">
-                    {Math.round(newProfile.fte * DAYS_PER_FTE)}
+                    {Math.round(newProfile.fte * daysPerFte)}
                   </div>
                 </td>
                 <td className="px-4 py-2">
                   <div className="px-2 py-1 text-center bg-blue-100 rounded text-blue-700 font-semibold">
-                    {Math.round(newProfile.fte * DAYS_PER_FTE * durationYears)}
+                    {Math.round(newProfile.fte * daysPerFte * durationYears)}
                   </div>
                 </td>
                 {tows.map(tow => (
@@ -631,7 +632,7 @@ export default function TeamCompositionTable({
                 </div>
               </div>
               <div className="text-xs text-slate-400">
-                1 FTE = {DAYS_PER_FTE} GG/anno · Durata: {durationMonths} mesi ({durationYears.toFixed(1)} anni)
+                1 FTE = {daysPerFte} GG/anno · Durata: {durationMonths} mesi ({durationYears.toFixed(1)} anni)
               </div>
             </div>
           </div>

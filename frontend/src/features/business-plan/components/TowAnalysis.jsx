@@ -62,12 +62,14 @@ export default function TowAnalysis({
   // Classify seniority levels
   const getSeniorityLevel = (seniority) => {
     const s = (seniority || '').toLowerCase();
-    if (s.includes('senior') || s.includes('manager') || s.includes('lead') || s.includes('principal')) {
+    // master and sr (Senior) are the top seniority tiers
+    if (s === 'master' || s === 'sr' || s.includes('senior') || s.includes('manager') || s.includes('lead') || s.includes('principal')) {
       return 'senior';
     }
-    if (s.includes('junior') || s.includes('entry') || s.includes('graduate')) {
+    if (s === 'jr' || s.includes('junior') || s.includes('entry') || s.includes('graduate')) {
       return 'junior';
     }
+    // expert and mid are treated as mid tier
     return 'mid';
   };
 
