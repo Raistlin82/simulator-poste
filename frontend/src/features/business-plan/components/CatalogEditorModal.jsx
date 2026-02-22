@@ -245,6 +245,18 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
  */
 function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals = {}, scontoGaraFactor = 1, onGroupsChange, onToggleGroupItem, onItemPctChange, onEvenDistribute }) {
   const scontoGaraActive = scontoGaraFactor < 0.9999;
+
+  // Collapsed state — tutti collassati per default
+  const [collapsedGrps, setCollapsedGrps] = useState(() => new Set(groups.map(g => g.id)));
+  const toggleGrp = (id) => setCollapsedGrps(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const allExpandedGrps = groups.length > 0 && groups.every(g => !collapsedGrps.has(g.id));
+  const toggleAllGrps = () =>
+    allExpandedGrps ? setCollapsedGrps(new Set(groups.map(g => g.id))) : setCollapsedGrps(new Set());
+
   const handleAddGroup = () => {
     onGroupsChange([...groups, {
       id: `group_${Date.now()}`,
@@ -266,7 +278,23 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
   const effectiveTotalCatalogLocal = totalCatalogValue * scontoGaraFactor;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Toolbar expand/collapse all */}
+      {groups.length > 0 && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleAllGrps}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
+          >
+            {allExpandedGrps
+              ? <><ChevronUp className="w-3.5 h-3.5" />Comprimi tutti</>
+              : <><ChevronDown className="w-3.5 h-3.5" />Espandi tutti</>
+            }
+          </button>
+          <span className="text-xs text-slate-400">{groups.length} raggruppament{groups.length === 1 ? 'o' : 'i'}</span>
+        </div>
+      )}
+
       {/* Validazione somma target vs totale catalogo */}
       {groups.length > 0 && totalCatalogValue > 0 && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
@@ -287,12 +315,57 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
         const groupItems = items.filter(it => (group.item_ids || []).includes(it.id));
         const sumPct = groupItems.reduce((s, it) => s + (parseFloat(it.group_pct) || 0), 0);
         const isValid = groupItems.length === 0 || Math.abs(sumPct - 100) < 0.5;
+        const isCollapsedGrp = collapsedGrps.has(group.id);
+        const gt = groupTotals[group.id];
 
         return (
-          <div key={group.id} className="border border-slate-200 rounded-xl p-4 space-y-4">
-            {/* Header: nome + valore target */}
+          <div key={group.id} className="border border-slate-200 rounded-xl overflow-hidden">
+            {/* ── Header collassabile ── */}
+            <div
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+              onClick={() => toggleGrp(group.id)}
+            >
+              {isCollapsedGrp
+                ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+              <span className={`w-3 h-3 rounded-full shrink-0 ${dotColor}`} />
+              <span className="font-semibold text-sm text-slate-700 flex-1 truncate">{group.label || 'Senza nome'}</span>
+              <span className="text-xs text-slate-400">{groupItems.length} {groupItems.length === 1 ? 'voce' : 'voci'}</span>
+              {/* Aggregati visibili solo in collapsed */}
+              {isCollapsedGrp && (
+                <div className="flex items-center gap-3 text-xs ml-2">
+                  {totalCatalogValue > 0 && groupFte > 0 && (
+                    <span className="text-indigo-600 font-semibold tabular-nums">{groupFte.toFixed(2)} FTE</span>
+                  )}
+                  <span className={`font-bold px-1.5 py-0.5 rounded ${isValid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    Σ {sumPct.toFixed(0)}%
+                  </span>
+                  {gt && gt.sell > 0 && (
+                    <>
+                      <span className="text-slate-600 tabular-nums">Costo: <strong>{formatCurrency(gt.cost, 0)}</strong></span>
+                      <span className={`font-semibold tabular-nums ${gt.margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                        Marg: {gt.marginPct.toFixed(1)}%
+                      </span>
+                      <span className="text-slate-600 tabular-nums">Vend.: <strong>{formatCurrency(gt.sell, 0)}</strong></span>
+                    </>
+                  )}
+                </div>
+              )}
+              {/* Stop click propagation on remove button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleRemove(idx); }}
+                className="p-1 text-slate-400 hover:text-red-500 rounded ml-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* ── Corpo espanso ── */}
+            {!isCollapsedGrp && (
+            <div className="p-4 space-y-4">
+            {/* Header: nome + valore target (ora senza trash perché già nell'header collassabile) */}
             <div className="flex items-center gap-2">
-              <span className={`w-3 h-3 rounded-full flex-shrink-0 ${dotColor}`} />
+              <span className="text-xs text-slate-500 font-medium shrink-0">Nome:</span>
               <input
                 type="text"
                 value={group.label || ''}
@@ -300,9 +373,6 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
                 placeholder="Nome raggruppamento..."
                 className="flex-1 px-2 py-1 text-sm font-medium border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
               />
-              <button onClick={() => handleRemove(idx)} className="p-1 text-slate-400 hover:text-red-500 rounded">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
             </div>
 
             {/* Valore target → FTE previsti */}
@@ -473,6 +543,8 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
                 })}
               </div>
             </div>
+            </div>
+            )}
           </div>
         );
       })}
@@ -1114,30 +1186,82 @@ export default function CatalogEditorModal({
                     const gId = group?.id ?? '__ungrouped__';
                     const isCollapsed = group && !expandedGroups.has(gId);
                     const groupCalc = indices.reduce((acc, i) => ({
-                      fte: acc.fte + (itemCalcs[i]?.item_fte || 0),
-                      cost: acc.cost + (itemCalcs[i]?.item_cost || 0),
-                    }), { fte: 0, cost: 0 });
+                      fte:    acc.fte    + (itemCalcs[i]?.item_fte        || 0),
+                      cost:   acc.cost   + (itemCalcs[i]?.item_cost       || 0),
+                      sell:   acc.sell   + (itemCalcs[i]?.item_sell_price || 0),
+                      poste:  acc.poste  + (itemCalcs[i]?.item_poste_total|| 0),
+                      pctSum: acc.pctSum + (parseFloat(items[i]?.group_pct) || 0),
+                    }), { fte: 0, cost: 0, sell: 0, poste: 0, pctSum: 0 });
+                    const groupMarginPct = groupCalc.sell > 0
+                      ? (groupCalc.sell - groupCalc.cost) / groupCalc.sell * 100
+                      : 0;
+                    const pctSumOk = groupCalc.pctSum > 0 && Math.abs(groupCalc.pctSum - 100) < 0.5;
                     return (
                       <Fragment key={gId}>
-                        {/* Group header row */}
+                        {/* Group header row — colonne allineate */}
                         {group && (
                           <tr
                             className="bg-slate-100/70 hover:bg-slate-100 cursor-pointer select-none"
                             onClick={() => toggleExpandedGroup(gId)}
                           >
-                            <td colSpan={13} className="px-3 py-1.5">
-                              <div className="flex items-center gap-2 text-xs">
+                            {/* 1: Descrizione */}
+                            <td className="px-3 py-1.5">
+                              <div className="flex items-center gap-1.5 text-xs">
                                 {isCollapsed
                                   ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                   : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                 }
                                 <span className={`w-2 h-2 rounded-full shrink-0 ${GROUP_DOTS[colorIdx % GROUP_DOTS.length]}`} />
-                                <span className="font-semibold text-slate-700">{group.label}</span>
-                                <span className="text-slate-400">({indices.length} {indices.length === 1 ? 'voce' : 'voci'})</span>
-                                <span className="ml-auto font-semibold text-indigo-600 tabular-nums">{groupCalc.fte.toFixed(2)} FTE</span>
-                                <span className="font-medium text-slate-600 tabular-nums">{formatCurrency(groupCalc.cost, 0)}</span>
+                                <span className="font-semibold text-slate-700 truncate">{group.label}</span>
+                                <span className="text-slate-400 text-[10px] shrink-0">({indices.length} {indices.length === 1 ? 'voce' : 'voci'})</span>
                               </div>
                             </td>
+                            {/* 2: Tipo/Compl */}<td />
+                            {/* 3: Pz.Unit.Poste */}<td />
+                            {/* 4: Mix Figure */}<td />
+                            {/* 5: % Grp */}
+                            <td className="px-3 py-1.5 text-center">
+                              {isCollapsed && groupCalc.pctSum > 0 && (
+                                <span className={`text-xs font-bold tabular-nums ${pctSumOk ? 'text-green-600' : 'text-amber-600'}`}>
+                                  {groupCalc.pctSum.toFixed(0)}%
+                                </span>
+                              )}
+                            </td>
+                            {/* 6: FTE */}
+                            <td className="px-3 py-1.5 text-right">
+                              {isCollapsed && (
+                                <span className="text-xs font-semibold text-indigo-600 tabular-nums">{groupCalc.fte.toFixed(2)}</span>
+                              )}
+                            </td>
+                            {/* 7: Costo Tot */}
+                            <td className="px-3 py-1.5 text-right">
+                              {isCollapsed && (
+                                <span className="text-xs font-semibold text-slate-600 tabular-nums">{formatCurrency(groupCalc.cost, 0)}</span>
+                              )}
+                            </td>
+                            {/* 8: Marg.% */}
+                            <td className="px-3 py-1.5 text-center">
+                              {isCollapsed && groupCalc.sell > 0 && (
+                                <span className={`text-xs font-bold tabular-nums ${groupMarginPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {groupMarginPct.toFixed(1)}%
+                                </span>
+                              )}
+                            </td>
+                            {/* 9: Pz. Vend. Tot */}
+                            <td className="px-3 py-1.5 text-right">
+                              {isCollapsed && groupCalc.sell > 0 && (
+                                <span className="text-xs font-semibold text-slate-600 tabular-nums">{formatCurrency(groupCalc.sell, 0)}</span>
+                              )}
+                            </td>
+                            {/* 10: Pz. Poste Tot */}
+                            <td className="px-3 py-1.5 text-right">
+                              {isCollapsed && groupCalc.poste > 0 && (
+                                <span className="text-xs text-slate-500 tabular-nums">{formatCurrency(groupCalc.poste, 0)}</span>
+                              )}
+                            </td>
+                            {/* 11: Pz. Unit. Lu */}<td />
+                            {/* 12: Sconto % */}<td />
+                            {/* 13: azioni */}<td />
                           </tr>
                         )}
                         {!isCollapsed && indices.map((idx) => {
