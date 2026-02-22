@@ -536,6 +536,7 @@ def create_business_plan(
         tow_assignments=data.tow_assignments,
         profile_mappings=profile_mappings_dict,
         subcontract_config=data.subcontract_config,
+        max_subcontract_pct=data.max_subcontract_pct,
         governance_profile_mix=data.governance_profile_mix,
         governance_cost_manual=data.governance_cost_manual,
         governance_mode=data.governance_mode,
@@ -578,6 +579,7 @@ def update_business_plan(
     db_bp.tow_assignments = data.tow_assignments
     db_bp.profile_mappings = profile_mappings_dict
     db_bp.subcontract_config = data.subcontract_config
+    db_bp.max_subcontract_pct = data.max_subcontract_pct
     db_bp.governance_profile_mix = data.governance_profile_mix
     db_bp.governance_cost_manual = data.governance_cost_manual
     db_bp.governance_mode = data.governance_mode

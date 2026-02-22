@@ -166,6 +166,9 @@ class BusinessPlanModel(Base):
     # {"quota_pct": 0.15, "partner": "PartnerX", "tows": ["TOW_03"]}
     subcontract_config = Column(SQLiteJSON, default=dict)
 
+    # Quota massima subappalto consentita (%)
+    max_subcontract_pct = Column(Float, default=20.0)
+
     # Governance: Mix profili Lutech per calcolo costo governance
     # Permette di definire il mix di profili per il team di governance anziché usare solo la %
     # Formato: [{"lutech_profile": "practice:profile_id", "pct": 50}, ...]

@@ -95,6 +95,7 @@ def run_migrations():
                 ("governance_cost_manual", "REAL"),
                 ("margin_warning_threshold", "REAL DEFAULT 0.05"),
                 ("margin_success_threshold", "REAL DEFAULT 0.15"),
+                ("max_subcontract_pct", "REAL DEFAULT 20.0"),
             ]
             for col_name, col_def in bp_migrations:
                 if col_name not in columns:

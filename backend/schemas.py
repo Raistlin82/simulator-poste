@@ -457,14 +457,7 @@ class BusinessPlanCreate(BaseModel):
 
                 covered_months |= period_months
 
-            # Check for gaps (only warn, don't fail)
-            expected_months = set(range(1, duration + 1))
-            missing_months = expected_months - covered_months
-            if missing_months and len(covered_months) > 0:
-                # Only add error if there are some mappings but incomplete coverage
-                errors.append(
-                    f"Profile '{profile_id}': gap in months {sorted(missing_months)[:5]}{'...' if len(missing_months) > 5 else ''}"
-                )
+            # Note: gaps are allowed (user may configure incrementally)
 
         if errors:
             raise ValueError(f"Profile mappings validation errors: {'; '.join(errors)}")
