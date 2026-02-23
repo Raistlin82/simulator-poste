@@ -220,9 +220,15 @@ class BusinessPlanService:
                 adj_period = get_adj_period_at(start)
                 p_factor = adj_period.get("by_profile", {}).get(poste_profile_id, 1.0)
 
-                # YoY inflation: year 0 = no change, year 1 = +inflation_pct%, etc.
-                year_index = (start - 1) // 12
-                inflation_factor = (1 + inflation_pct / 100) ** year_index if inflation_pct > 0 else 1.0
+                # YoY inflation: compute month-weighted inflation factor for the interval
+                if inflation_pct and inflation_pct > 0 and months_in_interval > 0:
+                    sum_factors = 0.0
+                    for m in range(start, next_boundary):
+                        yr_idx = (m - 1) // 12
+                        sum_factors += (1 + inflation_pct / 100) ** yr_idx
+                    inflation_factor = sum_factors / months_in_interval
+                else:
+                    inflation_factor = 1.0
                 
                 # Calcolo TOW factor per questo membro in questo intervallo
                 tow_factor = 1.0

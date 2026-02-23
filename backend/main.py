@@ -2475,6 +2475,8 @@ def calculate_business_plan(
     # Calculate overhead costs
     # Governance: supports manual override, profile mix, or percentage fallback
     governance_cost = 0.0
+    # Precompute reuse factor for governance adjustments
+    reuse_factor = bp.reuse_factor or 0.0
     if bp.governance_cost_manual is not None:
         # Manual override
         governance_cost = float(bp.governance_cost_manual)
@@ -2483,6 +2485,9 @@ def calculate_business_plan(
         total_fte = sum(float(m.get("fte", 0)) for m in (bp.team_composition or []))
         governance_pct = bp.governance_pct or 0.04
         governance_fte = total_fte * governance_pct
+        # If governance should respect reuse, reduce governance FTE before costing
+        if bp.governance_apply_reuse and reuse_factor > 0:
+            governance_fte = governance_fte * (1 - reuse_factor)
         duration_months = bp.duration_months or 36
         duration_years = duration_months / 12
         days_per_fte = bp.days_per_fte or 220.0
@@ -2516,18 +2521,76 @@ def calculate_business_plan(
         # Fallback: percentage of base_for_overhead (team + catalog, already has inflation applied)
         governance_cost = base_for_overhead * (bp.governance_pct or 0.04)
 
-    # Apply reuse factor to governance if enabled
-    if bp.governance_apply_reuse and (bp.reuse_factor or 0) > 0:
-        reuse_factor = bp.reuse_factor or 0
+    # If governance was provided as a manual override, apply reuse reduction now
+    if bp.governance_apply_reuse and reuse_factor > 0 and bp.governance_cost_manual is not None:
         governance_cost = governance_cost * (1 - reuse_factor)
 
     # Risk includes governance cost (aligned with frontend calculation)
     risk_cost = (base_for_overhead + governance_cost) * (bp.risk_contingency_pct or 0.03)
 
-    # Subcontract
+    # Subcontract: support allocation to specific TOWs via subcontract_config
     sub_config = bp.subcontract_config or {}
     sub_quota = float(sub_config.get("quota_pct", 0.0))
-    subcontract_cost = base_for_overhead * sub_quota
+    # Normalize quota: accept either decimal (0.15) or percentage (15)
+    if sub_quota > 1.0:
+        sub_quota = sub_quota / 100.0
+
+    # Initialize subcontract fields on tow_breakdown
+    for tid in tow_breakdown:
+        try:
+            tow_breakdown[tid]["subcontract_cost"] = float(tow_breakdown[tid].get("subcontract_cost", 0.0))
+        except Exception:
+            tow_breakdown[tid]["subcontract_cost"] = 0.0
+
+    # Determine base amount to which subcontract quota applies
+    subcontract_base = base_for_overhead
+    selected_tows = sub_config.get("tows") or []
+    tow_split = sub_config.get("tow_split") or {}
+
+    if selected_tows:
+        # Sum costs of explicitly selected tows (backward-compatible with docs examples)
+        selected_sum = 0.0
+        for tid in selected_tows:
+            if tid in tow_breakdown:
+                selected_sum += float(tow_breakdown[tid].get("cost", 0.0))
+        subcontract_base = selected_sum
+        # If selection yields no cost (e.g. invalid ids), fallback to full base
+        if subcontract_base <= 0:
+            subcontract_base = base_for_overhead
+    elif tow_split:
+        # tow_split is a dict {tow_id: pct} indicating portion of subcontract base per tow
+        selected_sum = 0.0
+        for tid, pct in tow_split.items():
+            if tid in tow_breakdown:
+                selected_sum += float(tow_breakdown[tid].get("cost", 0.0)) * (float(pct) / 100.0)
+        subcontract_base = selected_sum
+        if subcontract_base <= 0:
+            subcontract_base = base_for_overhead
+
+    subcontract_cost = subcontract_base * sub_quota
+
+    # Allocate subcontract cost back to tows for transparency
+    if subcontract_cost > 0:
+        if selected_tows:
+            # Allocate proportionally to cost among selected tows
+            costs = {tid: float(tow_breakdown[tid].get("cost", 0.0)) for tid in selected_tows if tid in tow_breakdown}
+            total = sum(costs.values()) or 1.0
+            for tid, c in costs.items():
+                share = (c / total) * subcontract_cost
+                tow_breakdown[tid]["subcontract_cost"] = round(share, 2)
+        elif tow_split:
+            # Allocate according to explicit percentages in tow_split
+            for tid, pct in tow_split.items():
+                if tid in tow_breakdown:
+                    share = subcontract_cost * (float(pct) / 100.0)
+                    tow_breakdown[tid]["subcontract_cost"] = round(share, 2)
+        else:
+            # Fallback: distribute proportionally across all tows
+            costs = {tid: float(tow_breakdown[tid].get("cost", 0.0)) for tid in tow_breakdown}
+            total = sum(costs.values()) or 1.0
+            for tid, c in costs.items():
+                share = (c / total) * subcontract_cost
+                tow_breakdown[tid]["subcontract_cost"] = round(share, 2)
 
     total_cost = base_for_overhead + governance_cost + risk_cost + subcontract_cost
 
