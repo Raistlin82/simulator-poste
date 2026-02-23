@@ -3,11 +3,11 @@ import { Table, Euro, Calculator, ChevronDown, ChevronUp, BookOpen } from 'lucid
 import { formatCurrency } from '../../../utils/formatters';
 
 const TYPE_CONFIG = {
-  task:     { label: 'Task',           cls: 'bg-blue-100 text-blue-700' },
-  corpo:    { label: 'A Corpo',        cls: 'bg-purple-100 text-purple-700' },
-  canone:   { label: 'Canone',         cls: 'bg-green-100 text-green-700' },
-  consumo:  { label: 'Consumo',        cls: 'bg-amber-100 text-amber-700' },
-  catalogo: { label: 'Catalogo',       cls: 'bg-rose-100 text-rose-700' },
+  task: { label: 'Task', cls: 'bg-blue-100 text-blue-700' },
+  corpo: { label: 'A Corpo', cls: 'bg-purple-100 text-purple-700' },
+  canone: { label: 'Canone', cls: 'bg-green-100 text-green-700' },
+  consumo: { label: 'Consumo', cls: 'bg-amber-100 text-amber-700' },
+  catalogo: { label: 'Catalogo', cls: 'bg-rose-100 text-rose-700' },
 };
 
 /**
@@ -111,8 +111,8 @@ export default function OfferSchemeTable({
                               {formatNumber(row.quantity)}
                               <span className="block text-[10px] text-slate-400 font-sans">
                                 {row.type === 'task' ? 'task' :
-                                 row.type === 'corpo' ? 'mesi (forfait)' :
-                                 row.type === 'canone' ? 'mesi (canone)' : 'forfait'}
+                                  row.type === 'corpo' ? 'mesi (forfait)' :
+                                    row.type === 'canone' ? 'mesi (canone)' : 'forfait'}
                               </span>
                             </span>
                           )}
@@ -159,7 +159,7 @@ export default function OfferSchemeTable({
                                         <th className="px-3 py-1.5 text-right font-semibold text-rose-800 w-28">Pz. Vend. Tot.</th>
                                       </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-rose-100 bg-white">
+                                    <tbody className="bg-transparent border-separate" style={{ borderSpacing: "0 8px" }}>
                                       {group.items.length === 0 ? (
                                         <tr>
                                           <td colSpan={4} className="px-3 py-2 text-center text-slate-400 italic text-[10px]">
@@ -167,11 +167,11 @@ export default function OfferSchemeTable({
                                           </td>
                                         </tr>
                                       ) : group.items.map((item, iIdx) => (
-                                        <tr key={item.id || iIdx} className="hover:bg-rose-50/30">
-                                          <td className="px-3 py-1.5 text-slate-700">{item.label || '—'}</td>
+                                        <tr key={item.id || iIdx} className="bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 group">
+                                          <td className="px-3 py-1.5 text-slate-700 rounded-l-xl">{item.label || '—'}</td>
                                           <td className="px-3 py-1.5 text-right font-mono text-slate-600">{formatCurrency(item.lutech_unit_price ?? 0, 2)}</td>
                                           <td className="px-3 py-1.5 text-right font-mono text-slate-600">{(item.fte ?? 0).toFixed(2)}</td>
-                                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-800">{formatCurrency(item.total, 0)}</td>
+                                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-800 rounded-r-xl">{formatCurrency(item.total, 0)}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -204,13 +204,13 @@ export default function OfferSchemeTable({
                                         <th className="px-3 py-1.5 text-right font-semibold text-slate-600 w-28">Pz. Vend. Tot.</th>
                                       </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                    <tbody className="bg-transparent border-separate" style={{ borderSpacing: "0 8px" }}>
                                       {row.catalog_detail.ungrouped.map((item, iIdx) => (
-                                        <tr key={item.id || iIdx} className="hover:bg-slate-50">
-                                          <td className="px-3 py-1.5 text-slate-700">{item.label || '—'}</td>
+                                        <tr key={item.id || iIdx} className="bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 group">
+                                          <td className="px-3 py-1.5 text-slate-700 rounded-l-xl">{item.label || '—'}</td>
                                           <td className="px-3 py-1.5 text-right font-mono text-slate-600">{formatCurrency(item.lutech_unit_price ?? 0, 2)}</td>
                                           <td className="px-3 py-1.5 text-right font-mono text-slate-600">{(item.fte ?? 0).toFixed(2)}</td>
-                                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-800">{formatCurrency(item.total, 0)}</td>
+                                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-800 rounded-r-xl">{formatCurrency(item.total, 0)}</td>
                                         </tr>
                                       ))}
                                     </tbody>

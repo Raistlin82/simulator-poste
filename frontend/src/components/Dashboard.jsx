@@ -14,12 +14,12 @@ import { logger } from '../utils/logger';
 import { API_URL } from '../utils/api';
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 18 },
-  visible: (i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.09, duration: 0.35, ease: 'easeOut' },
-  }),
+    hidden: { opacity: 0, y: 18 },
+    visible: (i) => ({
+        opacity: 1,
+        y: 0,
+        transition: { delay: i * 0.09, duration: 0.35, ease: 'easeOut' },
+    }),
 };
 
 export default function Dashboard({ onNavigate }) {
@@ -192,8 +192,8 @@ export default function Dashboard({ onNavigate }) {
                 rti_quotas: lotData.rti_quotas || {}
             }, { responseType: 'blob' });
 
-            const url = window.URL.createObjectURL(new Blob([res.data], { 
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            const url = window.URL.createObjectURL(new Blob([res.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             }));
             const link = document.createElement('a');
             link.href = url;
@@ -234,15 +234,15 @@ export default function Dashboard({ onNavigate }) {
 
             {/* 1. Score Cards */}
             <motion.div custom={0} initial="hidden" animate="visible" variants={fadeUp}>
-            <ScoreGauges
-                results={results}
-                lotData={lotData}
-                techInputs={techInputs}
-                onExport={handleExport}
-                onExcelExport={handleExcelExport}
-                exportLoading={exportLoading}
-                excelExportLoading={excelExportLoading}
-            />
+                <ScoreGauges
+                    results={results}
+                    lotData={lotData}
+                    techInputs={techInputs}
+                    onExport={handleExport}
+                    onExcelExport={handleExcelExport}
+                    exportLoading={exportLoading}
+                    excelExportLoading={excelExportLoading}
+                />
             </motion.div>
 
             {/* Strategic Analysis (Monte Carlo) */}
@@ -463,13 +463,13 @@ export default function Dashboard({ onNavigate }) {
 
             {/* 2. Simulation Chart */}
             <motion.div custom={2} initial="hidden" animate="visible" variants={fadeUp}>
-            <SimulationChart
-                simulationData={simulationData}
-                monteCarlo={monteCarlo}
-                results={results}
-                myDiscount={myDiscount}
-                competitorDiscount={competitorDiscount}
-            />
+                <SimulationChart
+                    simulationData={simulationData}
+                    monteCarlo={monteCarlo}
+                    results={results}
+                    myDiscount={myDiscount}
+                    competitorDiscount={competitorDiscount}
+                />
             </motion.div>
 
             {/* 3. Detailed Score Table */}
@@ -499,10 +499,10 @@ export default function Dashboard({ onNavigate }) {
                                 <th scope="col" className="px-6 py-3 text-center">{t('dashboard.status')}</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-transparent border-separate" style={{ borderSpacing: "0 8px" }}>
                             {/* Company Certs */}
-                            <tr className="bg-white border-b border-slate-100 hover:bg-slate-50">
-                                <td className="px-6 py-4 font-medium text-slate-900">
+                            <tr className="bg-white/70 backdrop-blur-md rounded-xl shadow-sm hover:shadow hover:bg-white/90 transition-all border border-white/50">
+                                <td className="px-6 py-4 font-medium text-slate-900 rounded-l-xl">
                                     {t('dashboard.company_certs')}
                                     <div className="text-xs text-slate-400 font-normal">{t('config.company_certs')}</div>
                                 </td>
@@ -516,8 +516,8 @@ export default function Dashboard({ onNavigate }) {
                                         const score = results.company_certs_score || 0;
                                         const isMax = score >= maxRaw && score > 0;
                                         return isMax ?
-                                            <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">{t('dashboard.max_status')}</span> :
-                                            <span className="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">{formatNumber(maxRaw > 0 ? (score / maxRaw * 100) : 0, 0)}%</span>;
+                                            <span className="bg-green-100/50 backdrop-blur-sm text-green-800 text-xs font-medium px-2.5 py-1 rounded-full border border-green-200/50 shadow-sm">{t('dashboard.max_status')}</span> :
+                                            <span className="bg-slate-100/50 backdrop-blur-sm text-slate-800 text-xs font-medium px-2.5 py-1 rounded-full border border-slate-200/50 shadow-sm">{formatNumber(maxRaw > 0 ? (score / maxRaw * 100) : 0, 0)}%</span>;
                                     })()}
                                 </td>
                             </tr>
@@ -531,8 +531,8 @@ export default function Dashboard({ onNavigate }) {
                                 const percentage = maxRaw > 0 ? (score / maxRaw * 100) : 0;
                                 const isResourceType = req.type === 'resource';
                                 return (
-                                    <tr key={req.id} className="bg-white border-b border-slate-100 hover:bg-slate-50">
-                                        <td className="px-6 py-4 font-medium text-slate-900">
+                                    <tr key={req.id} className="bg-white/70 backdrop-blur-md rounded-xl shadow-sm hover:shadow hover:bg-white/90 transition-all border border-white/50">
+                                        <td className="px-6 py-4 font-medium text-slate-900 rounded-l-xl">
                                             <div className="flex items-center gap-2">
                                                 <div>
                                                     {req.label}
@@ -553,11 +553,11 @@ export default function Dashboard({ onNavigate }) {
                                         <td className="px-6 py-4 text-right text-slate-500">{formatNumber(maxRaw, 2)}</td>
                                         <td className="px-6 py-4 text-right font-bold text-amber-600">{formatNumber(weightedScore, 2)}</td>
                                         <td className="px-6 py-4 text-right text-amber-500">{formatNumber(req.gara_weight || 0, 1)}</td>
-                                        <td className="px-6 py-4 text-center">
+                                        <td className="px-6 py-4 text-center rounded-r-xl">
                                             {isMax ?
-                                                <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">{t('dashboard.max_status')}</span>
+                                                <span className="bg-green-100/50 backdrop-blur-sm text-green-800 text-xs font-medium px-2.5 py-1 rounded-full border border-green-200/50 shadow-sm">{t('dashboard.max_status')}</span>
                                                 :
-                                                <span className="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">{formatNumber(percentage, 0)}%</span>
+                                                <span className="bg-slate-100/50 backdrop-blur-sm text-slate-800 text-xs font-medium px-2.5 py-1 rounded-full border border-slate-200/50 shadow-sm">{formatNumber(percentage, 0)}%</span>
                                             }
                                         </td>
                                     </tr>

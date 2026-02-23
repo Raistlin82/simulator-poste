@@ -333,7 +333,7 @@ export default function MasterDataConfig() {
 
                     {/* Content */}
                     <div className="md:col-span-3">
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <div className="glass-card rounded-xl shadow-sm border border-slate-200/50 p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-semibold text-slate-800">
                                     {sections.find(s => s.id === activeSection)?.label}
@@ -456,7 +456,7 @@ export default function MasterDataConfig() {
 
                                                 {/* Expanded Content */}
                                                 {expandedVendor === vendor.key && (
-                                                    <div className="border-t border-purple-200 p-4 bg-white space-y-4">
+                                                    <div className="border-t border-purple-200/50 p-4 bg-white/40 backdrop-blur-md space-y-4 rounded-b-lg">
                                                         {/* Aliases */}
                                                         <div>
                                                             <label className="block text-xs font-bold text-slate-600 uppercase mb-2">

@@ -35,14 +35,14 @@ import {
 
 // Status badge colors
 const STATUS_COLORS = {
-  valid: 'bg-green-100 text-green-800',
-  expired: 'bg-yellow-100 text-yellow-800',
-  mismatch: 'bg-orange-100 text-orange-800',
-  unreadable: 'bg-gray-100 text-gray-600',
-  not_downloaded: 'bg-purple-100 text-purple-800',
-  too_large: 'bg-indigo-100 text-indigo-800',
-  error: 'bg-red-100 text-red-800',
-  unprocessed: 'bg-gray-100 text-gray-500',
+  valid: 'bg-green-50/50 backdrop-blur-sm border border-green-200/50 text-green-700 shadow-sm',
+  expired: 'bg-yellow-50/50 backdrop-blur-sm border border-yellow-200/50 text-yellow-700 shadow-sm',
+  mismatch: 'bg-orange-50/50 backdrop-blur-sm border border-orange-200/50 text-orange-700 shadow-sm',
+  unreadable: 'bg-gray-50/50 backdrop-blur-sm border border-gray-200/50 text-gray-600 shadow-sm',
+  not_downloaded: 'bg-purple-50/50 backdrop-blur-sm border border-purple-200/50 text-purple-700 shadow-sm',
+  too_large: 'bg-indigo-50/50 backdrop-blur-sm border border-indigo-200/50 text-indigo-700 shadow-sm',
+  error: 'bg-red-50/50 backdrop-blur-sm border border-red-200/50 text-red-700 shadow-sm',
+  unprocessed: 'bg-gray-50/50 backdrop-blur-sm border border-gray-200/50 text-gray-500 shadow-sm',
 };
 
 const STATUS_ICONS = {
@@ -570,7 +570,7 @@ export default function CertVerificationPage() {
         </div>
 
         {/* Main Content Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+        <div className="glass-card rounded-2xl shadow-sm border border-slate-200/50 p-4 md:p-6">
           {/* OCR Status Check */}
           <div className="mb-6">
             <button
@@ -800,23 +800,23 @@ export default function CertVerificationPage() {
                   {t('cert_verification.summary')}
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="text-center bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-slate-100/50">
                     <div className="text-3xl font-bold text-slate-800">{results.summary?.total || 0}</div>
                     <div className="text-sm text-slate-500 mt-1">{t('cert_verification.total')}</div>
                   </div>
-                  <div className="text-center bg-white rounded-xl p-4 shadow-sm border border-green-100">
+                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-green-100/50">
                     <div className="text-3xl font-bold text-green-600">{results.summary?.valid || 0}</div>
                     <div className="text-sm text-slate-500 mt-1">{t('cert_verification.extracted')}</div>
                   </div>
-                  <div className="text-center bg-white rounded-xl p-4 shadow-sm border border-yellow-100">
+                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-yellow-100/50">
                     <div className="text-3xl font-bold text-yellow-600">{results.summary?.expired || 0}</div>
                     <div className="text-sm text-slate-500 mt-1">{t('cert_verification.expired')}</div>
                   </div>
-                  <div className="text-center bg-white rounded-xl p-4 shadow-sm border border-orange-100">
+                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-orange-100/50">
                     <div className="text-3xl font-bold text-orange-600">{results.summary?.mismatch || 0}</div>
                     <div className="text-sm text-slate-500 mt-1">{t('cert_verification.mismatch')}</div>
                   </div>
-                  <div className="text-center bg-white rounded-xl p-4 shadow-sm border border-red-100">
+                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-red-100/50">
                     <div className="text-3xl font-bold text-red-600">{(results.summary?.unreadable || 0) + (results.summary?.error || 0)}</div>
                     <div className="text-sm text-slate-500 mt-1">{t('cert_verification.unreadable')}</div>
                   </div>
@@ -832,7 +832,7 @@ export default function CertVerificationPage() {
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {Object.entries(results.summary.by_requirement).map(([req, data]) => (
-                      <div key={req} className="bg-white rounded-lg p-3 shadow-sm border border-indigo-100">
+                      <div key={req} className="bg-white/40 backdrop-blur-sm rounded-lg p-3 shadow-sm border border-indigo-100/50">
                         <div className="font-medium text-slate-800 truncate" title={req}>{req}</div>
                         <div className="text-sm text-slate-500">
                           {data.valid}/{data.total} {t('cert_verification.valid_label')}
@@ -844,7 +844,7 @@ export default function CertVerificationPage() {
               )}
 
               {/* Detail Table */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="glass-card rounded-xl border border-slate-200/50 overflow-hidden mt-6">
                 <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-wrap justify-between items-center gap-4">
                   <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-slate-600" />

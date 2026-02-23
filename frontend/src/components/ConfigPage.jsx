@@ -622,8 +622,8 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                     });
                                                 }}
                                                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${isSelected
-                                                        ? 'bg-indigo-600 border-indigo-600 text-white font-semibold'
-                                                        : 'bg-white border-indigo-300 text-indigo-700 hover:border-indigo-500 hover:bg-indigo-100'
+                                                    ? 'bg-indigo-600 border-indigo-600 text-white font-semibold'
+                                                    : 'bg-white border-indigo-300 text-indigo-700 hover:border-indigo-500 hover:bg-indigo-100'
                                                     }`}
                                             >
                                                 {company}
@@ -713,7 +713,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                         {/* Formula Display with Dynamic Values */}
                         <div className="glass-card rounded-xl p-6">
                             <h3 className="text-sm font-bold text-slate-700 uppercase mb-4 tracking-wider">📐 Formula Dinamica</h3>
-                            <div className="bg-white rounded-lg p-4 border border-slate-200 font-mono text-sm text-slate-800 leading-relaxed space-y-3">
+                            <div className="glass-card rounded-lg p-4 border border-slate-200/50 font-mono text-sm text-slate-800 leading-relaxed space-y-3">
                                 {(() => {
                                     const formula = masterData?.economic_formulas?.find(f => f.id === (currentLot.economic_formula || 'interp_alpha'))?.desc || 'Formula non definita';
                                     const alpha = (currentLot.alpha || 0.3).toFixed(2);
@@ -1059,7 +1059,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                             <h4 className="font-semibold text-blue-800 text-sm">{t('tech.criteria')} e Pesi</h4>
                                                             <p className="text-xs text-blue-600 mt-1">Raw = Σ(Peso_Interno × Max_Punteggio)</p>
                                                         </div>
-                                                        <div className="bg-white px-3 py-1 rounded border border-blue-200 text-center shadow-sm">
+                                                        <div className="bg-white/50 backdrop-blur-sm px-3 py-1 rounded border border-blue-200/50 text-center shadow-sm">
                                                             <div className="text-[9px] font-bold text-blue-400 uppercase leading-none mb-1">Max Req</div>
                                                             <div className="text-lg font-black text-blue-600 leading-none">{(req.max_points || 0).toFixed(1)}</div>
                                                         </div>
@@ -1077,7 +1077,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                         req.sub_reqs.map((sub) => {
                                                             const levels = sub.judgement_levels || defaultJudgementLevels;
                                                             return (
-                                                                <div key={sub.id} className="bg-white p-3 rounded border border-blue-200 space-y-2">
+                                                                <div key={sub.id} className="bg-white/60 backdrop-blur-sm p-3 rounded border border-blue-200/50 shadow-sm space-y-2">
                                                                     {/* Row 1: ID, Label, Weight, Raw, Delete */}
                                                                     <div className="flex gap-3 items-center">
                                                                         <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-700 rounded font-mono text-xs font-bold shrink-0">{sub.id}</span>
@@ -1224,7 +1224,7 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
                                                 </div>
                                                 <div className="space-y-3">
                                                     {req.custom_metrics?.map((metric) => (
-                                                        <div key={metric.id} className="bg-white p-3 rounded-md border border-orange-100 flex flex-col gap-2">
+                                                        <div key={metric.id} className="bg-white/60 backdrop-blur-sm p-3 rounded-md border border-orange-100/50 shadow-sm flex flex-col gap-2">
                                                             <div className="flex justify-between items-start">
                                                                 <input
                                                                     type="text"

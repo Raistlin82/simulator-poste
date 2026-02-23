@@ -362,7 +362,7 @@ export default function ParametersPanel({
       <div className="p-4 border-b border-slate-100 glass-card-header">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 bg-white/40 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-sm">
               <Settings2 className="w-5 h-5 text-slate-600" />
             </div>
             <div>
@@ -433,10 +433,9 @@ export default function ParametersPanel({
                       }
                       disabled={disabled}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                        disabled:opacity-50 disabled:cursor-not-allowed ${
-                          isActive
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        disabled:opacity-50 disabled:cursor-not-allowed ${isActive
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -501,7 +500,7 @@ export default function ParametersPanel({
                     return (
                       <div
                         key={idx}
-                        className="border border-slate-200 rounded-lg overflow-hidden bg-white"
+                        className="border border-slate-200/50 rounded-lg overflow-hidden glass-card"
                       >
                         <button
                           onClick={() =>
@@ -622,7 +621,7 @@ export default function ParametersPanel({
                                       )
                                     }
                                     disabled={disabled}
-                                    className="flex-1 px-2 py-1 border border-slate-200 rounded text-[10px] bg-white"
+                                    className="flex-1 px-2 py-1 border border-slate-200/50 rounded text-[10px] bg-white/40 backdrop-blur-sm shadow-sm"
                                   >
                                     <option value="">-- Profilo --</option>
                                     {practices.map((p) => (
@@ -750,7 +749,7 @@ export default function ParametersPanel({
                           )
                         }
                         disabled={disabled}
-                        className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white
+                        className="flex-1 px-2 py-1.5 border border-slate-200/50 rounded-lg text-xs bg-white/40 backdrop-blur-sm shadow-sm
                                    focus:border-blue-500 focus:outline-none"
                       >
                         <option value="">-- Profilo --</option>
@@ -802,11 +801,10 @@ export default function ParametersPanel({
 
                   {governanceCalc.details.totalPct > 0 && (
                     <div
-                      className={`text-xs ${
-                        Math.abs(governanceCalc.details.totalPct - 100) < 1
+                      className={`text-xs ${Math.abs(governanceCalc.details.totalPct - 100) < 1
                           ? 'text-green-600'
                           : 'text-amber-600'
-                      }`}
+                        }`}
                     >
                       Distribuzione: {governanceCalc.details.totalPct.toFixed(0)}
                       %
@@ -830,26 +828,23 @@ export default function ParametersPanel({
                 }
                 disabled={disabled}
                 className={`flex items-center gap-3 p-2.5 w-full rounded-lg border transition-all
-                  ${
-                    current.governance_apply_reuse
-                      ? 'bg-emerald-50 border-emerald-200'
-                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  ${current.governance_apply_reuse
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                   }
                   disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <div
-                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
-                    current.governance_apply_reuse
+                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${current.governance_apply_reuse
                       ? 'bg-emerald-500'
                       : 'bg-slate-300'
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                      current.governance_apply_reuse
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${current.governance_apply_reuse
                         ? 'translate-x-4'
                         : 'translate-x-0'
-                    }`}
+                      }`}
                   />
                 </div>
                 <span className="text-xs text-slate-600">

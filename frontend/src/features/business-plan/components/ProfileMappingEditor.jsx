@@ -595,7 +595,7 @@ export default function ProfileMappingEditor({
                     {periodMappings.map((periodMapping, periodIndex) => {
                       const mixInfo = calculatePeriodMixCost(periodMapping.mix);
                       return (
-                        <div key={periodIndex} className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm space-y-4">
+                        <div key={periodIndex} className="p-4 bg-white/40 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm space-y-4">
                           {/* Header Periodo */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -811,7 +811,7 @@ export default function ProfileMappingEditor({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-white px-6 py-4 rounded-2xl shadow-sm border border-slate-100 self-end md:self-auto">
+            <div className="flex items-center gap-3 glass-card px-6 py-4 rounded-2xl shadow-sm border border-slate-100/50 self-end md:self-auto">
               <div className="text-right">
                 <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Costo medio €/giorno</div>
                 <div className="flex items-baseline justify-end gap-1">
@@ -831,7 +831,7 @@ export default function ProfileMappingEditor({
               <span>Come viene calcolato il costo medio?</span>
               <ChevronDown className="w-4 h-4 ml-1 group-open:rotate-180 transition-transform" />
             </summary>
-            <div className="mt-3 p-4 bg-white rounded-xl border border-indigo-100 text-sm space-y-4">
+            <div className="mt-3 p-4 bg-white/40 backdrop-blur-sm rounded-xl border border-indigo-100/50 shadow-sm text-sm space-y-4">
               <div className="font-bold text-slate-700 border-b pb-2">Formula COSTO MEDIO €/GIORNO — Calcolo Attuale</div>
 
               {/* STEP 1 & 2: Per ogni profilo mappato */}
@@ -940,7 +940,7 @@ export default function ProfileMappingEditor({
       {/* Split Period Modal */}
       {splitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-80 flex flex-col gap-4">
+          <div className="glass-card rounded-2xl shadow-2xl p-6 w-80 flex flex-col gap-4 border border-slate-200/50">
             <h3 className="text-sm font-semibold text-slate-800">Dividi periodo</h3>
             <p className="text-xs text-slate-500">
               Inserisci il mese in cui dividere il periodo
