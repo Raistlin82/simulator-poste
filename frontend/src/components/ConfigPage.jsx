@@ -12,8 +12,14 @@ export default function ConfigPage({ onAddLot, onDeleteLot }) {
     const { config, setConfig, masterData, refetch } = useConfig();
     const { selectedLot: globalSelectedLot, setLot: setGlobalLot } = useSimulation();
     const [editedConfig, setEditedConfig] = useState(() => JSON.parse(JSON.stringify(config)));
-    // Initialize from global selected lot if available, otherwise first lot
-    const [selectedLot, setSelectedLotLocal] = useState(() => globalSelectedLot || Object.keys(config)[0] || "");
+    // Initialize from global selected lot if available, otherwise first active lot
+    const [selectedLot, setSelectedLotLocal] = useState(() => {
+        if (globalSelectedLot && config[globalSelectedLot]?.is_active !== false) {
+            return globalSelectedLot;
+        }
+        const activeLots = Object.keys(config).filter(k => config[k]?.is_active !== false);
+        return activeLots[0] || Object.keys(config)[0] || "";
+    });
     const [activeTab, setActiveTab] = useState('resource');
     const [certSearch, setCertSearch] = useState('');
 
