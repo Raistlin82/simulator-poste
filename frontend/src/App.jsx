@@ -101,12 +101,21 @@ function AppContent() {
     }
   }, [config, configLoading]);
 
-  // Auto-select first lot when config loads and no lot is selected
+  // Auto-select last used lot when config loads and no lot is selected
   useEffect(() => {
     if (config && !selectedLot) {
-      const lotKeys = Object.keys(config);
-      if (lotKeys.length > 0) {
-        setLot(lotKeys[0]);
+      // Try to restore from localStorage first
+      const lastLot = localStorage.getItem('lastSelectedLot');
+      const activeLots = Object.keys(config).filter(k => config[k]?.is_active !== false);
+      
+      // Use last lot if it exists and is still active, otherwise use first active lot
+      if (lastLot && config[lastLot] && config[lastLot]?.is_active !== false) {
+        setLot(lastLot);
+      } else if (activeLots.length > 0) {
+        setLot(activeLots[0]);
+      } else if (Object.keys(config).length > 0) {
+        // Fallback: use first lot even if inactive
+        setLot(Object.keys(config)[0]);
       }
     }
   }, [config, selectedLot, setLot]);

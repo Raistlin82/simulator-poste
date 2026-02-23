@@ -79,6 +79,10 @@ export const SimulationProvider = ({ children }) => {
 
   const setLot = (lotKey) => {
     dispatch({ type: 'SET_LOT', payload: lotKey });
+    // Save to localStorage for restoration on next app load
+    if (lotKey) {
+      localStorage.setItem('lastSelectedLot', lotKey);
+    }
   };
 
   const setDiscount = (key, value) => {
