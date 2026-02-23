@@ -1384,47 +1384,13 @@ export default function BusinessPlanPage() {
     const effectiveBase = (lotData.base_amount || 0) * quotaLutech;
     const revenue = effectiveBase * (1 - discount / 100);
 
-    // TOW Breakdown logic:
-    // Dobbiamo ripartire la Revenue totale sui TOW.
-    // Usiamo il 'byTow' breakdown del costo del team come driver principale.
-    // Ma ci sono anche costi Governance, Risk e Subappalto che non sono nel 'byTow'.
-    // Strategia: Spalmare Gov e Risk proporzionalmente sul Team Cost dei TOW.
-    // Subappalto: Se specifico per TOW, va aggiunto al TOW specifico.
-
-    // 1. Recupera breakdown costi team per TOW
-    const teamByTow = towBreakdown || {};
-
-    // 2. Recupera split subappalto
-    const subSplit = localBP.subcontract_config?.tow_split || {};
-
-    // 3. Calcola "Costo Pieno" per ogni TOW (Team + Sub + Quota Gov + Quota Risk)
-    // Gov è % sul Team, Risk è % su (Team + Gov)
-    // CostoPieno_Tow = TeamCost_Tow * (1 + Gov% + (1+Gov%)*Risk%) + SubCost_Tow
-    //                = TeamCost_Tow * (1 + Gov% + Risk% + Gov%*Risk%) + SubCost_Tow
-
-    const govPct = localBP.governance_pct / 100;
-    const riskPct = localBP.risk_contingency_pct / 100;
-    const overheadFactor = 1 + govPct + riskPct + (govPct * riskPct);
-
-    const fullCostByTow = {};
-    let totalFullCost = 0;
-
     const tows = localBP.tows || [];
 
-    for (const tow of tows) {
-      const towId = tow.tow_id;
-      const teamC = teamByTow[towId]?.cost || 0;
+    // ALIGNED with TowAnalysis: Revenue allocation based on WEIGHT (not cost)
+    // This ensures consistency between Offer Schema and TOW Margin Analysis
+    const totalWeight = tows.reduce((sum, t) => sum + (parseFloat(t.weight_pct) || 0), 0) || 100;
 
-      // Subappalto per questo TOW
-      const subPct = subSplit[towId] || 0;
-      const subC = calcResult.team * (subPct / 100); // Sub calcolato su base team totale ma attribuito a questo tow
-
-      const towFullCost = (teamC * overheadFactor) + subC;
-      fullCostByTow[towId] = towFullCost;
-      totalFullCost += towFullCost;
-    }
-
-    // 4. Ripartisci Revenue su base Costo Pieno
+    // 4. Ripartisci Revenue su base Peso (ALLINEATO con Analisi Margine per TOW)
     const offerData = [];
     let checkTotal = 0;
 
@@ -1493,11 +1459,9 @@ export default function BusinessPlanPage() {
         continue;
       }
 
-      const fullCost = fullCostByTow[towId] || 0;
-
-      // Share di revenue
-      const share = totalFullCost > 0 ? fullCost / totalFullCost : 0;
-      const totalPrice = revenue * share;
+      // Revenue allocation based on WEIGHT (aligned with TowAnalysis)
+      const weight = (parseFloat(tow.weight_pct) || 0) / totalWeight;
+      const totalPrice = revenue * weight;
 
       // Quantità
       let quantity = 0;
