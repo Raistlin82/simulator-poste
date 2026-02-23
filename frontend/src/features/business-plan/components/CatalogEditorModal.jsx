@@ -1000,8 +1000,8 @@ export default function CatalogEditorModal({
         : 0;
 
       // Sconto % = (1 − lutech_unit / effective_price_base) × 100
-      const item_sconto_pct = (effective_price_base > 0 && item_lutech_unit > 0)
-        ? (1 - item_lutech_unit / effective_price_base) * 100
+      const item_sconto_pct = (price_base_orig > 0 && item_lutech_unit > 0)
+        ? (1 - item_lutech_unit / price_base_orig) * 100
         : 0;
 
       const has_valid_data = !!group && totalCatalogValue > 0 && group_target > 0;

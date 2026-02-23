@@ -723,8 +723,8 @@ class BusinessPlanService:
                     else 0.0
                 )
                 item_sconto_pct = (
-                    (1.0 - item_lutech_unit / effective_price_base) * 100.0
-                    if effective_price_base > 0 and item_lutech_unit > 0
+                    (1.0 - item_lutech_unit / price_base) * 100.0
+                    if price_base > 0 and item_lutech_unit > 0
                     else 0.0
                 )
 
