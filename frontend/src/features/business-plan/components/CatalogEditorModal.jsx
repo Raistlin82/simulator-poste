@@ -1243,9 +1243,10 @@ export default function CatalogEditorModal({
 
                 {/* FTE quadratura badge */}
                 <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold text-[11px]
-                  ${fteOk ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                  FTE derivati: {totals.totalDerivedFte.toFixed(2)}
-                  {refTotalFte > 0 && !fteOk && ` (Δ${fteDiff > 0 ? '+' : ''}${fteDiff.toFixed(2)})`}
+                  ${fteOk ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}
+                  title="FTE derivati dal catalogo">
+                  {totals.totalDerivedFte.toFixed(2)}
+                  {refTotalFte > 0 && !fteOk && ` FTE (Δ${fteDiff > 0 ? '+' : ''}${fteDiff.toFixed(2)})`}
                 </span>
 
                 <span className="text-xs text-slate-500">Voci: <strong className="text-slate-700">{items.length}</strong></span>

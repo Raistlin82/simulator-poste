@@ -425,9 +425,10 @@ export default function TowConfigTable({
                           const ok = refFte > 0 && Math.abs(derivedFte - refFte) / refFte < 0.05;
                           return (
                             <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1
-                              ${ok ? 'text-green-700 bg-green-50' : 'text-amber-700 bg-amber-50'}`}>
+                              ${ok ? 'text-green-700 bg-green-50' : 'text-amber-700 bg-amber-50'}`}
+                              title="FTE derivati dal catalogo">
                               {ok ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                              FTE derivati: {derivedFte.toFixed(2)}
+                              {derivedFte.toFixed(2)}
                             </div>
                           );
                         })()}
