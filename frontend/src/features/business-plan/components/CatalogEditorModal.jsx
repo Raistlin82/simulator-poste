@@ -323,11 +323,11 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
         const groupFte = (totalCatalogValue > 0 && groupTarget > 0)
           ? (groupTarget / totalCatalogValue) * totalFte
           : 0;
-        
+
         const group_reuse_raw = group.reuse_factor;
         const group_reuse_factor = (group_reuse_raw !== null && group_reuse_raw !== undefined)
-            ? parseFloat(group_reuse_raw)
-            : defaultCatalogReuseFactor;
+          ? parseFloat(group_reuse_raw)
+          : defaultCatalogReuseFactor;
         const effective_group_fte = groupFte * (1.0 - group_reuse_factor);
         const reuseApplied = effective_group_fte < groupFte;
 
@@ -363,7 +363,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                       ) : (
                         <span>{groupFte.toFixed(2)}</span>
                       )}
-                       FTE
+                      FTE
                     </div>
                   )}
                   <span className={`font-bold px-1.5 py-0.5 rounded ${isValid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -391,217 +391,217 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
 
             {/* ── Corpo espanso ── */}
             {!isCollapsedGrp && (
-            <div className="p-4 space-y-4">
-            {/* Header: nome + valore target (ora senza trash perché già nell'header collassabile) */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium shrink-0">Nome:</span>
-              <input
-                type="text"
-                value={group.label || ''}
-                onChange={(e) => handleChange(idx, { label: e.target.value })}
-                placeholder="Nome raggruppamento..."
-                className="flex-1 px-2 py-1 text-sm font-medium border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
-              />
-            </div>
+              <div className="p-4 space-y-4">
+                {/* Header: nome + valore target (ora senza trash perché già nell'header collassabile) */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium shrink-0">Nome:</span>
+                  <input
+                    type="text"
+                    value={group.label || ''}
+                    onChange={(e) => handleChange(idx, { label: e.target.value })}
+                    placeholder="Nome raggruppamento..."
+                    className="flex-1 px-2 py-1 text-sm font-medium border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
+                  />
+                </div>
 
-            {/* Valore target → FTE previsti */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <label className="text-xs text-slate-500 font-medium">Valore target Poste:</label>
-              <div className="flex flex-col">
-                {scontoGaraActive && groupTarget > 0 ? (
-                  <>
-                    <div className="text-sm font-semibold text-amber-700 tabular-nums">
-                      {formatCurrency(groupTarget * scontoGaraFactor, 0)} €
-                    </div>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <input
-                        type="number"
-                        value={group.target_value || ''}
-                        onChange={(e) => handleChange(idx, { target_value: parseFloat(e.target.value) || 0 })}
-                        min="0" step="1000" placeholder="0"
-                        className="w-28 px-1.5 py-0.5 text-[10px] text-right border border-slate-100 bg-slate-50 text-slate-400 rounded focus:outline-none focus:border-rose-300"
-                      />
-                      <span className="text-[9px] text-slate-400">bando €</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={group.target_value || ''}
-                      onChange={(e) => handleChange(idx, { target_value: parseFloat(e.target.value) || 0 })}
-                      min="0" step="1000" placeholder="0"
-                      className="w-36 px-2 py-1 text-xs text-right border border-slate-200 rounded focus:outline-none focus:border-rose-300"
-                    />
-                    <span className="text-xs text-slate-400">€</span>
-                  </div>
-                )}
-              </div>
-              {totalCatalogValue > 0 && groupTarget > 0 && (
-                <>
-                  <span className="text-xs text-slate-400">→</span>
-                  <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded font-semibold text-xs">
-                    <span>FTE previsti: </span>
-                    {reuseApplied ? (
-                      <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}>
-                        <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
-                        <s className="text-indigo-400 ml-1.5">{groupFte.toFixed(2)}</s>
-                      </div>
+                {/* Valore target → FTE previsti */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-xs text-slate-500 font-medium">Valore target Poste:</label>
+                  <div className="flex flex-col">
+                    {scontoGaraActive && groupTarget > 0 ? (
+                      <>
+                        <div className="text-sm font-semibold text-amber-700 tabular-nums">
+                          {formatCurrency(groupTarget * scontoGaraFactor, 0)} €
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <input
+                            type="number"
+                            value={group.target_value || ''}
+                            onChange={(e) => handleChange(idx, { target_value: parseFloat(e.target.value) || 0 })}
+                            min="0" step="1000" placeholder="0"
+                            className="w-28 px-1.5 py-0.5 text-[10px] text-right border border-slate-100 bg-slate-50 text-slate-400 rounded focus:outline-none focus:border-rose-300"
+                          />
+                          <span className="text-[9px] text-slate-400">bando €</span>
+                        </div>
+                      </>
                     ) : (
-                      <span>{groupFte.toFixed(2)}</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          value={group.target_value || ''}
+                          onChange={(e) => handleChange(idx, { target_value: parseFloat(e.target.value) || 0 })}
+                          min="0" step="1000" placeholder="0"
+                          className="w-36 px-2 py-1 text-xs text-right border border-slate-200 rounded focus:outline-none focus:border-rose-300"
+                        />
+                        <span className="text-xs text-slate-400">€</span>
+                      </div>
                     )}
                   </div>
-                  {/* NEW: Riuso % override for group */}
-                  <label className="flex items-center gap-1">
-                    <span className="text-xs text-slate-400">→ Riuso:</span>
-                    <input
-                      type="number"
-                      value={group.reuse_factor ? group.reuse_factor * 100 : ''}
-                      onChange={(e) => handleChange(idx, { reuse_factor: e.target.value ? parseFloat(e.target.value) / 100 : null })}
-                      min="0" max="90" step="1"
-                      placeholder="auto"
-                      title="Fattore di riuso specifico per questo raggruppamento (lascia vuoto per usare il default del TOW)"
-                      className="w-14 px-1.5 py-0.5 text-xs text-center border border-sky-200 bg-sky-50 text-sky-700 rounded focus:outline-none focus:border-sky-400 font-medium placeholder:font-normal"
-                    />
-                    <span className="text-xs text-slate-400">%</span>
-                  </label>
-                  <span className="text-xs text-slate-400">
-                    ({(groupTarget / totalCatalogValue * 100).toFixed(1)}% del catalogo)
-                  </span>
-                </>
-              )}
-              {totalCatalogValue === 0 && (
-                <span className="text-xs text-amber-500 italic">Imposta Totale Catalogo € nella testata per vedere gli FTE</span>
-              )}
-            </div>
-
-            {/* Margine raggruppamento */}
-            {gt && gt.sell > 0 && (
-              <div className="flex items-center gap-3 flex-wrap px-1">
-                <span className="text-xs text-slate-500">
-                  Costo Lu.: <strong className="text-slate-700">{formatCurrency(gt.cost, 0)}</strong>
-                </span>
-                <span className="text-xs text-slate-400">·</span>
-                <span className="text-xs text-slate-500">
-                  Pz. Vend.: <strong className="text-slate-700">{formatCurrency(gt.sell, 0)}</strong>
-                </span>
-                <span className="text-xs text-slate-400">·</span>
-                <span className={`text-xs font-semibold ${gt.margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  Marg.: {formatCurrency(gt.margin, 0)}
-                  {' '}({gt.marginPct.toFixed(1)}%)
-                  {gt.margin >= 0
-                    ? <CheckCircle2 className="w-3 h-3 inline ml-1" />
-                    : <AlertTriangle className="w-3 h-3 inline ml-1" />}
-                </span>
-              </div>
-            )}
-
-            {/* Distribuzione % per voce */}
-            {groupItems.length > 0 && (
-              <div className="bg-slate-50 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-slate-600">
-                    Distribuzione voci nel raggruppamento
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isValid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                      Σ {sumPct.toFixed(0)}% {isValid ? '✓' : '≠ 100%'}
-                    </span>
-                    <button
-                      onClick={() => onEvenDistribute(group.id)}
-                      className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded transition-colors"
-                    >
-                      <Wand2 className="w-3 h-3" />
-                      Distribuisci uniformemente
-                    </button>
-                  </div>
+                  {totalCatalogValue > 0 && groupTarget > 0 && (
+                    <>
+                      <span className="text-xs text-slate-400">→</span>
+                      <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded font-semibold text-xs">
+                        <span>FTE previsti: </span>
+                        {reuseApplied ? (
+                          <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}>
+                            <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
+                            <s className="text-indigo-400 ml-1.5">{groupFte.toFixed(2)}</s>
+                          </div>
+                        ) : (
+                          <span>{groupFte.toFixed(2)}</span>
+                        )}
+                      </div>
+                      {/* NEW: Riuso % override for group */}
+                      <label className="flex items-center gap-1">
+                        <span className="text-xs text-slate-400">→ Riuso:</span>
+                        <input
+                          type="number"
+                          value={group.reuse_factor ? group.reuse_factor * 100 : ''}
+                          onChange={(e) => handleChange(idx, { reuse_factor: e.target.value ? parseFloat(e.target.value) / 100 : null })}
+                          min="0" max="90" step="1"
+                          placeholder="auto"
+                          title="Fattore di riuso specifico per questo raggruppamento (lascia vuoto per usare il default del TOW)"
+                          className="w-14 px-1.5 py-0.5 text-xs text-center border border-sky-200 bg-sky-50 text-sky-700 rounded focus:outline-none focus:border-sky-400 font-medium placeholder:font-normal"
+                        />
+                        <span className="text-xs text-slate-400">%</span>
+                      </label>
+                      <span className="text-xs text-slate-400">
+                        ({(groupTarget / totalCatalogValue * 100).toFixed(1)}% del catalogo)
+                      </span>
+                    </>
+                  )}
+                  {totalCatalogValue === 0 && (
+                    <span className="text-xs text-amber-500 italic">Imposta Totale Catalogo € nella testata per vedere gli FTE</span>
+                  )}
                 </div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">
-                      <th className="text-left pb-1.5">Voce</th>
-                      <th className="text-right pb-1.5 w-28">% Raggruppamento</th>
-                      <th className="text-right pb-1.5 w-20">FTE</th>
-                      <th className="text-right pb-1.5 w-28">Pz. Poste Tot.</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {groupItems.map(it => {
-                      const pct = parseFloat(it.group_pct) || 0;
-                      const fte_before_reuse = groupFte * pct / 100;
-                      const fte = effective_group_fte * pct / 100;
-                      const reuseOnItem = fte < fte_before_reuse;
-                      const posteTot = groupTarget * pct / 100;
-                      return (
-                        <tr key={it.id}>
-                          <td className="py-1.5 pr-2 text-xs text-slate-700 truncate max-w-[180px]">
-                            {it.label || <em className="text-slate-400">Senza nome</em>}
-                          </td>
-                          <td className="py-1.5 text-right">
-                            <div className="flex items-center justify-end gap-0.5">
-                              <input
-                                type="number"
-                                value={pct || ''}
-                                onChange={(e) => onItemPctChange(it.id, parseFloat(e.target.value) || 0)}
-                                min="0" max="100" step="1" placeholder="0"
-                                className="w-16 px-1.5 py-0.5 text-xs text-right border border-slate-200 bg-white rounded focus:outline-none focus:border-indigo-300 font-medium"
-                              />
-                              <span className="text-[10px] text-slate-400 ml-0.5">%</span>
-                            </div>
-                          </td>
-                          <td className="py-1.5 text-right text-xs text-indigo-700 font-semibold tabular-nums">
-                            {totalCatalogValue > 0
-                              ? (reuseOnItem
-                                  ? <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}><span className="text-sky-700">{fte.toFixed(3)}</span><s className="text-indigo-400 ml-1">{fte_before_reuse.toFixed(3)}</s></div>
-                                  : <span>{fte.toFixed(3)}</span>
-                                )
-                              : <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className="py-1.5 text-right tabular-nums">
-                            {totalCatalogValue > 0
-                              ? <div>
-                                  <div className="text-xs text-slate-600">{formatCurrency(posteTot * scontoGaraFactor, 0)}</div>
-                                  {scontoGaraActive && (
-                                    <div className="text-[10px] text-slate-400">bando: {formatCurrency(posteTot, 0)}</div>
-                                  )}
-                                </div>
-                              : <span className="text-slate-300">—</span>}
-                          </td>
+
+                {/* Margine raggruppamento */}
+                {gt && gt.sell > 0 && (
+                  <div className="flex items-center gap-3 flex-wrap px-1">
+                    <span className="text-xs text-slate-500">
+                      Costo Lu.: <strong className="text-slate-700">{formatCurrency(gt.cost, 0)}</strong>
+                    </span>
+                    <span className="text-xs text-slate-400">·</span>
+                    <span className="text-xs text-slate-500">
+                      Pz. Vend.: <strong className="text-slate-700">{formatCurrency(gt.sell, 0)}</strong>
+                    </span>
+                    <span className="text-xs text-slate-400">·</span>
+                    <span className={`text-xs font-semibold ${gt.margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                      Marg.: {formatCurrency(gt.margin, 0)}
+                      {' '}({gt.marginPct.toFixed(1)}%)
+                      {gt.margin >= 0
+                        ? <CheckCircle2 className="w-3 h-3 inline ml-1" />
+                        : <AlertTriangle className="w-3 h-3 inline ml-1" />}
+                    </span>
+                  </div>
+                )}
+
+                {/* Distribuzione % per voce */}
+                {groupItems.length > 0 && (
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-slate-600">
+                        Distribuzione voci nel raggruppamento
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isValid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          Σ {sumPct.toFixed(0)}% {isValid ? '✓' : '≠ 100%'}
+                        </span>
+                        <button
+                          onClick={() => onEvenDistribute(group.id)}
+                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded transition-colors"
+                        >
+                          <Wand2 className="w-3 h-3" />
+                          Distribuisci uniformemente
+                        </button>
+                      </div>
+                    </div>
+                    <table className="w-full border-separate border-spacing-y-2">
+                      <thead>
+                        <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          <th className="text-left pb-1.5 px-3">Voce</th>
+                          <th className="text-right pb-1.5 px-3 w-28">% Raggruppamento</th>
+                          <th className="text-right pb-1.5 px-3 w-20">FTE</th>
+                          <th className="text-right pb-1.5 px-3 w-28">Pz. Poste Tot.</th>
                         </tr>
+                      </thead>
+                      <tbody className="">
+                        {groupItems.map(it => {
+                          const pct = parseFloat(it.group_pct) || 0;
+                          const fte_before_reuse = groupFte * pct / 100;
+                          const fte = effective_group_fte * pct / 100;
+                          const reuseOnItem = fte < fte_before_reuse;
+                          const posteTot = groupTarget * pct / 100;
+                          return (
+                            <tr key={it.id} className="bg-white/50 backdrop-blur-sm border border-white/50 rounded-lg hover:bg-white/80 transition-all">
+                              <td className="py-1.5 px-3 text-xs text-slate-700 truncate max-w-[180px] rounded-l-lg">
+                                {it.label || <em className="text-slate-400">Senza nome</em>}
+                              </td>
+                              <td className="py-1.5 text-right">
+                                <div className="flex items-center justify-end gap-0.5">
+                                  <input
+                                    type="number"
+                                    value={pct || ''}
+                                    onChange={(e) => onItemPctChange(it.id, parseFloat(e.target.value) || 0)}
+                                    min="0" max="100" step="1" placeholder="0"
+                                    className="w-16 px-1.5 py-0.5 text-xs text-right border border-slate-200 bg-white rounded focus:outline-none focus:border-indigo-300 font-medium"
+                                  />
+                                  <span className="text-[10px] text-slate-400 ml-0.5">%</span>
+                                </div>
+                              </td>
+                              <td className="py-1.5 text-right text-xs text-indigo-700 font-semibold tabular-nums">
+                                {totalCatalogValue > 0
+                                  ? (reuseOnItem
+                                    ? <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}><span className="text-sky-700">{fte.toFixed(3)}</span><s className="text-indigo-400 ml-1">{fte_before_reuse.toFixed(3)}</s></div>
+                                    : <span>{fte.toFixed(3)}</span>
+                                  )
+                                  : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="py-1.5 px-3 text-right tabular-nums rounded-r-lg">
+                                {totalCatalogValue > 0
+                                  ? <div>
+                                    <div className="text-xs text-slate-600">{formatCurrency(posteTot * scontoGaraFactor, 0)}</div>
+                                    {scontoGaraActive && (
+                                      <div className="text-[10px] text-slate-400">bando: {formatCurrency(posteTot, 0)}</div>
+                                    )}
+                                  </div>
+                                  : <span className="text-slate-300">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Toggle voci (aggiungi/rimuovi dal raggruppamento) */}
+                <div>
+                  <div className="text-xs text-slate-500 mb-1.5 font-medium">
+                    Voci incluse — clic per aggiungere/rimuovere:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.length === 0 && (
+                      <span className="text-xs text-slate-400 italic">Nessuna voce disponibile. Aggiungine nel tab "Voci".</span>
+                    )}
+                    {items.map(it => {
+                      const included = (group.item_ids || []).includes(it.id);
+                      return (
+                        <button
+                          key={it.id}
+                          onClick={() => onToggleGroupItem(group.id, it.id)}
+                          className={`px-2 py-0.5 text-xs rounded-md border transition-colors
+                        ${included
+                              ? `${badgeColor} font-medium`
+                              : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                        >
+                          {it.label || <em>Senza nome</em>}
+                        </button>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </div>
-            )}
-
-            {/* Toggle voci (aggiungi/rimuovi dal raggruppamento) */}
-            <div>
-              <div className="text-xs text-slate-500 mb-1.5 font-medium">
-                Voci incluse — clic per aggiungere/rimuovere:
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {items.length === 0 && (
-                  <span className="text-xs text-slate-400 italic">Nessuna voce disponibile. Aggiungine nel tab "Voci".</span>
-                )}
-                {items.map(it => {
-                  const included = (group.item_ids || []).includes(it.id);
-                  return (
-                    <button
-                      key={it.id}
-                      onClick={() => onToggleGroupItem(group.id, it.id)}
-                      className={`px-2 py-0.5 text-xs rounded-md border transition-colors
-                        ${included
-                          ? `${badgeColor} font-medium`
-                          : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}`}
-                    >
-                      {it.label || <em>Senza nome</em>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            </div>
             )}
           </div>
         );
@@ -966,14 +966,14 @@ export default function CatalogEditorModal({
       const group_fte = (totalCatalogValue > 0 && group_target > 0)
         ? (group_target / totalCatalogValue) * refTotalFte
         : 0;
-      
+
       const group_reuse_raw = group?.reuse_factor;
       const group_reuse_factor = (group_reuse_raw !== null && group_reuse_raw !== undefined)
         ? parseFloat(group_reuse_raw)
         : defaultCatalogReuseFactor;
-      
+
       const effective_group_fte = group_fte * (1.0 - group_reuse_factor);
-      
+
       const item_pct = parseFloat(item.group_pct) || 0;
       const item_fte_before_reuse = group_fte * item_pct / 100;
       const item_fte = effective_group_fte * item_pct / 100;
@@ -1300,443 +1300,443 @@ export default function CatalogEditorModal({
                   <span className="text-xs text-slate-400">{catalogGroups.length} raggruppament{catalogGroups.length === 1 ? 'o' : 'i'}</span>
                 </div>
               )}
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold text-slate-600 w-44">Descrizione</th>
-                    <th className="px-3 py-2 text-center font-semibold text-slate-600 w-28">Tipo / Compl.</th>
-                    <th className="px-3 py-2 text-right font-semibold text-slate-600 w-28" title="Prezzo unitario offerta economica Poste">Pz. Unit. Poste</th>
-                    <th className="px-3 py-2 text-left font-semibold text-slate-600">Mix Figure Poste / €/gg</th>
-                    <th className="px-3 py-2 text-center font-semibold text-rose-600 w-20" title="% della voce sul raggruppamento (INPUT). Σ% per raggruppamento = 100%">% Grp</th>
-                    <th className="px-3 py-2 text-right font-semibold text-indigo-600 w-20" title="FTE = FTE raggruppamento × % voce / 100">FTE</th>
-                    <th className="px-3 py-2 text-right font-semibold text-slate-600 w-28" title="Costo Tot. = FTE × €/gg × anni × gg/FTE">Costo Tot.</th>
-                    <th className="px-3 py-2 text-center font-semibold text-emerald-600 w-20" title="Margine Target per la voce (vuoto = usa margine target TOW)">Marg.%</th>
-                    <th className="px-3 py-2 text-right font-semibold text-slate-600 w-28" title="Pz. Vendita Tot. = Costo / (1 − Marg.%)">Pz. Vend. Tot.</th>
-                    <th className="px-3 py-2 text-right font-semibold text-slate-500 w-28" title="Prezzo Poste totale = % voce × valore target raggruppamento">Pz. Poste Tot.</th>
-                    <th className="px-3 py-2 text-right font-semibold text-slate-600 w-28" title="Pz. Unit. Lutech = (Pz.Vend.Tot / Pz.Poste.Tot) × Pz.Unit.Poste">Pz. Unit. Lu.</th>
-                    <th className="px-3 py-2 text-right font-semibold text-slate-500 w-20" title="Sconto % = (1 − Pz.Unit.Lu / Pz.Unit.Poste) × 100">Sconto %</th>
-                    <th className="px-3 py-2 w-8"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {items.length === 0 && (
+              <div className="overflow-x-auto min-h-[500px]">
+                <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
+                  <thead className="sticky top-0 z-10 bg-white/10 backdrop-blur-md">
                     <tr>
-                      <td colSpan={13} className="py-12 text-center text-slate-400">
-                        <BookOpen className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                        <p>Nessuna voce catalogo. Aggiungi la prima voce.</p>
-                      </td>
+                      <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-44">Descrizione</th>
+                      <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Tipo / Compl.</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title="Prezzo unitario offerta economica Poste">Pz. Unit. Poste</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Mix Figure Poste / €/gg</th>
+                      <th className="px-4 py-2 text-center text-[10px] font-black text-rose-600 uppercase tracking-widest w-20" title="% della voce sul raggruppamento (INPUT). Σ% per raggruppamento = 100%">% Grp</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title="FTE = FTE raggruppamento × % voce / 100">FTE</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title="Costo Tot. = FTE × €/gg × anni × gg/FTE">Costo Tot.</th>
+                      <th className="px-4 py-2 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest w-20" title="Margine Target per la voce (vuoto = usa margine target TOW)">Marg.%</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title="Pz. Vendita Tot. = Costo / (1 − Marg.%)">Pz. Vend. Tot.</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest w-28" title="Prezzo Poste totale = % voce × valore target raggruppamento">Pz. Poste Tot.</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title="Pz. Unit. Lutech = (Pz.Vend.Tot / Pz.Poste.Tot) × Pz.Unit.Poste">Pz. Unit. Lu.</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest w-20" title="Sconto % = (1 − Pz.Unit.Lu / Pz.Unit.Poste) × 100">Sconto %</th>
+                      <th className="px-4 py-2 w-12"></th>
                     </tr>
-                  )}
-                  {groupedItems.map(({ group, colorIdx, indices }) => {
-                    const gId = group?.id ?? '__ungrouped__';
-                    const isCollapsed = group && !expandedGroups.has(gId);
-                    const groupCalc = indices.reduce((acc, i) => ({
-                      fte:    acc.fte    + (itemCalcs[i]?.item_fte        || 0),
-                      cost:   acc.cost   + (itemCalcs[i]?.item_cost       || 0),
-                      sell:   acc.sell   + (itemCalcs[i]?.item_sell_price || 0),
-                      poste:  acc.poste  + (itemCalcs[i]?.item_poste_total|| 0),
-                      pctSum: acc.pctSum + (parseFloat(items[i]?.group_pct) || 0),
-                    }), { fte: 0, cost: 0, sell: 0, poste: 0, pctSum: 0 });
-                    const groupMarginPct = groupCalc.sell > 0
-                      ? (groupCalc.sell - groupCalc.cost) / groupCalc.sell * 100
-                      : 0;
-                    const pctSumOk = groupCalc.pctSum > 0 && Math.abs(groupCalc.pctSum - 100) < 0.5;
-                    return (
-                      <Fragment key={gId}>
-                        {/* Group header row — colonne allineate */}
-                        {group && (
-                          <tr
-                            className="bg-slate-100/70 hover:bg-slate-100 cursor-pointer select-none"
-                            onClick={() => toggleExpandedGroup(gId)}
-                          >
-                            {/* 1: Descrizione */}
-                            <td className="px-3 py-1.5">
-                              <div className="flex items-center gap-1.5 text-xs">
-                                {isCollapsed
-                                  ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                }
-                                <span className={`w-2 h-2 rounded-full shrink-0 ${GROUP_DOTS[colorIdx % GROUP_DOTS.length]}`} />
-                                <span className="font-semibold text-slate-700 truncate">{group.label}</span>
-                                <span className="text-slate-400 text-[10px] shrink-0">({indices.length} {indices.length === 1 ? 'voce' : 'voci'})</span>
-                              </div>
-                            </td>
-                            {/* 2: Tipo/Compl */}<td />
-                            {/* 3: Pz.Unit.Poste */}<td />
-                            {/* 4: Mix Figure */}<td />
-                            {/* 5: % Grp */}
-                            <td className="px-3 py-1.5 text-center">
-                              {isCollapsed && groupCalc.pctSum > 0 && (
-                                <span className={`text-xs font-bold tabular-nums ${pctSumOk ? 'text-green-600' : 'text-amber-600'}`}>
-                                  {groupCalc.pctSum.toFixed(0)}%
-                                </span>
-                              )}
-                            </td>
-                            {/* 6: FTE */}
-                            <td className="px-3 py-1.5 text-right">
-                              {isCollapsed && (
-                                <span className="text-xs font-semibold text-indigo-600 tabular-nums">{groupCalc.fte.toFixed(2)}</span>
-                              )}
-                            </td>
-                            {/* 7: Costo Tot */}
-                            <td className="px-3 py-1.5 text-right">
-                              {isCollapsed && (
-                                <span className="text-xs font-semibold text-slate-600 tabular-nums">{formatCurrency(groupCalc.cost, 0)}</span>
-                              )}
-                            </td>
-                            {/* 8: Marg.% */}
-                            <td className="px-3 py-1.5 text-center">
-                              {isCollapsed && groupCalc.sell > 0 && (
-                                <span className={`text-xs font-bold tabular-nums ${groupMarginPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                  {groupMarginPct.toFixed(1)}%
-                                </span>
-                              )}
-                            </td>
-                            {/* 9: Pz. Vend. Tot */}
-                            <td className="px-3 py-1.5 text-right">
-                              {isCollapsed && groupCalc.sell > 0 && (
-                                <span className="text-xs font-semibold text-slate-600 tabular-nums">{formatCurrency(groupCalc.sell, 0)}</span>
-                              )}
-                            </td>
-                            {/* 10: Pz. Poste Tot */}
-                            <td className="px-3 py-1.5 text-right">
-                              {isCollapsed && groupCalc.poste > 0 && (
-                                <span className="text-xs text-slate-500 tabular-nums">{formatCurrency(groupCalc.poste, 0)}</span>
-                              )}
-                            </td>
-                            {/* 11: Pz. Unit. Lu */}<td />
-                            {/* 12: Sconto % */}<td />
-                            {/* 13: azioni */}<td />
-                          </tr>
-                        )}
-                        {!isCollapsed && indices.map((idx) => {
-                    const item = items[idx];
-                    const calc = itemCalcs[idx];
-                    const mixExpanded = expandedMix.has(item.id);
-                    const groupInfo = itemToGroup[item.id];
-
-                    // Cella N/D se voce non ha dati validi
-                    const NA = <span className="text-slate-300 tabular-nums">—</span>;
-
-                    return (
-                      <tr key={item.id} className="hover:bg-slate-50 transition-colors align-top">
-
-                        {/* Descrizione + badge raggruppamento */}
-                        <td className="px-3 py-3">
-                          {groupInfo && (
-                            <div className="mb-0.5">
-                              <span className={`inline-flex items-center gap-1 text-[9px] font-medium px-1 py-0 rounded border
-                                ${GROUP_BADGES[groupInfo.colorIdx % GROUP_BADGES.length]}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${GROUP_DOTS[groupInfo.colorIdx % GROUP_DOTS.length]}`} />
-                                {groupInfo.group.label}
-                              </span>
-                            </div>
-                          )}
-                          <input
-                            type="text"
-                            value={item.label || ''}
-                            onChange={(e) => handleItemChange(idx, { label: e.target.value })}
-                            placeholder="Descrizione voce..."
-                            className="w-full px-2 py-1 text-xs border border-transparent hover:border-slate-200 focus:border-indigo-300 rounded focus:outline-none"
-                          />
-                        </td>
-
-                        {/* Tipo + Complessità (merged) */}
-                        <td className="px-3 py-3">
-                          <div className="flex flex-col gap-1">
-                            <select
-                              value={item.tipo || 'nuovo_sviluppo'}
-                              onChange={(e) => handleItemChange(idx, { tipo: e.target.value })}
-                              className={`w-full px-1.5 py-0.5 text-[10px] font-semibold rounded-full border-0 focus:outline-none focus:ring-1 cursor-pointer
-                                ${item.tipo === 'modifica_evolutiva'
-                                  ? 'bg-emerald-100 text-emerald-700 focus:ring-emerald-300'
-                                  : 'bg-blue-100 text-blue-700 focus:ring-blue-300'}`}
-                            >
-                              {TIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </select>
-                            <select
-                              value={item.complessita || 'media'}
-                              onChange={(e) => handleItemChange(idx, { complessita: e.target.value })}
-                              className={`w-full px-1.5 py-0.5 text-[10px] font-semibold rounded-full border-0 focus:outline-none focus:ring-1 cursor-pointer
-                                ${item.complessita === 'alta'
-                                  ? 'bg-red-100 text-red-700 focus:ring-red-300'
-                                  : item.complessita === 'bassa'
-                                    ? 'bg-green-100 text-green-700 focus:ring-green-300'
-                                    : 'bg-amber-100 text-amber-700 focus:ring-amber-300'}`}
-                            >
-                              {COMPLESSITA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </select>
-                          </div>
-                        </td>
-
-                        {/* Pz. Unit. Poste — flip se sconto gara > 0 */}
-                        <td className="px-3 py-3">
-                          {scontoGaraPct > 0 ? (
-                            <div>
-                              <div className="text-right text-xs font-semibold tabular-nums text-amber-700 whitespace-nowrap">
-                                {calc.price_base_orig > 0 ? formatCurrency(calc.effective_price_base, 0) : '—'}
-                              </div>
-                              <div className="flex items-center justify-end gap-0.5 mt-0.5">
-                                <input
-                                  type="number"
-                                  value={item.price_base || ''}
-                                  onChange={(e) => handleItemChange(idx, { price_base: parseFloat(e.target.value) || 0 })}
-                                  min="0" step="100" placeholder="0"
-                                  className="w-20 px-1.5 py-0.5 text-[10px] text-right border border-slate-100 bg-slate-50 text-slate-400 rounded focus:outline-none focus:border-slate-300"
-                                />
-                                <span className="text-[9px] text-slate-400">bando</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <input
-                              type="number"
-                              value={item.price_base || ''}
-                              onChange={(e) => handleItemChange(idx, { price_base: parseFloat(e.target.value) || 0 })}
-                              min="0" step="100" placeholder="0"
-                              className="w-full px-2 py-1 text-xs text-right border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
-                            />
-                          )}
-                        </td>
-
-                        {/* Mix Figure Poste + €/gg */}
-                        <td className="px-3 py-3">
-                          <button
-                            onClick={() => toggleMix(item.id)}
-                            className="w-full text-left text-xs text-slate-600 hover:text-indigo-600 flex items-center gap-1"
-                          >
-                            {(item.profile_mix || []).length === 0
-                              ? <span className="text-slate-400 italic">Nessuna figura</span>
-                              : <span className="truncate max-w-[160px]">{(item.profile_mix || []).map(e => `${e.poste_profile} ${e.pct}%`).join(' / ')}</span>
-                            }
-                            {mixExpanded ? <ChevronUp className="w-3 h-3 ml-auto flex-shrink-0" /> : <ChevronDown className="w-3 h-3 ml-auto flex-shrink-0" />}
-                          </button>
-                          <div className="text-[10px] text-slate-400 tabular-nums mt-0.5">€/gg: {formatCurrency(calc.rate, 0)}</div>
-                          {mixExpanded && (
-                            <div className="mt-1">
-                              <ProfileMixEditor
-                                mix={item.profile_mix || []}
-                                posteProfiles={posteProfiles}
-                                onChange={(newMix) => handleItemChange(idx, { profile_mix: newMix })}
-                              />
-                            </div>
-                          )}
-                        </td>
-
-                        {/* % Gruppo (INPUT) */}
-                        <td className="px-3 py-3">
-                          <div className="flex items-center justify-center gap-0.5">
-                            <input
-                              type="number"
-                              value={item.group_pct || ''}
-                              onChange={(e) => handleItemPctChange(item.id, parseFloat(e.target.value) || 0)}
-                              min="0" max="100" step="1" placeholder="0"
-                              disabled={!calc.in_group}
-                              title={!calc.in_group ? 'Assegna la voce a un raggruppamento nel tab Raggruppamenti' : undefined}
-                              className={`w-14 px-1 py-1 text-xs text-center border rounded focus:outline-none
-                                ${calc.in_group
-                                  ? 'border-rose-300 bg-rose-50 text-rose-700 focus:border-rose-400 font-semibold'
-                                  : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'}`}
-                            />
-                            <span className={`text-[10px] ${calc.in_group ? 'text-rose-400' : 'text-slate-300'}`}>%</span>
-                          </div>
-                        </td>
-
-                        {/* FTE (derived, read-only) */}
-                        <td className="px-3 py-3 text-right text-xs tabular-nums">
-                          {calc.has_valid_data
-                            ? (calc.item_fte < calc.item_fte_before_reuse
-                              ? (
-                                <div className="flex flex-col items-end">
-                                  <span className="font-semibold text-sky-700" title={`- ${(100 * (1- (calc.item_fte / calc.item_fte_before_reuse))).toFixed(1)}% riuso`}>{calc.item_fte.toFixed(3)}</span>
-                                  <s className="text-slate-400 mt-0.5">{calc.item_fte_before_reuse.toFixed(3)}</s>
-                                </div>
-                              )
-                              : <span className="font-semibold text-indigo-700">{calc.item_fte.toFixed(3)}</span>
-                            )
-                            : NA}
-                        </td>
-
-                        {/* Costo Tot. (derived) */}
-                        <td className="px-3 py-3 text-right text-xs font-medium text-slate-700 tabular-nums whitespace-nowrap">
-                          {calc.has_valid_data ? formatCurrency(calc.item_cost, 0) : NA}
-                        </td>
-
-                        {/* Margine Target (INPUT/override) */}
-                        <td className="px-3 py-3">
-                          <div className="flex items-center justify-center gap-0.5">
-                            <input
-                              type="number"
-                              value={calc.is_default_margin ? '' : (item.target_margin_pct ?? '')}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                handleItemChange(idx, { target_margin_pct: v === '' ? null : Math.min(99, parseFloat(v) || 0) });
-                              }}
-                              placeholder={defaultTargetMarginPct.toFixed(0)}
-                              min="0" max="99" step="1"
-                              title={calc.is_default_margin ? `Margine target TOW: ${defaultTargetMarginPct.toFixed(1)}%` : `Override: ${calc.effective_margin.toFixed(1)}%`}
-                              className={`w-14 px-1 py-1 text-xs text-center border rounded focus:outline-none
-                                ${calc.is_default_margin
-                                  ? 'border-slate-200 bg-slate-50 text-slate-400 placeholder:text-slate-400'
-                                  : 'border-emerald-300 bg-emerald-50 text-emerald-700 focus:border-emerald-400 font-semibold'}`}
-                            />
-                            <span className="text-[10px] text-slate-400">%</span>
-                          </div>
-                        </td>
-
-                        {/* Pz. Vendita Tot. (derived) */}
-                        <td className="px-3 py-3 text-right text-xs font-medium text-slate-700 tabular-nums whitespace-nowrap">
-                          {calc.has_valid_data ? formatCurrency(calc.item_sell_price, 0) : NA}
-                        </td>
-
-                        {/* Pz. Poste Tot. (derived) */}
-                        <td className="px-3 py-3 text-right tabular-nums">
-                          {calc.has_valid_data
-                            ? <div>
-                                <div className="text-xs text-slate-500 whitespace-nowrap">
-                                  {formatCurrency(calc.item_poste_total, 0)}
-                                </div>
-                                {scontoGaraPct > 0 && calc.item_poste_total_orig > 0 && (
-                                  <div className="text-[10px] text-slate-400 whitespace-nowrap">
-                                    bando: {formatCurrency(calc.item_poste_total_orig, 0)}
-                                  </div>
-                                )}
-                              </div>
-                            : NA}
-                        </td>
-
-                        {/* Pz. Unitario Lutech (derived) */}
-                        <td className="px-3 py-3 text-right text-xs font-medium text-slate-700 tabular-nums whitespace-nowrap">
-                          {calc.has_valid_data && calc.item_lutech_unit > 0 ? formatCurrency(calc.item_lutech_unit, 2) : NA}
-                        </td>
-
-                        {/* Sconto % — INPUT bidirezionale con Marg.% */}
-                        <td className="px-3 py-3">
-                          <div className="flex items-center justify-end gap-0.5">
-                            <input
-                              type="number"
-                              key={`sconto_${item.id}_${Math.round(calc.item_sconto_pct * 10)}`}
-                              defaultValue={calc.has_valid_data ? calc.item_sconto_pct.toFixed(2) : ''}
-                              disabled={!calc.has_valid_data}
-                              onBlur={(e) => {
-                                const v = parseFloat(e.target.value);
-                                if (!isNaN(v)) handleItemScontoChange(idx, v);
-                              }}
-                              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                              min="-100" max="100" step="0.5"
-                              className={`w-16 px-1 py-1 text-xs text-center border rounded focus:outline-none
-                                ${!calc.has_valid_data
-                                  ? 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'
-                                  : calc.item_sconto_pct < 0
-                                    ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-400 font-semibold'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 focus:border-indigo-400 font-semibold'}`}
-                            />
-                            {calc.has_valid_data && <span className="text-[10px] text-slate-400">%</span>}
-                          </div>
-                        </td>
-
-                        {/* Delete */}
-                        <td className="px-3 py-3">
-                          <button
-                            onClick={() => handleRemoveItem(idx)}
-                            className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                  </thead>
+                  <tbody className="">
+                    {items.length === 0 && (
+                      <tr>
+                        <td colSpan={13} className="py-12 text-center text-slate-400">
+                          <BookOpen className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                          <p>Nessuna voce catalogo. Aggiungi la prima voce.</p>
                         </td>
                       </tr>
-                    );
-                        })}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-                {items.length > 0 && (
-                  <tfoot className="bg-slate-50 border-t-2 border-slate-200">
-                    <tr>
-                      <td colSpan={2} className="px-3 py-2 text-sm font-semibold text-slate-700">TOTALE</td>
-                      <td className="px-3 py-2"></td>{/* Pz. Unit. */}
-                      <td className="px-3 py-2"></td>{/* Mix + €/gg */}
-                      <td className="px-3 py-2"></td>{/* % Grp */}
-                      <td className="px-3 py-2 text-right text-xs font-semibold text-indigo-700 tabular-nums">
-                        {totals.totalDerivedFte.toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 tabular-nums whitespace-nowrap">
-                        {formatCurrency(totals.totalCost, 0)}
-                      </td>
-                      <td className="px-3 py-2"></td>{/* Marg.% */}
-                      <td className="px-3 py-2 text-right text-xs whitespace-nowrap">
-                        <div className="font-semibold text-slate-700">{formatCurrency(totals.totalSellPrice, 0)}</div>
-                        <div className="text-[10px] text-slate-400">Marg: {totals.totalMarginPct.toFixed(1)}%</div>
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs font-semibold text-slate-500 tabular-nums whitespace-nowrap">
-                        {formatCurrency(totals.totalPosteTotal, 0)}
-                      </td>
-                      <td className="px-3 py-2"></td>{/* Pz. Unit. Lu. */}
-                      <td className="px-3 py-2"></td>{/* Sconto % */}
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-              <div className="px-4 py-3 border-t border-slate-100 space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={handleAddItem}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Aggiungi voce
-                  </button>
-                  <button
-                    onClick={handleExportCSV}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                    title="Esporta le voci correnti in formato CSV."
-                  >
-                    <FileDown className="w-4 h-4" />
-                    Export CSV
-                  </button>
-                  <button
-                    onClick={() => csvInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                    title="Importa/aggiorna voci da CSV. Le voci con stessa descrizione vengono aggiornate."
-                  >
-                    <Upload className="w-4 h-4" />
-                    Importa CSV
-                  </button>
-                  <input
-                    ref={csvInputRef}
-                    type="file"
-                    accept=".csv,text/csv"
-                    className="hidden"
-                    onChange={handleImportCSV}
-                  />
-                  <span className="text-xs text-slate-400 ml-1">
-                    <code className="bg-slate-100 px-1 rounded">DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1..10,Perc1..10</code>
-                    &nbsp;—&nbsp;Tipo: <strong>N</strong>/M &nbsp;Compl.: <strong>L</strong>/M/H
-                  </span>
-                </div>
-
-                {/* Feedback import */}
-                {importFeedback && (
-                  <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg text-xs ${
-                    importFeedback.errors.length > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-emerald-50 border border-emerald-200'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <span className={importFeedback.errors.length > 0 ? 'text-amber-700 font-medium' : 'text-emerald-700 font-medium'}>
-                        {importFeedback.imported > 0 && `✓ ${importFeedback.imported} nuova${importFeedback.imported !== 1 ? 'e' : ''}`}
-                        {importFeedback.updated > 0 && `${importFeedback.imported > 0 ? ' · ' : '✓ '}${importFeedback.updated} aggiornata${importFeedback.updated !== 1 ? 'e' : ''}`}
-                        {importFeedback.imported === 0 && importFeedback.updated === 0 && 'Nessuna voce importata'}
-                        {importFeedback.skipped > 0 && ` · ${importFeedback.skipped} riga${importFeedback.skipped !== 1 ? 'e' : ''} con errori`}
-                      </span>
-                      <button onClick={() => setImportFeedback(null)} className="text-slate-400 hover:text-slate-600 ml-4">✕</button>
-                    </div>
-                    {importFeedback.errors.length > 0 && (
-                      <ul className="list-disc list-inside text-amber-600 space-y-0.5">
-                        {importFeedback.errors.map((e, i) => <li key={i}>{e}</li>)}
-                      </ul>
                     )}
+                    {groupedItems.map(({ group, colorIdx, indices }) => {
+                      const gId = group?.id ?? '__ungrouped__';
+                      const isCollapsed = group && !expandedGroups.has(gId);
+                      const groupCalc = indices.reduce((acc, i) => ({
+                        fte: acc.fte + (itemCalcs[i]?.item_fte || 0),
+                        cost: acc.cost + (itemCalcs[i]?.item_cost || 0),
+                        sell: acc.sell + (itemCalcs[i]?.item_sell_price || 0),
+                        poste: acc.poste + (itemCalcs[i]?.item_poste_total || 0),
+                        pctSum: acc.pctSum + (parseFloat(items[i]?.group_pct) || 0),
+                      }), { fte: 0, cost: 0, sell: 0, poste: 0, pctSum: 0 });
+                      const groupMarginPct = groupCalc.sell > 0
+                        ? (groupCalc.sell - groupCalc.cost) / groupCalc.sell * 100
+                        : 0;
+                      const pctSumOk = groupCalc.pctSum > 0 && Math.abs(groupCalc.pctSum - 100) < 0.5;
+                      return (
+                        <Fragment key={gId}>
+                          {/* Group header row — colonne allineate */}
+                          {group && (
+                            <tr
+                              className="group bg-slate-50/80 backdrop-blur-sm rounded-xl shadow-sm hover:shadow-md hover:bg-slate-100/90 transition-all border border-slate-200 cursor-pointer select-none"
+                              onClick={() => toggleExpandedGroup(gId)}
+                            >
+                              <td className="px-4 py-1.5 rounded-l-xl">
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  {isCollapsed
+                                    ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  }
+                                  <span className={`w-2 h-2 rounded-full shrink-0 ${GROUP_DOTS[colorIdx % GROUP_DOTS.length]}`} />
+                                  <span className="font-semibold text-slate-700 truncate">{group.label}</span>
+                                  <span className="text-slate-400 text-[10px] shrink-0">({indices.length} {indices.length === 1 ? 'voce' : 'voci'})</span>
+                                </div>
+                              </td>
+                              {/* 2: Tipo/Compl */}<td />
+                              {/* 3: Pz.Unit.Poste */}<td />
+                              {/* 4: Mix Figure */}<td />
+                              {/* 5: % Grp */}
+                              <td className="px-4 py-1.5 text-center">
+                                {isCollapsed && groupCalc.pctSum > 0 && (
+                                  <span className={`text-xs font-bold tabular-nums ${pctSumOk ? 'text-green-600' : 'text-amber-600'}`}>
+                                    {groupCalc.pctSum.toFixed(0)}%
+                                  </span>
+                                )}
+                              </td>
+                              {/* 6: FTE */}
+                              <td className="px-4 py-1.5 text-right">
+                                {isCollapsed && (
+                                  <span className="text-xs font-semibold text-indigo-600 tabular-nums">{groupCalc.fte.toFixed(2)}</span>
+                                )}
+                              </td>
+                              {/* 7: Costo Tot */}
+                              <td className="px-4 py-1.5 text-right">
+                                {isCollapsed && (
+                                  <span className="text-xs font-semibold text-slate-600 tabular-nums">{formatCurrency(groupCalc.cost, 0)}</span>
+                                )}
+                              </td>
+                              {/* 8: Marg.% */}
+                              <td className="px-4 py-1.5 text-center">
+                                {isCollapsed && groupCalc.sell > 0 && (
+                                  <span className={`text-xs font-bold tabular-nums ${groupMarginPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    {groupMarginPct.toFixed(1)}%
+                                  </span>
+                                )}
+                              </td>
+                              {/* 9: Pz. Vend. Tot */}
+                              <td className="px-4 py-1.5 text-right">
+                                {isCollapsed && groupCalc.sell > 0 && (
+                                  <span className="text-xs font-semibold text-slate-600 tabular-nums">{formatCurrency(groupCalc.sell, 0)}</span>
+                                )}
+                              </td>
+                              {/* 10: Pz. Poste Tot */}
+                              <td className="px-4 py-1.5 text-right">
+                                {isCollapsed && groupCalc.poste > 0 && (
+                                  <span className="text-xs text-slate-500 tabular-nums">{formatCurrency(groupCalc.poste, 0)}</span>
+                                )}
+                              </td>
+                              {/* 11: Pz. Unit. Lu */}<td />
+                              {/* 12: Sconto % */}<td />
+                              {/* 13: azioni */}<td className="rounded-r-xl" />
+                            </tr>
+                          )}
+                          {!isCollapsed && indices.map((idx) => {
+                            const item = items[idx];
+                            const calc = itemCalcs[idx];
+                            const mixExpanded = expandedMix.has(item.id);
+                            const groupInfo = itemToGroup[item.id];
+
+                            // Cella N/D se voce non ha dati validi
+                            const NA = <span className="text-slate-300 tabular-nums">—</span>;
+
+                            return (
+                              <tr key={item.id} className="group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 align-top">
+
+                                {/* Descrizione + badge raggruppamento */}
+                                <td className="px-3 py-3">
+                                  {groupInfo && (
+                                    <div className="mb-0.5">
+                                      <span className={`inline-flex items-center gap-1 text-[9px] font-medium px-1 py-0 rounded border
+                                ${GROUP_BADGES[groupInfo.colorIdx % GROUP_BADGES.length]}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${GROUP_DOTS[groupInfo.colorIdx % GROUP_DOTS.length]}`} />
+                                        {groupInfo.group.label}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <input
+                                    type="text"
+                                    value={item.label || ''}
+                                    onChange={(e) => handleItemChange(idx, { label: e.target.value })}
+                                    placeholder="Descrizione voce..."
+                                    className="w-full px-2 py-1 text-xs border border-transparent hover:border-slate-200 focus:border-indigo-300 rounded focus:outline-none"
+                                  />
+                                </td>
+
+                                {/* Tipo + Complessità (merged) */}
+                                <td className="px-3 py-3">
+                                  <div className="flex flex-col gap-1">
+                                    <select
+                                      value={item.tipo || 'nuovo_sviluppo'}
+                                      onChange={(e) => handleItemChange(idx, { tipo: e.target.value })}
+                                      className={`w-full px-1.5 py-0.5 text-[10px] font-semibold rounded-full border-0 focus:outline-none focus:ring-1 cursor-pointer
+                                ${item.tipo === 'modifica_evolutiva'
+                                          ? 'bg-emerald-100 text-emerald-700 focus:ring-emerald-300'
+                                          : 'bg-blue-100 text-blue-700 focus:ring-blue-300'}`}
+                                    >
+                                      {TIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                    <select
+                                      value={item.complessita || 'media'}
+                                      onChange={(e) => handleItemChange(idx, { complessita: e.target.value })}
+                                      className={`w-full px-1.5 py-0.5 text-[10px] font-semibold rounded-full border-0 focus:outline-none focus:ring-1 cursor-pointer
+                                ${item.complessita === 'alta'
+                                          ? 'bg-red-100 text-red-700 focus:ring-red-300'
+                                          : item.complessita === 'bassa'
+                                            ? 'bg-green-100 text-green-700 focus:ring-green-300'
+                                            : 'bg-amber-100 text-amber-700 focus:ring-amber-300'}`}
+                                    >
+                                      {COMPLESSITA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                  </div>
+                                </td>
+
+                                {/* Pz. Unit. Poste — flip se sconto gara > 0 */}
+                                <td className="px-3 py-3">
+                                  {scontoGaraPct > 0 ? (
+                                    <div>
+                                      <div className="text-right text-xs font-semibold tabular-nums text-amber-700 whitespace-nowrap">
+                                        {calc.price_base_orig > 0 ? formatCurrency(calc.effective_price_base, 0) : '—'}
+                                      </div>
+                                      <div className="flex items-center justify-end gap-0.5 mt-0.5">
+                                        <input
+                                          type="number"
+                                          value={item.price_base || ''}
+                                          onChange={(e) => handleItemChange(idx, { price_base: parseFloat(e.target.value) || 0 })}
+                                          min="0" step="100" placeholder="0"
+                                          className="w-20 px-1.5 py-0.5 text-[10px] text-right border border-slate-100 bg-slate-50 text-slate-400 rounded focus:outline-none focus:border-slate-300"
+                                        />
+                                        <span className="text-[9px] text-slate-400">bando</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      value={item.price_base || ''}
+                                      onChange={(e) => handleItemChange(idx, { price_base: parseFloat(e.target.value) || 0 })}
+                                      min="0" step="100" placeholder="0"
+                                      className="w-full px-2 py-1 text-xs text-right border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
+                                    />
+                                  )}
+                                </td>
+
+                                {/* Mix Figure Poste + €/gg */}
+                                <td className="px-3 py-3">
+                                  <button
+                                    onClick={() => toggleMix(item.id)}
+                                    className="w-full text-left text-xs text-slate-600 hover:text-indigo-600 flex items-center gap-1"
+                                  >
+                                    {(item.profile_mix || []).length === 0
+                                      ? <span className="text-slate-400 italic">Nessuna figura</span>
+                                      : <span className="truncate max-w-[160px]">{(item.profile_mix || []).map(e => `${e.poste_profile} ${e.pct}%`).join(' / ')}</span>
+                                    }
+                                    {mixExpanded ? <ChevronUp className="w-3 h-3 ml-auto flex-shrink-0" /> : <ChevronDown className="w-3 h-3 ml-auto flex-shrink-0" />}
+                                  </button>
+                                  <div className="text-[10px] text-slate-400 tabular-nums mt-0.5">€/gg: {formatCurrency(calc.rate, 0)}</div>
+                                  {mixExpanded && (
+                                    <div className="mt-1">
+                                      <ProfileMixEditor
+                                        mix={item.profile_mix || []}
+                                        posteProfiles={posteProfiles}
+                                        onChange={(newMix) => handleItemChange(idx, { profile_mix: newMix })}
+                                      />
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* % Gruppo (INPUT) */}
+                                <td className="px-3 py-3">
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <input
+                                      type="number"
+                                      value={item.group_pct || ''}
+                                      onChange={(e) => handleItemPctChange(item.id, parseFloat(e.target.value) || 0)}
+                                      min="0" max="100" step="1" placeholder="0"
+                                      disabled={!calc.in_group}
+                                      title={!calc.in_group ? 'Assegna la voce a un raggruppamento nel tab Raggruppamenti' : undefined}
+                                      className={`w-14 px-1 py-1 text-xs text-center border rounded focus:outline-none
+                                ${calc.in_group
+                                          ? 'border-rose-300 bg-rose-50 text-rose-700 focus:border-rose-400 font-semibold'
+                                          : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'}`}
+                                    />
+                                    <span className={`text-[10px] ${calc.in_group ? 'text-rose-400' : 'text-slate-300'}`}>%</span>
+                                  </div>
+                                </td>
+
+                                {/* FTE (derived, read-only) */}
+                                <td className="px-3 py-3 text-right text-xs tabular-nums">
+                                  {calc.has_valid_data
+                                    ? (calc.item_fte < calc.item_fte_before_reuse
+                                      ? (
+                                        <div className="flex flex-col items-end">
+                                          <span className="font-semibold text-sky-700" title={`- ${(100 * (1 - (calc.item_fte / calc.item_fte_before_reuse))).toFixed(1)}% riuso`}>{calc.item_fte.toFixed(3)}</span>
+                                          <s className="text-slate-400 mt-0.5">{calc.item_fte_before_reuse.toFixed(3)}</s>
+                                        </div>
+                                      )
+                                      : <span className="font-semibold text-indigo-700">{calc.item_fte.toFixed(3)}</span>
+                                    )
+                                    : NA}
+                                </td>
+
+                                {/* Costo Tot. (derived) */}
+                                <td className="px-3 py-3 text-right text-xs font-medium text-slate-700 tabular-nums whitespace-nowrap">
+                                  {calc.has_valid_data ? formatCurrency(calc.item_cost, 0) : NA}
+                                </td>
+
+                                {/* Margine Target (INPUT/override) */}
+                                <td className="px-3 py-3">
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <input
+                                      type="number"
+                                      value={calc.is_default_margin ? '' : (item.target_margin_pct ?? '')}
+                                      onChange={(e) => {
+                                        const v = e.target.value;
+                                        handleItemChange(idx, { target_margin_pct: v === '' ? null : Math.min(99, parseFloat(v) || 0) });
+                                      }}
+                                      placeholder={defaultTargetMarginPct.toFixed(0)}
+                                      min="0" max="99" step="1"
+                                      title={calc.is_default_margin ? `Margine target TOW: ${defaultTargetMarginPct.toFixed(1)}%` : `Override: ${calc.effective_margin.toFixed(1)}%`}
+                                      className={`w-14 px-1 py-1 text-xs text-center border rounded focus:outline-none
+                                ${calc.is_default_margin
+                                          ? 'border-slate-200 bg-slate-50 text-slate-400 placeholder:text-slate-400'
+                                          : 'border-emerald-300 bg-emerald-50 text-emerald-700 focus:border-emerald-400 font-semibold'}`}
+                                    />
+                                    <span className="text-[10px] text-slate-400">%</span>
+                                  </div>
+                                </td>
+
+                                {/* Pz. Vendita Tot. (derived) */}
+                                <td className="px-3 py-3 text-right text-xs font-medium text-slate-700 tabular-nums whitespace-nowrap">
+                                  {calc.has_valid_data ? formatCurrency(calc.item_sell_price, 0) : NA}
+                                </td>
+
+                                {/* Pz. Poste Tot. (derived) */}
+                                <td className="px-3 py-3 text-right tabular-nums">
+                                  {calc.has_valid_data
+                                    ? <div>
+                                      <div className="text-xs text-slate-500 whitespace-nowrap">
+                                        {formatCurrency(calc.item_poste_total, 0)}
+                                      </div>
+                                      {scontoGaraPct > 0 && calc.item_poste_total_orig > 0 && (
+                                        <div className="text-[10px] text-slate-400 whitespace-nowrap">
+                                          bando: {formatCurrency(calc.item_poste_total_orig, 0)}
+                                        </div>
+                                      )}
+                                    </div>
+                                    : NA}
+                                </td>
+
+                                {/* Pz. Unitario Lutech (derived) */}
+                                <td className="px-3 py-3 text-right text-xs font-medium text-slate-700 tabular-nums whitespace-nowrap">
+                                  {calc.has_valid_data && calc.item_lutech_unit > 0 ? formatCurrency(calc.item_lutech_unit, 2) : NA}
+                                </td>
+
+                                {/* Sconto % — INPUT bidirezionale con Marg.% */}
+                                <td className="px-3 py-3">
+                                  <div className="flex items-center justify-end gap-0.5">
+                                    <input
+                                      type="number"
+                                      key={`sconto_${item.id}_${Math.round(calc.item_sconto_pct * 10)}`}
+                                      defaultValue={calc.has_valid_data ? calc.item_sconto_pct.toFixed(2) : ''}
+                                      disabled={!calc.has_valid_data}
+                                      onBlur={(e) => {
+                                        const v = parseFloat(e.target.value);
+                                        if (!isNaN(v)) handleItemScontoChange(idx, v);
+                                      }}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                      min="-100" max="100" step="0.5"
+                                      className={`w-16 px-1 py-1 text-xs text-center border rounded focus:outline-none
+                                ${!calc.has_valid_data
+                                          ? 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'
+                                          : calc.item_sconto_pct < 0
+                                            ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-400 font-semibold'
+                                            : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 focus:border-indigo-400 font-semibold'}`}
+                                    />
+                                    {calc.has_valid_data && <span className="text-[10px] text-slate-400">%</span>}
+                                  </div>
+                                </td>
+
+                                {/* Delete */}
+                                <td className="px-4 py-3 rounded-r-xl">
+                                  <button
+                                    onClick={() => handleRemoveItem(idx)}
+                                    className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                  {items.length > 0 && (
+                    <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                      <tr>
+                        <td colSpan={2} className="px-3 py-2 text-sm font-semibold text-slate-700">TOTALE</td>
+                        <td className="px-3 py-2"></td>{/* Pz. Unit. */}
+                        <td className="px-3 py-2"></td>{/* Mix + €/gg */}
+                        <td className="px-3 py-2"></td>{/* % Grp */}
+                        <td className="px-3 py-2 text-right text-xs font-semibold text-indigo-700 tabular-nums">
+                          {totals.totalDerivedFte.toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 tabular-nums whitespace-nowrap">
+                          {formatCurrency(totals.totalCost, 0)}
+                        </td>
+                        <td className="px-3 py-2"></td>{/* Marg.% */}
+                        <td className="px-3 py-2 text-right text-xs whitespace-nowrap">
+                          <div className="font-semibold text-slate-700">{formatCurrency(totals.totalSellPrice, 0)}</div>
+                          <div className="text-[10px] text-slate-400">Marg: {totals.totalMarginPct.toFixed(1)}%</div>
+                        </td>
+                        <td className="px-3 py-2 text-right text-xs font-semibold text-slate-500 tabular-nums whitespace-nowrap">
+                          {formatCurrency(totals.totalPosteTotal, 0)}
+                        </td>
+                        <td className="px-3 py-2"></td>{/* Pz. Unit. Lu. */}
+                        <td className="px-3 py-2"></td>{/* Sconto % */}
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+                <div className="px-4 py-3 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleAddItem}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Aggiungi voce
+                    </button>
+                    <button
+                      onClick={handleExportCSV}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                      title="Esporta le voci correnti in formato CSV."
+                    >
+                      <FileDown className="w-4 h-4" />
+                      Export CSV
+                    </button>
+                    <button
+                      onClick={() => csvInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="Importa/aggiorna voci da CSV. Le voci con stessa descrizione vengono aggiornate."
+                    >
+                      <Upload className="w-4 h-4" />
+                      Importa CSV
+                    </button>
+                    <input
+                      ref={csvInputRef}
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="hidden"
+                      onChange={handleImportCSV}
+                    />
+                    <span className="text-xs text-slate-400 ml-1">
+                      <code className="bg-slate-100 px-1 rounded">DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1..10,Perc1..10</code>
+                      &nbsp;—&nbsp;Tipo: <strong>N</strong>/M &nbsp;Compl.: <strong>L</strong>/M/H
+                    </span>
                   </div>
-                )}
+
+                  {/* Feedback import */}
+                  {importFeedback && (
+                    <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg text-xs ${importFeedback.errors.length > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-emerald-50 border border-emerald-200'
+                      }`}>
+                      <div className="flex items-center justify-between">
+                        <span className={importFeedback.errors.length > 0 ? 'text-amber-700 font-medium' : 'text-emerald-700 font-medium'}>
+                          {importFeedback.imported > 0 && `✓ ${importFeedback.imported} nuova${importFeedback.imported !== 1 ? 'e' : ''}`}
+                          {importFeedback.updated > 0 && `${importFeedback.imported > 0 ? ' · ' : '✓ '}${importFeedback.updated} aggiornata${importFeedback.updated !== 1 ? 'e' : ''}`}
+                          {importFeedback.imported === 0 && importFeedback.updated === 0 && 'Nessuna voce importata'}
+                          {importFeedback.skipped > 0 && ` · ${importFeedback.skipped} riga${importFeedback.skipped !== 1 ? 'e' : ''} con errori`}
+                        </span>
+                        <button onClick={() => setImportFeedback(null)} className="text-slate-400 hover:text-slate-600 ml-4">✕</button>
+                      </div>
+                      {importFeedback.errors.length > 0 && (
+                        <ul className="list-disc list-inside text-amber-600 space-y-0.5">
+                          {importFeedback.errors.map((e, i) => <li key={i}>{e}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -1761,26 +1761,26 @@ export default function CatalogEditorModal({
               {clusters.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-slate-700 mb-3">Distribuzione Effettiva</h3>
-                  <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-4 py-2 text-left font-semibold text-slate-600">Cluster</th>
-                        <th className="px-4 py-2 text-center font-semibold text-slate-600 w-8" title="Tipo di vincolo">V.</th>
-                        <th className="px-4 py-2 text-right font-semibold text-slate-600">% Req.</th>
-                        <th className="px-4 py-2 text-right font-semibold text-indigo-600" title="FTE target da bando">FTE Target</th>
-                        <th className="px-4 py-2 text-right font-semibold text-slate-600">% Att.</th>
-                        <th className="px-4 py-2 text-right font-semibold text-slate-600">FTE Att.</th>
-                        <th className="px-4 py-2 text-right font-semibold text-slate-600">Δ%</th>
-                        <th className="px-4 py-2 text-center font-semibold text-slate-600">Stato</th>
+                  <table className="w-full text-sm border-separate border-spacing-y-2">
+                    <thead>
+                      <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <th className="px-4 py-2 text-left">Cluster</th>
+                        <th className="px-4 py-2 text-center w-8" title="Tipo di vincolo">V.</th>
+                        <th className="px-4 py-2 text-right">% Req.</th>
+                        <th className="px-4 py-2 text-right text-indigo-600" title="FTE target da bando">FTE Target</th>
+                        <th className="px-4 py-2 text-right">% Att.</th>
+                        <th className="px-4 py-2 text-right">FTE Att.</th>
+                        <th className="px-4 py-2 text-right">Δ%</th>
+                        <th className="px-4 py-2 text-center">Stato</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="">
                       {clusters.map(cluster => {
                         const actual = clusterDist[cluster.id] || 0;
                         const required = parseFloat(cluster.required_pct) || 0;
                         const delta = actual - required;
                         const constraintType = cluster.constraint_type || 'equality';
-                        
+
                         // Validate based on constraint type
                         let ok;
                         if (constraintType === 'maximum') {
@@ -1790,15 +1790,15 @@ export default function CatalogEditorModal({
                         } else {
                           ok = Math.abs(delta) <= 2;
                         }
-                        
+
                         const fteTgt = refTotalFte * required / 100;
                         const fteAtt = totals.totalDerivedFte * actual / 100;
-                        
+
                         const constraintLabel = constraintType === 'maximum' ? '≤' : constraintType === 'minimum' ? '≥' : '=';
-                        
+
                         return (
-                          <tr key={cluster.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-2">
+                          <tr key={cluster.id} className="bg-white/50 backdrop-blur-sm border border-white/50 rounded-xl hover:bg-white/80 transition-all">
+                            <td className="px-4 py-2 rounded-l-xl">
                               <div className="font-medium text-slate-700">{cluster.label}</div>
                               <div className="text-xs text-slate-400">{(cluster.poste_profiles || []).join(', ')}</div>
                             </td>
@@ -1812,7 +1812,7 @@ export default function CatalogEditorModal({
                             <td className={`px-4 py-2 text-right font-semibold ${ok ? 'text-green-700' : 'text-red-600'}`}>
                               {delta >= 0 ? '+' : ''}{delta.toFixed(1)}%
                             </td>
-                            <td className="px-4 py-2 text-center">
+                            <td className="px-4 py-2 text-center rounded-r-xl">
                               {ok
                                 ? <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />
                                 : <AlertTriangle className="w-4 h-4 text-red-500 mx-auto" />

@@ -190,7 +190,7 @@ export default function TowConfigTable({
       }
     }
     return result;
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
   }, [tows, volumeAdjustments, durationMonths]);
 
   const hasAdjustments = Object.keys(adjustedQtyMap).length > 0;
@@ -236,31 +236,31 @@ export default function TowConfigTable({
       </div>
 
       {/* Tabella */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
+      <div className="overflow-x-auto min-h-[400px]">
+        <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
+          <thead className="">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 w-24">ID</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600">Descrizione</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-36">Tipo</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-24">Peso %</th>
-              <th className="px-4 py-3 text-center font-semibold text-indigo-600 w-20" title="Quota % del TOW svolta da Lutech (es. in RTI)">Lutech %</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-28">Quantità</th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">ID</th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrizione</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">Tipo</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">Peso %</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title="Quota % del TOW svolta da Lutech (es. in RTI)">Lutech %</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Quantità</th>
               {hasAdjustments && (
                 <>
-                  <th className="px-4 py-3 text-center font-semibold text-emerald-600 w-28 whitespace-nowrap">
+                  <th className="px-4 py-2 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest w-28 whitespace-nowrap">
                     Quantità Eff.
                   </th>
-                  <th className="px-4 py-3 text-center font-semibold text-rose-600 w-16">
+                  <th className="px-4 py-2 text-center text-[10px] font-black text-rose-600 uppercase tracking-widest w-16">
                     Δ
                   </th>
                 </>
               )}
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-36">Practice</th>
-              <th className="px-4 py-3 w-12"></th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">Practice</th>
+              <th className="px-4 py-2 w-12"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="">
             {tows.length === 0 && !showAddRow ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
@@ -279,314 +279,314 @@ export default function TowConfigTable({
               </tr>
             ) : (
               tows.map((tow, idx) => (
-                <>
-                <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-4 py-2">
-                    <input
-                      type="text"
-                      value={tow.tow_id}
-                      onChange={(e) => handleUpdateTow(idx, 'tow_id', e.target.value)}
-                      disabled={disabled}
-                      className="w-full px-2 py-1 font-mono text-xs border border-transparent
+                <Fragment key={idx}>
+                  <tr className="group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50">
+                    <td className="px-4 py-2 rounded-l-xl">
+                      <input
+                        type="text"
+                        value={tow.tow_id}
+                        onChange={(e) => handleUpdateTow(idx, 'tow_id', e.target.value)}
+                        disabled={disabled}
+                        className="w-full px-2 py-1 font-mono text-xs border border-transparent
                                  hover:border-slate-200 focus:border-indigo-300 rounded
                                  focus:outline-none disabled:bg-transparent"
-                      placeholder="TOW_XX"
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <input
-                      type="text"
-                      value={tow.label}
-                      onChange={(e) => handleUpdateTow(idx, 'label', e.target.value)}
-                      disabled={disabled}
-                      className="w-full px-2 py-1 border border-transparent hover:border-slate-200
+                        placeholder="TOW_XX"
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        type="text"
+                        value={tow.label}
+                        onChange={(e) => handleUpdateTow(idx, 'label', e.target.value)}
+                        disabled={disabled}
+                        className="w-full px-2 py-1 border border-transparent hover:border-slate-200
                                  focus:border-indigo-300 rounded focus:outline-none
                                  disabled:bg-transparent"
-                      placeholder="Nome TOW..."
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <select
-                      value={tow.type}
-                      onChange={(e) => handleUpdateTow(idx, 'type', e.target.value)}
-                      disabled={disabled}
-                      className={`w-full px-2 py-1 text-xs font-medium rounded border-0
+                        placeholder="Nome TOW..."
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <select
+                        value={tow.type}
+                        onChange={(e) => handleUpdateTow(idx, 'type', e.target.value)}
+                        disabled={disabled}
+                        className={`w-full px-2 py-1 text-xs font-medium rounded border-0
                                   focus:outline-none focus:ring-2 focus:ring-indigo-300
                                   disabled:cursor-not-allowed ${getTypeStyle(tow.type)}`}
-                    >
-                      {towTypes.map(tt => (
-                        <option key={tt.value} value={tt.value}>{tt.label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-2">
-                    <input
-                      type="number"
-                      value={tow.weight_pct}
-                      onChange={(e) => handleUpdateTow(idx, 'weight_pct', parseFloat(e.target.value) || 0)}
-                      disabled={disabled}
-                      step="0.1"
-                      min="0"
-                      max="100"
-                      className="w-full px-2 py-1 text-center border border-slate-200 rounded
-                                 focus:border-indigo-300 focus:outline-none
-                                 disabled:bg-slate-50 disabled:cursor-not-allowed"
-                    />
-                  </td>
-                  {/* Lutech % — editabile per TOW FTE-based, sempre 100% per catalogo */}
-                  <td className="px-4 py-2">
-                    {tow.type === 'catalogo' ? (
-                      <div className="text-center">
-                        <span className="text-xs text-slate-400">100%</span>
-                      </div>
-                    ) : (
+                      >
+                        {towTypes.map(tt => (
+                          <option key={tt.value} value={tt.value}>{tt.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2">
                       <input
                         type="number"
-                        value={tow.lutech_pct ?? 100}
-                        onChange={(e) => handleUpdateTow(idx, 'lutech_pct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                        value={tow.weight_pct}
+                        onChange={(e) => handleUpdateTow(idx, 'weight_pct', parseFloat(e.target.value) || 0)}
                         disabled={disabled}
+                        step="0.1"
                         min="0"
                         max="100"
-                        step="5"
-                        className={`w-full px-2 py-1 text-center border rounded focus:outline-none text-xs
+                        className="w-full px-2 py-1 text-center border border-slate-200 rounded
+                                 focus:border-indigo-300 focus:outline-none
+                                 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      />
+                    </td>
+                    {/* Lutech % — editabile per TOW FTE-based, sempre 100% per catalogo */}
+                    <td className="px-4 py-2">
+                      {tow.type === 'catalogo' ? (
+                        <div className="text-center">
+                          <span className="text-xs text-slate-400">100%</span>
+                        </div>
+                      ) : (
+                        <input
+                          type="number"
+                          value={tow.lutech_pct ?? 100}
+                          onChange={(e) => handleUpdateTow(idx, 'lutech_pct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          disabled={disabled}
+                          min="0"
+                          max="100"
+                          step="5"
+                          className={`w-full px-2 py-1 text-center border rounded focus:outline-none text-xs
                           ${(tow.lutech_pct ?? 100) < 100
-                            ? 'border-indigo-300 bg-indigo-50 text-indigo-700 focus:border-indigo-500'
-                            : 'border-slate-200 focus:border-indigo-300'}
+                              ? 'border-indigo-300 bg-indigo-50 text-indigo-700 focus:border-indigo-500'
+                              : 'border-slate-200 focus:border-indigo-300'}
                           disabled:bg-slate-50 disabled:cursor-not-allowed`}
-                      />
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    {tow.type === 'task' ? (
-                      <input
-                        type="number"
-                        value={tow.num_tasks || ''}
-                        onChange={(e) => handleUpdateTow(idx, 'num_tasks', parseInt(e.target.value) || 0)}
-                        disabled={disabled}
-                        min="0"
-                        placeholder="N. task"
-                        className="w-full px-2 py-1 text-center border border-slate-200 rounded
+                        />
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {tow.type === 'task' ? (
+                        <input
+                          type="number"
+                          value={tow.num_tasks || ''}
+                          onChange={(e) => handleUpdateTow(idx, 'num_tasks', parseInt(e.target.value) || 0)}
+                          disabled={disabled}
+                          min="0"
+                          placeholder="N. task"
+                          className="w-full px-2 py-1 text-center border border-slate-200 rounded
                                    focus:border-indigo-300 focus:outline-none text-xs
                                    disabled:bg-slate-50 disabled:cursor-not-allowed"
-                      />
-                    ) : tow.type === 'corpo' || tow.type === 'canone' ? (
-                      <input
-                        type="number"
-                        value={tow.duration_months || ''}
-                        onChange={(e) => handleUpdateTow(idx, 'duration_months', parseInt(e.target.value) || 0)}
-                        disabled={disabled}
-                        min="0"
-                        placeholder="N. mesi"
-                        className="w-full px-2 py-1 text-center border border-slate-200 rounded
+                        />
+                      ) : tow.type === 'corpo' || tow.type === 'canone' ? (
+                        <input
+                          type="number"
+                          value={tow.duration_months || ''}
+                          onChange={(e) => handleUpdateTow(idx, 'duration_months', parseInt(e.target.value) || 0)}
+                          disabled={disabled}
+                          min="0"
+                          placeholder="N. mesi"
+                          className="w-full px-2 py-1 text-center border border-slate-200 rounded
                                    focus:border-indigo-300 focus:outline-none text-xs
                                    disabled:bg-slate-50 disabled:cursor-not-allowed"
-                      />
-                    ) : tow.type === 'catalogo' ? (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1">
+                        />
+                      ) : tow.type === 'catalogo' ? (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => onOpenCatalogModal?.(idx)}
+                              disabled={disabled}
+                              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600
+                                       hover:bg-rose-50 rounded border border-rose-200 transition-colors
+                                       disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Apri editor catalogo"
+                            >
+                              <BookOpen className="w-3 h-3" />
+                              {(tow.catalog_items || []).length} voci
+                            </button>
+                            <button
+                              onClick={() => toggleCatalogExpand(idx)}
+                              className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                            >
+                              {expandedCatalog.has(idx) ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                          {(() => {
+                            // Modello FTE-from-group: derivedFte = Σ(group_fte × item_pct/100)
+                            const items = tow.catalog_items || [];
+                            const refFte = parseFloat(tow.total_fte || 0);
+                            const totalCatalogValue = parseFloat(tow.total_catalog_value || 0);
+                            const groups = tow.catalog_groups || [];
+                            const itemGroupMap = {};
+                            for (const g of groups) {
+                              for (const id of (g.item_ids || [])) itemGroupMap[id] = g;
+                            }
+                            let derivedFte = 0;
+                            for (const item of items) {
+                              const group = itemGroupMap[item.id];
+                              const group_target = group ? (parseFloat(group.target_value) || 0) : 0;
+                              const group_fte = (totalCatalogValue > 0 && group_target > 0)
+                                ? (group_target / totalCatalogValue) * refFte
+                                : 0;
+                              derivedFte += group_fte * (parseFloat(item.group_pct) || 0) / 100;
+                            }
+                            if (items.length === 0) return null;
+                            const ok = refFte > 0 && Math.abs(derivedFte - refFte) / refFte < 0.05;
+                            return (
+                              <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1
+                              ${ok ? 'text-green-700 bg-green-50' : 'text-amber-700 bg-amber-50'}`}
+                                title="FTE derivati dal catalogo">
+                                {ok ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                                {derivedFte.toFixed(2)}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <span className="block text-center text-slate-400 text-xs">-</span>
+                      )}
+                    </td>
+                    {hasAdjustments && (() => {
+                      const adj = adjustedQtyMap[tow.tow_id];
+                      const qty = tow.type === 'task' ? (tow.num_tasks || 0) : (tow.duration_months || 0);
+                      const isReduced = adj && adj.avgFactor < 1.0;
+
+                      const tooltip = adj?.periodDetails?.length > 1
+                        ? adj.periodDetails.map(p =>
+                          `Mese ${p.start}-${p.end}: ${qty} → ${p.effectiveQty} (${Math.round(p.factor * 100)}%)`
+                        ).join('\n')
+                        : adj?.periodDetails?.[0]
+                          ? `${qty} → ${adj.periodDetails[0].effectiveQty} (${Math.round(adj.periodDetails[0].factor * 100)}%)`
+                          : '';
+
+                      return (
+                        <>
+                          <td className="px-4 py-2">
+                            <div
+                              title={tooltip}
+                              className={`px-2 py-1 text-center rounded font-semibold text-xs cursor-help flex items-center justify-center gap-1
+                                      ${isReduced ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
+                            >
+                              {isReduced && <TrendingDown className="w-3 h-3" />}
+                              {adj ? Math.round(adj.adjustedQty) : qty}
+                              {tooltip && <Info className="w-2.5 h-2.5 opacity-50 ml-0.5" />}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            {isReduced ? (
+                              <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">
+                                {adj.delta > 0 ? `+${adj.delta}` : adj.delta}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
+                        </>
+                      );
+                    })()}
+                    <td className="px-4 py-2">
+                      <select
+                        value={towAssignments[tow.tow_id] || ''}
+                        onChange={(e) => handlePracticeAssignment(tow.tow_id, e.target.value)}
+                        disabled={disabled}
+                        className="w-full px-2 py-1 text-xs border border-slate-200 rounded
+                                 focus:border-indigo-300 focus:outline-none
+                                 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">-- Practice --</option>
+                        {practices.map(p => (
+                          <option key={p.id} value={p.id}>{p.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2 rounded-r-xl">
+                      <button
+                        onClick={() => handleRemoveTow(idx)}
+                        disabled={disabled}
+                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors
+                                 opacity-0 group-hover:opacity-100
+                                 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                  {/* Catalog cluster split sub-row */}
+                  {tow.type === 'catalogo' && expandedCatalog.has(idx) && (() => {
+                    const clusters = tow.catalog_clusters || [];
+                    const totalFteInput = parseFloat(tow.total_fte || 0);
+                    const durationYears = durationMonths / 12;
+                    const colCount = hasAdjustments ? 10 : 8;
+
+                    // Compute cluster split: FTE, avg rate, cost per cluster
+                    const clusterRows = clusters.map(cluster => {
+                      const requiredPct = parseFloat(cluster.required_pct) || 0;
+                      const clusterFte = totalFteInput * requiredPct / 100;
+                      const clusterDays = clusterFte * durationYears * daysPerFte;
+                      // Average rate of profiles in cluster (equal weight per profile type)
+                      const profiles = cluster.poste_profiles || [];
+                      let avgRate = defaultDailyRate;
+                      if (profiles.length > 0) {
+                        const rates = profiles.map(p => computeCatalogItemRate([{ poste_profile: p, pct: 100 }]));
+                        avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+                      }
+                      const clusterCost = clusterDays * avgRate;
+                      return { ...cluster, requiredPct, clusterFte, clusterDays, avgRate, clusterCost };
+                    });
+
+                    const totalClusterCost = clusterRows.reduce((s, c) => s + c.clusterCost, 0);
+
+                    return (
+                      <tr key={`cat-${idx}`} className="bg-rose-50">
+                        <td colSpan={colCount} className="px-6 py-3">
+                          {clusters.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic">
+                              Nessun cluster configurato. Apri l'editor e vai alla tab Cluster.
+                            </p>
+                          ) : (
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="text-slate-500 font-semibold border-b border-rose-200">
+                                  <th className="text-left pb-1.5">Cluster</th>
+                                  <th className="text-right pb-1.5 w-20">% Richiesta</th>
+                                  <th className="text-right pb-1.5 w-20">FTE</th>
+                                  <th className="text-right pb-1.5 w-20">Gg/uomo</th>
+                                  <th className="text-right pb-1.5 w-28">Tariffa media</th>
+                                  <th className="text-right pb-1.5 w-28">Costo cluster</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-rose-100">
+                                {clusterRows.map((cr) => (
+                                  <tr key={cr.id}>
+                                    <td className="py-1.5">
+                                      <div className="font-medium text-slate-700">{cr.label}</div>
+                                      {(cr.poste_profiles || []).length > 0 && (
+                                        <div className="text-[10px] text-slate-400">{cr.poste_profiles.join(', ')}</div>
+                                      )}
+                                    </td>
+                                    <td className="py-1.5 text-right font-semibold text-rose-700">{cr.requiredPct.toFixed(0)}%</td>
+                                    <td className="py-1.5 text-right tabular-nums text-slate-700">{cr.clusterFte.toFixed(2)}</td>
+                                    <td className="py-1.5 text-right tabular-nums text-slate-600">{Math.round(cr.clusterDays)}</td>
+                                    <td className="py-1.5 text-right text-slate-600">{formatCurrency(cr.avgRate, 0)}/gg</td>
+                                    <td className="py-1.5 text-right font-semibold text-slate-700">{formatCurrency(cr.clusterCost, 0)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                              <tfoot className="border-t border-rose-200">
+                                <tr className="font-semibold text-slate-700">
+                                  <td className="pt-1.5">TOTALE</td>
+                                  <td className="pt-1.5 text-right">100%</td>
+                                  <td className="pt-1.5 text-right tabular-nums">{totalFteInput.toFixed(2)}</td>
+                                  <td className="pt-1.5 text-right tabular-nums">{Math.round(totalFteInput * durationYears * 220)}</td>
+                                  <td></td>
+                                  <td className="pt-1.5 text-right">{formatCurrency(totalClusterCost, 0)}</td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          )}
                           <button
                             onClick={() => onOpenCatalogModal?.(idx)}
                             disabled={disabled}
-                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600
-                                       hover:bg-rose-50 rounded border border-rose-200 transition-colors
-                                       disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Apri editor catalogo"
+                            className="mt-2 text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1"
                           >
-                            <BookOpen className="w-3 h-3" />
-                            {(tow.catalog_items || []).length} voci
+                            <BookOpen className="w-3 h-3" /> Modifica voci e cluster →
                           </button>
-                          <button
-                            onClick={() => toggleCatalogExpand(idx)}
-                            className="p-1 text-slate-400 hover:text-slate-600 rounded"
-                          >
-                            {expandedCatalog.has(idx) ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                        {(() => {
-                          // Modello FTE-from-group: derivedFte = Σ(group_fte × item_pct/100)
-                          const items = tow.catalog_items || [];
-                          const refFte = parseFloat(tow.total_fte || 0);
-                          const totalCatalogValue = parseFloat(tow.total_catalog_value || 0);
-                          const groups = tow.catalog_groups || [];
-                          const itemGroupMap = {};
-                          for (const g of groups) {
-                            for (const id of (g.item_ids || [])) itemGroupMap[id] = g;
-                          }
-                          let derivedFte = 0;
-                          for (const item of items) {
-                            const group = itemGroupMap[item.id];
-                            const group_target = group ? (parseFloat(group.target_value) || 0) : 0;
-                            const group_fte = (totalCatalogValue > 0 && group_target > 0)
-                              ? (group_target / totalCatalogValue) * refFte
-                              : 0;
-                            derivedFte += group_fte * (parseFloat(item.group_pct) || 0) / 100;
-                          }
-                          if (items.length === 0) return null;
-                          const ok = refFte > 0 && Math.abs(derivedFte - refFte) / refFte < 0.05;
-                          return (
-                            <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1
-                              ${ok ? 'text-green-700 bg-green-50' : 'text-amber-700 bg-amber-50'}`}
-                              title="FTE derivati dal catalogo">
-                              {ok ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                              {derivedFte.toFixed(2)}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <span className="block text-center text-slate-400 text-xs">-</span>
-                    )}
-                  </td>
-                  {hasAdjustments && (() => {
-                    const adj = adjustedQtyMap[tow.tow_id];
-                    const qty = tow.type === 'task' ? (tow.num_tasks || 0) : (tow.duration_months || 0);
-                    const isReduced = adj && adj.avgFactor < 1.0;
-
-                    const tooltip = adj?.periodDetails?.length > 1
-                      ? adj.periodDetails.map(p =>
-                        `Mese ${p.start}-${p.end}: ${qty} → ${p.effectiveQty} (${Math.round(p.factor * 100)}%)`
-                      ).join('\n')
-                      : adj?.periodDetails?.[0]
-                        ? `${qty} → ${adj.periodDetails[0].effectiveQty} (${Math.round(adj.periodDetails[0].factor * 100)}%)`
-                        : '';
-
-                    return (
-                      <>
-                        <td className="px-4 py-2">
-                          <div
-                            title={tooltip}
-                            className={`px-2 py-1 text-center rounded font-semibold text-xs cursor-help flex items-center justify-center gap-1
-                                      ${isReduced ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
-                          >
-                            {isReduced && <TrendingDown className="w-3 h-3" />}
-                            {adj ? Math.round(adj.adjustedQty) : qty}
-                            {tooltip && <Info className="w-2.5 h-2.5 opacity-50 ml-0.5" />}
-                          </div>
                         </td>
-                        <td className="px-4 py-2 text-center">
-                          {isReduced ? (
-                            <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">
-                              {adj.delta > 0 ? `+${adj.delta}` : adj.delta}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
-                        </td>
-                      </>
+                      </tr>
                     );
                   })()}
-                  <td className="px-4 py-2">
-                    <select
-                      value={towAssignments[tow.tow_id] || ''}
-                      onChange={(e) => handlePracticeAssignment(tow.tow_id, e.target.value)}
-                      disabled={disabled}
-                      className="w-full px-2 py-1 text-xs border border-slate-200 rounded
-                                 focus:border-indigo-300 focus:outline-none
-                                 disabled:bg-slate-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">-- Practice --</option>
-                      {practices.map(p => (
-                        <option key={p.id} value={p.id}>{p.label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-2">
-                    <button
-                      onClick={() => handleRemoveTow(idx)}
-                      disabled={disabled}
-                      className="p-1 text-slate-400 hover:text-red-500 rounded
-                                 opacity-0 group-hover:opacity-100 transition-opacity
-                                 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-                {/* Catalog cluster split sub-row */}
-                {tow.type === 'catalogo' && expandedCatalog.has(idx) && (() => {
-                  const clusters = tow.catalog_clusters || [];
-                  const totalFteInput = parseFloat(tow.total_fte || 0);
-                  const durationYears = durationMonths / 12;
-                  const colCount = hasAdjustments ? 10 : 8;
-
-                  // Compute cluster split: FTE, avg rate, cost per cluster
-                  const clusterRows = clusters.map(cluster => {
-                    const requiredPct = parseFloat(cluster.required_pct) || 0;
-                    const clusterFte = totalFteInput * requiredPct / 100;
-                    const clusterDays = clusterFte * durationYears * daysPerFte;
-                    // Average rate of profiles in cluster (equal weight per profile type)
-                    const profiles = cluster.poste_profiles || [];
-                    let avgRate = defaultDailyRate;
-                    if (profiles.length > 0) {
-                      const rates = profiles.map(p => computeCatalogItemRate([{ poste_profile: p, pct: 100 }]));
-                      avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
-                    }
-                    const clusterCost = clusterDays * avgRate;
-                    return { ...cluster, requiredPct, clusterFte, clusterDays, avgRate, clusterCost };
-                  });
-
-                  const totalClusterCost = clusterRows.reduce((s, c) => s + c.clusterCost, 0);
-
-                  return (
-                    <tr key={`cat-${idx}`} className="bg-rose-50">
-                      <td colSpan={colCount} className="px-6 py-3">
-                        {clusters.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">
-                            Nessun cluster configurato. Apri l'editor e vai alla tab Cluster.
-                          </p>
-                        ) : (
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="text-slate-500 font-semibold border-b border-rose-200">
-                                <th className="text-left pb-1.5">Cluster</th>
-                                <th className="text-right pb-1.5 w-20">% Richiesta</th>
-                                <th className="text-right pb-1.5 w-20">FTE</th>
-                                <th className="text-right pb-1.5 w-20">Gg/uomo</th>
-                                <th className="text-right pb-1.5 w-28">Tariffa media</th>
-                                <th className="text-right pb-1.5 w-28">Costo cluster</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-rose-100">
-                              {clusterRows.map((cr) => (
-                                <tr key={cr.id}>
-                                  <td className="py-1.5">
-                                    <div className="font-medium text-slate-700">{cr.label}</div>
-                                    {(cr.poste_profiles || []).length > 0 && (
-                                      <div className="text-[10px] text-slate-400">{cr.poste_profiles.join(', ')}</div>
-                                    )}
-                                  </td>
-                                  <td className="py-1.5 text-right font-semibold text-rose-700">{cr.requiredPct.toFixed(0)}%</td>
-                                  <td className="py-1.5 text-right tabular-nums text-slate-700">{cr.clusterFte.toFixed(2)}</td>
-                                  <td className="py-1.5 text-right tabular-nums text-slate-600">{Math.round(cr.clusterDays)}</td>
-                                  <td className="py-1.5 text-right text-slate-600">{formatCurrency(cr.avgRate, 0)}/gg</td>
-                                  <td className="py-1.5 text-right font-semibold text-slate-700">{formatCurrency(cr.clusterCost, 0)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot className="border-t border-rose-200">
-                              <tr className="font-semibold text-slate-700">
-                                <td className="pt-1.5">TOTALE</td>
-                                <td className="pt-1.5 text-right">100%</td>
-                                <td className="pt-1.5 text-right tabular-nums">{totalFteInput.toFixed(2)}</td>
-                                <td className="pt-1.5 text-right tabular-nums">{Math.round(totalFteInput * durationYears * 220)}</td>
-                                <td></td>
-                                <td className="pt-1.5 text-right">{formatCurrency(totalClusterCost, 0)}</td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        )}
-                        <button
-                          onClick={() => onOpenCatalogModal?.(idx)}
-                          disabled={disabled}
-                          className="mt-2 text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1"
-                        >
-                          <BookOpen className="w-3 h-3" /> Modifica voci e cluster →
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })()}
-                </>
+                </Fragment>
               ))
             )}
 

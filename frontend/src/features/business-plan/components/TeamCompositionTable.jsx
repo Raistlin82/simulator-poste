@@ -245,39 +245,39 @@ export default function TeamCompositionTable({
       </div>
 
       {/* Tabella */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
+      <div className="overflow-x-auto min-h-[400px]">
+        <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
+          <thead>
             <tr>
-              <th className="px-4 py-3 w-8"></th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600">Profilo</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-28">Seniority</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-24">FTE</th>
+              <th className="px-4 py-2 w-8"></th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Profilo</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Seniority</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">FTE</th>
               {hasAnyAdjustment && (
                 <>
-                  <th className="px-4 py-3 text-center font-semibold text-emerald-700 w-24" title="FTE dopo rettifica volumi e riuso">
+                  <th className="px-4 py-2 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest w-24" title="FTE dopo rettifica volumi e riuso">
                     <div className="flex items-center justify-center gap-1">
                       <TrendingDown className="w-3.5 h-3.5" />
                       FTE Eff.
                     </div>
                   </th>
-                  <th className="px-3 py-3 text-center font-semibold text-slate-500 w-16">Δ</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">Δ</th>
                 </>
               )}
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-28">GG/Anno</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-28">GG Totale</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">GG/Anno</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">GG Totale</th>
               {tows.map(tow => (
-                <th key={tow.tow_id} className="px-3 py-3 text-center font-semibold text-slate-600 w-20">
+                <th key={tow.tow_id} className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">
                   <div className="truncate" title={tow.label}>
                     {tow.tow_id}
                   </div>
                 </th>
               ))}
-              <th className="px-3 py-3 text-center font-semibold text-slate-600 w-20">Tot %</th>
-              <th className="px-4 py-3 w-12"></th>
+              <th className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">Tot %</th>
+              <th className="px-4 py-2 w-12"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="">
             {team.length === 0 && !showAddRow ? (
               <tr>
                 <td colSpan={(hasAnyAdjustment ? 8 : 6) + tows.length + 1} className="px-4 py-8 text-center text-slate-500">
@@ -302,11 +302,11 @@ export default function TeamCompositionTable({
 
                 return (
                   <Fragment key={idx}>
-                    <tr className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50/50' : ''}`}>
-                      <td className="px-2 py-2 text-center text-slate-400">
+                    <tr key={idx} className={`group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 ${isExpanded ? 'ring-2 ring-blue-400/30' : ''}`}>
+                      <td className="px-2 py-3 text-center text-slate-400 rounded-l-xl">
                         <button
                           onClick={() => toggleRow(profileId)}
-                          className="p-1 hover:bg-slate-200 rounded-md transition-colors"
+                          className={`p-1 rounded-md transition-colors ${isExpanded ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100'}`}
                           title={isExpanded ? "Comprimi dettagli" : "Espandi dettagli fasi"}
                         >
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -428,8 +428,8 @@ export default function TeamCompositionTable({
                           return (
                             <div className={`px-2 py-1 text-center rounded-lg text-xs font-bold flex items-center justify-center gap-1
                                           ${isValid
-                                            ? 'bg-green-100 text-green-700 border border-green-300'
-                                            : 'bg-red-100 text-red-700 border border-red-300'}`}
+                                ? 'bg-green-100 text-green-700 border border-green-300'
+                                : 'bg-red-100 text-red-700 border border-red-300'}`}
                               title={isValid ? 'Allocazione corretta' : `Allocazione non valida: ${total.toFixed(1)}% (deve essere 100%)`}
                             >
                               {isValid ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
@@ -442,8 +442,8 @@ export default function TeamCompositionTable({
                         <button
                           onClick={() => handleRemoveProfile(idx)}
                           disabled={disabled}
-                          className="p-1 text-slate-400 hover:text-red-500 rounded
-                                     disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors
+                                       disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

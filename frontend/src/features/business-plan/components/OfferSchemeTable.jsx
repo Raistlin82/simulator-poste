@@ -50,19 +50,19 @@ export default function OfferSchemeTable({
 
       {/* Tabella */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
+        <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
+          <thead className="">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 w-24">TOW ID</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600">Descrizione</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-24">Tipo</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 w-28">Quantità</th>
-              <th className="px-4 py-3 text-right font-semibold text-slate-600 w-32">Prezzo Unitario</th>
-              <th className="px-4 py-3 text-right font-semibold text-slate-600 w-32">Prezzo Totale</th>
-              <th className="px-4 py-3 w-8"></th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">TOW ID</th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrizione</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">Tipo</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Quantità</th>
+              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">Prezzo Unitario</th>
+              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">Prezzo Totale</th>
+              <th className="px-4 py-2 w-8"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="">
             {offerData.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
@@ -84,9 +84,9 @@ export default function OfferSchemeTable({
                       <tr
                         key={`row-${idx}`}
                         onClick={() => isCatalog && toggleRow(row.tow_id)}
-                        className={`hover:bg-slate-50 transition-colors ${isCatalog ? 'cursor-pointer' : ''}`}
+                        className={`group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 ${isCatalog ? 'cursor-pointer' : ''}`}
                       >
-                        <td className="px-4 py-3 font-medium text-slate-700">{row.tow_id}</td>
+                        <td className="px-4 py-3 font-bold text-slate-800 rounded-l-xl">{row.tow_id}</td>
                         <td className="px-4 py-3 text-slate-600">
                           <div className="flex items-center gap-2">
                             {isCatalog && (
@@ -123,11 +123,11 @@ export default function OfferSchemeTable({
                         <td className="px-4 py-3 text-right font-bold text-slate-800">
                           {formatCurrency(row.total_price)}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center rounded-r-xl">
                           {isCatalog && (
-                            isExpanded
-                              ? <ChevronUp className="w-4 h-4 text-rose-500 mx-auto" />
-                              : <ChevronDown className="w-4 h-4 text-slate-400 mx-auto" />
+                            <div className={`p-1 rounded-full transition-colors ${isExpanded ? 'bg-rose-100 text-rose-600' : 'text-slate-400 group-hover:bg-slate-100'}`}>
+                              {isExpanded ? <ChevronUp className="w-4 h-4 mx-auto" /> : <ChevronDown className="w-4 h-4 mx-auto" />}
+                            </div>
                           )}
                         </td>
                       </tr>

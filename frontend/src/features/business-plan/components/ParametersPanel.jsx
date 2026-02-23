@@ -377,42 +377,43 @@ export default function ParametersPanel({
         </div>
       </div>
 
-      <div className="divide-y divide-slate-100">
+      <div className="flex flex-col gap-4 p-4">
         {/* ═══ GOVERNANCE SECTION ═══ */}
         <div className="p-4">
           {/* Governance Header - clickable to expand/collapse */}
           <button
             onClick={() => setGovernanceExpanded(!governanceExpanded)}
-            className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:border-blue-200 transition-all"
+            className="w-full flex items-center justify-between p-4 bg-white/40 backdrop-blur-md rounded-2xl border border-blue-100/50 hover:border-blue-200 transition-all shadow-sm hover:shadow-md"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Shield className="w-4 h-4 text-white" />
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+                <Shield className="w-5 h-5 text-white" />
               </div>
               <div className="text-left">
-                <div className="font-semibold text-blue-900">Governance</div>
-                <div className="text-xs text-blue-600">
+                <div className="font-bold text-blue-900">Governance</div>
+                <div className="text-xs text-blue-600 font-medium">
                   {governanceCalc.description}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {/* Always show the calculated cost */}
               <div className="text-right">
-                <div className="text-lg font-bold text-blue-700">
+                <div className="text-xl font-black text-blue-700">
                   {formatCurrency(governanceCalc.finalCost)}
                 </div>
                 {governanceCalc.reuseApplied && (
-                  <div className="text-[10px] text-emerald-600 font-medium">
+                  <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight">
                     -{current.reuse_factor}% riuso
                   </div>
                 )}
               </div>
-              {governanceExpanded ? (
-                <ChevronUp className="w-5 h-5 text-blue-400" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-blue-400" />
-              )}
+              <div className={`p-1 rounded-full transition-colors ${governanceExpanded ? 'bg-blue-100 text-blue-600' : 'text-blue-400'}`}>
+                {governanceExpanded ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </div>
             </div>
           </button>
 
@@ -802,8 +803,8 @@ export default function ParametersPanel({
                   {governanceCalc.details.totalPct > 0 && (
                     <div
                       className={`text-xs ${Math.abs(governanceCalc.details.totalPct - 100) < 1
-                          ? 'text-green-600'
-                          : 'text-amber-600'
+                        ? 'text-green-600'
+                        : 'text-amber-600'
                         }`}
                     >
                       Distribuzione: {governanceCalc.details.totalPct.toFixed(0)}
@@ -836,14 +837,14 @@ export default function ParametersPanel({
               >
                 <div
                   className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${current.governance_apply_reuse
-                      ? 'bg-emerald-500'
-                      : 'bg-slate-300'
+                    ? 'bg-emerald-500'
+                    : 'bg-slate-300'
                     }`}
                 >
                   <div
                     className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${current.governance_apply_reuse
-                        ? 'translate-x-4'
-                        : 'translate-x-0'
+                      ? 'translate-x-4'
+                      : 'translate-x-0'
                       }`}
                   />
                 </div>

@@ -88,12 +88,14 @@ export default function VolumeAdjustments({
 
   const handleRemovePeriod = (index) => {
     const newPeriods = periods.filter((_, i) => i !== index);
-    onChange?.({ periods: newPeriods.length > 0 ? newPeriods : [{
-      month_start: 1,
-      month_end: durationMonths,
-      by_tow: {},
-      by_profile: {}
-    }]});
+    onChange?.({
+      periods: newPeriods.length > 0 ? newPeriods : [{
+        month_start: 1,
+        month_end: durationMonths,
+        by_tow: {},
+        by_profile: {}
+      }]
+    });
   };
 
   const handleUpdatePeriodField = (index, field, value) => {
@@ -257,38 +259,44 @@ export default function VolumeAdjustments({
       </div>
 
       {/* Periodi */}
-      <div className="divide-y divide-slate-100">
+      <div className="flex flex-col gap-3 p-3">
         {periods.map((period, periodIndex) => {
           const isExpanded = expandedPeriod === periodIndex;
           const monthCount = (period.month_end || durationMonths) - (period.month_start || 1) + 1;
           const hasAdjustments = Object.keys(period.by_tow || {}).length > 0 ||
-                                 Object.keys(period.by_profile || {}).length > 0;
+            Object.keys(period.by_profile || {}).length > 0;
 
           return (
             <div key={periodIndex}>
               {/* Header Periodo */}
               <button
                 onClick={() => setExpandedPeriod(isExpanded ? null : periodIndex)}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+                className={`w-full flex items-center justify-between p-4 transition-all text-left rounded-xl border ${isExpanded ? 'bg-white/60 shadow-md border-amber-200/50' : 'bg-white/30 border-transparent hover:bg-white/50'}`}
               >
                 <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-amber-600" />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${isExpanded ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-600'}`}>
+                    <Calendar className="w-6 h-6" />
+                  </div>
                   <div className="text-left">
-                    <div className="font-medium text-slate-700">
+                    <div className="font-bold text-slate-800 tracking-tight">
                       Mesi {period.month_start || 1} - {period.month_end || durationMonths}
                     </div>
-                    <div className="text-xs text-slate-500">
-                      {monthCount} mesi · {hasAdjustments ? 'Con rettifiche' : 'Nessuna rettifica'}
+                    <div className="text-sm text-slate-500 flex items-center gap-2">
+                      <span className="font-medium">{monthCount} mesi</span>
+                      <span className="text-slate-300">·</span>
+                      <span>{hasAdjustments ? 'Con rettifiche' : 'Nessuna rettifica'}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {hasAdjustments && (
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
+                    <span className="px-2 py-1 bg-green-100/50 text-green-700 text-[10px] font-black uppercase rounded-lg border border-green-200/50 shadow-sm">
                       Ottimizzato
                     </span>
                   )}
-                  {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                  <div className={`p-1 rounded-full ${isExpanded ? 'bg-amber-100 text-amber-600' : 'text-slate-400'}`}>
+                    {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </div>
                 </div>
               </button>
 
@@ -446,11 +454,10 @@ export default function VolumeAdjustments({
                                           <Clock className="w-3 h-3 text-purple-500" />
                                         )}
                                         <span>{tow.tow_id} - {tow.label}</span>
-                                        <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                          tow.type === 'task' ? 'bg-blue-100 text-blue-700' :
-                                          tow.type === 'canone' ? 'bg-green-100 text-green-700' :
-                                          'bg-purple-100 text-purple-700'
-                                        }`}>
+                                        <span className={`text-xs px-1.5 py-0.5 rounded ${tow.type === 'task' ? 'bg-blue-100 text-blue-700' :
+                                            tow.type === 'canone' ? 'bg-green-100 text-green-700' :
+                                              'bg-purple-100 text-purple-700'
+                                          }`}>
                                           {tow.type === 'task' ? 'A Task' : tow.type === 'canone' ? 'Canone' : 'A Corpo'}
                                         </span>
                                       </span>

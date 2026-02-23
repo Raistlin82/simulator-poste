@@ -138,8 +138,6 @@ export default function PracticeCatalogManager({
     });
   };
 
-
-
   return (
     <div className="glass-card rounded-2xl">
       {/* Header */}
@@ -199,7 +197,7 @@ export default function PracticeCatalogManager({
       )}
 
       {/* Lista Practice */}
-      <div className="divide-y divide-slate-100">
+      <div className="flex flex-col gap-3 p-3">
         {practices.length === 0 ? (
           <div className="p-8 text-center text-slate-500">
             <Building2 className="w-10 h-10 mx-auto mb-3 text-slate-300" />
@@ -216,18 +214,20 @@ export default function PracticeCatalogManager({
             return (
               <div key={practice.id}>
                 {/* Riga Practice */}
-                <div className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                <div className={`flex items-center justify-between p-4 transition-all text-left rounded-2xl border ${isExpanded ? 'bg-white/60 shadow-md border-purple-200/50' : 'bg-white/30 border-transparent hover:bg-white/50'}`}>
                   <button
                     onClick={() => setExpandedPractice(isExpanded ? null : practice.id)}
                     className="flex items-center gap-4 flex-1 text-left"
                   >
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-white" />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${isExpanded ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
+                      <Building2 className="w-6 h-6" />
                     </div>
                     <div>
-                      <div className="font-medium text-slate-800">{practice.label}</div>
-                      <div className="text-sm text-slate-500">
-                        {profiles.length} profili · ID: {practice.id}
+                      <div className="font-bold text-slate-800 tracking-tight">{practice.label}</div>
+                      <div className="text-sm text-slate-500 flex items-center gap-2">
+                        <span className="font-medium">{profiles.length} profili</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-[10px] uppercase font-bold tracking-tighter text-slate-400">ID: {practice.id}</span>
                       </div>
                     </div>
                   </button>
@@ -238,7 +238,7 @@ export default function PracticeCatalogManager({
                         <button
                           onClick={() => handleStartEdit(practice)}
                           disabled={disabled}
-                          className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg
+                          className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors
                                      disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -246,7 +246,7 @@ export default function PracticeCatalogManager({
                         <button
                           onClick={() => onDeletePractice?.(practice.id)}
                           disabled={disabled}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors
                                      disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -256,13 +256,13 @@ export default function PracticeCatalogManager({
                       <>
                         <button
                           onClick={handleSaveEdit}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                         >
                           <Save className="w-4 h-4" />
                         </button>
                         <button
                           onClick={handleCancelEdit}
-                          className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"
+                          className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -270,7 +270,7 @@ export default function PracticeCatalogManager({
                     )}
                     <button
                       onClick={() => setExpandedPractice(isExpanded ? null : practice.id)}
-                      className="p-2 text-slate-400"
+                      className={`p-2 transition-colors rounded-full ${isExpanded ? 'bg-purple-100 text-purple-600' : 'text-slate-400'}`}
                     >
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
@@ -279,13 +279,13 @@ export default function PracticeCatalogManager({
 
                 {/* Pannello profili espanso */}
                 {isExpanded && (
-                  <div className="px-4 pb-4 bg-slate-50">
-                    <div className="p-4 bg-white rounded-xl border border-slate-200">
+                  <div className="px-0 pb-4 bg-white/30 backdrop-blur-sm border-t border-purple-200/30 rounded-b-xl overflow-hidden">
+                    <div className="p-4">
                       {/* Intestazione tabella */}
                       <div className="grid grid-cols-12 gap-3 mb-3 pb-2 border-b border-slate-100">
-                        <div className="col-span-1 text-xs font-semibold text-slate-500 uppercase">ID</div>
-                        <div className="col-span-6 text-xs font-semibold text-slate-500 uppercase">Profilo</div>
-                        <div className="col-span-4 text-xs font-semibold text-slate-500 uppercase">Tariffa/GG</div>
+                        <div className="col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">ID</div>
+                        <div className="col-span-6 text-[10px] font-black text-slate-400 uppercase tracking-wider">Profilo</div>
+                        <div className="col-span-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Tariffa/GG</div>
                         <div className="col-span-1"></div>
                       </div>
 
@@ -298,10 +298,10 @@ export default function PracticeCatalogManager({
                       ) : (
                         <div className="space-y-2">
                           {profiles.map((profile, idx) => (
-                            <div key={profile.id || idx} className="grid grid-cols-12 gap-3 items-center">
+                            <div key={profile.id || idx} className="grid grid-cols-12 gap-3 items-center p-2 rounded-lg hover:bg-white/40 transition-colors">
                               {/* ID */}
                               <div className="col-span-1">
-                                <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1.5 rounded block text-center">
+                                <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100/50 px-2 py-1 rounded block text-center border border-slate-200/50">
                                   {profile.id}
                                 </span>
                               </div>
@@ -314,11 +314,11 @@ export default function PracticeCatalogManager({
                                     value={profile.label}
                                     onChange={(e) => handleUpdateProfile(idx, 'label', e.target.value)}
                                     placeholder="Nome profilo..."
-                                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded
-                                               focus:border-purple-500 focus:outline-none"
+                                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg
+                                               focus:border-purple-500 focus:outline-none bg-white/80"
                                   />
                                 ) : (
-                                  <span className="text-sm font-medium text-slate-700">{profile.label}</span>
+                                  <span className="text-sm font-semibold text-slate-700">{profile.label}</span>
                                 )}
                               </div>
 
@@ -333,12 +333,12 @@ export default function PracticeCatalogManager({
                                       onChange={(e) => handleUpdateProfile(idx, 'daily_rate', e.target.value)}
                                       step="10"
                                       min="0"
-                                      className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded
-                                                 focus:border-purple-500 focus:outline-none"
+                                      className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg
+                                                 focus:border-purple-500 focus:outline-none bg-white/80"
                                     />
                                   </div>
                                 ) : (
-                                  <span className="text-sm font-semibold text-slate-700">
+                                  <span className="text-sm font-bold text-slate-800 bg-purple-50/50 px-2 py-1 rounded-md border border-purple-100/50">
                                     {formatCurrency(profile.daily_rate || 0)}/gg
                                   </span>
                                 )}
@@ -349,7 +349,7 @@ export default function PracticeCatalogManager({
                                 {isEditing && (
                                   <button
                                     onClick={() => handleRemoveProfile(idx)}
-                                    className="p-1 text-slate-400 hover:text-red-500 rounded"
+                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
@@ -364,8 +364,8 @@ export default function PracticeCatalogManager({
                       {isEditing && (
                         <button
                           onClick={handleAddProfile}
-                          className="mt-3 w-full flex items-center justify-center gap-2 py-2 text-sm font-medium
-                                     text-purple-600 hover:bg-purple-50 rounded-lg border border-dashed border-purple-300"
+                          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold
+                                     text-purple-600 hover:bg-white shadow-sm hover:shadow transition-all rounded-xl border border-dashed border-purple-300"
                         >
                           <Plus className="w-4 h-4" />
                           Aggiungi Profilo

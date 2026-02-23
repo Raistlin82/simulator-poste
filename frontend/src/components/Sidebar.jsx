@@ -73,7 +73,7 @@ export default function Sidebar({
                 defaultQuotas[company] = perPartner;
             });
             setLocalQuotas(defaultQuotas);
-            
+
             // Auto-save default quotas to backend so they're available for export
             // Only save once per lot to avoid loops
             if (currentLotData && selectedLot && !savedDefaultQuotasRef.current.has(selectedLot)) {
@@ -93,7 +93,7 @@ export default function Sidebar({
     // Debounced save of quotas to backend
     const saveQuotas = useCallback(async (quotas) => {
         if (!lotData || !selectedLot) return;
-        
+
         const total = Object.values(quotas).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
         if (Math.abs(total - 100) > 0.01) {
             setQuotaError(t('simulation.rti_total_must_100'));
@@ -115,7 +115,7 @@ export default function Sidebar({
         const numValue = parseFloat(value) || 0;
         const newQuotas = { ...localQuotas, [company]: numValue };
         setLocalQuotas(newQuotas);
-        
+
         // Debounce the save using ref instead of global
         if (quotaSaveTimeoutRef.current) {
             clearTimeout(quotaSaveTimeoutRef.current);
@@ -181,10 +181,10 @@ export default function Sidebar({
                         .filter(k => config[k]?.is_active !== false)
                         .sort((a, b) => a.localeCompare(b, 'it'))
                         .map(k => (
-                        <option key={k} value={k}>
-                            {k}
-                        </option>
-                    ))}
+                            <option key={k} value={k}>
+                                {k}
+                            </option>
+                        ))}
                 </select>
                 {config && selectedLot && config[selectedLot] && (
                     <div className="flex items-center gap-2 mt-1">
@@ -213,7 +213,7 @@ export default function Sidebar({
                     <div className="rounded-xl border border-slate-200 overflow-hidden">
                         {/* Best Offer row */}
                         <div className="relative">
-                            <div 
+                            <div
                                 className="absolute inset-y-0 left-0 bg-orange-50 transition-all duration-300"
                                 style={{ width: `${Math.min(competitorDiscount, 100)}%` }}
                             />
@@ -240,7 +240,7 @@ export default function Sidebar({
 
                         {/* My Discount row */}
                         <div className="relative">
-                            <div 
+                            <div
                                 className={`absolute inset-y-0 left-0 ${isBest ? 'bg-green-50' : 'bg-blue-50'} transition-all duration-300`}
                                 style={{ width: `${Math.min(myDiscount, 100)}%` }}
                             />
@@ -284,7 +284,7 @@ export default function Sidebar({
                                     <span className="font-mono text-sm font-semibold text-white">{formatCurrency(p_my)}</span>
                                 </div>
                             </div>
-                            
+
                             {quotaError && (
                                 <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border-b border-red-200 text-red-700 text-xs">
                                     <AlertCircle className="w-3 h-3 flex-shrink-0" />
@@ -293,26 +293,26 @@ export default function Sidebar({
                             )}
 
                             {/* Company rows */}
-                            <div className="bg-white divide-y divide-slate-100">
+                            <div className="flex flex-col gap-2 p-2 bg-slate-50/50">
                                 {allRtiCompanies.map((company) => {
                                     const quota = parseFloat(localQuotas[company]) || 0;
                                     const amount = p_my * (quota / 100);
                                     const isLutech = company === 'Lutech';
                                     const barColor = isLutech ? 'bg-blue-500' : 'bg-indigo-400';
                                     const textColor = isLutech ? 'text-blue-700' : 'text-slate-700';
-                                    
+
                                     return (
-                                        <div key={company} className="relative">
+                                        <div key={company} className="relative group bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-all overflow-hidden">
                                             {/* Background progress bar */}
-                                            <div 
-                                                className={`absolute inset-y-0 left-0 ${isLutech ? 'bg-blue-50' : 'bg-indigo-50'} transition-all duration-300`}
+                                            <div
+                                                className={`absolute inset-y-0 left-0 ${isLutech ? 'bg-blue-50/80' : 'bg-indigo-50/80'} transition-all duration-300`}
                                                 style={{ width: `${Math.min(quota, 100)}%` }}
                                             />
-                                            
-                                            <div className="relative px-4 py-2.5 flex items-center gap-3">
+
+                                            <div className="relative px-3 py-2 flex items-center gap-3">
                                                 {/* Company indicator */}
                                                 <div className={`w-1 h-7 rounded-full ${barColor}`} />
-                                                
+
                                                 {/* Company name */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className={`text-sm font-semibold ${textColor} truncate`}>
@@ -322,9 +322,9 @@ export default function Sidebar({
                                                         {formatCurrency(amount)}
                                                     </div>
                                                 </div>
-                                                
+
                                                 {/* Quota input */}
-                                                <div className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                                                <div className="flex items-center bg-white/80 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-indigo-300 transition-all">
                                                     <input
                                                         type="number"
                                                         step="0.1"
@@ -332,7 +332,7 @@ export default function Sidebar({
                                                         max="100"
                                                         value={quota.toFixed(1)}
                                                         onChange={(e) => handleQuotaChange(company, e.target.value)}
-                                                        className="w-16 text-sm font-mono text-right px-2 py-1.5 focus:outline-none focus:bg-indigo-50"
+                                                        className="w-16 text-sm font-mono text-right px-2 py-1.5 focus:outline-none focus:bg-white"
                                                     />
                                                     <span className="text-xs text-slate-400 pr-2 bg-slate-50 py-1.5 pl-0.5">%</span>
                                                 </div>
@@ -390,11 +390,10 @@ export default function Sidebar({
                         if (onNavigate) onNavigate('businessPlan');
                         if (window.innerWidth < 768 && onClose) onClose();
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm ${
-                        currentView === 'businessPlan'
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm ${currentView === 'businessPlan'
                             ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm'
                             : 'text-slate-600 hover:bg-slate-100'
-                    }`}
+                        }`}
                 >
                     <Briefcase className="w-4 h-4" />
                     <span>{t('business_plan.title')}</span>
@@ -404,11 +403,10 @@ export default function Sidebar({
                         if (onNavigate) onNavigate('certs');
                         if (window.innerWidth < 768 && onClose) onClose();
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm ${
-                        currentView === 'certs'
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm ${currentView === 'certs'
                             ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm'
                             : 'text-slate-600 hover:bg-slate-100'
-                    }`}
+                        }`}
                 >
                     <FileSearch className="w-4 h-4" />
                     <span>Verifica Certificazioni</span>

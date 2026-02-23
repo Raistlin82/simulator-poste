@@ -124,14 +124,14 @@ export default function TechEvaluator() {
             <div className="glass-card rounded-xl overflow-hidden">
                 <button
                     onClick={() => toggleSection('companyCerts')}
-                    className="w-full px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition-colors"
+                    className="w-full px-6 py-4 border-b border-slate-100/50 flex justify-between items-center bg-white/40 hover:bg-white/60 transition-colors"
                 >
                     <div className="flex items-center gap-3">
                         <div>
                             <h3 className="font-semibold text-slate-800">{t('dashboard.company_certs')}</h3>
                             <div className="flex gap-3 mt-1">
-                                <span className="text-[10px] font-bold text-slate-500">Raw: <span className="text-slate-700">{formatNumber(rawCompanyCerts, 2)} / {formatNumber(maxCompanyCerts, 2)}</span></span>
-                                <span className="text-[10px] font-bold text-amber-600">Pesato: <span className="text-amber-700">{formatNumber(results?.category_company_certs || 0, 2)}</span></span>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Raw: <span className="text-slate-700">{formatNumber(rawCompanyCerts, 2)} / {formatNumber(maxCompanyCerts, 2)}</span></span>
+                                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">Pesato: <span className="text-amber-700">{formatNumber(results?.category_company_certs || 0, 2)}</span></span>
                             </div>
                         </div>
                     </div>
@@ -146,8 +146,8 @@ export default function TechEvaluator() {
                                 const borderColor = status === "all" ? "border-green-300 bg-green-50" : status === "partial" ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white";
 
                                 return (
-                                    <div key={cert.label} className={`flex items-center justify-between gap-4 p-3 rounded-lg border ${borderColor} transition-all`}>
-                                        <span className="text-sm font-medium text-slate-800 flex-1">{cert.label}</span>
+                                    <div key={cert.label} className={`flex items-center justify-between gap-4 p-4 rounded-xl border border-white/50 bg-white/60 shadow-sm transition-all hover:bg-white/80 hover:shadow-md ${borderColor}`}>
+                                        <span className="text-sm font-semibold text-slate-800 flex-1">{cert.label}</span>
                                         <select
                                             value={status}
                                             onChange={(e) => setCertStatus(cert.label, e.target.value)}
@@ -175,14 +175,14 @@ export default function TechEvaluator() {
             <div className="glass-card rounded-xl overflow-hidden">
                 <button
                     onClick={() => toggleSection('profCerts')}
-                    className="w-full px-6 py-4 border-b border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center"
+                    className="w-full px-6 py-4 border-b border-slate-100/50 bg-white/40 hover:bg-white/60 transition-colors flex justify-between items-center"
                 >
                     <div className="flex items-center gap-3">
                         <div>
                             <h3 className="font-semibold text-slate-800">{t('tech.prof_certs')}</h3>
                             <div className="flex gap-3 mt-1">
-                                <span className="text-[10px] font-bold text-slate-500">Raw: <span className="text-slate-700">{formatNumber(rawProfCerts, 2)} / {formatNumber(maxProfCerts, 2)}</span></span>
-                                <span className="text-[10px] font-bold text-amber-600">Pesato: <span className="text-amber-700">{formatNumber(results?.category_resource || 0, 2)}</span></span>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Raw: <span className="text-slate-700">{formatNumber(rawProfCerts, 2)} / {formatNumber(maxProfCerts, 2)}</span></span>
+                                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">Pesato: <span className="text-amber-700">{formatNumber(results?.category_resource || 0, 2)}</span></span>
                             </div>
                         </div>
                     </div>
@@ -205,7 +205,7 @@ export default function TechEvaluator() {
                                 const maxC = typeof req.prof_C === 'number' ? req.prof_C : (typeof req.max_certs === 'number' ? req.max_certs : 1);
 
                                 return (
-                                    <div key={req.id} className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                    <div key={req.id} className="p-5 bg-white/40 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all">
 
                                         <div className="flex justify-between items-start mb-4">
                                             <div>
@@ -267,15 +267,15 @@ export default function TechEvaluator() {
                                                 <div className="text-[10px] text-slate-500 mt-1">{t('tech.max_configured')}: {maxR}</div>
                                             </div>
 
-                                            <div className="bg-white p-4 rounded-lg border border-slate-200">
-                                                <div className="flex justify-between items-center mb-4">
+                                            <div className="bg-white/60 backdrop-blur-md p-5 rounded-xl border border-white/40 shadow-sm">
+                                                <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200/40">
                                                     <span className="text-xs font-bold text-slate-700 uppercase tracking-tight">{t('common.certificates')} (C)</span>
-                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${cur.c_val > cur.r_val ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${cur.c_val > cur.r_val ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100/50 text-indigo-700 border border-indigo-200/50 shadow-sm'}`}>
                                                         {t('tech.total_c')}: {cur.c_val || 0}
                                                     </span>
                                                 </div>
 
-                                                <div className="space-y-3">
+                                                <div className="space-y-4">
                                                     {req.selected_prof_certs && req.selected_prof_certs.length > 0 ? (
                                                         req.selected_prof_certs.map(cert => {
                                                             const count = (cur.cert_counts?.[cert]) || 0;
@@ -491,21 +491,21 @@ export default function TechEvaluator() {
             <div className="glass-card rounded-xl overflow-hidden">
                 <button
                     onClick={() => toggleSection('projectRefs')}
-                    className="w-full px-6 py-4 border-b border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center"
+                    className="w-full px-6 py-4 border-b border-slate-100/50 bg-white/40 hover:bg-white/60 transition-colors flex justify-between items-center"
                 >
                     <div className="flex items-center gap-3">
                         <div>
                             <h3 className="font-semibold text-slate-800 text-left">{t('tech.project_refs')}</h3>
                             <div className="flex gap-3 mt-1">
-                                <span className="text-[10px] font-bold text-slate-500">Raw: <span className="text-slate-700">{formatNumber(rawProjectRefs, 2)} / {formatNumber(maxProjectRefs, 2)}</span></span>
-                                <span className="text-[10px] font-bold text-amber-600">Pesato: <span className="text-amber-700">{formatNumber(results?.category_reference !== undefined && results?.category_project !== undefined ? (results.category_reference + results.category_project) : weightedProjectRefs, 2)}</span></span>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Raw: <span className="text-slate-700">{formatNumber(rawProjectRefs, 2)} / {formatNumber(maxProjectRefs, 2)}</span></span>
+                                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">Pesato: <span className="text-amber-700">{formatNumber(results?.category_reference !== undefined && results?.category_project !== undefined ? (results.category_reference + results.category_project) : weightedProjectRefs, 2)}</span></span>
                             </div>
                         </div>
                     </div>
                     {expandedSections.projectRefs ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
                 </button>
                 {expandedSections.projectRefs && (
-                    <div className="divide-y divide-slate-100">
+                    <div className="flex flex-col gap-4 p-4">
                         {lotData.reqs.filter(r => ['reference', 'project'].includes(r.type)).map(req => {
                             const cur = inputs[req.id] || { qual_val: 'Adeguato', bonus_active: false };
                             const pts = results?.details[req.id] || 0;
@@ -568,7 +568,7 @@ export default function TechEvaluator() {
                             };
 
                             return (
-                                <div key={req.id} className="p-6 hover:bg-slate-50 transition-colors">
+                                <div key={req.id} className="bg-white/40 backdrop-blur-sm p-6 rounded-2xl border border-white/50 shadow-sm hover:shadow-md transition-all hover:bg-white/60">
                                     <div className="flex justify-between mb-4">
                                         <div>
                                             <h4 className="font-medium text-slate-900 flex items-center gap-2">

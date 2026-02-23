@@ -488,7 +488,7 @@ export default function ProfileMappingEditor({
       </div>
 
       {/* Profili Poste */}
-      <div className="divide-y divide-slate-100">
+      <div className="flex flex-col gap-3 p-3">
         {teamComposition.map((posteProfile) => {
           const profileId = posteProfile.profile_id || posteProfile.label;
           const isExpanded = expandedProfile === profileId;
@@ -500,21 +500,25 @@ export default function ProfileMappingEditor({
               {/* Riga profilo Poste */}
               <button
                 onClick={() => setExpandedProfile(isExpanded ? null : profileId)}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors text-left"
+                className={`w-full flex items-center justify-between p-4 transition-all text-left rounded-xl border ${isExpanded ? 'bg-white/60 shadow-md border-blue-200/50' : 'bg-white/30 border-transparent hover:bg-white/50'}`}
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><Users className="w-5 h-5 text-blue-600" /></div>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${isExpanded ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'}`}>
+                    <Users className="w-6 h-6" />
+                  </div>
                   <div>
-                    <div className="font-medium text-slate-800">{posteProfile.label}</div>
+                    <div className="font-bold text-slate-800 tracking-tight">{posteProfile.label}</div>
                     <div className="text-sm text-slate-500 flex items-center gap-2">
-                      <span>{posteProfile.fte} FTE · {Math.round(posteProfile.fte * daysPerFte)} GG/anno</span>
+                      <span className="font-medium">{posteProfile.fte} FTE</span>
+                      <span className="text-slate-300">·</span>
+                      <span>{Math.round(posteProfile.fte * daysPerFte)} GG/anno</span>
                       {(() => {
                         const adj = profileAdjustments[profileId];
                         if (adj && adj.delta < 0) {
                           return (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded border border-emerald-200">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100/50 text-emerald-700 text-[10px] font-black uppercase rounded border border-emerald-200/50 shadow-sm">
                               <TrendingDown className="w-3 h-3" />
-                              → {adj.adjustedFte.toFixed(1)} FTE eff.
+                              → {adj.adjustedFte.toFixed(1)} EFF.
                             </span>
                           );
                         }
@@ -525,34 +529,36 @@ export default function ProfileMappingEditor({
                 </div>
                 <div className="flex items-center gap-3">
                   {overallStatus.status === 'unmapped' ? (
-                    <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-lg">Da mappare</span>
+                    <span className="px-3 py-1 bg-amber-100/50 text-amber-700 text-[10px] font-black uppercase rounded-lg border border-amber-200/50 shadow-sm">Da mappare</span>
                   ) : overallStatus.status === 'complete' ? (
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 mr-2 bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-100">
+                      <div className="flex items-center gap-1 mr-2 bg-green-50/50 text-green-700 px-2 py-0.5 rounded-lg border border-green-200/50 shadow-sm">
                         <ArrowRightLeft className="w-3 h-3" />
-                        <span className="text-xs font-bold">{periodMappings.length} periodi</span>
+                        <span className="text-[10px] font-black uppercase">{periodMappings.length} periodi</span>
                       </div>
-                      <span className="text-xs text-green-600 font-medium">
+                      <span className="text-[10px] text-green-600 font-black uppercase">
                         {overallStatus.coveredMonths}/{overallStatus.totalMonths} mesi
                       </span>
-                      <span className="text-sm font-semibold text-slate-700">
+                      <span className="text-sm font-black text-slate-700 bg-slate-100/50 px-2 py-1 rounded-lg border border-slate-200/50">
                         {overallStatus.rates.length > 1 ? `${formatCurrency(Math.min(...overallStatus.rates))}-${formatCurrency(Math.max(...overallStatus.rates))}` : formatCurrency(overallStatus.rates[0])}/gg
                       </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-amber-600">
+                      <span className="text-[10px] text-amber-600 font-bold uppercase">
                         {overallStatus.coveredMonths}/{overallStatus.totalMonths} mesi · Incompleto
                       </span>
                     </div>
                   )}
-                  {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                  <div className={`p-1 rounded-full ${isExpanded ? 'bg-blue-100 text-blue-600' : 'text-slate-400'}`}>
+                    {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </div>
                 </div>
               </button>
 
               {/* Pannello espanso */}
               {isExpanded && (
-                <div className="px-0 pb-4 bg-slate-50/70 border-y border-slate-100">
+                <div className="px-0 pb-4 bg-white/30 backdrop-blur-sm border-t border-blue-200/30 rounded-b-xl overflow-hidden">
                   {/* Header con Azioni */}
                   <div className="flex items-center justify-between p-4 bg-slate-50 border-b border-slate-200">
                     <div className="flex items-center gap-2">
