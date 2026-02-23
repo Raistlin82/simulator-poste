@@ -577,6 +577,7 @@ export default function CatalogEditorModal({
   onChange,
   profileMappings = {},
   profileRates = {},
+  teamComposition = [],
   durationMonths = 36,
   daysPerFte = 220,
   defaultDailyRate = 250,
@@ -602,7 +603,15 @@ export default function CatalogEditorModal({
   const scontoGaraFactor = 1 - scontoGaraPct / 100;
   const effectiveTotalCatalog = totalCatalogValue * scontoGaraFactor;
 
-  const posteProfiles = useMemo(() => Object.keys(profileMappings), [profileMappings]);
+  // Usa teamComposition come fonte autoritativa dei profili Poste.
+  // Object.keys(profileMappings) include solo profili con mapping già configurato,
+  // escludendo profili nuovi e includendo profili eliminati dal team.
+  const posteProfiles = useMemo(() => {
+    const fromTeam = teamComposition.map(m => m.profile_id).filter(Boolean);
+    if (fromTeam.length > 0) return fromTeam;
+    // fallback: se teamComposition è vuota usa i mapping (backward compat)
+    return Object.keys(profileMappings);
+  }, [teamComposition, profileMappings]);
 
   // Map item.id → { group, colorIdx }
   const itemToGroup = useMemo(() => {

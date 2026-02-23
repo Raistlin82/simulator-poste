@@ -2017,6 +2017,7 @@ export default function BusinessPlanPage() {
         }}
         profileMappings={localBP.profile_mappings || {}}
         profileRates={buildLutechRates()}
+        teamComposition={localBP.team_composition || []}
         durationMonths={localBP.duration_months || 36}
         defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
         daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
