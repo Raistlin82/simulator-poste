@@ -104,11 +104,11 @@ export default function BusinessPlanPage() {
     return labels;
   }, [practices]);
 
-  // Sync discount with sidebar myDiscount only when lot changes (not on every myDiscount tweak)
+  // Sync discount with sidebar myDiscount whenever the selected lot or the
+  // sidebar discount changes so the Margin box stays aligned with the sidebar.
   useEffect(() => {
     setDiscount(myDiscount ?? 0);
-    // Intentionally ignore myDiscount changes - only sync when lot changes
-  }, [selectedLot]);
+  }, [selectedLot, myDiscount]);
 
   // Initialize local state from fetched BP
   useEffect(() => {
@@ -1663,7 +1663,18 @@ export default function BusinessPlanPage() {
                 onAssignmentChange={handleTowAssignmentChange}
                 onOpenCatalogModal={(towIndex) => {
                   const tow = (localBP.tows || [])[towIndex];
-                  if (tow) setCatalogModalTow({ tow, index: towIndex });
+                  if (tow) {
+                    // Ensure Sconto Gara/Lotto is initially aligned with the
+                    // global discount (sidebar) when not explicitly set.
+                    const sconto = tow.sconto_gara_pct;
+                    if (sconto === undefined || sconto === null || Number(sconto) === 0) {
+                      const normalized = parseFloat(discount) || 0;
+                      const towCopy = { ...tow, sconto_gara_pct: normalized };
+                      setCatalogModalTow({ tow: towCopy, index: towIndex });
+                    } else {
+                      setCatalogModalTow({ tow, index: towIndex });
+                    }
+                  }
                 }}
                 volumeAdjustments={localBP.volume_adjustments || {}}
                 durationMonths={localBP.duration_months}
