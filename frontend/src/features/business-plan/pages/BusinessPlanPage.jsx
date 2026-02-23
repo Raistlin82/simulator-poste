@@ -702,6 +702,7 @@ export default function BusinessPlanPage() {
       const totalCatalogValue = parseFloat(tow.total_catalog_value ?? 0);
       const defaultTargetMarginPct = parseFloat(tow.target_margin_pct ?? 20);
       const groups = tow.catalog_groups || [];
+      const defaultCatalogReuseFactor = parseFloat(tow.catalog_reuse_factor ?? 0);
 
       // Build group lookup: item.id → group
       const itemGroupMap = {};
@@ -718,8 +719,15 @@ export default function BusinessPlanPage() {
         const group_fte = (totalCatalogValue > 0 && group_target > 0)
           ? (group_target / totalCatalogValue) * refTotalFte
           : 0;
+        const group_reuse_raw = group?.reuse_factor;
+        const group_reuse_factor = (group_reuse_raw !== null && group_reuse_raw !== undefined)
+          ? parseFloat(group_reuse_raw)
+          : defaultCatalogReuseFactor;
+        
+        const effective_group_fte = group_fte * (1.0 - group_reuse_factor);
+
         const item_pct = parseFloat(item.group_pct) || 0;
-        const item_fte = group_fte * item_pct / 100;
+        const item_fte = effective_group_fte * item_pct / 100;
 
         const rate = computeRate(item.profile_mix);
 

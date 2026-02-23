@@ -630,6 +630,7 @@ class BusinessPlanService:
                 catalog_items = tow.get("catalog_items", []) or []
                 catalog_clusters = tow.get("catalog_clusters", []) or []
                 catalog_groups = tow.get("catalog_groups", []) or []
+                default_catalog_reuse_factor = float(tow.get("catalog_reuse_factor", 0.0) or 0.0)
             else:
                 tow_id = getattr(tow, "tow_id", "")
                 tow_label = getattr(tow, "label", tow_id)
@@ -640,6 +641,7 @@ class BusinessPlanService:
                 catalog_items = getattr(tow, "catalog_items", []) or []
                 catalog_clusters = getattr(tow, "catalog_clusters", []) or []
                 catalog_groups = getattr(tow, "catalog_groups", []) or []
+                default_catalog_reuse_factor = float(getattr(tow, "catalog_reuse_factor", 0.0) or 0.0)
 
             # Fattore sconto gara/lotto (proporzionale su valori Poste, non tocca costi Lutech)
             sconto_gara_factor = 1.0 - sconto_gara_pct / 100.0
@@ -684,7 +686,15 @@ class BusinessPlanService:
                     if total_catalog_value > 0 and group_target > 0
                     else 0.0
                 )
-                item_fte = group_fte * item_pct / 100.0
+
+                # NEW: Apply reuse factor (group-level override or TOW-level default)
+                group_reuse_raw = group.get("reuse_factor") if group is not None else None
+                # Convert from % to decimal if needed (assuming frontend sends 0-100)
+                # For now, assuming 0-1 decimal format from frontend.
+                group_reuse_factor = float(group_reuse_raw if group_reuse_raw is not None else default_catalog_reuse_factor)
+                effective_group_fte = group_fte * (1.0 - group_reuse_factor)
+
+                item_fte = effective_group_fte * item_pct / 100.0
 
                 # Tariffa Lutech media dal mix figure
                 lutech_rate = BusinessPlanService._compute_catalog_item_rate(

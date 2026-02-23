@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, Fragment } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CheckCircle2, BookOpen, Wand2, Save, Upload } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CheckCircle2, BookOpen, Wand2, Save, Upload, FileDown } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 import { bpSaveTrigger } from '../../../utils/bpSaveTrigger';
 
@@ -243,7 +243,7 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
  * Per ogni raggruppamento: valore target Poste → FTE previsti proporzionali al totale catalogo.
  * Per ogni voce nel raggruppamento: % sul raggruppamento (INPUT, Σ = 100%) → FTE e Pz. Poste proporzionali.
  */
-function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals = {}, scontoGaraFactor = 1, onGroupsChange, onToggleGroupItem, onItemPctChange, onEvenDistribute }) {
+function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalogReuseFactor = 0, groupTotals = {}, scontoGaraFactor = 1, onGroupsChange, onToggleGroupItem, onItemPctChange, onEvenDistribute }) {
   const scontoGaraActive = scontoGaraFactor < 0.9999;
 
   // Collapsed state — tutti collassati per default
@@ -312,6 +312,14 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
         const groupFte = (totalCatalogValue > 0 && groupTarget > 0)
           ? (groupTarget / totalCatalogValue) * totalFte
           : 0;
+        
+        const group_reuse_raw = group.reuse_factor;
+        const group_reuse_factor = (group_reuse_raw !== null && group_reuse_raw !== undefined)
+            ? parseFloat(group_reuse_raw)
+            : defaultCatalogReuseFactor;
+        const effective_group_fte = groupFte * (1.0 - group_reuse_factor);
+        const reuseApplied = effective_group_fte < groupFte;
+
         const groupItems = items.filter(it => (group.item_ids || []).includes(it.id));
         const sumPct = groupItems.reduce((s, it) => s + (parseFloat(it.group_pct) || 0), 0);
         const isValid = groupItems.length === 0 || Math.abs(sumPct - 100) < 0.5;
@@ -335,7 +343,17 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
               {isCollapsedGrp && (
                 <div className="flex items-center gap-3 text-xs ml-2">
                   {totalCatalogValue > 0 && groupFte > 0 && (
-                    <span className="text-indigo-600 font-semibold tabular-nums">{groupFte.toFixed(2)} FTE</span>
+                    <div className="inline-flex items-center gap-1 text-indigo-600 font-semibold tabular-nums">
+                      {reuseApplied ? (
+                        <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}>
+                          <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
+                          <s className="text-indigo-400 ml-1">{groupFte.toFixed(2)}</s>
+                        </div>
+                      ) : (
+                        <span>{groupFte.toFixed(2)}</span>
+                      )}
+                       FTE
+                    </div>
                   )}
                   <span className={`font-bold px-1.5 py-0.5 rounded ${isValid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                     Σ {sumPct.toFixed(0)}%
@@ -411,9 +429,31 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
               {totalCatalogValue > 0 && groupTarget > 0 && (
                 <>
                   <span className="text-xs text-slate-400">→</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded font-semibold text-xs">
-                    FTE previsti: {groupFte.toFixed(2)}
-                  </span>
+                  <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded font-semibold text-xs">
+                    <span>FTE previsti: </span>
+                    {reuseApplied ? (
+                      <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}>
+                        <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
+                        <s className="text-indigo-400 ml-1.5">{groupFte.toFixed(2)}</s>
+                      </div>
+                    ) : (
+                      <span>{groupFte.toFixed(2)}</span>
+                    )}
+                  </div>
+                  {/* NEW: Riuso % override for group */}
+                  <label className="flex items-center gap-1">
+                    <span className="text-xs text-slate-400">→ Riuso:</span>
+                    <input
+                      type="number"
+                      value={group.reuse_factor ? group.reuse_factor * 100 : ''}
+                      onChange={(e) => handleChange(idx, { reuse_factor: e.target.value ? parseFloat(e.target.value) / 100 : null })}
+                      min="0" max="90" step="1"
+                      placeholder="auto"
+                      title="Fattore di riuso specifico per questo raggruppamento (lascia vuoto per usare il default del TOW)"
+                      className="w-14 px-1.5 py-0.5 text-xs text-center border border-sky-200 bg-sky-50 text-sky-700 rounded focus:outline-none focus:border-sky-400 font-medium placeholder:font-normal"
+                    />
+                    <span className="text-xs text-slate-400">%</span>
+                  </label>
                   <span className="text-xs text-slate-400">
                     ({(groupTarget / totalCatalogValue * 100).toFixed(1)}% del catalogo)
                   </span>
@@ -425,20 +465,20 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
             </div>
 
             {/* Margine raggruppamento */}
-            {groupTotals[group.id] && groupTotals[group.id].sell > 0 && (
+            {gt && gt.sell > 0 && (
               <div className="flex items-center gap-3 flex-wrap px-1">
                 <span className="text-xs text-slate-500">
-                  Costo Lu.: <strong className="text-slate-700">{formatCurrency(groupTotals[group.id].cost, 0)}</strong>
+                  Costo Lu.: <strong className="text-slate-700">{formatCurrency(gt.cost, 0)}</strong>
                 </span>
                 <span className="text-xs text-slate-400">·</span>
                 <span className="text-xs text-slate-500">
-                  Pz. Vend.: <strong className="text-slate-700">{formatCurrency(groupTotals[group.id].sell, 0)}</strong>
+                  Pz. Vend.: <strong className="text-slate-700">{formatCurrency(gt.sell, 0)}</strong>
                 </span>
                 <span className="text-xs text-slate-400">·</span>
-                <span className={`text-xs font-semibold ${groupTotals[group.id].margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  Marg.: {formatCurrency(groupTotals[group.id].margin, 0)}
-                  {' '}({groupTotals[group.id].marginPct.toFixed(1)}%)
-                  {groupTotals[group.id].margin >= 0
+                <span className={`text-xs font-semibold ${gt.margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  Marg.: {formatCurrency(gt.margin, 0)}
+                  {' '}({gt.marginPct.toFixed(1)}%)
+                  {gt.margin >= 0
                     ? <CheckCircle2 className="w-3 h-3 inline ml-1" />
                     : <AlertTriangle className="w-3 h-3 inline ml-1" />}
                 </span>
@@ -477,7 +517,9 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
                   <tbody className="divide-y divide-slate-100">
                     {groupItems.map(it => {
                       const pct = parseFloat(it.group_pct) || 0;
-                      const fte = groupFte * pct / 100;
+                      const fte_before_reuse = groupFte * pct / 100;
+                      const fte = effective_group_fte * pct / 100;
+                      const reuseOnItem = fte < fte_before_reuse;
                       const posteTot = groupTarget * pct / 100;
                       return (
                         <tr key={it.id}>
@@ -497,7 +539,12 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, groupTotals =
                             </div>
                           </td>
                           <td className="py-1.5 text-right text-xs text-indigo-700 font-semibold tabular-nums">
-                            {totalCatalogValue > 0 ? fte.toFixed(2) : <span className="text-slate-300">—</span>}
+                            {totalCatalogValue > 0
+                              ? (reuseOnItem
+                                  ? <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}><span className="text-sky-700">{fte.toFixed(3)}</span><s className="text-indigo-400 ml-1">{fte_before_reuse.toFixed(3)}</s></div>
+                                  : <span>{fte.toFixed(3)}</span>
+                                )
+                              : <span className="text-slate-300">—</span>}
                           </td>
                           <td className="py-1.5 text-right tabular-nums">
                             {totalCatalogValue > 0
@@ -649,6 +696,54 @@ export default function CatalogEditorModal({
       profile_mix: [],
     };
     updateTow({ catalog_items: [...items, newItem] });
+  };
+
+  const handleExportCSV = () => {
+    const TIPO_MAP_REV = { 'nuovo_sviluppo': 'N', 'modifica_evolutiva': 'M' };
+    const COMPL_MAP_REV = { 'bassa': 'L', 'media': 'M', 'alta': 'H' };
+
+    const header = [
+      'DescrizioneVoce', 'Tipo', 'Complessita', 'PrezzoUnitario',
+      ...Array.from({ length: 10 }, (_, i) => `Ruolo${i + 1}`),
+      ...Array.from({ length: 10 }, (_, i) => `Perc${i + 1}`),
+    ];
+
+    const escapeCsv = (val) => {
+      const str = String(val ?? '');
+      if (str.includes(',')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = items.map(item => {
+      const rowData = [];
+      rowData.push(escapeCsv(item.label || ''));
+      rowData.push(TIPO_MAP_REV[item.tipo] || 'N');
+      rowData.push(COMPL_MAP_REV[item.complessita] || 'M');
+      rowData.push((item.price_base || 0).toString().replace('.', ','));
+
+      const roles = Array(10).fill('');
+      const percs = Array(10).fill('');
+      (item.profile_mix || []).slice(0, 10).forEach((mix, i) => {
+        roles[i] = mix.poste_profile || '';
+        percs[i] = mix.pct || '';
+      });
+
+      return [...rowData, ...roles, ...percs].map(escapeCsv).join(',');
+    });
+
+    const csvContent = [header.join(','), ...rows].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `catalogo_${(tow?.label || 'export').replace(/\s/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleImportCSV = (e) => {
@@ -855,11 +950,22 @@ export default function CatalogEditorModal({
       const groupInfo = itemToGroup[item.id];
       const group = groupInfo?.group;
       const group_target = group ? (parseFloat(group.target_value) || 0) : 0;
+      const defaultCatalogReuseFactor = parseFloat(tow?.catalog_reuse_factor ?? 0);
+
       const group_fte = (totalCatalogValue > 0 && group_target > 0)
         ? (group_target / totalCatalogValue) * refTotalFte
         : 0;
+      
+      const group_reuse_raw = group?.reuse_factor;
+      const group_reuse_factor = (group_reuse_raw !== null && group_reuse_raw !== undefined)
+        ? parseFloat(group_reuse_raw)
+        : defaultCatalogReuseFactor;
+      
+      const effective_group_fte = group_fte * (1.0 - group_reuse_factor);
+      
       const item_pct = parseFloat(item.group_pct) || 0;
-      const item_fte = group_fte * item_pct / 100;
+      const item_fte_before_reuse = group_fte * item_pct / 100;
+      const item_fte = effective_group_fte * item_pct / 100;
 
       const rate = computeItemRate(
         item.profile_mix || [], profileMappings, profileRates, durationMonths, defaultDailyRate
@@ -912,6 +1018,7 @@ export default function CatalogEditorModal({
         group_fte, group_target, effective_group_target, item_pct,
         in_group: !!group,
         has_valid_data,
+        item_fte_before_reuse,
       };
     });
   }, [items, itemToGroup, totalCatalogValue, refTotalFte, profileMappings, profileRates, defaultDailyRate, durationMonths, durationYears, defaultTargetMarginPct, scontoGaraFactor, daysPerFte]);
@@ -1106,6 +1213,21 @@ export default function CatalogEditorModal({
                     min="0" step="0.5" placeholder="0.00"
                     className="w-16 px-1.5 py-0.5 text-xs text-center border border-indigo-300 bg-indigo-50 text-indigo-700 rounded focus:outline-none focus:border-indigo-400 font-semibold"
                   />
+                </label>
+
+                <span className="text-xs text-slate-300">|</span>
+
+                {/* NEW: Fattore Riuso Catalogo % */}
+                <label className="flex items-center gap-1 text-xs text-slate-500">
+                  Riuso Catalogo:
+                  <input
+                    type="number"
+                    value={tow?.catalog_reuse_factor ? tow.catalog_reuse_factor * 100 : ''}
+                    onChange={(e) => updateTow({ catalog_reuse_factor: e.target.value ? parseFloat(e.target.value) / 100 : 0 })}
+                    min="0" max="90" step="1" placeholder="0"
+                    className="w-12 px-1.5 py-0.5 text-xs text-center border border-sky-300 bg-sky-50 text-sky-700 rounded focus:outline-none focus:border-sky-400 font-semibold"
+                  />
+                  <span className="text-slate-400">%</span>
                 </label>
 
                 {/* FTE quadratura badge */}
@@ -1410,7 +1532,15 @@ export default function CatalogEditorModal({
                         {/* FTE (derived, read-only) */}
                         <td className="px-3 py-3 text-right text-xs tabular-nums">
                           {calc.has_valid_data
-                            ? <span className="font-semibold text-indigo-700">{calc.item_fte.toFixed(2)}</span>
+                            ? (calc.item_fte < calc.item_fte_before_reuse
+                              ? (
+                                <div className="flex flex-col items-end">
+                                  <span className="font-semibold text-sky-700" title={`- ${(100 * (1- (calc.item_fte / calc.item_fte_before_reuse))).toFixed(1)}% riuso`}>{calc.item_fte.toFixed(3)}</span>
+                                  <s className="text-slate-400 mt-0.5">{calc.item_fte_before_reuse.toFixed(3)}</s>
+                                </div>
+                              )
+                              : <span className="font-semibold text-indigo-700">{calc.item_fte.toFixed(3)}</span>
+                            )
                             : NA}
                         </td>
 
@@ -1546,6 +1676,14 @@ export default function CatalogEditorModal({
                     Aggiungi voce
                   </button>
                   <button
+                    onClick={handleExportCSV}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    title="Esporta le voci correnti in formato CSV."
+                  >
+                    <FileDown className="w-4 h-4" />
+                    Export CSV
+                  </button>
+                  <button
                     onClick={() => csvInputRef.current?.click()}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                     title="Importa/aggiorna voci da CSV. Le voci con stessa descrizione vengono aggiornate."
@@ -1677,6 +1815,7 @@ export default function CatalogEditorModal({
                   items={items}
                   totalCatalogValue={totalCatalogValue}
                   totalFte={refTotalFte}
+                  defaultCatalogReuseFactor={parseFloat(tow?.catalog_reuse_factor ?? 0)}
                   groupTotals={groupTotals}
                   scontoGaraFactor={scontoGaraFactor}
                   onGroupsChange={(newGroups) => updateTow({ catalog_groups: newGroups })}
