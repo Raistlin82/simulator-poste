@@ -144,7 +144,7 @@ export default function TechEvaluator() {
                                 const status = certs[cert.label] || "none";
                                 const statusColor = status === "all" ? "text-green-600" : status === "partial" ? "text-amber-600" : "text-red-500";
                                 const borderColor = status === "all" ? "border-green-300 bg-green-50" : status === "partial" ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white";
-                                
+
                                 return (
                                     <div key={cert.label} className={`flex items-center justify-between gap-4 p-3 rounded-lg border ${borderColor} transition-all`}>
                                         <span className="text-sm font-medium text-slate-800 flex-1">{cert.label}</span>
@@ -228,9 +228,24 @@ export default function TechEvaluator() {
 
                                         <div className="space-y-4">
                                             <div>
-                                                <div className="flex justify-between mb-1">
-                                                    <span className="text-xs font-semibold text-slate-600">{t('tech.num_resources')} (R)</span>
-                                                    <span className="text-xs font-bold">{cur.r_val} / {maxR}</span>
+                                                <div className="flex justify-between mb-2">
+                                                    <span className="text-xs font-semibold text-slate-600 flex items-center">{t('tech.num_resources')} (R)</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max={maxR}
+                                                            value={cur.r_val}
+                                                            onChange={(e) => {
+                                                                let val = parseInt(e.target.value);
+                                                                if (isNaN(val)) val = 0;
+                                                                val = Math.max(0, Math.min(maxR, val));
+                                                                updateInput(req.id, 'r_val', val);
+                                                            }}
+                                                            className="w-16 p-1 text-right border border-slate-200 rounded text-xs font-bold focus:ring-1 focus:ring-blue-500 outline-none"
+                                                        />
+                                                        <span className="text-xs font-bold text-slate-400">/ {maxR}</span>
+                                                    </div>
                                                 </div>
                                                 <input
                                                     type="range" min="0" max={maxR}
@@ -268,10 +283,10 @@ export default function TechEvaluator() {
                                                             const companyCounts = cur.cert_company_counts?.[cert] || {};
                                                             const assignedTotal = Object.values(companyCounts).reduce((s, v) => s + v, 0);
                                                             const unassigned = count - assignedTotal;
-                                                            
+
                                                             // RTI companies: Lutech always present, partners added if rti_enabled
-                                                            const rtiCompanies = lotData?.rti_enabled 
-                                                                ? ['Lutech', ...(lotData.rti_companies || [])] 
+                                                            const rtiCompanies = lotData?.rti_enabled
+                                                                ? ['Lutech', ...(lotData.rti_companies || [])]
                                                                 : ['Lutech'];
 
                                                             const updateCount = (delta) => {
@@ -281,7 +296,7 @@ export default function TechEvaluator() {
 
                                                                 const newTotalC = req.selected_prof_certs.reduce((s, c) => s + (counts[c] || 0), 0);
                                                                 const currentInput = inputs[req.id] || {};
-                                                                
+
                                                                 // If reducing count, also reduce company counts proportionally
                                                                 let newCompanyCounts = { ...(currentInput.cert_company_counts || {}) };
                                                                 if (delta < 0 && newCompanyCounts[cert]) {
@@ -302,7 +317,7 @@ export default function TechEvaluator() {
                                                                         newCompanyCounts[cert] = certCompCounts;
                                                                     }
                                                                 }
-                                                                
+
                                                                 setTechInput(req.id, {
                                                                     ...currentInput,
                                                                     cert_counts: counts,
@@ -317,15 +332,15 @@ export default function TechEvaluator() {
                                                                 const certCompCounts = { ...(allCompanyCounts[cert] || {}) };
                                                                 const currentVal = certCompCounts[company] || 0;
                                                                 const currentAssigned = Object.values(certCompCounts).reduce((s, v) => s + v, 0);
-                                                                
+
                                                                 // Calculate new value with constraints
                                                                 let newVal = currentVal + delta;
                                                                 newVal = Math.max(0, newVal); // Can't go below 0
                                                                 newVal = Math.min(newVal, count - (currentAssigned - currentVal)); // Can't exceed total count
-                                                                
+
                                                                 certCompCounts[company] = newVal;
                                                                 allCompanyCounts[cert] = certCompCounts;
-                                                                
+
                                                                 setTechInput(req.id, {
                                                                     ...currentInput,
                                                                     cert_company_counts: allCompanyCounts
@@ -423,9 +438,24 @@ export default function TechEvaluator() {
 
                                                 {(!req.selected_prof_certs || req.selected_prof_certs.length === 0) && (
                                                     <div className="mt-4 pt-3 border-t border-slate-100">
-                                                        <div className="flex justify-between mb-1">
-                                                            <span className="text-xs font-semibold text-slate-500">{t('tech.manual_adjustment')} C</span>
-                                                            <span className="text-xs font-bold">{cur.c_val || 0}</span>
+                                                        <div className="flex justify-between mb-2">
+                                                            <span className="text-xs font-semibold text-slate-500 flex items-center">{t('tech.manual_adjustment')} C</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max={Math.max(10, cur.r_val)}
+                                                                    value={cur.c_val || 0}
+                                                                    onChange={(e) => {
+                                                                        let val = parseInt(e.target.value);
+                                                                        if (isNaN(val)) val = 0;
+                                                                        const maxC = Math.max(10, cur.r_val);
+                                                                        val = Math.max(0, Math.min(maxC, val));
+                                                                        updateInput(req.id, 'c_val', val);
+                                                                    }}
+                                                                    className="w-16 p-1 text-right border border-slate-200 rounded text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                                />
+                                                            </div>
                                                         </div>
                                                         <input
                                                             type="range"
@@ -524,8 +554,8 @@ export default function TechEvaluator() {
 
                             const reqWeightedScore = results?.weighted_scores?.[req.id] || 0;
                             // RTI companies: Lutech always present, partners added if rti_enabled
-                            const rtiCompanies = lotData?.rti_enabled 
-                                ? ['Lutech', ...(lotData.rti_companies || [])] 
+                            const rtiCompanies = lotData?.rti_enabled
+                                ? ['Lutech', ...(lotData.rti_companies || [])]
                                 : ['Lutech'];
                             const assignedCompany = cur.assigned_company || '';
 
@@ -698,19 +728,19 @@ export default function TechEvaluator() {
 
                                         {/* 4. Legacy Bonus Flag - Hide if it contains Attestazione/Att./Volumi (migrated to attestazione_score/custom_metrics) */}
                                         {req.bonus_label &&
-                                         !req.bonus_label.includes("Attestazione Cliente") &&
-                                         !req.bonus_label.includes("Att.") &&
-                                         !req.bonus_label.includes("Volumi") && (
-                                            <label className="flex items-center gap-3 cursor-pointer group pt-2 border-t border-slate-100">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={cur.bonus_active}
-                                                    onChange={(e) => updateInput(req.id, 'bonus_active', e.target.checked)}
-                                                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                                                />
-                                                <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors font-medium">{req.bonus_label}</span>
-                                            </label>
-                                        )}
+                                            !req.bonus_label.includes("Attestazione Cliente") &&
+                                            !req.bonus_label.includes("Att.") &&
+                                            !req.bonus_label.includes("Volumi") && (
+                                                <label className="flex items-center gap-3 cursor-pointer group pt-2 border-t border-slate-100">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={cur.bonus_active}
+                                                        onChange={(e) => updateInput(req.id, 'bonus_active', e.target.checked)}
+                                                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors font-medium">{req.bonus_label}</span>
+                                                </label>
+                                            )}
                                     </div>
                                 </div>
                             )

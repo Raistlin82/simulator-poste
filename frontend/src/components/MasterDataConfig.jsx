@@ -5,6 +5,7 @@ import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronU
 import { API_URL } from '../utils/api';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { logger } from '../utils/logger';
+import { ConfirmDialog } from './ui/confirm-dialog';
 
 export default function MasterDataConfig() {
     const { t } = useTranslation();
@@ -23,7 +24,14 @@ export default function MasterDataConfig() {
     const [toast, setToast] = useState(null); // {type: 'success'|'error', message: string}
     const [showAddVendor, setShowAddVendor] = useState(false);
     const [newVendor, setNewVendor] = useState({ key: '', name: '' });
-    
+
+    // Modal state for deletions
+    const [deleteModalState, setDeleteModalState] = useState({
+        isOpen: false,
+        actionType: null, // 'item' or 'vendor'
+        data: null // { section, idx, label } or { vendorKey, vendorName }
+    });
+
     // Refs for controlled inputs (fix #11)
     const aliasInputRefs = useRef({});
     const patternInputRefs = useRef({});
@@ -50,7 +58,7 @@ export default function MasterDataConfig() {
     useEffect(() => {
         // Skip initial load
         if (loading) return;
-        
+
         // Debounce save
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
@@ -58,7 +66,7 @@ export default function MasterDataConfig() {
         saveTimeoutRef.current = setTimeout(() => {
             saveMasterData(data);
         }, 500);
-        
+
         return () => {
             if (saveTimeoutRef.current) {
                 clearTimeout(saveTimeoutRef.current);
@@ -128,12 +136,12 @@ export default function MasterDataConfig() {
     const toggleVendorEnabled = async (vendorKey) => {
         const vendor = vendors.find(v => v.key === vendorKey);
         if (!vendor) return;
-        
+
         try {
             await axios.put(`${API_URL}/vendor-configs/${vendorKey}`, {
                 enabled: !vendor.enabled
             });
-            setVendors(prev => prev.map(v => 
+            setVendors(prev => prev.map(v =>
                 v.key === vendorKey ? { ...v, enabled: !v.enabled } : v
             ));
             showToast('success', `${vendor.name} ${!vendor.enabled ? 'abilitato' : 'disabilitato'}`);
@@ -148,7 +156,7 @@ export default function MasterDataConfig() {
             await axios.put(`${API_URL}/vendor-configs/${vendorKey}`, {
                 [field]: value
             });
-            setVendors(prev => prev.map(v => 
+            setVendors(prev => prev.map(v =>
                 v.key === vendorKey ? { ...v, [field]: value } : v
             ));
             showToast('success', t('master.saved'));
@@ -175,7 +183,7 @@ export default function MasterDataConfig() {
     const addVendorPattern = (vendorKey, pattern) => {
         const vendor = vendors.find(v => v.key === vendorKey);
         if (!vendor || !pattern.trim()) return;
-        
+
         // Validate regex pattern before adding (fix #4)
         try {
             new RegExp(pattern.trim());
@@ -183,7 +191,7 @@ export default function MasterDataConfig() {
             showToast('error', `Pattern regex non valido: ${e.message}`);
             return;
         }
-        
+
         const newPatterns = [...(vendor.cert_patterns || []), pattern.trim()];
         updateVendorField(vendorKey, 'cert_patterns', newPatterns);
     };
@@ -201,7 +209,7 @@ export default function MasterDataConfig() {
             showToast('error', 'Inserisci chiave e nome del vendor');
             return;
         }
-        
+
         // Validate key format (fix #8): only lowercase, numbers, underscores
         const normalizedKey = newVendor.key.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
         if (normalizedKey.length < 2) {
@@ -212,7 +220,7 @@ export default function MasterDataConfig() {
             showToast('error', `Vendor con chiave "${normalizedKey}" già esistente`);
             return;
         }
-        
+
         try {
             const response = await axios.post(`${API_URL}/vendor-configs`, {
                 key: normalizedKey,
@@ -232,24 +240,36 @@ export default function MasterDataConfig() {
     };
 
     // Delete vendor (fix #6)
-    const deleteVendor = async (vendorKey) => {
+    const confirmDeleteVendor = (vendorKey) => {
         const vendor = vendors.find(v => v.key === vendorKey);
         if (!vendor) return;
-        
-        if (!window.confirm(`Eliminare il vendor "${vendor.name}"? Questa azione non può essere annullata.`)) {
-            return;
+        setDeleteModalState({
+            isOpen: true,
+            actionType: 'vendor',
+            data: { vendorKey, vendorName: vendor.name }
+        });
+    };
+
+    const handleDeleteConfirm = () => {
+        if (deleteModalState.actionType === 'vendor' && deleteModalState.data) {
+            executeDeleteVendor(deleteModalState.data.vendorKey, deleteModalState.data.vendorName);
+        } else if (deleteModalState.actionType === 'item' && deleteModalState.data) {
+            deleteItem(deleteModalState.data.section, deleteModalState.data.idx);
         }
-        
+        setDeleteModalState({ isOpen: false, actionType: null, data: null });
+    };
+
+    const executeDeleteVendor = async (vendorKey, vendorName) => {
         try {
             await axios.delete(`${API_URL}/vendor-configs/${vendorKey}`);
             setVendors(prev => prev.filter(v => v.key !== vendorKey));
             setExpandedVendor(null);
-            
+
             // Clean up refs for deleted vendor (fix #11)
             delete aliasInputRefs.current[vendorKey];
             delete patternInputRefs.current[vendorKey];
-            
-            showToast('success', `Vendor "${vendor.name}" eliminato`);
+
+            showToast('success', `Vendor "${vendorName}" eliminato`);
         } catch (error) {
             logger.error('Error deleting vendor', error);
             showToast('error', `${t('master.error_prefix')}: ${error.response?.data?.detail || error.message}`);
@@ -257,8 +277,8 @@ export default function MasterDataConfig() {
     };
 
     // Filter vendors by search (fix #18)
-    const filteredVendors = vendors.filter(v => 
-        !vendorSearch || 
+    const filteredVendors = vendors.filter(v =>
+        !vendorSearch ||
         v.name.toLowerCase().includes(vendorSearch.toLowerCase()) ||
         v.key.toLowerCase().includes(vendorSearch.toLowerCase()) ||
         v.aliases?.some(a => a.includes(vendorSearch.toLowerCase()))
@@ -278,14 +298,13 @@ export default function MasterDataConfig() {
         <div className="min-h-screen bg-slate-50 p-6 overflow-auto pb-32">
             {/* Toast notification (fix #15) */}
             {toast && (
-                <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg transition-all ${
-                    toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                }`}>
+                <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg transition-all ${toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
                     {toast.type === 'success' ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                     <span className="text-sm font-medium">{toast.message}</span>
                 </div>
             )}
-            
+
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8">
@@ -336,7 +355,7 @@ export default function MasterDataConfig() {
                                     <p className="text-sm text-slate-600 mb-4">
                                         {t('master.ocr_settings_desc')}
                                     </p>
-                                    
+
                                     {/* Search and Add buttons (fix #5, #18) */}
                                     <div className="flex gap-2 mb-4">
                                         <div className="relative flex-1">
@@ -357,7 +376,7 @@ export default function MasterDataConfig() {
                                             {t('master.new_vendor')}
                                         </button>
                                     </div>
-                                    
+
                                     {/* Add Vendor Form (fix #5) */}
                                     {showAddVendor && (
                                         <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg mb-4">
@@ -400,12 +419,12 @@ export default function MasterDataConfig() {
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {filteredVendors.length > 0 ? (
                                         filteredVendors.map((vendor) => (
                                             <div key={vendor.key} className="border border-purple-200 rounded-lg bg-purple-50/50 overflow-hidden">
                                                 {/* Vendor Header */}
-                                                <div 
+                                                <div
                                                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-purple-100/50 transition-colors"
                                                     onClick={() => setExpandedVendor(expandedVendor === vendor.key ? null : vendor.key)}
                                                 >
@@ -434,7 +453,7 @@ export default function MasterDataConfig() {
                                                         {expandedVendor === vendor.key ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                                                     </div>
                                                 </div>
-                                                
+
                                                 {/* Expanded Content */}
                                                 {expandedVendor === vendor.key && (
                                                     <div className="border-t border-purple-200 p-4 bg-white space-y-4">
@@ -483,7 +502,7 @@ export default function MasterDataConfig() {
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         {/* Cert Patterns */}
                                                         <div>
                                                             <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
@@ -529,11 +548,11 @@ export default function MasterDataConfig() {
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         {/* Delete Vendor (fix #6) */}
                                                         <div className="pt-4 border-t border-slate-200">
                                                             <button
-                                                                onClick={() => deleteVendor(vendor.key)}
+                                                                onClick={() => confirmDeleteVendor(vendor.key)}
                                                                 className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded text-sm hover:bg-red-100 flex items-center gap-2"
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
@@ -558,64 +577,85 @@ export default function MasterDataConfig() {
                             ) : (
                                 /* Original sections content */
                                 <div className="space-y-3">
-                                {data[activeSection] && data[activeSection].length > 0 ? (
-                                    data[activeSection].map((item, idx) => (
-                                        <div key={idx} className={`flex gap-3 items-center group p-3 rounded-lg border ${sections.find(s => s.id === activeSection)?.bg} ${sections.find(s => s.id === activeSection)?.bg.replace('bg-', 'border-')}`}>
-                                            <div className="flex-1">
-                                                {activeSection === 'economic_formulas' ? (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{t('master.label')}</label>
-                                                            <input
-                                                                type="text"
-                                                                value={item.label}
-                                                                onChange={(e) => updateItem(activeSection, idx, 'label', e.target.value)}
-                                                                className="w-full p-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                                                            />
+                                    {data[activeSection] && data[activeSection].length > 0 ? (
+                                        data[activeSection].map((item, idx) => (
+                                            <div key={idx} className={`flex gap-3 items-center group p-3 rounded-lg border ${sections.find(s => s.id === activeSection)?.bg} ${sections.find(s => s.id === activeSection)?.bg.replace('bg-', 'border-')}`}>
+                                                <div className="flex-1">
+                                                    {activeSection === 'economic_formulas' ? (
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{t('master.label')}</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={item.label}
+                                                                    onChange={(e) => updateItem(activeSection, idx, 'label', e.target.value)}
+                                                                    className="w-full p-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{t('master.formula_description')}</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={item.desc}
+                                                                    onChange={(e) => updateItem(activeSection, idx, 'desc', e.target.value)}
+                                                                    className="w-full p-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
+                                                                />
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{t('master.formula_description')}</label>
-                                                            <input
-                                                                type="text"
-                                                                value={item.desc}
-                                                                onChange={(e) => updateItem(activeSection, idx, 'desc', e.target.value)}
-                                                                className="w-full p-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <input
-                                                        type="text"
-                                                        value={item}
-                                                        onChange={(e) => updateItem(activeSection, idx, e.target.value)}
-                                                        className="w-full p-2 bg-white/50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                                                        placeholder={t('master.item_placeholder')}
-                                                    />
-                                                )}
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            value={item}
+                                                            onChange={(e) => updateItem(activeSection, idx, e.target.value)}
+                                                            className="w-full p-2 bg-white/50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                                            placeholder={t('master.item_placeholder')}
+                                                        />
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const sectionDef = sections.find(s => s.id === activeSection);
+                                                        const label = item.label || item; // label for structured items, value for strings
+                                                        setDeleteModalState({
+                                                            isOpen: true,
+                                                            actionType: 'item',
+                                                            data: { section: activeSection, idx, label: typeof label === 'string' ? label : sectionDef?.label }
+                                                        });
+                                                    }}
+                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                                                    title={t('common.delete')}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => deleteItem(activeSection, idx)}
-                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-100 rounded-lg transition-colors"
-                                                title={t('common.delete')}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
+                                            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <Info className="w-6 h-6 text-slate-400" />
+                                            </div>
+                                            <p className="text-slate-500 text-sm">{t('master.no_items')}</p>
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
-                                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <Info className="w-6 h-6 text-slate-400" />
-                                        </div>
-                                        <p className="text-slate-500 text-sm">{t('master.no_items')}</p>
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Deletion Confirm Dialog */}
+            <ConfirmDialog
+                isOpen={deleteModalState.isOpen}
+                onClose={() => setDeleteModalState({ isOpen: false, actionType: null, data: null })}
+                onConfirm={handleDeleteConfirm}
+                title="Conferma Eliminazione"
+                description={
+                    deleteModalState.actionType === 'vendor'
+                        ? `Sei sicuro di voler eliminare il vendor "${deleteModalState.data?.vendorName}"? Questa operazione rimuoverà anche tutte le configurazioni associate.`
+                        : `Sei sicuro di voler eliminare l'elemento "${deleteModalState.data?.label || ''}"? Questa azione non può essere annullata.`
+                }
+            />
         </div>
     );
 }

@@ -12,11 +12,11 @@ import axios from 'axios';
 import { API_URL } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../utils/logger';
-import { 
-  Search, 
-  FileSearch, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Search,
+  FileSearch,
+  CheckCircle2,
+  XCircle,
   AlertTriangle,
   Download,
   RefreshCw,
@@ -27,7 +27,10 @@ import {
   Clock,
   X,
   Upload,
-  FolderOpen
+  FolderOpen,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 // Status badge colors
@@ -40,6 +43,17 @@ const STATUS_COLORS = {
   too_large: 'bg-indigo-100 text-indigo-800',
   error: 'bg-red-100 text-red-800',
   unprocessed: 'bg-gray-100 text-gray-500',
+};
+
+const STATUS_ICONS = {
+  valid: <CheckCircle2 className="w-3.5 h-3.5 mr-1" />,
+  expired: <Clock className="w-3.5 h-3.5 mr-1" />,
+  mismatch: <AlertTriangle className="w-3.5 h-3.5 mr-1" />,
+  unreadable: <FileSearch className="w-3.5 h-3.5 mr-1" />,
+  not_downloaded: <Download className="w-3.5 h-3.5 mr-1" />,
+  too_large: <FileText className="w-3.5 h-3.5 mr-1" />,
+  error: <XCircle className="w-3.5 h-3.5 mr-1" />,
+  unprocessed: <Clock className="w-3.5 h-3.5 mr-1" />
 };
 
 const STATUS_LABELS = {
@@ -130,7 +144,7 @@ export default function CertVerificationPage() {
   const [sortField, setSortField] = useState('');
   const [sortDir, setSortDir] = useState('asc');
   const [retryingFile, setRetryingFile] = useState(null);
-  
+
   // Refs for abort and resize handling
   const abortControllerRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -147,11 +161,11 @@ export default function CertVerificationPage() {
     };
     fetchLots();
   }, []);
-  
+
   // Refs for resize handling
   const resizingRef = useRef({ column: null, startX: 0, startWidth: 0 });
   const tableRef = useRef(null);
-  
+
   // Fetch available lots on mount
 
   // Handle column resize
@@ -159,10 +173,10 @@ export default function CertVerificationPage() {
     const handleMouseMove = (e) => {
       if (!resizingRef.current.column) return;
       e.preventDefault();
-      
+
       const diff = e.clientX - resizingRef.current.startX;
       const newWidth = Math.max(60, resizingRef.current.startWidth + diff);
-      
+
       setColumnWidths(prev => ({
         ...prev,
         [resizingRef.current.column]: newWidth
@@ -201,7 +215,7 @@ export default function CertVerificationPage() {
   // Export to Excel (CSV format)
   const exportToExcel = useCallback(() => {
     if (!results?.results?.length) return;
-    
+
     const headers = [
       'File',
       'Requisito',
@@ -216,7 +230,7 @@ export default function CertVerificationPage() {
       'Valido A',
       'Stato'
     ];
-    
+
     const rows = results.results.map(r => [
       r.filename || '',
       r.req_code || '',
@@ -231,20 +245,20 @@ export default function CertVerificationPage() {
       normalizeDate(r.valid_until) || '',
       STATUS_LABELS_EXPORT[r.status] || r.status || ''
     ]);
-    
+
     // Create CSV content with BOM for Excel UTF-8 compatibility
     const BOM = '\uFEFF';
     const csvContent = BOM + [
       headers.join(';'),
       ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
     ].join('\n');
-    
+
     // Create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `cert_verification_${new Date().toISOString().slice(0,10)}.csv`;
+    link.download = `cert_verification_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -287,7 +301,7 @@ export default function CertVerificationPage() {
   };
 
   // Check if verify button should be enabled
-  const canVerify = inputMode === INPUT_MODES.FOLDER 
+  const canVerify = inputMode === INPUT_MODES.FOLDER
     ? folderPath.trim() !== ''
     : selectedFile !== null;
 
@@ -300,7 +314,7 @@ export default function CertVerificationPage() {
 
     // Create abort controller for cancellation
     abortControllerRef.current = new AbortController();
-    
+
     setLoading(true);
     setError(null);
     setResults(null);
@@ -319,7 +333,7 @@ export default function CertVerificationPage() {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      
+
       const response = await fetch(`${API_URL}/verify-certs/stream?${params}`, {
         method: 'POST',
         headers,
@@ -346,7 +360,7 @@ export default function CertVerificationPage() {
           if (line.startsWith('data: ')) {
             try {
               const event = JSON.parse(line.slice(6));
-              
+
               if (event.type === 'start') {
                 setProgress({ current: 0, total: event.total, filename: '' });
               } else if (event.type === 'progress') {
@@ -445,13 +459,13 @@ export default function CertVerificationPage() {
   // Retry a single failed file
   const handleRetry = useCallback(async (filename) => {
     if (!results?.folder) return;
-    
+
     setRetryingFile(filename);
-    
+
     try {
       const token = getAccessToken();
       const pdfPath = `${results.folder}/${filename}`;
-      
+
       const res = await axios.post(
         `${API_URL}/verify-certs/single`,
         null,
@@ -460,14 +474,14 @@ export default function CertVerificationPage() {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         }
       );
-      
+
       // Update results with the new data
       setResults(prev => {
         if (!prev?.results) return prev;
-        const newResults = prev.results.map(r => 
+        const newResults = prev.results.map(r =>
           r.filename === filename ? { ...res.data, filename } : r
         );
-        
+
         // Recalculate summary
         const summary = {
           ...prev.summary,
@@ -477,7 +491,7 @@ export default function CertVerificationPage() {
           unreadable: newResults.filter(r => r.status === 'unreadable').length,
           error: newResults.filter(r => r.status === 'error').length,
         };
-        
+
         return { ...prev, results: newResults, summary };
       });
     } catch (err) {
@@ -490,9 +504,9 @@ export default function CertVerificationPage() {
   // Filter and sort results
   const filteredResults = useMemo(() => {
     if (!results?.results) return [];
-    
+
     let data = [...results.results];
-    
+
     // Apply filters
     if (filterStatus) {
       data = data.filter(r => r.status === filterStatus);
@@ -500,7 +514,7 @@ export default function CertVerificationPage() {
     if (filterReq) {
       data = data.filter(r => r.req_code?.toLowerCase().includes(filterReq.toLowerCase()));
     }
-    
+
     // Apply sorting
     if (sortField) {
       data.sort((a, b) => {
@@ -513,7 +527,7 @@ export default function CertVerificationPage() {
         return 0;
       });
     }
-    
+
     return data;
   }, [results, filterStatus, filterReq, sortField, sortDir]);
 
@@ -529,8 +543,10 @@ export default function CertVerificationPage() {
 
   // Sort indicator
   const SortIcon = ({ field }) => {
-    if (sortField !== field) return <span className="ml-1 text-slate-300">↕</span>;
-    return <span className="ml-1 text-indigo-600">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+    if (sortField !== field) return <ArrowUpDown className="ml-2 w-3.5 h-3.5 text-slate-300 inline" />;
+    return sortDir === 'asc'
+      ? <ArrowUp className="ml-2 w-3.5 h-3.5 text-indigo-600 inline" />
+      : <ArrowDown className="ml-2 w-3.5 h-3.5 text-indigo-600 inline" />;
   };
 
   return (
@@ -566,11 +582,10 @@ export default function CertVerificationPage() {
               {checkingOcr ? t('cert_verification.checking') : t('cert_verification.check_ocr')}
             </button>
             {ocrStatus && (
-              <div className={`mt-2 p-3 rounded-lg text-sm flex items-center gap-2 ${
-                ocrStatus.ocr_available 
-                  ? 'bg-green-50 text-green-700 border border-green-200' 
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
+              <div className={`mt-2 p-3 rounded-lg text-sm flex items-center gap-2 ${ocrStatus.ocr_available
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
                 {ocrStatus.ocr_available ? (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
@@ -597,29 +612,27 @@ export default function CertVerificationPage() {
             <div className="flex rounded-lg border border-slate-300 overflow-hidden w-fit">
               <button
                 onClick={() => setInputMode(INPUT_MODES.UPLOAD)}
-                className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
-                  inputMode === INPUT_MODES.UPLOAD
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-slate-700 hover:bg-slate-50'
-                }`}
+                className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${inputMode === INPUT_MODES.UPLOAD
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
               >
                 <Upload className="w-4 h-4" />
                 {t('cert_verification.upload_zip') || 'Upload ZIP'}
               </button>
               <button
                 onClick={() => setInputMode(INPUT_MODES.FOLDER)}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-l border-slate-300 flex items-center gap-2 ${
-                  inputMode === INPUT_MODES.FOLDER
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-slate-700 hover:bg-slate-50'
-                }`}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-l border-slate-300 flex items-center gap-2 ${inputMode === INPUT_MODES.FOLDER
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
               >
                 <FolderOpen className="w-4 h-4" />
                 {t('cert_verification.local_folder') || 'Cartella locale'}
               </button>
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {inputMode === INPUT_MODES.UPLOAD 
+              {inputMode === INPUT_MODES.UPLOAD
                 ? (t('cert_verification.upload_hint') || 'Carica un file ZIP contenente i PDF delle certificazioni')
                 : (t('cert_verification.folder_mode_hint') || 'Inserisci il percorso di una cartella locale (solo per esecuzione locale)')}
             </p>
@@ -715,16 +728,15 @@ export default function CertVerificationPage() {
           <button
             onClick={handleVerify}
             disabled={loading || !canVerify}
-            className={`w-full lg:w-auto px-6 py-2.5 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
-              loading || !canVerify
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
-            }`}
+            className={`w-full lg:w-auto px-6 py-2.5 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${loading || !canVerify
+              ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
+              }`}
           >
             {loading ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
-                {uploadProgress?.phase === 'uploading' 
+                {uploadProgress?.phase === 'uploading'
                   ? `${t('cert_verification.uploading') || 'Caricamento'}... ${uploadProgress.percent || 0}%`
                   : t('cert_verification.processing')}
               </>
@@ -972,81 +984,82 @@ export default function CertVerificationPage() {
                       {filteredResults.map((r, idx) => {
                         const displayFilename = r.filename?.split('/').pop() || r.filename;
                         return (
-                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                          <td style={{ width: columnWidths.file }} className="px-4 py-3 text-sm text-slate-900 overflow-hidden" title={r.filename}>
-                            <div className="truncate">{displayFilename}</div>
-                          </td>
-                          <td style={{ width: columnWidths.requisito }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                            <div className="truncate font-medium">{r.req_code || '-'}</div>
-                          </td>
-                          <td style={{ width: columnWidths.certFile }} className="px-4 py-3 text-sm text-purple-600 overflow-hidden" title={r.cert_name_from_file || ''}>
-                            <div className="truncate">{r.cert_name_from_file || '-'}</div>
-                          </td>
-                          <td style={{ width: columnWidths.certAttesa }} className="px-4 py-3 text-sm text-indigo-600">
-                            {r.expected_cert_names && r.expected_cert_names.length > 0 ? (
-                              <div className="flex flex-wrap gap-1" title={r.expected_cert_names.join(', ')}>
-                                {r.expected_cert_names.map((cert, certIdx) => (
-                                  <span
-                                    key={`${r.req_code || 'req'}-${certIdx}-${cert}`}
-                                    className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs break-words"
-                                  >
-                                    {cert}
-                                  </span>
-                                ))}
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                            <td style={{ width: columnWidths.file }} className="px-4 py-3 text-sm text-slate-900 overflow-hidden" title={r.filename}>
+                              <div className="truncate">{displayFilename}</div>
+                            </td>
+                            <td style={{ width: columnWidths.requisito }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
+                              <div className="truncate font-medium">{r.req_code || '-'}</div>
+                            </td>
+                            <td style={{ width: columnWidths.certFile }} className="px-4 py-3 text-sm text-purple-600 overflow-hidden" title={r.cert_name_from_file || ''}>
+                              <div className="truncate">{r.cert_name_from_file || '-'}</div>
+                            </td>
+                            <td style={{ width: columnWidths.certAttesa }} className="px-4 py-3 text-sm text-indigo-600">
+                              {r.expected_cert_names && r.expected_cert_names.length > 0 ? (
+                                <div className="flex flex-wrap gap-1" title={r.expected_cert_names.join(', ')}>
+                                  {r.expected_cert_names.map((cert, certIdx) => (
+                                    <span
+                                      key={`${r.req_code || 'req'}-${certIdx}-${cert}`}
+                                      className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs break-words"
+                                    >
+                                      {cert}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : '-'}
+                            </td>
+                            <td style={{ width: columnWidths.risorsa }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
+                              <div className="truncate">{r.resource_name || '-'}</div>
+                            </td>
+                            <td style={{ width: columnWidths.risorsaOcr }} className="px-4 py-3 text-sm text-indigo-600 overflow-hidden">
+                              <div className="truncate" title={r.resource_name_detected || ''}>{r.resource_name_detected || '-'}</div>
+                            </td>
+                            <td style={{ width: columnWidths.vendor }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
+                              <div className="truncate">{r.vendor_detected || '-'}</div>
+                            </td>
+                            <td style={{ width: columnWidths.certificazione }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
+                              <div className="break-words">
+                                {r.cert_name_detected && <div className="font-medium">{r.cert_name_detected}</div>}
+                                {r.cert_code_detected && <div className="text-xs text-slate-500">{r.cert_code_detected}</div>}
+                                {!r.cert_name_detected && !r.cert_code_detected && '-'}
                               </div>
-                            ) : '-'}
-                          </td>
-                          <td style={{ width: columnWidths.risorsa }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                            <div className="truncate">{r.resource_name || '-'}</div>
-                          </td>
-                          <td style={{ width: columnWidths.risorsaOcr }} className="px-4 py-3 text-sm text-indigo-600 overflow-hidden">
-                            <div className="truncate" title={r.resource_name_detected || ''}>{r.resource_name_detected || '-'}</div>
-                          </td>
-                          <td style={{ width: columnWidths.vendor }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                            <div className="truncate">{r.vendor_detected || '-'}</div>
-                          </td>
-                          <td style={{ width: columnWidths.certificazione }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                            <div className="break-words">
-                              {r.cert_name_detected && <div className="font-medium">{r.cert_name_detected}</div>}
-                              {r.cert_code_detected && <div className="text-xs text-slate-500">{r.cert_code_detected}</div>}
-                              {!r.cert_name_detected && !r.cert_code_detected && '-'}
-                            </div>
-                          </td>
-                          <td style={{ width: columnWidths.validita }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                            {r.valid_from || r.valid_until ? (
-                              <div className="text-xs">
-                                {r.valid_from && <div className="truncate">{t('cert_verification.valid_from')}: {normalizeDate(r.valid_from)}</div>}
-                                {r.valid_until && <div className="truncate">{t('cert_verification.valid_until')}: {normalizeDate(r.valid_until)}</div>}
-                              </div>
-                            ) : '-'}
-                          </td>
-                          <td style={{ width: columnWidths.stato }} className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[r.status] || STATUS_COLORS.unprocessed}`}>
-                                {t(`cert_verification.${STATUS_LABELS[r.status]}`) || r.status}
-                              </span>
-                              {(r.status === 'error' || r.status === 'unreadable') && (
-                                <button
-                                  onClick={() => handleRetry(r.filename)}
-                                  disabled={retryingFile === r.filename}
-                                  className={`text-xs px-2 py-0.5 rounded-lg transition-colors ${
-                                    retryingFile === r.filename
+                            </td>
+                            <td style={{ width: columnWidths.validita }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
+                              {r.valid_from || r.valid_until ? (
+                                <div className="text-xs">
+                                  {r.valid_from && <div className="truncate">{t('cert_verification.valid_from')}: {normalizeDate(r.valid_from)}</div>}
+                                  {r.valid_until && <div className="truncate">{t('cert_verification.valid_until')}: {normalizeDate(r.valid_until)}</div>}
+                                </div>
+                              ) : '-'}
+                            </td>
+                            <td style={{ width: columnWidths.stato }} className="px-4 py-3">
+                              <div className="flex flex-col gap-1.5 items-start">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${STATUS_COLORS[r.status] || STATUS_COLORS.unprocessed}`}>
+                                  {STATUS_ICONS[r.status] || STATUS_ICONS.unprocessed}
+                                  {t(`cert_verification.${STATUS_LABELS[r.status]}`) || r.status}
+                                </span>
+                                {(r.status === 'error' || r.status === 'unreadable') && (
+                                  <button
+                                    onClick={() => handleRetry(r.filename)}
+                                    disabled={retryingFile === r.filename}
+                                    className={`text-xs px-2 py-0.5 rounded-lg transition-colors ${retryingFile === r.filename
                                       ? 'bg-slate-200 text-slate-400 cursor-wait'
                                       : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                  }`}
-                                  title={t('cert_verification.retry_tooltip')}
-                                >
-                                  {retryingFile === r.filename ? (
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <RotateCcw className="w-3 h-3" />
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )})}
+                                      }`}
+                                    title={t('cert_verification.retry_tooltip')}
+                                  >
+                                    {retryingFile === r.filename ? (
+                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <RotateCcw className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
