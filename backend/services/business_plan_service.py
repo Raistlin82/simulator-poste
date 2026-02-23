@@ -529,7 +529,12 @@ class BusinessPlanService:
     ) -> Dict[str, Any]:
         """
         Compute actual distribution across clusters, weighted by item FTE (o item_days nel vecchio modello).
-        Returns {cluster_id: {label, profiles, required_pct, actual_pct, delta, ok}}
+        Returns {cluster_id: {label, profiles, required_pct, constraint_type, actual_pct, delta, ok}}
+        
+        Constraint types:
+        - "equality" (=): actual_pct must equal required_pct (±2% tolerance)
+        - "minimum" (>=): actual_pct must be >= required_pct
+        - "maximum" (<=): actual_pct must be <= required_pct
         """
         if not catalog_clusters:
             return {}
@@ -576,21 +581,33 @@ class BusinessPlanService:
                 label = cluster.get("label", cid)
                 required_pct = float(cluster.get("required_pct", 0) or 0)
                 profiles = cluster.get("poste_profiles", [])
+                constraint_type = cluster.get("constraint_type", "equality")  # Default to equality for backward compatibility
             else:
                 cid = getattr(cluster, "id", "")
                 label = getattr(cluster, "label", cid)
                 required_pct = float(getattr(cluster, "required_pct", 0) or 0)
                 profiles = getattr(cluster, "poste_profiles", [])
+                constraint_type = getattr(cluster, "constraint_type", "equality")
 
             actual_pct = cluster_actual.get(cid, 0.0)
             delta = actual_pct - required_pct
+            
+            # Validate based on constraint type
+            if constraint_type == "maximum":
+                ok = actual_pct <= required_pct
+            elif constraint_type == "minimum":
+                ok = actual_pct >= required_pct
+            else:  # "equality" or default
+                ok = abs(delta) <= 2.0
+            
             result[cid] = {
                 "label": label,
                 "profiles": profiles,
                 "required_pct": required_pct,
+                "constraint_type": constraint_type,
                 "actual_pct": round(actual_pct, 2),
                 "delta": round(delta, 2),
-                "ok": abs(delta) <= 2.0,
+                "ok": ok,
             }
 
         return result

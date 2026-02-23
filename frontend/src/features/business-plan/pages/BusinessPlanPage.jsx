@@ -813,11 +813,25 @@ export default function BusinessPlanPage() {
         }
         for (const c of clusters) {
           const actualPct = clusterAccum[c.id] || 0;
+          const requiredPct = parseFloat(c.required_pct) || 0;
+          const constraintType = c.constraint_type || 'equality';
+          
+          // Validate based on constraint type
+          let ok;
+          if (constraintType === 'maximum') {
+            ok = actualPct <= requiredPct;
+          } else if (constraintType === 'minimum') {
+            ok = actualPct >= requiredPct;
+          } else {
+            ok = Math.abs(actualPct - requiredPct) <= 2;
+          }
+          
           clusterDetail.push({
             label: c.label,
-            required_pct: parseFloat(c.required_pct) || 0,
+            required_pct: requiredPct,
+            constraint_type: constraintType,
             actual_pct: Math.round(actualPct * 10) / 10,
-            ok: Math.abs(actualPct - (parseFloat(c.required_pct) || 0)) <= 2,
+            ok,
           });
         }
       }

@@ -835,16 +835,20 @@ export default function CostBreakdown({
                                     <div className="px-3 py-2 border-t border-slate-100">
                                       <div className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Distribuzione Cluster</div>
                                       <div className="space-y-1">
-                                        {towData.clusters.map((c, ci) => (
-                                          <div key={ci} className="flex items-center gap-2 text-[10px]">
-                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.ok ? 'bg-green-500' : 'bg-red-500'}`} />
-                                            <span className="flex-1 text-slate-600">{c.label}</span>
-                                            <span className="text-slate-400">{c.required_pct}% req.</span>
-                                            <span className={`font-semibold ${c.ok ? 'text-green-700' : 'text-red-700'}`}>
-                                              {(c.actual_pct ?? 0).toFixed(1)}% att.
-                                            </span>
-                                          </div>
-                                        ))}
+                                        {towData.clusters.map((c, ci) => {
+                                          const constraintType = c.constraint_type || 'equality';
+                                          const constraintLabel = constraintType === 'maximum' ? '≤' : constraintType === 'minimum' ? '≥' : '=';
+                                          return (
+                                            <div key={ci} className="flex items-center gap-2 text-[10px]">
+                                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.ok ? 'bg-green-500' : 'bg-red-500'}`} />
+                                              <span className="flex-1 text-slate-600">{c.label}</span>
+                                              <span className="text-slate-400"><strong>{constraintLabel}</strong> {c.required_pct}%</span>
+                                              <span className={`font-semibold ${c.ok ? 'text-green-700' : 'text-red-700'}`}>
+                                                {(c.actual_pct ?? 0).toFixed(1)}% att.
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   )}

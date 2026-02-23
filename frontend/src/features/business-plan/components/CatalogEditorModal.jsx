@@ -166,12 +166,14 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
     handleChange(clusterIdx, 'poste_profiles', (c.poste_profiles || []).filter(p => p !== profile));
   };
   const handleAddCluster = () => {
-    onChange([...clusters, { id: `cluster_${Date.now()}`, label: `Cluster ${clusters.length + 1}`, poste_profiles: [], required_pct: 0 }]);
+    onChange([...clusters, { id: `cluster_${Date.now()}`, label: `Cluster ${clusters.length + 1}`, poste_profiles: [], required_pct: 0, constraint_type: 'equality' }]);
   };
   const handleRemoveCluster = (idx) => onChange(clusters.filter((_, i) => i !== idx));
 
-  const sumPct = clusters.reduce((s, c) => s + (parseFloat(c.required_pct) || 0), 0);
-  const isValid = clusters.length === 0 || Math.abs(sumPct - 100) < 0.5;
+  // For validation: sum percentages only for equality constraints
+  const sumPct = clusters.filter(c => (c.constraint_type || 'equality') === 'equality').reduce((s, c) => s + (parseFloat(c.required_pct) || 0), 0);
+  const hasEqualityClusters = clusters.some(c => (c.constraint_type || 'equality') === 'equality');
+  const isValid = clusters.length === 0 || !hasEqualityClusters || Math.abs(sumPct - 100) < 0.5;
 
   return (
     <div className="space-y-3">
@@ -186,6 +188,15 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
               className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
             />
             <div className="flex items-center gap-1">
+              <select
+                value={cluster.constraint_type || 'equality'}
+                onChange={(e) => handleChange(idx, 'constraint_type', e.target.value)}
+                className="px-1.5 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:border-indigo-300 font-semibold text-slate-600"
+              >
+                <option value="equality">=</option>
+                <option value="minimum">≥</option>
+                <option value="maximum">≤</option>
+              </select>
               <input
                 type="number"
                 value={cluster.required_pct || 0}
@@ -1737,6 +1748,7 @@ export default function CatalogEditorModal({
                 <p className="text-xs text-slate-500 mb-4">
                   Definisci i cluster di figure professionali richiesti da Poste con le relative percentuali target sul totale FTE.
                   La distribuzione effettiva è pesata sugli FTE di ciascuna voce.
+                  <br /> Tipo di vincolo: <strong>=</strong> (uguaglianza ±2%), <strong>≥</strong> (minimo), <strong>≤</strong> (massimo)
                 </p>
                 <ClusterEditor
                   clusters={clusters}
@@ -1752,6 +1764,7 @@ export default function CatalogEditorModal({
                     <thead className="bg-slate-50">
                       <tr>
                         <th className="px-4 py-2 text-left font-semibold text-slate-600">Cluster</th>
+                        <th className="px-4 py-2 text-center font-semibold text-slate-600 w-8" title="Tipo di vincolo">V.</th>
                         <th className="px-4 py-2 text-right font-semibold text-slate-600">% Req.</th>
                         <th className="px-4 py-2 text-right font-semibold text-indigo-600" title="FTE target da bando">FTE Target</th>
                         <th className="px-4 py-2 text-right font-semibold text-slate-600">% Att.</th>
@@ -1765,15 +1778,30 @@ export default function CatalogEditorModal({
                         const actual = clusterDist[cluster.id] || 0;
                         const required = parseFloat(cluster.required_pct) || 0;
                         const delta = actual - required;
-                        const ok = Math.abs(delta) <= 2;
+                        const constraintType = cluster.constraint_type || 'equality';
+                        
+                        // Validate based on constraint type
+                        let ok;
+                        if (constraintType === 'maximum') {
+                          ok = actual <= required;
+                        } else if (constraintType === 'minimum') {
+                          ok = actual >= required;
+                        } else {
+                          ok = Math.abs(delta) <= 2;
+                        }
+                        
                         const fteTgt = refTotalFte * required / 100;
                         const fteAtt = totals.totalDerivedFte * actual / 100;
+                        
+                        const constraintLabel = constraintType === 'maximum' ? '≤' : constraintType === 'minimum' ? '≥' : '=';
+                        
                         return (
                           <tr key={cluster.id} className="hover:bg-slate-50">
                             <td className="px-4 py-2">
                               <div className="font-medium text-slate-700">{cluster.label}</div>
                               <div className="text-xs text-slate-400">{(cluster.poste_profiles || []).join(', ')}</div>
                             </td>
+                            <td className="px-4 py-2 text-center font-semibold text-slate-600 text-sm">{constraintLabel}</td>
                             <td className="px-4 py-2 text-right font-medium">{required.toFixed(0)}%</td>
                             <td className="px-4 py-2 text-right text-indigo-700 font-semibold">
                               {refTotalFte > 0 ? fteTgt.toFixed(2) : <span className="text-slate-300">—</span>}
