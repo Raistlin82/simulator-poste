@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Layers, Plus, Trash2, GripVertical, Percent, Save, X, TrendingDown, Info, AlertTriangle, BookOpen, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
