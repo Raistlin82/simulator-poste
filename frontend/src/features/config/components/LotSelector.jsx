@@ -161,7 +161,6 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
   };
 
   const lotKeys = Object.keys(config)
-    .filter(k => config[k]?.is_active !== false)
     .sort((a, b) => a.localeCompare(b, 'it'));  // Sort by name
 
   return (
@@ -180,7 +179,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
             >
               {lotKeys.map(lotKey => (
                 <option key={lotKey} value={lotKey}>
-                  {lotKey}
+                  {config[lotKey]?.is_active === false ? '⏸️ ' : ''}{lotKey}
                 </option>
               ))}
             </select>
