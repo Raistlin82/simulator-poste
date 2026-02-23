@@ -78,9 +78,15 @@ export default function TowAnalysis({
     return tows.map(tow => {
       const towId = tow.tow_id;
       const weight = (parseFloat(tow.weight_pct) || 0) / totalWeight;
-      const towRevenue = revenue * weight;
+      
+      // Per TOW catalogo: ricavo dal breakdown (margine-first model)
+      // Per TOW team: ricavo calcolato dal peso
       const towCostData = towBreakdown[towId] || { cost: 0, days: 0 };
       const towCost = typeof towCostData === 'object' ? towCostData.cost : towCostData;
+      
+      const towRevenue = tow.type === 'catalogo' && towCostData.revenue 
+        ? towCostData.revenue
+        : revenue * weight;
 
       const margin = towRevenue - towCost;
       const marginPct = towRevenue > 0 ? (margin / towRevenue) * 100 : 0;
