@@ -708,9 +708,11 @@ export default function CatalogEditorModal({
         for (let i = 0; i < 10; i++) {
           const ruolo = ruoli[i].trim();
           if (!ruolo) continue;
-          const pct = parseFloat(percs[i]);
+          const rawPerc = percs[i].trim();
+          if (!rawPerc) continue; // empty Perc = ruolo non usato in questa voce, skip silenzioso
+          const pct = parseFloat(rawPerc);
           if (isNaN(pct) || pct <= 0) {
-            errorRows.push(`Riga ${rowNum}: Perc${i + 1} non valida per Ruolo${i + 1} '${ruolo}'`);
+            errorRows.push(`Riga ${rowNum}: Perc${i + 1} non valida per Ruolo${i + 1} '${ruolo}' (valore: '${rawPerc}')`);
             continue;
           }
           profile_mix.push({ poste_profile: ruolo, pct });
