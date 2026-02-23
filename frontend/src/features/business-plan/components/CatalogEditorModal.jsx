@@ -683,11 +683,11 @@ export default function CatalogEditorModal({
 
       dataLines.forEach((line, idx) => {
         const cols = parseCsvLine(line);
-        // DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1,Ruolo2,Ruolo3,Ruolo4,Perc1,Perc2,Perc3,Perc4
+        // DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1..10,Perc1..10
         const [
           rawLabel = '', rawTipo = '', rawCompl = '', rawPrice = '',
-          r1 = '', r2 = '', r3 = '', r4 = '',
-          p1 = '', p2 = '', p3 = '', p4 = '',
+          r1 = '', r2 = '', r3 = '', r4 = '', r5 = '', r6 = '', r7 = '', r8 = '', r9 = '', r10 = '',
+          p1 = '', p2 = '', p3 = '', p4 = '', p5 = '', p6 = '', p7 = '', p8 = '', p9 = '', p10 = '',
         ] = cols;
 
         const label = rawLabel.trim();
@@ -702,10 +702,10 @@ export default function CatalogEditorModal({
         if (isNaN(price) || price < 0) { errorRows.push(`Riga ${rowNum}: PrezzoUnitario non valido ('${rawPrice}')`); return; }
 
         // Build profile_mix from Ruolo/Perc pairs (skip empty ruoli)
-        const ruoli = [r1, r2, r3, r4];
-        const percs = [p1, p2, p3, p4];
+        const ruoli = [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10];
+        const percs = [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10];
         const profile_mix = [];
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 10; i++) {
           const ruolo = ruoli[i].trim();
           if (!ruolo) continue;
           const pct = parseFloat(percs[i]);
@@ -1550,7 +1550,7 @@ export default function CatalogEditorModal({
                     onChange={handleImportCSV}
                   />
                   <span className="text-xs text-slate-400 ml-1">
-                    <code className="bg-slate-100 px-1 rounded">DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1..4,Perc1..4</code>
+                    <code className="bg-slate-100 px-1 rounded">DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1..10,Perc1..10</code>
                     &nbsp;—&nbsp;Tipo: <strong>N</strong>/M &nbsp;Compl.: <strong>L</strong>/M/H
                   </span>
                 </div>
