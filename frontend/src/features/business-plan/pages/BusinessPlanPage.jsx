@@ -653,8 +653,10 @@ export default function BusinessPlanPage() {
     const daysPerFte = bp.days_per_fte || DAYS_PER_FTE;
     const defaultRate = bp.default_daily_rate || DEFAULT_DAILY_RATE;
     const profileMappings = bp.profile_mappings || {};
+    const inflationPct = bp.inflation_pct ?? 0;
 
     // Compute weighted avg Lutech rate for a profile_mix array
+    // Applies YoY inflation: year 0 = no change, year 1 = +inflationPct%, etc.
     const computeRate = (mix) => {
       if (!mix || mix.length === 0) return defaultRate;
       let totalWeighted = 0, totalPctSum = 0;
@@ -670,10 +672,16 @@ export default function BusinessPlanPage() {
             const me = parseFloat(m.month_end ?? durationMonths);
             const months = Math.max(0, me - ms + 1);
             if (months <= 0) continue;
+            
+            // YoY inflation: year 0 = no change, year 1 = +inflationPct%, etc.
+            const yearIndex = Math.floor((ms - 1) / 12);
+            const inflationFactor = inflationPct > 0 ? Math.round(Math.pow(1 + inflationPct / 100, yearIndex) * 1e8) / 1e8 : 1;
+            
             let pRate = 0;
             for (const mi of (m.mix || [])) {
               const mpct = (parseFloat(mi.pct) || 0) / 100;
-              pRate += mpct * (lutechRates[mi.lutech_profile] || defaultRate);
+              const baseRate = lutechRates[mi.lutech_profile] || defaultRate;
+              pRate += mpct * (baseRate * inflationFactor);
             }
             pWeighted += pRate * months;
             pMonths += months;

@@ -2464,6 +2464,7 @@ def calculate_business_plan(
         duration_months=bp.duration_months or 36,
         default_daily_rate=bp.default_daily_rate or 250.0,
         days_per_fte=bp.days_per_fte or 220,
+        inflation_pct=bp.inflation_pct or 0.0,
     )
     catalog_cost = catalog_result["total_cost"]
     tow_breakdown.update(catalog_result["by_tow"])
@@ -2610,6 +2611,7 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
         duration_months=bp.duration_months or 36,
         default_daily_rate=bp.default_daily_rate or 250.0,
         days_per_fte=bp.days_per_fte or 220,
+        inflation_pct=bp.inflation_pct or 0.0,
     )
     catalog_cost_s = catalog_result_s["total_cost"]
 
@@ -2684,6 +2686,7 @@ def find_discount_for_target(
         duration_months=bp.duration_months or 36,
         default_daily_rate=bp.default_daily_rate or 250.0,
         days_per_fte=bp.days_per_fte or 220,
+        inflation_pct=bp.inflation_pct or 0.0,
     )
     catalog_cost_d = catalog_result_d["total_cost"]
 

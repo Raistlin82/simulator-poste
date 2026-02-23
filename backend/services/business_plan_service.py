@@ -428,8 +428,11 @@ class BusinessPlanService:
         profile_rates: Dict[str, float],
         duration_months: int,
         default_daily_rate: float,
+        inflation_pct: float = 0.0,
     ) -> float:
-        """Compute duration-weighted average Lutech daily rate from a time-varying mapping."""
+        """Compute duration-weighted average Lutech daily rate from a time-varying mapping.
+        Applies YoY inflation: year 0 = no change, year 1 = +inflation_pct%, etc.
+        """
         if not mappings:
             return default_daily_rate
 
@@ -458,9 +461,16 @@ class BusinessPlanService:
                 else:
                     lutech_id = getattr(mix_item, "lutech_profile", "")
                     mix_pct = float(getattr(mix_item, "pct", 0) or 0) / 100.0
-                period_rate += mix_pct * profile_rates.get(lutech_id, default_daily_rate)
+                
+                base_rate = profile_rates.get(lutech_id, default_daily_rate)
+                period_rate += mix_pct * base_rate
 
-            total_weighted += period_rate * months
+            # Apply YoY inflation escalation to this period
+            year_index = (month_start - 1) // 12
+            inflation_factor = (1 + inflation_pct / 100) ** year_index if inflation_pct > 0 else 1.0
+            inflated_period_rate = period_rate * inflation_factor
+
+            total_weighted += inflated_period_rate * months
             total_months += months
 
         if total_months <= 0:
@@ -474,11 +484,13 @@ class BusinessPlanService:
         profile_rates: Dict[str, float],
         duration_months: int,
         default_daily_rate: float,
+        inflation_pct: float = 0.0,
     ) -> float:
         """
         Compute weighted average Lutech daily rate for a catalog item.
         profile_mix: [{"poste_profile": "ios_dev", "pct": 30}, ...]
         Each Poste profile is resolved via profile_mappings → Lutech profiles → rates.
+        YoY inflation is applied.
         """
         total_weighted_rate = 0.0
         total_pct = 0.0
@@ -497,7 +509,7 @@ class BusinessPlanService:
             mappings = profile_mappings.get(poste_profile, [])
             if mappings:
                 lutech_rate = BusinessPlanService._compute_lutech_rate_from_mapping(
-                    mappings, profile_rates, duration_months, default_daily_rate
+                    mappings, profile_rates, duration_months, default_daily_rate, inflation_pct
                 )
             else:
                 lutech_rate = profile_rates.get(poste_profile, default_daily_rate)
@@ -591,6 +603,7 @@ class BusinessPlanService:
         duration_months: int,
         default_daily_rate: float = 250.0,
         days_per_fte: int = 220,
+        inflation_pct: float = 0.0,
     ) -> Dict[str, Any]:
         """
         Calcola il costo dei TOW tipo 'catalogo' con modello FTE-FROM-GROUP.
@@ -699,7 +712,7 @@ class BusinessPlanService:
                 # Tariffa Lutech media dal mix figure
                 lutech_rate = BusinessPlanService._compute_catalog_item_rate(
                     profile_mix, profile_mappings, profile_rates,
-                    duration_months, default_daily_rate
+                    duration_months, default_daily_rate, inflation_pct
                 )
 
                 # FTE-FROM-GROUP: FTE → costo → prezzo vendita
