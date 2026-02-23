@@ -973,7 +973,21 @@ export default function BusinessPlanPage() {
       });
 
       setCleanTeamCost(cleanResult.total);
-      setTowBreakdown(teamResult.byTow);
+      
+      // Merge team TOW breakdown with catalog TOW breakdown
+      const mergedTowBreakdown = { ...teamResult.byTow };
+      if (catalogDetail?.byTow && Array.isArray(catalogDetail.byTow)) {
+        for (const catalogTow of catalogDetail.byTow) {
+          mergedTowBreakdown[catalogTow.tow_id] = {
+            cost: catalogTow.cost,
+            revenue: catalogTow.revenue,
+            label: catalogTow.label,
+            type: 'catalogo'
+          };
+        }
+      }
+      setTowBreakdown(mergedTowBreakdown);
+      
       setLutechProfileBreakdown(teamResult.byLutechProfile || {});
       setIntervals(teamResult.intervals || []);
       setTeamMixRate(teamResult.teamMixRate || 0);
