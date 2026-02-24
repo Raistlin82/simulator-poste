@@ -35,6 +35,8 @@ export default function ProfileMappingEditor({
   disabled = false,
   volumeAdjustments = {},
   reuseFactor = 0,
+  tows = [],               // TOW list to detect catalog
+  defaultDailyRate = 250,  // Default daily rate for catalog calculations
 }) {
   const { t } = useTranslation();
   const [expandedProfile, setExpandedProfile] = useState(null);
@@ -50,6 +52,84 @@ export default function ProfileMappingEditor({
       }))
     );
   }, [practices]);
+
+  // Compute item/profile mix rate - weighted average across mapping periods for catalog calculations
+  const computeItemMixRate = useCallback((profileMix) => {
+    if (!profileMix || profileMix.length === 0) return defaultDailyRate;
+
+    let totalWeighted = 0;
+    let totalPct = 0;
+
+    for (const entry of profileMix) {
+      const pct = (parseFloat(entry.pct) || 0) / 100;
+      if (pct <= 0) continue;
+
+      const posteProfile = entry.poste_profile || '';
+      const periodMappings = mappings[posteProfile] || [];
+
+      let profileRate = defaultDailyRate;
+      if (periodMappings.length > 0) {
+        let periodWeighted = 0;
+        let periodMonthsTotal = 0;
+
+        for (const m of periodMappings) {
+          const ms = parseFloat(m.month_start ?? 1);
+          const me = parseFloat(m.month_end ?? durationMonths);
+          const months = Math.max(0, me - ms + 1);
+          if (months <= 0) continue;
+
+          let pRate = 0;
+          for (const mi of (m.mix || [])) {
+            const mpct = (parseFloat(mi.pct) || 0) / 100;
+            const lutechProfile = lutechProfiles.find(p => p.full_id === mi.lutech_profile);
+            pRate += mpct * (lutechProfile?.daily_rate || defaultDailyRate);
+          }
+          periodWeighted += pRate * months;
+          periodMonthsTotal += months;
+        }
+        profileRate = periodMonthsTotal > 0 ? periodWeighted / periodMonthsTotal : defaultDailyRate;
+        if (profileRate <= 0) profileRate = defaultDailyRate;
+      }
+
+      totalWeighted += pct * profileRate;
+      totalPct += pct;
+    }
+
+    return totalPct > 0 ? totalWeighted / totalPct : defaultDailyRate;
+  }, [mappings, lutechProfiles, durationMonths, defaultDailyRate]);
+
+  // Get catalog mix statistics if catalog TOW exists
+  const getCatalogMixStats = useMemo(() => {
+    const catalogTow = tows.find(t => t.type === 'catalogo');
+    if (!catalogTow) return null;
+
+    const items = catalogTow.catalog_items || [];
+    const totalFte = parseFloat(catalogTow.total_fte || 0);
+
+    if (items.length === 0 || totalFte <= 0) return null;
+
+    // Calculate average rate for all catalog items
+    let totalWeightedRate = 0;
+    let validItems = 0;
+
+    for (const item of items) {
+      const profileMix = item.profile_mix || [];
+      if (profileMix.length > 0) {
+        const itemRate = computeItemMixRate(profileMix);
+        totalWeightedRate += itemRate;
+        validItems++;
+      }
+    }
+
+    const avgRate = validItems > 0 ? totalWeightedRate / validItems : defaultDailyRate;
+
+    return {
+      totalFte,
+      avgRate,
+      itemCount: items.length,
+      towLabel: catalogTow.label || 'Catalogo'
+    };
+  }, [tows, computeItemMixRate, defaultDailyRate]);
 
   const calculatePeriodMixCost = useCallback((mix) => {
     if (!mix || mix.length === 0) return { totalPct: 0, mixRate: 0, isComplete: false };
@@ -940,6 +1020,39 @@ export default function ProfileMappingEditor({
               </div>
             </div>
           </details>
+
+          {/* Catalog Mix Summary - shown if catalog TOW exists */}
+          {getCatalogMixStats && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-rose-600 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-200">
+                    <Calculator className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-slate-800 tracking-tight">Tariffa Media Team Mix Catalogo</div>
+                    <div className="text-sm text-slate-500 flex items-center gap-2">
+                      <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
+                        {getCatalogMixStats.totalFte.toFixed(1)} FTE catalogo
+                      </span>
+                      <span>sintesi da {getCatalogMixStats.itemCount} voci</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 glass-card px-6 py-4 rounded-2xl shadow-sm border border-slate-100/50 self-end md:self-auto">
+                  <div className="text-right">
+                    <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Costo medio catalogo €/giorno</div>
+                    <div className="flex items-baseline justify-end gap-1">
+                      <div className="text-4xl font-black text-slate-900 tracking-tighter">
+                        {formatCurrency(getCatalogMixStats.avgRate)}
+                      </div>
+                      <div className="text-sm font-bold text-slate-400">/GG</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

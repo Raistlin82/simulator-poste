@@ -1809,6 +1809,8 @@ export default function BusinessPlanPage() {
                   onChange={handleProfileMappingsChange}
                   volumeAdjustments={localBP.volume_adjustments || {}}
                   reuseFactor={localBP.reuse_factor || 0}
+                  tows={localBP.tows || []}
+                  defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
                 />
 
                 {/* Subappalto */}
