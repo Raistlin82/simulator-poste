@@ -98,7 +98,7 @@ export default function ProfileMappingEditor({
     return totalPct > 0 ? totalWeighted / totalPct : defaultDailyRate;
   }, [mappings, lutechProfiles, durationMonths, defaultDailyRate]);
 
-  // Get catalog mix statistics if catalog TOW exists
+  // Get catalog mix statistics if catalog TOW exists (with breakdown for formula explanation)
   const getCatalogMixStats = useMemo(() => {
     const catalogTow = tows.find(t => t.type === 'catalogo');
     if (!catalogTow) return null;
@@ -108,7 +108,8 @@ export default function ProfileMappingEditor({
 
     if (items.length === 0 || totalFte <= 0) return null;
 
-    // Calculate average rate for all catalog items
+    // Calculate rate and breakdown for each item
+    const breakdown = [];
     let totalWeightedRate = 0;
     let validItems = 0;
 
@@ -118,6 +119,49 @@ export default function ProfileMappingEditor({
         const itemRate = computeItemMixRate(profileMix);
         totalWeightedRate += itemRate;
         validItems++;
+
+        // Detail breakdown: which profiles + their rates
+        const mixDetails = [];
+        for (const m of profileMix) {
+          const pct = parseFloat(m.pct) || 0;
+          if (pct > 0) {
+            const posteProfile = m.poste_profile || '?';
+            const periodMappings = mappings[posteProfile] || [];
+            let profileRate = defaultDailyRate;
+            
+            if (periodMappings.length > 0) {
+              let periodWeighted = 0, periodMonthsTotal = 0;
+              for (const pm of periodMappings) {
+                const ms = Math.max(1, parseFloat(pm.month_start ?? 1));
+                const me = Math.min(durationMonths, parseFloat(pm.month_end ?? durationMonths));
+                const months = Math.max(0, me - ms + 1);
+                if (months <= 0) continue;
+
+                let pRate = 0;
+                for (const pmi of (pm.mix || [])) {
+                  const mpct = (parseFloat(pmi.pct) || 0) / 100;
+                  const lutechProfile = lutechProfiles.find(p => p.full_id === pmi.lutech_profile);
+                  pRate += mpct * (lutechProfile?.daily_rate || defaultDailyRate);
+                }
+                periodWeighted += pRate * months;
+                periodMonthsTotal += months;
+              }
+              profileRate = periodMonthsTotal > 0 ? periodWeighted / periodMonthsTotal : defaultDailyRate;
+            }
+
+            mixDetails.push({
+              profile: posteProfile,
+              pct,
+              rate: profileRate
+            });
+          }
+        }
+
+        breakdown.push({
+          itemLabel: item.label || '(senza nome)',
+          itemRate,
+          mixDetails
+        });
       }
     }
 
@@ -127,9 +171,11 @@ export default function ProfileMappingEditor({
       totalFte,
       avgRate,
       itemCount: items.length,
-      towLabel: catalogTow.label || 'Catalogo'
+      towLabel: catalogTow.label || 'Catalogo',
+      breakdown,
+      hasMappings: validItems > 0
     };
-  }, [tows, computeItemMixRate, defaultDailyRate]);
+  }, [tows, computeItemMixRate, defaultDailyRate, mappings, lutechProfiles, durationMonths]);
 
   const calculatePeriodMixCost = useCallback((mix) => {
     if (!mix || mix.length === 0) return { totalPct: 0, mixRate: 0, isComplete: false };
@@ -1051,6 +1097,94 @@ export default function ProfileMappingEditor({
                   </div>
                 </div>
               </div>
+
+              {/* Formula Explanation - Catalog Mix */}
+              {getCatalogMixStats.hasMappings && (
+                <details className="mt-4 group">
+                  <summary className="flex items-center gap-2 cursor-pointer text-sm text-rose-600 hover:text-rose-700 font-medium select-none">
+                    <Info className="w-4 h-4" />
+                    <span>Come viene calcolato il costo medio catalogo?</span>
+                    <ChevronDown className="w-4 h-4 ml-1 group-open:rotate-180 transition-transform" />
+                  </summary>
+                  <div className="mt-3 p-4 bg-white/40 backdrop-blur-sm rounded-xl border border-rose-100/50 shadow-sm text-sm space-y-4">
+                    <div className="font-bold text-slate-700 border-b pb-2">Formula COSTO MEDIO CATALOGO €/GIORNO — Calcolo Attuale</div>
+
+                    {/* STEP 1-2: Per ogni voce catalogo */}
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2">
+                        <span className="flex-shrink-0 w-6 h-6 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center text-xs font-bold">1-2</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-slate-700 mb-2">Tariffa media per voce catalogo (da mix Poste → Lutech):</div>
+                          {getCatalogMixStats.breakdown.length > 0 ? (
+                            <div className="space-y-2">
+                              {getCatalogMixStats.breakdown.map((item, idx) => (
+                                <div key={idx} className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium text-slate-700">{item.itemLabel}</span>
+                                    <span className="text-rose-600 font-bold">€{item.itemRate.toFixed(0)}/gg</span>
+                                  </div>
+                                  {item.mixDetails.length > 0 && (
+                                    <div className="mt-1 text-xs text-slate-500 space-y-0.5">
+                                      {item.mixDetails.map((mix, mi) => (
+                                        <div key={mi} className="ml-2 flex items-center gap-1">
+                                          <span>{mix.pct}% {mix.profile}</span>
+                                          <span className="text-slate-400">→ €{mix.rate.toFixed(0)}/gg</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-slate-400 italic">Nessuna voce con profile mix configurato</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* STEP 3: Media tra voci */}
+                    <div className="flex items-start gap-2">
+                      <span className="flex-shrink-0 w-6 h-6 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-700 mb-1">Media tra le voci catalogo:</div>
+                        <code className="bg-slate-100 px-2 py-1 rounded text-xs block mb-2">
+                          costo_medio_catalogo = Σ(tariffa_voce) ÷ numero_voci
+                        </code>
+                        {getCatalogMixStats.breakdown.length > 0 && (
+                          <div className="bg-slate-50 rounded-lg p-2 border border-slate-100 text-xs">
+                            <div className="space-y-1">
+                              {getCatalogMixStats.breakdown.map((item, idx) => (
+                                <div key={idx} className="flex items-center justify-between">
+                                  <span>{item.itemLabel}: €{item.itemRate.toFixed(0)}</span>
+                                  <span className="font-medium text-slate-600">/gg</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="border-t mt-2 pt-2 flex justify-between font-bold text-slate-700">
+                              <span>Σ Tariffa voci:</span>
+                              <span>€{getCatalogMixStats.breakdown.reduce((s, i) => s + i.itemRate, 0).toFixed(0)}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-700 my-1">
+                              <span>÷ {getCatalogMixStats.breakdown.length} voci</span>
+                              <span className="text-rose-600 font-bold">= €{getCatalogMixStats.avgRate.toFixed(0)}/gg</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-3 text-xs text-slate-500">
+                      <strong>Nota:</strong> La tariffa media catalogo raggruppa tutte le voci con configurazione profile mix.
+                      {getCatalogMixStats.itemCount - getCatalogMixStats.breakdown.length > 0 && (
+                        <span className="text-amber-600 ml-1">
+                          Voci non configurate: {getCatalogMixStats.itemCount - getCatalogMixStats.breakdown.length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </div>
