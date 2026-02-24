@@ -98,26 +98,47 @@ export default function ProfileMappingEditor({
     return totalPct > 0 ? totalWeighted / totalPct : defaultDailyRate;
   }, [mappings, lutechProfiles, durationMonths, defaultDailyRate]);
 
-  // Get catalog mix statistics if catalog TOW exists (with breakdown for formula explanation)
+  // Get catalog mix statistics if catalog TOW exists (with FTE-weighted breakdown)
   const getCatalogMixStats = useMemo(() => {
     const catalogTow = tows.find(t => t.type === 'catalogo');
     if (!catalogTow) return null;
 
     const items = catalogTow.catalog_items || [];
+    const groups = catalogTow.catalog_groups || [];
     const totalFte = parseFloat(catalogTow.total_fte || 0);
+    const totalCatalogValue = parseFloat(catalogTow.total_catalog_value || 0);
 
-    if (items.length === 0 || totalFte <= 0) return null;
+    if (items.length === 0 || totalFte <= 0 || totalCatalogValue <= 0) return null;
 
-    // Calculate rate and breakdown for each item
+    // Map items to their groups for FTE calculation
+    const itemToGroup = {};
+    groups.forEach(g => {
+      (g.item_ids || []).forEach(id => {
+        itemToGroup[id] = g;
+      });
+    });
+
+    // Calculate rate and FTE-weighted breakdown for each item
     const breakdown = [];
-    let totalWeightedRate = 0;
+    let totalWeightedCost = 0;
     let validItems = 0;
 
     for (const item of items) {
       const profileMix = item.profile_mix || [];
       if (profileMix.length > 0) {
         const itemRate = computeItemMixRate(profileMix);
-        totalWeightedRate += itemRate;
+        
+        // Calculate item's FTE: (group_target / total_catalog_value) × total_fte × (item_group_pct / 100)
+        const group = itemToGroup[item.id];
+        const groupTarget = group ? (parseFloat(group.target_value) || 0) : 0;
+        const groupFte = (totalCatalogValue > 0 && groupTarget > 0)
+          ? (groupTarget / totalCatalogValue) * totalFte
+          : 0;
+        const itemFte = groupFte > 0 ? groupFte * (parseFloat(item.group_pct || 0) / 100) : 0;
+        
+        // Weighted cost: tariffa × FTE
+        const itemWeightedCost = itemRate * itemFte;
+        totalWeightedCost += itemWeightedCost;
         validItems++;
 
         // Detail breakdown: which profiles + their rates
@@ -160,12 +181,15 @@ export default function ProfileMappingEditor({
         breakdown.push({
           itemLabel: item.label || '(senza nome)',
           itemRate,
+          itemFte,
+          itemWeightedCost,
           mixDetails
         });
       }
     }
 
-    const avgRate = validItems > 0 ? totalWeightedRate / validItems : defaultDailyRate;
+    // FTE-weighted average rate
+    const avgRate = totalFte > 0 ? totalWeightedCost / totalFte : defaultDailyRate;
 
     return {
       totalFte,
@@ -173,7 +197,8 @@ export default function ProfileMappingEditor({
       itemCount: items.length,
       towLabel: catalogTow.label || 'Catalogo',
       breakdown,
-      hasMappings: validItems > 0
+      hasMappings: validItems > 0,
+      totalWeightedCost
     };
   }, [tows, computeItemMixRate, defaultDailyRate, mappings, lutechProfiles, durationMonths]);
 
@@ -1143,31 +1168,46 @@ export default function ProfileMappingEditor({
                       </div>
                     </div>
 
-                    {/* STEP 3: Media tra voci */}
+                    {/* STEP 3: Pesatura FTE */}
                     <div className="flex items-start gap-2">
                       <span className="flex-shrink-0 w-6 h-6 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
                       <div className="flex-1">
-                        <div className="font-semibold text-slate-700 mb-1">Media tra le voci catalogo:</div>
+                        <div className="font-semibold text-slate-700 mb-1">Media pesata per FTE:</div>
                         <code className="bg-slate-100 px-2 py-1 rounded text-xs block mb-2">
-                          costo_medio_catalogo = Σ(tariffa_voce) ÷ numero_voci
+                          costo_pesato = Σ(tariffa_voce × FTE_voce)
                         </code>
                         {getCatalogMixStats.breakdown.length > 0 && (
                           <div className="bg-slate-50 rounded-lg p-2 border border-slate-100 text-xs">
                             <div className="space-y-1">
                               {getCatalogMixStats.breakdown.map((item, idx) => (
                                 <div key={idx} className="flex items-center justify-between">
-                                  <span>{item.itemLabel}: €{item.itemRate.toFixed(0)}</span>
-                                  <span className="font-medium text-slate-600">/gg</span>
+                                  <span>{item.itemLabel}: €{item.itemRate.toFixed(0)} × {item.itemFte.toFixed(2)} FTE</span>
+                                  <span className="font-medium text-rose-600">= €{item.itemWeightedCost.toLocaleString('it-IT')}</span>
                                 </div>
                               ))}
                             </div>
                             <div className="border-t mt-2 pt-2 flex justify-between font-bold text-slate-700">
-                              <span>Σ Tariffa voci:</span>
-                              <span>€{getCatalogMixStats.breakdown.reduce((s, i) => s + i.itemRate, 0).toFixed(0)}</span>
+                              <span>Totale pesato:</span>
+                              <span>€{getCatalogMixStats.totalWeightedCost.toLocaleString('it-IT')}</span>
                             </div>
-                            <div className="flex justify-between text-slate-700 my-1">
-                              <span>÷ {getCatalogMixStats.breakdown.length} voci</span>
-                              <span className="text-rose-600 font-bold">= €{getCatalogMixStats.avgRate.toFixed(0)}/gg</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* STEP 4: Divisione finale */}
+                    <div className="flex items-start gap-2">
+                      <span className="flex-shrink-0 w-6 h-6 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-700 mb-1">Costo medio finale:</div>
+                        <code className="bg-slate-100 px-2 py-1 rounded text-xs block mb-2">
+                          COSTO_MEDIO = costo_pesato ÷ FTE_totali
+                        </code>
+                        {getCatalogMixStats.totalFte > 0 && (
+                          <div className="bg-rose-50 rounded-lg p-3 border border-rose-100">
+                            <div className="flex items-center justify-between text-rose-800">
+                              <span>€{getCatalogMixStats.totalWeightedCost.toLocaleString('it-IT')} ÷ {getCatalogMixStats.totalFte.toFixed(1)} FTE</span>
+                              <span className="text-xl font-black">= €{Math.round(getCatalogMixStats.avgRate)}/gg</span>
                             </div>
                           </div>
                         )}
@@ -1175,7 +1215,7 @@ export default function ProfileMappingEditor({
                     </div>
 
                     <div className="border-t pt-3 text-xs text-slate-500">
-                      <strong>Nota:</strong> La tariffa media catalogo raggruppa tutte le voci con configurazione profile mix.
+                      <strong>Nota:</strong> La tariffa media catalogo è pesata per gli FTE delle singole voci, derivati dal target value dei raggruppamenti.
                       {getCatalogMixStats.itemCount - getCatalogMixStats.breakdown.length > 0 && (
                         <span className="text-amber-600 ml-1">
                           Voci non configurate: {getCatalogMixStats.itemCount - getCatalogMixStats.breakdown.length}
