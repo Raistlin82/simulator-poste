@@ -112,24 +112,28 @@ export default function ProfitAndLoss({
   return (
     <div className="glass-card rounded-2xl">
       {/* Header */}
-      <div className="p-4 border-b border-slate-100 glass-card-header">
+      <div className="p-5 border-b border-slate-100 bg-white/40">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Receipt className="w-5 h-5 text-blue-600" />
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Receipt className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">Conto Economico di Commessa</h3>
-              <p className="text-xs text-slate-500">Sintesi P&L: ricavi, costi e margine</p>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Conto Economico di Commessa</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">Sintesi P&L: ricavi, costi e margine</p>
             </div>
           </div>
           {isRti && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-200">
-              <span className="text-xs text-indigo-600">Base gara totale:</span>
-              <span className="text-xs font-semibold text-indigo-700">{formatCurrency(fullBaseAmount)}</span>
-              <span className="text-xs text-indigo-500">-</span>
-              <span className="text-xs text-indigo-600">Quota Lutech ({(quotaLutech * 100).toFixed(0)}%):</span>
-              <span className="text-xs font-bold text-indigo-700">{formatCurrency(baseAmount)}</span>
+            <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-indigo-500/5 backdrop-blur-md rounded-xl border border-indigo-100 shadow-sm font-display uppercase tracking-tighter">
+              <div className="flex flex-col">
+                <span className="text-[9px] text-slate-400 font-bold">BASE GARA TOTALE</span>
+                <span className="text-xs font-black text-indigo-600">{formatCurrency(fullBaseAmount)}</span>
+              </div>
+              <div className="w-px h-6 bg-indigo-200" />
+              <div className="flex flex-col">
+                <span className="text-[9px] text-slate-400 font-bold">QUOTA LUTECH ({(quotaLutech * 100).toFixed(0)}%)</span>
+                <span className="text-xs font-black text-indigo-700">{formatCurrency(baseAmount)}</span>
+              </div>
             </div>
           )}
         </div>
@@ -140,9 +144,9 @@ export default function ProfitAndLoss({
 
           {/* Colonna RICAVI */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Ricavi</span>
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest-plus font-display">Ricavi</span>
             </div>
 
             <div className="space-y-2">
@@ -160,9 +164,9 @@ export default function ProfitAndLoss({
 
           {/* Colonna COSTI */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingDown className="w-4 h-4 text-slate-600" />
-              <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Costi</span>
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingDown className="w-4 h-4 text-indigo-600" />
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest-plus font-display">Costi</span>
             </div>
 
             <div className="space-y-2">
@@ -194,19 +198,19 @@ export default function ProfitAndLoss({
 
           {/* Colonna MARGINE */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-4">
               <status.Icon className={`w-4 h-4 ${sc.icon}`} />
-              <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Margine</span>
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking_widest-plus font-display">Margine</span>
             </div>
 
-            <div className={`p-4 rounded-xl border-2 ${sc.border} ${sc.bg}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-sm font-medium ${sc.text}`}>{status.label}</span>
-                <span className={`text-xs ${sc.text}`}>
-                  Target: {pnl.effectiveTarget.toFixed(0)}%
+            <div className={`p-4 rounded-2xl border ${sc.border} ${sc.bg} shadow-sm backdrop-blur-sm`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-[10px] font-black uppercase tracking-widest font-display ${sc.text}`}>{status.label}</span>
+                <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${sc.text}`}>
+                  TARGET: {pnl.effectiveTarget.toFixed(0)}%
                 </span>
               </div>
-              <div className={`text-4xl font-bold ${sc.textBold} mb-3`}>
+              <div className={`text-5xl font-black ${sc.textBold} mb-4 font-display tracking-tightest`}>
                 {pnl.marginPct.toFixed(1)}%
               </div>
               <div className="space-y-1.5">
@@ -240,10 +244,9 @@ export default function ProfitAndLoss({
                       style={{ left: `${(pnl.effectiveTarget / barMax) * 100}%` }}
                     />
                     <div
-                      className={`h-full rounded-full transition-all ${
-                        status.color === 'green' ? 'bg-green-500' :
-                        status.color === 'amber' ? 'bg-amber-500' : 'bg-red-500'
-                      }`}
+                      className={`h-full rounded-full transition-all ${status.color === 'green' ? 'bg-green-500' :
+                          status.color === 'amber' ? 'bg-amber-500' : 'bg-red-500'
+                        }`}
                       style={{ width: `${Math.max(0, Math.min(pnl.marginPct, barMax)) / barMax * 100}%` }}
                     />
                   </div>

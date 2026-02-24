@@ -31,7 +31,6 @@ import {
   MarginSimulator,
   VolumeAdjustments,
   CostBreakdown,
-  ScenarioCards,
   ProfitAndLoss,
   SubcontractPanel,
   OfferSchemeTable,
@@ -70,8 +69,6 @@ export default function BusinessPlanPage() {
   const [lutechProfileBreakdown, setLutechProfileBreakdown] = useState({});
   const [intervals, setIntervals] = useState([]);
   const [teamMixRate, setTeamMixRate] = useState(0);
-  const [scenarios, setScenarios] = useState([]);
-  const [selectedScenario, setSelectedScenario] = useState(null);
   const [discount, setDiscount] = useState(() => myDiscount ?? 0);
   const [targetMargin, setTargetMargin] = useState(15);
   const [saving, setSaving] = useState(false);
@@ -672,11 +669,11 @@ export default function BusinessPlanPage() {
             const me = parseFloat(m.month_end ?? durationMonths);
             const months = Math.max(0, me - ms + 1);
             if (months <= 0) continue;
-            
+
             // YoY inflation: year 0 = no change, year 1 = +inflationPct%, etc.
             const yearIndex = Math.floor((ms - 1) / 12);
             const inflationFactor = inflationPct > 0 ? Math.round(Math.pow(1 + inflationPct / 100, yearIndex) * 1e8) / 1e8 : 1;
-            
+
             let pRate = 0;
             for (const mi of (m.mix || [])) {
               const mpct = (parseFloat(mi.pct) || 0) / 100;
@@ -731,7 +728,7 @@ export default function BusinessPlanPage() {
         const group_reuse_factor = (group_reuse_raw !== null && group_reuse_raw !== undefined)
           ? parseFloat(group_reuse_raw)
           : defaultCatalogReuseFactor;
-        
+
         const effective_group_fte = group_fte * (1.0 - group_reuse_factor);
 
         const item_pct = parseFloat(item.group_pct) || 0;
@@ -815,7 +812,7 @@ export default function BusinessPlanPage() {
           const actualPct = clusterAccum[c.id] || 0;
           const requiredPct = parseFloat(c.required_pct) || 0;
           const constraintType = c.constraint_type || 'equality';
-          
+
           // Validate based on constraint type
           let ok;
           if (constraintType === 'maximum') {
@@ -825,7 +822,7 @@ export default function BusinessPlanPage() {
           } else {
             ok = Math.abs(actualPct - requiredPct) <= 2;
           }
-          
+
           clusterDetail.push({
             label: c.label,
             required_pct: requiredPct,
@@ -872,61 +869,7 @@ export default function BusinessPlanPage() {
     };
   }, [buildLutechRates]);
 
-  // Generate scenarios with real recalculation and suggested discount
-  // effectiveBase is already Lutech's share (baseAmount * quotaLutech)
-  // catalogCost is fixed across scenarios (FTE from the tender, not optimizable)
-  const generateScenarios = useCallback((bp, effectiveBase, currentCost, catalogCost = 0) => {
-    if (!effectiveBase || !currentCost) return [];
 
-    return SCENARIO_PARAMS.map(({ name, reuse, profileReduction }) => {
-      const neutralVolAdj = { periods: [{ month_start: 1, month_end: bp.duration_months || 36, by_tow: {}, by_profile: {} }] };
-
-      const team = bp.team_composition || [];
-      for (const member of team) {
-        const pid = member.profile_id || member.label;
-        neutralVolAdj.periods[0].by_profile[pid] = profileReduction;
-      }
-
-      const scenarioResult = calculateTeamCost(bp, {
-        reuse_factor: reuse,
-        volume_adjustments: neutralVolAdj,
-      });
-
-      // Base overhead = team cost (variabile) + catalog cost (fisso dal bando)
-      const scenarioCost = scenarioResult.total;
-      const scenarioBase = scenarioCost + catalogCost;
-      const govResult = calculateGovernanceCost(bp, scenarioBase);
-      const govCost = govResult.value;
-      const riskCost = (scenarioBase + govCost) * ((bp.risk_contingency_pct || 3) / 100);
-      const towSplit = bp.subcontract_config?.tow_split || {};
-      const subPct = Object.values(towSplit).reduce((sum, pct) => sum + (parseFloat(pct) || 0), 0);
-      const subCost = scenarioBase * (subPct / 100);
-      const totalScenarioCost = scenarioBase + govCost + riskCost + subCost;
-
-      const revenue = effectiveBase;
-      const margin = revenue - totalScenarioCost;
-      const marginPct = revenue > 0 ? (margin / revenue) * 100 : 0;
-
-      // Find discount that achieves the target margin
-      const target = targetMargin / 100;
-      const denom = effectiveBase * (1 - target);
-      const suggestedDiscount = denom > 0
-        ? Math.max(0, Math.min(100, (1 - totalScenarioCost / denom) * 100))
-        : 0;
-
-      return {
-        name,
-        volume_adjustment: profileReduction,
-        reuse_factor: reuse / 100,
-        total_cost: totalScenarioCost,
-        team_cost: scenarioCost,
-        revenue,
-        margin,
-        margin_pct: marginPct,
-        suggested_discount: parseFloat(suggestedDiscount.toFixed(2)),
-      };
-    });
-  }, [calculateTeamCost, calculateGovernanceCost, targetMargin]);
 
   // Calculate costs when BP changes
   const runCalculation = useCallback(() => {
@@ -987,7 +930,7 @@ export default function BusinessPlanPage() {
       });
 
       setCleanTeamCost(cleanResult.total);
-      
+
       // Merge team TOW breakdown with catalog TOW breakdown
       const mergedTowBreakdown = { ...teamResult.byTow };
       if (catalogDetail?.byTow && Array.isArray(catalogDetail.byTow)) {
@@ -1001,25 +944,17 @@ export default function BusinessPlanPage() {
         }
       }
       setTowBreakdown(mergedTowBreakdown);
-      
+
       setLutechProfileBreakdown(teamResult.byLutechProfile || {});
       setIntervals(teamResult.intervals || []);
       setTeamMixRate(teamResult.teamMixRate || 0);
 
-      // Generate scenarios using effective base (already Lutech's share)
-      const rawBase = lotData.base_amount || 0;
-      const isRtiCalc = lotData.rti_enabled || false;
-      const qLutechCalc = isRtiCalc && lotData.rti_quotas?.Lutech
-        ? lotData.rti_quotas.Lutech / 100 : 1.0;
-      const effectiveBase = rawBase * qLutechCalc;
-      const newScenarios = generateScenarios(localBP, effectiveBase, totalCost, catalogCost);
-      setScenarios(newScenarios);
-
+      // Calculation completed
     } catch (err) {
       logger.error('Calculation error', err, { lot: selectedLot });
       toast.error(`Errore nel calcolo: ${err.message || 'Errore sconosciuto'}`);
     }
-  }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, computeCatalogCost, generateScenarios, teamMixRate, toast]);
+  }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, computeCatalogCost, teamMixRate, toast]);
 
   useEffect(() => {
     runCalculation();
@@ -1105,7 +1040,6 @@ export default function BusinessPlanPage() {
         base_amount: lotData.base_amount || 0,
         is_rti: isRti,
         quota_lutech: quotaLutech,
-        scenarios: scenarios,
         tow_breakdown: towBreakdown,
         lutech_breakdown: lutechProfileBreakdown,
         profile_rates: buildLutechRates(),
@@ -1370,21 +1304,7 @@ export default function BusinessPlanPage() {
     setLocalBP(prev => ({ ...prev, profile_mappings: currentMappings }));
   };
 
-  // Apply scenario
-  const handleSelectScenario = (scenarioName) => {
-    setSelectedScenario(scenarioName);
-    const scenario = scenarios.find(s => s.name === scenarioName);
-    if (scenario) {
-      setLocalBP(prev => ({
-        ...prev,
-        reuse_factor: scenario.reuse_factor * 100,
-      }));
-      // Apply suggested discount
-      if (scenario.suggested_discount > 0) {
-        setDiscount(scenario.suggested_discount);
-      }
-    }
-  };
+
 
   // Base d'asta effettiva per Lutech: se RTI, e gia la quota Lutech
   const effectiveBaseAmount = (lotData?.base_amount || 0) * quotaLutech;
@@ -1548,501 +1468,486 @@ export default function BusinessPlanPage() {
 
   return (
     <>
-    <div className="flex-1 overflow-auto p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Briefcase className="w-6 h-6 text-white" />
+      <div className="flex-1 overflow-auto p-4 md:p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Briefcase className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-slate-800 font-display tracking-tightest">
+                  {t('business_plan.title')}
+                </h1>
+                <p className="text-sm font-medium text-slate-500 tracking-tight">
+                  {t('business_plan.subtitle')}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">
-                {t('business_plan.title')}
-              </h1>
-              <p className="text-sm text-slate-500">
-                {t('business_plan.subtitle')}
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <span className="px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg border border-slate-200">
-              {selectedLot}
-            </span>
-            {isRti && (
-              <span className="inline-flex items-center gap-1 px-2 py-1.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200">
-                <Building2 className="w-3 h-3" />
-                RTI {quotaLutech * 100}%
+            <div className="flex items-center gap-3">
+              <span className="px-4 py-2 bg-white/50 backdrop-blur-md text-slate-800 text-xs font-black uppercase tracking-widest rounded-xl border border-white/40 shadow-sm font-display">
+                {selectedLot}
               </span>
-            )}
-            <button
-              onClick={handleExcelExport}
-              disabled={excelExportLoading || !calcResult}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg
-                         font-medium text-sm hover:bg-green-700 transition-colors shadow-sm
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {excelExportLoading ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <FileDown className="w-4 h-4" />
+              {isRti && (
+                <span className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-500/10 backdrop-blur-md text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl border border-indigo-200/50 font-display">
+                  <Building2 className="w-3 h-3" />
+                  RTI {quotaLutech * 100}%
+                </span>
               )}
-              Export Excel
-            </button>
-            {/* Save status indicator (no separate save button — use global top-bar Salva) */}
-            {saving && (
-              <div className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Salvataggio...
-              </div>
-            )}
+              <button
+                onClick={handleExcelExport}
+                disabled={excelExportLoading || !calcResult}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl
+                         font-bold text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg
+                         shadow-slate-200/50 disabled:opacity-50 disabled:cursor-not-allowed font-display"
+              >
+                {excelExportLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileDown className="w-4 h-4" />
+                )}
+                Export Excel
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Save status */}
-        {saveStatus && (
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${saveStatus === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-            }`}>
-            {saveStatus === 'success' ? (
-              <CheckCircle2 className="w-4 h-4" />
-            ) : (
-              <AlertCircle className="w-4 h-4" />
-            )}
-            <span className="text-sm font-medium">
-              {saveStatus === 'success' ? 'Business Plan salvato con successo' : 'Errore nel salvataggio'}
-            </span>
+          {/* Save status */}
+          {saveStatus && (
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${saveStatus === 'success'
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+              {saveStatus === 'success' ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <AlertCircle className="w-4 h-4" />
+              )}
+              <span className="text-sm font-medium">
+                {saveStatus === 'success' ? 'Business Plan salvato con successo' : 'Errore nel salvataggio'}
+              </span>
+            </div>
+          )}
+
+          {/* Error banner */}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Tab Navigation */}
+          <div className="flex bg-white/30 backdrop-blur-xl border border-white/40 p-1.5 rounded-2xl shadow-sm">
+            {[
+              { id: 'poste', label: 'Poste', icon: MailCheck, desc: 'Requisiti' },
+              { id: 'lutech', label: 'Lutech', icon: Users, desc: 'Team' },
+              { id: 'analisi', label: 'Analisi', icon: BarChart3, desc: 'P&L' },
+              { id: 'offerta', label: 'Offerta', icon: FileDown, desc: 'PxQ' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl
+                         transition-all duration-300 ${activeTab === tab.id
+                    ? 'bg-white text-indigo-600 shadow-md scale-[1.02]'
+                    : 'text-slate-500 hover:text-indigo-500 hover:bg-white/50'
+                  }`}
+              >
+                <tab.icon className={`w-5 h-5 transition-transform ${activeTab === tab.id ? 'scale-110' : ''}`} />
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] font-black uppercase tracking-widest font-display">{tab.label}</span>
+                  <span className="hidden md:inline text-[8px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">{tab.desc}</span>
+                </div>
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* Error banner */}
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-            {error}
-          </div>
-        )}
+          {/* Tab Content */}
+          <div className="space-y-6">
 
-        {/* Tab Navigation */}
-        <div className="glass-tab-bar flex rounded-2xl">
-          {[
-            { id: 'poste', label: 'Poste', icon: MailCheck, desc: 'Requisiti e volumi' },
-            { id: 'lutech', label: 'Lutech', icon: Users, desc: 'Team, costi e parametri' },
-            { id: 'analisi', label: 'Analisi', icon: BarChart3, desc: 'P&L, margine, scenari' },
-            { id: 'offerta', label: 'Offerta', icon: FileDown, desc: 'Schema PxQ' },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium
-                         transition-colors border-b-2 ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              <span className="hidden md:inline text-xs opacity-60">— {tab.desc}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        <div className="space-y-6">
-
-          {/* ═══ TAB 1: POSTE ═══ */}
-          {activeTab === 'poste' && (
-            <div className="space-y-6">
-              {/* Configurazione TOW */}
-              <TowConfigTable
-                tows={localBP.tows || []}
-                practices={practices}
-                towAssignments={localBP.tow_assignments || {}}
-                onChange={handleTowsChange}
-                onAssignmentChange={handleTowAssignmentChange}
-                onOpenCatalogModal={(towIndex) => {
-                  const tow = (localBP.tows || [])[towIndex];
-                  if (tow) {
-                    // Ensure Sconto Gara/Lotto is initially aligned with the
-                    // global discount (sidebar) when not explicitly set.
-                    const sconto = tow.sconto_gara_pct;
-                    if (sconto === undefined || sconto === null || Number(sconto) === 0) {
-                      const normalized = parseFloat(discount) || 0;
-                      const towCopy = { ...tow, sconto_gara_pct: normalized };
-                      setCatalogModalTow({ tow: towCopy, index: towIndex });
-                    } else {
-                      setCatalogModalTow({ tow, index: towIndex });
+            {/* ═══ TAB 1: POSTE ═══ */}
+            {activeTab === 'poste' && (
+              <div className="space-y-6">
+                {/* Configurazione TOW */}
+                <TowConfigTable
+                  tows={localBP.tows || []}
+                  practices={practices}
+                  towAssignments={localBP.tow_assignments || {}}
+                  onChange={handleTowsChange}
+                  onAssignmentChange={handleTowAssignmentChange}
+                  onOpenCatalogModal={(towIndex) => {
+                    const tow = (localBP.tows || [])[towIndex];
+                    if (tow) {
+                      // Ensure Sconto Gara/Lotto is initially aligned with the
+                      // global discount (sidebar) when not explicitly set.
+                      const sconto = tow.sconto_gara_pct;
+                      if (sconto === undefined || sconto === null || Number(sconto) === 0) {
+                        const normalized = parseFloat(discount) || 0;
+                        const towCopy = { ...tow, sconto_gara_pct: normalized };
+                        setCatalogModalTow({ tow: towCopy, index: towIndex });
+                      } else {
+                        setCatalogModalTow({ tow, index: towIndex });
+                      }
                     }
-                  }
-                }}
-                volumeAdjustments={localBP.volume_adjustments || {}}
-                durationMonths={localBP.duration_months}
-                profileMappings={localBP.profile_mappings || {}}
-                profileRates={buildLutechRates()}
-                defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
-                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
-              />
+                  }}
+                  volumeAdjustments={localBP.volume_adjustments || {}}
+                  durationMonths={localBP.duration_months}
+                  profileMappings={localBP.profile_mappings || {}}
+                  profileRates={buildLutechRates()}
+                  defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+                  daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+                />
 
-              {/* Composizione Team (requisiti Poste) — i TOW tipo catalogo non partecipano all'allocazione FTE */}
-              <TeamCompositionTable
-                team={localBP.team_composition || []}
-                tows={(localBP.tows || []).filter(t => t.type !== 'catalogo')}
-                durationMonths={localBP.duration_months}
-                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
-                onChange={handleTeamChange}
-                volumeAdjustments={localBP.volume_adjustments || {}}
-                reuseFactor={localBP.reuse_factor || 0}
-              />
+                {/* Composizione Team (requisiti Poste) — i TOW tipo catalogo non partecipano all'allocazione FTE */}
+                <TeamCompositionTable
+                  team={localBP.team_composition || []}
+                  tows={(localBP.tows || []).filter(t => t.type !== 'catalogo')}
+                  durationMonths={localBP.duration_months}
+                  daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+                  onChange={handleTeamChange}
+                  volumeAdjustments={localBP.volume_adjustments || {}}
+                  reuseFactor={localBP.reuse_factor || 0}
+                />
 
-              {/* Parametri Poste: Durata + Rettifica Volumi */}
-              <div className="glass-card rounded-2xl">
-                <div className="p-4 glass-card-header">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-orange-600" />
+                {/* Parametri Poste: Durata + Rettifica Volumi */}
+                <div className="glass-card rounded-2xl">
+                  <div className="p-4 glass-card-header">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                        <Calendar className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-slate-800 font-display tracking-tight uppercase">Parametri Poste</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-display">Durata, giorni/anno FTE, tariffa default e rettifica volumi</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-800">Parametri Poste</h3>
-                      <p className="text-xs text-slate-500">Durata, giorni/anno FTE, tariffa default e rettifica volumi</p>
+                  </div>
+
+                  <div className="p-5 space-y-5">
+                    {/* Data Inizio Contratto */}
+                    <div className="pb-4 border-b border-slate-100">
+                      <label className="text-sm font-medium text-slate-700 mb-3 block">Data Inizio Contratto</label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Anno */}
+                        <div className="space-y-2">
+                          <label className="text-xs text-slate-500">Anno</label>
+                          <input
+                            type="number"
+                            min={2020}
+                            max={2040}
+                            value={localBP.start_year || ''}
+                            onChange={(e) => handleStartYearChange(e.target.value)}
+                            placeholder="es. 2026"
+                            className="w-full px-3 py-2 text-center border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        {/* Mese */}
+                        <div className="space-y-2">
+                          <label className="text-xs text-slate-500">Mese</label>
+                          <select
+                            value={localBP.start_month || ''}
+                            onChange={(e) => handleStartMonthChange(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Seleziona...</option>
+                            <option value="1">Gennaio</option>
+                            <option value="2">Febbraio</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Aprile</option>
+                            <option value="5">Maggio</option>
+                            <option value="6">Giugno</option>
+                            <option value="7">Luglio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Settembre</option>
+                            <option value="10">Ottobre</option>
+                            <option value="11">Novembre</option>
+                            <option value="12">Dicembre</option>
+                          </select>
+                        </div>
+
+                        {/* Info calcolate */}
+                        {(() => {
+                          const periodInfo = getContractPeriodInfo();
+                          if (!periodInfo) return null;
+
+                          const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+
+                          return (
+                            <div className="space-y-2">
+                              <label className="text-xs text-slate-500">Periodo Contratto</label>
+                              <div className="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 text-sm font-medium">
+                                {monthNames[periodInfo.startMonth - 1]} {periodInfo.startYear} → {monthNames[periodInfo.endMonth - 1]} {periodInfo.endYear}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {periodInfo.yearsCount} ann{periodInfo.yearsCount > 1 ? 'i' : 'o'} interessat{periodInfo.yearsCount > 1 ? 'i' : 'o'}: {periodInfo.years.join(', ')}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
+
+                    {/* Parametri base (griglia orizzontale) */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {/* Durata (mesi) */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">Durata Contratto</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={12}
+                            max={60}
+                            value={localBP.duration_months || 36}
+                            onChange={(e) => handleDurationChange(e.target.value)}
+                            className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <span className="text-sm text-slate-500">mesi</span>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          ({((localBP.duration_months || 36) / 12).toFixed(1)} anni)
+                        </div>
+                      </div>
+
+                      {/* Giorni anno FTE */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">Giorni/anno FTE</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={180}
+                            max={260}
+                            value={localBP.days_per_fte || DAYS_PER_FTE}
+                            onChange={(e) => handleDaysPerFteChange(e.target.value)}
+                            className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <span className="text-sm text-slate-500">gg</span>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          (giorni lavorativi/anno)
+                        </div>
+                      </div>
+
+                      {/* Tariffa giornaliera default */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">Tariffa Default</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step={10}
+                            value={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+                            onChange={(e) => handleDefaultRateChange(e.target.value)}
+                            className="w-24 px-3 py-2 text-right border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <span className="text-sm text-slate-500">€/gg</span>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          (tariffa giornaliera)
+                        </div>
+                      </div>
+
+                      {/* Max Subappalto % */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">Max Subappalto</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={localBP.max_subcontract_pct ?? 20}
+                            onChange={(e) => handleMaxSubcontractPctChange(e.target.value)}
+                            className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
+                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <span className="text-sm text-slate-500">%</span>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          (limite massimo consentito)
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
 
-                <div className="p-5 space-y-5">
-                  {/* Data Inizio Contratto */}
-                  <div className="pb-4 border-b border-slate-100">
-                    <label className="text-sm font-medium text-slate-700 mb-3 block">Data Inizio Contratto</label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Anno */}
-                      <div className="space-y-2">
-                        <label className="text-xs text-slate-500">Anno</label>
-                        <input
-                          type="number"
-                          min={2020}
-                          max={2040}
-                          value={localBP.start_year || ''}
-                          onChange={(e) => handleStartYearChange(e.target.value)}
-                          placeholder="es. 2026"
-                          className="w-full px-3 py-2 text-center border border-slate-200 rounded-lg
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
+                {/* Rettifica Volumi - Spostato fuori da Parametri Poste */}
+                <VolumeAdjustments
+                  adjustments={localBP.volume_adjustments || {}}
+                  team={localBP.team_composition || []}
+                  tows={localBP.tows || []}
+                  durationMonths={localBP.duration_months}
+                  onChange={handleVolumeAdjustmentsChange}
+                />
+              </div>
+            )}
 
-                      {/* Mese */}
-                      <div className="space-y-2">
-                        <label className="text-xs text-slate-500">Mese</label>
-                        <select
-                          value={localBP.start_month || ''}
-                          onChange={(e) => handleStartMonthChange(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="">Seleziona...</option>
-                          <option value="1">Gennaio</option>
-                          <option value="2">Febbraio</option>
-                          <option value="3">Marzo</option>
-                          <option value="4">Aprile</option>
-                          <option value="5">Maggio</option>
-                          <option value="6">Giugno</option>
-                          <option value="7">Luglio</option>
-                          <option value="8">Agosto</option>
-                          <option value="9">Settembre</option>
-                          <option value="10">Ottobre</option>
-                          <option value="11">Novembre</option>
-                          <option value="12">Dicembre</option>
-                        </select>
-                      </div>
+            {/* ═══ TAB 2: LUTECH ═══ */}
+            {activeTab === 'lutech' && (
+              <div className="space-y-6">
+                {/* Catalogo Profili Lutech */}
+                <PracticeCatalogManager
+                  practices={practices}
+                  onSavePractice={savePractice}
+                  onDeletePractice={deletePractice}
+                />
 
-                      {/* Info calcolate */}
-                      {(() => {
-                        const periodInfo = getContractPeriodInfo();
-                        if (!periodInfo) return null;
+                {/* Profile Mapping */}
+                <ProfileMappingEditor
+                  teamComposition={localBP.team_composition || []}
+                  practices={practices}
+                  mappings={localBP.profile_mappings || {}}
+                  durationMonths={localBP.duration_months}
+                  daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+                  onChange={handleProfileMappingsChange}
+                  volumeAdjustments={localBP.volume_adjustments || {}}
+                  reuseFactor={localBP.reuse_factor || 0}
+                />
 
-                        const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+                {/* Subappalto */}
+                <SubcontractPanel
+                  config={localBP.subcontract_config || {}}
+                  tows={localBP.tows || []}
+                  teamCost={calcResult?.team || 0}
+                  teamMixRate={teamMixRate}
+                  defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+                  maxSubcontractPct={localBP.max_subcontract_pct ?? 20}
+                  onChange={handleSubcontractChange}
+                />
 
-                        return (
-                          <div className="space-y-2">
-                            <label className="text-xs text-slate-500">Periodo Contratto</label>
-                            <div className="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 text-sm font-medium">
-                              {monthNames[periodInfo.startMonth - 1]} {periodInfo.startYear} → {monthNames[periodInfo.endMonth - 1]} {periodInfo.endYear}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {periodInfo.yearsCount} ann{periodInfo.yearsCount > 1 ? 'i' : 'o'} interessat{periodInfo.yearsCount > 1 ? 'i' : 'o'}: {periodInfo.years.join(', ')}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
+                {/* Parametri Generali */}
+                <ParametersPanel
+                  values={{
+                    governance_pct: localBP.governance_pct,
+                    risk_contingency_pct: localBP.risk_contingency_pct,
+                    reuse_factor: localBP.reuse_factor,
+                    governance_profile_mix: localBP.governance_profile_mix || [],
+                    governance_cost_manual: localBP.governance_cost_manual ?? null,
+                    governance_mode: localBP.governance_mode || 'percentage',
+                    governance_fte_periods: localBP.governance_fte_periods || [],
+                    governance_apply_reuse: localBP.governance_apply_reuse || false,
+                    inflation_pct: localBP.inflation_pct ?? 0,
+                  }}
+                  practices={practices}
+                  totalTeamFte={(localBP.team_composition || []).reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0)}
+                  teamCost={cleanTeamCost || 0}
+                  durationMonths={localBP.duration_months}
+                  daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+                  onChange={handleParametersChange}
+                />
 
-                  {/* Parametri base (griglia orizzontale) */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {/* Durata (mesi) */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Durata Contratto</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min={12}
-                          max={60}
-                          value={localBP.duration_months || 36}
-                          onChange={(e) => handleDurationChange(e.target.value)}
-                          className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <span className="text-sm text-slate-500">mesi</span>
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        ({((localBP.duration_months || 36) / 12).toFixed(1)} anni)
-                      </div>
-                    </div>
+                {/* Breakdown Costi */}
+                <CostBreakdown
+                  costs={calcResult || {}}
+                  towBreakdown={towBreakdown}
+                  lutechProfileBreakdown={lutechProfileBreakdown}
+                  teamMixRate={teamMixRate}
+                  showTowDetail={Object.keys(towBreakdown).length > 0}
+                  durationMonths={localBP.duration_months}
+                  startYear={localBP.start_year}
+                  startMonth={localBP.start_month}
+                  inflationPct={localBP.inflation_pct ?? 0}
+                  catalogCost={calcResult?.catalog_cost ?? 0}
+                  catalogDetail={calcResult?.catalog_detail ?? null}
+                />
+              </div>
+            )}
 
-                    {/* Giorni anno FTE */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Giorni/anno FTE</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min={180}
-                          max={260}
-                          value={localBP.days_per_fte || DAYS_PER_FTE}
-                          onChange={(e) => handleDaysPerFteChange(e.target.value)}
-                          className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <span className="text-sm text-slate-500">gg</span>
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        (giorni lavorativi/anno)
-                      </div>
-                    </div>
+            {/* ═══ TAB 3: ANALISI ═══ */}
+            {activeTab === 'analisi' && (
+              <div className="space-y-6">
+                {/* Analisi TOW e Proposte di Ottimizzazione */}
+                <TowAnalysis
+                  tows={localBP.tows || []}
+                  towBreakdown={towBreakdown}
+                  teamComposition={localBP.team_composition || []}
+                  profileMappings={localBP.profile_mappings || {}}
+                  practices={practices}
+                  costs={calcResult || {}}
+                  baseAmount={effectiveBaseAmount}
+                  discount={discount}
+                  daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+                  defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+                  durationMonths={localBP.duration_months || 36}
+                  onApplyOptimization={handleApplyOptimization}
+                />
 
-                    {/* Tariffa giornaliera default */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Tariffa Default</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min={0}
-                          step={10}
-                          value={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
-                          onChange={(e) => handleDefaultRateChange(e.target.value)}
-                          className="w-24 px-3 py-2 text-right border border-slate-200 rounded-lg
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <span className="text-sm text-slate-500">€/gg</span>
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        (tariffa giornaliera)
-                      </div>
-                    </div>
+                {/* Conto Economico di Commessa */}
+                <ProfitAndLoss
+                  baseAmount={effectiveBaseAmount}
+                  discount={discount}
+                  isRti={isRti}
+                  quotaLutech={quotaLutech}
+                  fullBaseAmount={lotData.base_amount || 0}
+                  costs={calcResult || {}}
+                  cleanTeamCost={cleanTeamCost}
+                  targetMargin={targetMargin}
+                  riskContingency={localBP.risk_contingency_pct || 3}
+                />
 
-                    {/* Max Subappalto % */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Max Subappalto</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={1}
-                          value={localBP.max_subcontract_pct ?? 20}
-                          onChange={(e) => handleMaxSubcontractPctChange(e.target.value)}
-                          className="w-20 px-3 py-2 text-center border border-slate-200 rounded-lg
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <span className="text-sm text-slate-500">%</span>
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        (limite massimo consentito)
-                      </div>
-                    </div>
-                  </div>
+                {/* Margine */}
+                <MarginSimulator
+                  baseAmount={effectiveBaseAmount}
+                  totalCost={calcResult?.total || 0}
+                  isRti={isRti}
+                  quotaLutech={quotaLutech}
+                  discount={discount}
+                  onDiscountChange={setDiscount}
+                  targetMargin={targetMargin}
+                  onTargetMarginChange={setTargetMargin}
+                  riskContingency={localBP.risk_contingency_pct || 3}
+                />
 
-                  <div className="h-px bg-slate-100" />
 
-                  {/* Rettifica Volumi */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Rettifica Volumi</label>
-                    <VolumeAdjustments
-                      adjustments={localBP.volume_adjustments || {}}
-                      team={localBP.team_composition || []}
-                      tows={localBP.tows || []}
-                      durationMonths={localBP.duration_months}
-                      onChange={handleVolumeAdjustmentsChange}
-                    />
-                  </div>
+              </div>
+            )}
+
+            {/* ═══ TAB 4: OFFERTA ═══ */}
+            {activeTab === 'offerta' && (
+              <div className="space-y-6">
+                <OfferSchemeTable
+                  offerData={offerScheme.data}
+                  totalOffer={offerScheme.total}
+                />
+
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                  <strong>Nota:</strong> I prezzi unitari sono calcolati ripartendo l'importo totale dell'offerta (Revenue)
+                  in proporzione al costo pieno di ogni TOW (Team + Governance + Risk + Subappalto).
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* ═══ TAB 2: LUTECH ═══ */}
-          {activeTab === 'lutech' && (
-            <div className="space-y-6">
-              {/* Catalogo Profili Lutech */}
-              <PracticeCatalogManager
-                practices={practices}
-                onSavePractice={savePractice}
-                onDeletePractice={deletePractice}
-              />
-
-              {/* Profile Mapping */}
-              <ProfileMappingEditor
-                teamComposition={localBP.team_composition || []}
-                practices={practices}
-                mappings={localBP.profile_mappings || {}}
-                durationMonths={localBP.duration_months}
-                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
-                onChange={handleProfileMappingsChange}
-                volumeAdjustments={localBP.volume_adjustments || {}}
-                reuseFactor={localBP.reuse_factor || 0}
-              />
-
-              {/* Subappalto */}
-              <SubcontractPanel
-                config={localBP.subcontract_config || {}}
-                tows={localBP.tows || []}
-                teamCost={calcResult?.team || 0}
-                teamMixRate={teamMixRate}
-                defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
-                maxSubcontractPct={localBP.max_subcontract_pct ?? 20}
-                onChange={handleSubcontractChange}
-              />
-
-              {/* Parametri Generali */}
-              <ParametersPanel
-                values={{
-                  governance_pct: localBP.governance_pct,
-                  risk_contingency_pct: localBP.risk_contingency_pct,
-                  reuse_factor: localBP.reuse_factor,
-                  governance_profile_mix: localBP.governance_profile_mix || [],
-                  governance_cost_manual: localBP.governance_cost_manual ?? null,
-                  governance_mode: localBP.governance_mode || 'percentage',
-                  governance_fte_periods: localBP.governance_fte_periods || [],
-                  governance_apply_reuse: localBP.governance_apply_reuse || false,
-                  inflation_pct: localBP.inflation_pct ?? 0,
-                }}
-                practices={practices}
-                totalTeamFte={(localBP.team_composition || []).reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0)}
-                teamCost={cleanTeamCost || 0}
-                durationMonths={localBP.duration_months}
-                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
-                onChange={handleParametersChange}
-              />
-
-              {/* Breakdown Costi */}
-              <CostBreakdown
-                costs={calcResult || {}}
-                towBreakdown={towBreakdown}
-                lutechProfileBreakdown={lutechProfileBreakdown}
-                teamMixRate={teamMixRate}
-                showTowDetail={Object.keys(towBreakdown).length > 0}
-                durationMonths={localBP.duration_months}
-                startYear={localBP.start_year}
-                startMonth={localBP.start_month}
-                inflationPct={localBP.inflation_pct ?? 0}
-                catalogCost={calcResult?.catalog_cost ?? 0}
-                catalogDetail={calcResult?.catalog_detail ?? null}
-              />
-            </div>
-          )}
-
-          {/* ═══ TAB 3: ANALISI ═══ */}
-          {activeTab === 'analisi' && (
-            <div className="space-y-6">
-              {/* Analisi TOW e Proposte di Ottimizzazione */}
-              <TowAnalysis
-                tows={localBP.tows || []}
-                towBreakdown={towBreakdown}
-                teamComposition={localBP.team_composition || []}
-                profileMappings={localBP.profile_mappings || {}}
-                practices={practices}
-                costs={calcResult || {}}
-                baseAmount={effectiveBaseAmount}
-                discount={discount}
-                daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
-                defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
-                durationMonths={localBP.duration_months || 36}
-                onApplyOptimization={handleApplyOptimization}
-              />
-
-              {/* Conto Economico di Commessa */}
-              <ProfitAndLoss
-                baseAmount={effectiveBaseAmount}
-                discount={discount}
-                isRti={isRti}
-                quotaLutech={quotaLutech}
-                fullBaseAmount={lotData.base_amount || 0}
-                costs={calcResult || {}}
-                cleanTeamCost={cleanTeamCost}
-                targetMargin={targetMargin}
-                riskContingency={localBP.risk_contingency_pct || 3}
-              />
-
-              {/* Margine */}
-              <MarginSimulator
-                baseAmount={effectiveBaseAmount}
-                totalCost={calcResult?.total || 0}
-                isRti={isRti}
-                quotaLutech={quotaLutech}
-                discount={discount}
-                onDiscountChange={setDiscount}
-                targetMargin={targetMargin}
-                onTargetMarginChange={setTargetMargin}
-                riskContingency={localBP.risk_contingency_pct || 3}
-              />
-
-              {/* Scenari */}
-              <ScenarioCards
-                scenarios={scenarios}
-                selectedScenario={selectedScenario}
-                onSelectScenario={handleSelectScenario}
-                targetMargin={targetMargin}
-              />
-            </div>
-          )}
-
-          {/* ═══ TAB 4: OFFERTA ═══ */}
-          {activeTab === 'offerta' && (
-            <div className="space-y-6">
-              <OfferSchemeTable
-                offerData={offerScheme.data}
-                totalOffer={offerScheme.total}
-              />
-
-              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
-                <strong>Nota:</strong> I prezzi unitari sono calcolati ripartendo l'importo totale dell'offerta (Revenue)
-                in proporzione al costo pieno di ogni TOW (Team + Governance + Risk + Subappalto).
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
 
-    {/* Catalog Editor Modal */}
-    {catalogModalTow && localBP && (
-      <CatalogEditorModal
-        tow={catalogModalTow.tow}
-        onChange={(updatedTow) => {
-          const index = catalogModalTow.index; // constant while modal is open
-          setLocalBP(prev => ({
-            ...prev,
-            tows: (prev.tows || []).map((t, i) => i === index ? updatedTow : t),
-          }));
-          setCatalogModalTow(prev => ({ ...prev, tow: updatedTow }));
-        }}
-        profileMappings={localBP.profile_mappings || {}}
-        profileRates={buildLutechRates()}
-        teamComposition={localBP.team_composition || []}
-        durationMonths={localBP.duration_months || 36}
-        defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
-        daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
-        onClose={() => setCatalogModalTow(null)}
-      />
-    )}
+      {/* Catalog Editor Modal */}
+      {catalogModalTow && localBP && (
+        <CatalogEditorModal
+          tow={catalogModalTow.tow}
+          onChange={(updatedTow) => {
+            const index = catalogModalTow.index; // constant while modal is open
+            setLocalBP(prev => ({
+              ...prev,
+              tows: (prev.tows || []).map((t, i) => i === index ? updatedTow : t),
+            }));
+            setCatalogModalTow(prev => ({ ...prev, tow: updatedTow }));
+          }}
+          profileMappings={localBP.profile_mappings || {}}
+          profileRates={buildLutechRates()}
+          teamComposition={localBP.team_composition || []}
+          durationMonths={localBP.duration_months || 36}
+          defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
+          daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+          onClose={() => setCatalogModalTow(null)}
+        />
+      )}
     </>
   );
 }

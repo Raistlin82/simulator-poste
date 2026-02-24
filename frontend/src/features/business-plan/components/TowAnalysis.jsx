@@ -582,14 +582,14 @@ export default function TowAnalysis({
     <div className="space-y-6">
       {/* Section 1: Margin per TOW */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
+        <div className="p-5 border-b border-white/20 bg-white/40">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">Analisi Margine per TOW</h3>
-              <p className="text-xs text-slate-500">Profittabilità di ogni linea di attività</p>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Analisi Margine per TOW</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">Profittabilità di ogni linea di attività</p>
             </div>
           </div>
         </div>
@@ -598,14 +598,14 @@ export default function TowAnalysis({
           <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
             <thead>
               <tr className="">
-                <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">TOW</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Peso</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Sconto</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Ricavo</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Costo</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Margine</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Margine %</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">TOW</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Peso</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Sconto</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Ricavo</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Costo</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Margine</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Margine %</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Status</th>
               </tr>
             </thead>
             <tbody className="">
@@ -678,14 +678,14 @@ export default function TowAnalysis({
 
       {/* Section 2: Concentrazione Senior/Junior */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-pink-50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-              <Users className="w-5 h-5 text-purple-600" />
+        <div className="p-5 border-b border-white/20 bg-white/40">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <Users className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">Concentrazione Senior vs Junior per TOW</h3>
-              <p className="text-xs text-slate-500">Mix di seniority allocato su ogni attività</p>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Seniority per TOW</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">Mix di seniority allocato su ogni attività</p>
             </div>
           </div>
         </div>
@@ -694,13 +694,13 @@ export default function TowAnalysis({
           <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
             <thead>
               <tr className="">
-                <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">TOW</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">FTE Totali</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Senior</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Mid</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Junior</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Mix</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Valutazione</th>
+                <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">TOW</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">FTE Totali</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Senior</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Mid</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Junior</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Mix</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Valutazione</th>
               </tr>
             </thead>
             <tbody className="">
@@ -788,8 +788,8 @@ export default function TowAnalysis({
               <div
                 key={idx}
                 className={`flex items-start gap-3 p-3 rounded-xl border ${risk.severity === 'high'
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-yellow-50 border-yellow-200'
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-yellow-50 border-yellow-200'
                   }`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${risk.severity === 'high' ? 'bg-red-100' : 'bg-yellow-100'
@@ -861,10 +861,10 @@ export default function TowAnalysis({
               <div
                 key={proposal.towId}
                 className={`p-4 rounded-xl border ${proposal.proposalColor === 'red' ? 'bg-red-50 border-red-200' :
-                    proposal.proposalColor === 'green' ? 'bg-green-50 border-green-200' :
-                      proposal.proposalColor === 'blue' ? 'bg-blue-50 border-blue-200' :
-                        proposal.proposalColor === 'purple' ? 'bg-purple-50 border-purple-200' :
-                          'bg-slate-50 border-slate-200'
+                  proposal.proposalColor === 'green' ? 'bg-green-50 border-green-200' :
+                    proposal.proposalColor === 'blue' ? 'bg-blue-50 border-blue-200' :
+                      proposal.proposalColor === 'purple' ? 'bg-purple-50 border-purple-200' :
+                        'bg-slate-50 border-slate-200'
                   }`}
               >
                 {/* TOW Header */}
@@ -872,10 +872,10 @@ export default function TowAnalysis({
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-slate-800">{proposal.label}</span>
                     <span className={`px-2 py-0.5 text-xs font-medium rounded ${proposal.proposalColor === 'red' ? 'bg-red-100 text-red-700' :
-                        proposal.proposalColor === 'green' ? 'bg-green-100 text-green-700' :
-                          proposal.proposalColor === 'blue' ? 'bg-blue-100 text-blue-700' :
-                            proposal.proposalColor === 'purple' ? 'bg-purple-100 text-purple-700' :
-                              'bg-slate-100 text-slate-600'
+                      proposal.proposalColor === 'green' ? 'bg-green-100 text-green-700' :
+                        proposal.proposalColor === 'blue' ? 'bg-blue-100 text-blue-700' :
+                          proposal.proposalColor === 'purple' ? 'bg-purple-100 text-purple-700' :
+                            'bg-slate-100 text-slate-600'
                       }`}>
                       {proposal.proposalLabel}
                     </span>
@@ -1014,12 +1014,12 @@ export default function TowAnalysis({
                     <div className="text-xs font-medium text-slate-500">Azioni suggerite:</div>
                     {proposal.proposalActions.map((action, i) => (
                       <div key={i} className={`flex items-start gap-2 text-sm p-2 rounded-lg ${action.type === 'replace' ? 'bg-green-50' :
-                          action.type === 'reduce' ? 'bg-yellow-50' :
-                            action.type === 'absorb' ? 'bg-blue-50' : 'bg-slate-50'
+                        action.type === 'reduce' ? 'bg-yellow-50' :
+                          action.type === 'absorb' ? 'bg-blue-50' : 'bg-slate-50'
                         }`}>
                         <Target className={`w-4 h-4 mt-0.5 flex-shrink-0 ${action.type === 'replace' ? 'text-green-600' :
-                            action.type === 'reduce' ? 'text-yellow-600' :
-                              action.type === 'absorb' ? 'text-blue-600' : 'text-slate-500'
+                          action.type === 'reduce' ? 'text-yellow-600' :
+                            action.type === 'absorb' ? 'text-blue-600' : 'text-slate-500'
                           }`} />
                         <div>
                           <span className="text-slate-700">{action.reason}</span>

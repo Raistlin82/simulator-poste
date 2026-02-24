@@ -1,14 +1,20 @@
 export const SkeletonCard = () => (
-  <div className="bg-white rounded-lg border border-slate-200 p-6 animate-pulse">
-    <div className="h-4 bg-slate-200 rounded w-3/4 mb-4"></div>
-    <div className="h-4 bg-slate-200 rounded w-1/2 mb-2"></div>
-    <div className="h-4 bg-slate-200 rounded w-5/6"></div>
+  <div className="bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-8 animate-pulse shadow-2xl shadow-slate-500/5">
+    <div className="h-4 bg-slate-200/60 rounded-full w-3/4 mb-6"></div>
+    <div className="h-20 bg-slate-200/40 rounded-3xl w-full mb-6"></div>
+    <div className="space-y-3">
+      <div className="h-3 bg-slate-200/40 rounded-full w-5/6"></div>
+      <div className="h-3 bg-slate-200/40 rounded-full w-4/6"></div>
+    </div>
   </div>
 );
 
 export const SkeletonGauge = () => (
-  <div className="h-40 w-full flex items-center justify-center animate-pulse">
-    <div className="w-32 h-32 rounded-full bg-slate-200"></div>
+  <div className="bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-10 flex flex-col items-center justify-center animate-pulse shadow-2xl shadow-slate-500/5 min-h-[300px]">
+    <div className="w-40 h-40 rounded-full border-[12px] border-slate-100 flex items-center justify-center">
+      <div className="w-20 h-8 bg-slate-100 rounded-xl"></div>
+    </div>
+    <div className="h-4 bg-slate-100 rounded-full w-24 mt-8"></div>
   </div>
 );
 

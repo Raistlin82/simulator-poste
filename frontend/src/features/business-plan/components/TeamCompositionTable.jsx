@@ -214,17 +214,17 @@ export default function TeamCompositionTable({
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-slate-100 glass-card-header">
+      <div className="p-5 border-b border-slate-100 bg-white/40">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Users className="w-5 h-5 text-blue-600" />
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <Users className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">
                 {t('business_plan.team_composition')}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">
                 {t('business_plan.team_composition_desc')}
               </p>
             </div>
@@ -233,12 +233,12 @@ export default function TeamCompositionTable({
             <button
               onClick={() => setShowAddRow(true)}
               disabled={disabled}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
-                         text-blue-600 hover:bg-blue-50 rounded-lg transition-colors
-                         disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-widest
+                         text-indigo-600 hover:bg-white/80 rounded-xl transition-all shadow-sm border border-indigo-100
+                         disabled:opacity-50 disabled:cursor-not-allowed font-display"
             >
               <Plus className="w-4 h-4" />
-              Aggiungi
+              Aggiungi Profilo
             </button>
           </div>
         </div>
@@ -250,18 +250,18 @@ export default function TeamCompositionTable({
           <thead>
             <tr>
               <th className="px-4 py-2 w-8"></th>
-              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Profilo</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Seniority</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">FTE</th>
+              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Profilo / Ruolo</th>
+              <th className="px-4 py-2 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-28">Seniority</th>
+              <th className="px-4 py-2 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-24">FTE Nom.</th>
               {hasAnyAdjustment && (
                 <>
-                  <th className="px-4 py-2 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest w-24" title="FTE dopo rettifica volumi e riuso">
+                  <th className="px-4 py-2 text-center text-[9px] font-black text-indigo-600 uppercase tracking-widest-plus font-display w-24" title="FTE dopo rettifica volumi e riuso">
                     <div className="flex items-center justify-center gap-1">
                       <TrendingDown className="w-3.5 h-3.5" />
                       FTE Eff.
                     </div>
                   </th>
-                  <th className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">Δ</th>
+                  <th className="px-3 py-2 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-16">Δ</th>
                 </>
               )}
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">GG/Anno</th>
@@ -302,7 +302,7 @@ export default function TeamCompositionTable({
 
                 return (
                   <Fragment key={idx}>
-                    <tr key={idx} className={`group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 ${isExpanded ? 'ring-2 ring-blue-400/30' : ''}`}>
+                    <tr key={idx} className={`group bg-white/40 backdrop-blur-md rounded-2xl shadow-sm hover:shadow-lg hover:bg-white/70 hover:scale-[1.01] transition-all border border-white/40 ${isExpanded ? 'ring-2 ring-indigo-500/20 bg-white/80' : ''}`}>
                       <td className="px-2 py-3 text-center text-slate-400 rounded-l-xl">
                         <button
                           onClick={() => toggleRow(profileId)}
@@ -318,9 +318,9 @@ export default function TeamCompositionTable({
                           value={profile.label}
                           onChange={(e) => handleUpdateProfile(idx, 'label', e.target.value)}
                           disabled={disabled}
-                          className="w-full px-2 py-1 border border-transparent hover:border-slate-200
-                                     focus:border-blue-300 rounded focus:outline-none
-                                     disabled:bg-transparent disabled:cursor-not-allowed"
+                          className="w-full px-2 py-1 text-sm font-bold text-slate-700 bg-transparent border-none
+                                     hover:bg-white/50 focus:bg-white focus:outline-none rounded-lg transition-all
+                                     disabled:cursor-not-allowed"
                           placeholder="Nome profilo..."
                         />
                       </td>
@@ -372,9 +372,9 @@ export default function TeamCompositionTable({
                             <td className="px-4 py-2">
                               <div
                                 title={tooltip}
-                                className={`px-2 py-1 text-center rounded font-semibold cursor-help ${isReduced
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-slate-100 text-slate-600'
+                                className={`px-2 py-1.5 text-center rounded-xl font-black font-display text-[10px] cursor-help shadow-sm border ${isReduced
+                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                  : 'bg-slate-50 text-slate-500 border-slate-100'
                                   }`}
                               >
                                 {adj ? adj.adjustedFte.toFixed(1) : fte.toFixed(1)}
@@ -382,11 +382,11 @@ export default function TeamCompositionTable({
                             </td>
                             <td className="px-3 py-2">
                               {isReduced ? (
-                                <div className="px-1.5 py-0.5 text-center text-xs font-bold rounded-md bg-red-50 text-red-600 border border-red-200">
+                                <div className="px-1.5 py-0.5 text-center text-[10px] font-black rounded-lg bg-red-50 text-red-600 border border-red-200 shadow-sm">
                                   {adj.delta.toFixed(1)}
                                 </div>
                               ) : (
-                                <div className="px-1.5 py-0.5 text-center text-xs text-slate-400">—</div>
+                                <div className="px-1.5 py-0.5 text-center text-xs text-slate-400 font-bold">—</div>
                               )}
                             </td>
                           </>
@@ -426,10 +426,10 @@ export default function TeamCompositionTable({
                           const isValid = validation.isValid;
                           const total = validation.total;
                           return (
-                            <div className={`px-2 py-1 text-center rounded-lg text-xs font-bold flex items-center justify-center gap-1
+                            <div className={`px-2.5 py-1.5 text-center rounded-xl text-[10px] font-black flex items-center justify-center gap-1 font-display tracking-tight shadow-sm
                                           ${isValid
-                                ? 'bg-green-100 text-green-700 border border-green-300'
-                                : 'bg-red-100 text-red-700 border border-red-300'}`}
+                                ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
+                                : 'bg-red-50 text-red-600 border border-red-200'}`}
                               title={isValid ? 'Allocazione corretta' : `Allocazione non valida: ${total.toFixed(1)}% (deve essere 100%)`}
                             >
                               {isValid ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}

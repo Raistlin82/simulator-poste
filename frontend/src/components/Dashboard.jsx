@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Target, Loader2, FileSearch } from 'lucide-react';
+import { Target, Loader2, FileSearch, Info } from 'lucide-react';
 import axios from 'axios';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { SkeletonGauge, SkeletonCard } from '../shared/components/ui/Skeleton';
@@ -14,11 +14,16 @@ import { logger } from '../utils/logger';
 import { API_URL } from '../utils/api';
 
 const fadeUp = {
-    hidden: { opacity: 0, y: 18 },
+    hidden: { opacity: 0, y: 12, filter: 'blur(8px)' },
     visible: (i) => ({
         opacity: 1,
         y: 0,
-        transition: { delay: i * 0.09, duration: 0.35, ease: 'easeOut' },
+        filter: 'blur(0px)',
+        transition: {
+            delay: i * 0.08,
+            duration: 0.45,
+            ease: [0.22, 1, 0.36, 1]
+        },
     }),
 };
 
@@ -217,8 +222,8 @@ export default function Dashboard({ onNavigate }) {
     // Show loading skeleton when no results yet (AFTER all hooks!)
     if (!results || !lotData) {
         return (
-            <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <SkeletonGauge />
                     <SkeletonGauge />
                     <SkeletonGauge />
@@ -230,7 +235,7 @@ export default function Dashboard({ onNavigate }) {
     }
 
     return (
-        <div className="space-y-6 sticky top-6">
+        <div className="space-y-4 sticky top-6">
 
             {/* 1. Score Cards */}
             <motion.div custom={0} initial="hidden" animate="visible" variants={fadeUp}>
@@ -246,20 +251,36 @@ export default function Dashboard({ onNavigate }) {
             </motion.div>
 
             {/* Strategic Analysis (Monte Carlo) */}
-            <motion.div custom={1} initial="hidden" animate="visible" variants={fadeUp} className="glass-card rounded-xl p-6 overflow-hidden relative">
+            <motion.div custom={1} initial="hidden" animate="visible" variants={fadeUp} className="bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-6 shadow-2xl shadow-indigo-500/5 overflow-hidden relative group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-indigo-500/10 transition-colors" />
+
                 <div className="relative z-10">
                     {/* Competitor Inputs for Optimizer */}
-                    <div className="mb-6 pb-6 border-b border-slate-100">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Target className="w-4 h-4 text-indigo-500" />
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('dashboard.competitor_to_beat')}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <Target className="w-6 h-6 text-white" />
+                            </div>
                             <div>
-                                <label className="text-xs font-semibold text-slate-600 mb-2 block">
-                                    {t('dashboard.competitor_tech_score')}
-                                </label>
-                                <div className="flex items-center gap-3">
+                                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest font-display">{t('dashboard.competitor_to_beat')}</h3>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">Targeting & Scenario Optimization</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl">
+                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-display block">Precision Iterations</span>
+                                <span className="text-sm font-black text-indigo-600 font-display">500 Simulations</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div className="bg-white/40 p-4 rounded-3xl border border-white/60 shadow-sm">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 block font-display">
+                                {t('dashboard.competitor_tech_score')}
+                            </label>
+                            <div className="flex items-center gap-6">
+                                <div className="flex-1 relative py-4">
                                     <input
                                         type="range"
                                         min="0"
@@ -267,23 +288,28 @@ export default function Dashboard({ onNavigate }) {
                                         step="0.5"
                                         value={competitorTechScore}
                                         onChange={(e) => setCompetitorParam('competitorTechScore', parseFloat(e.target.value))}
-                                        className="flex-1 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 touch-pan-x"
-                                        style={{ minHeight: '44px' }}
+                                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 transition-all hover:accent-indigo-500"
                                         aria-label={t('dashboard.competitor_tech_score')}
                                     />
-                                    <span className="text-sm font-bold text-slate-800 w-12 text-right">
-                                        {formatNumber(competitorTechScore, 2)}
+                                </div>
+                                <div className="min-w-[80px] h-12 flex items-center justify-center bg-slate-900 rounded-2xl shadow-lg">
+                                    <span className="text-lg font-black text-white font-display tabular-nums">
+                                        {formatNumber(competitorTechScore, 1)}
                                     </span>
                                 </div>
-                                <div className="text-[10px] text-slate-500 mt-1">
-                                    {t('dashboard.max')}: {formatNumber(results?.calculated_max_tech_score || lotData?.max_tech_score || 60, 2)}
-                                </div>
                             </div>
-                            <div>
-                                <label className="text-xs font-semibold text-slate-600 mb-2 block">
-                                    {t('dashboard.competitor_econ_discount')}
-                                </label>
-                                <div className="flex items-center gap-3">
+                            <div className="flex justify-between mt-2 font-display text-[9px] font-black uppercase tracking-widest text-slate-400 opacity-60">
+                                <span>MIN: 0.0</span>
+                                <span>MAX: {formatNumber(results?.calculated_max_tech_score || lotData?.max_tech_score || 60, 1)}</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-white/40 p-6 rounded-3xl border border-white/60 shadow-sm">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 block font-display">
+                                {t('dashboard.competitor_econ_discount')}
+                            </label>
+                            <div className="flex items-center gap-6">
+                                <div className="flex-1 relative py-4">
                                     <input
                                         type="range"
                                         min="0"
@@ -291,162 +317,128 @@ export default function Dashboard({ onNavigate }) {
                                         step="0.5"
                                         value={Math.min(competitorEconDiscount, competitorDiscount)}
                                         onChange={(e) => setCompetitorParam('competitorEconDiscount', parseFloat(e.target.value))}
-                                        className="flex-1 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 touch-pan-x"
-                                        style={{ minHeight: '44px' }}
+                                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-rose-500 transition-all hover:accent-rose-400"
                                         aria-label={t('dashboard.competitor_econ_discount')}
                                     />
-                                    <span className="text-sm font-bold text-slate-800 w-12 text-right">
-                                        {formatNumber(competitorEconDiscount, 2)}%
+                                </div>
+                                <div className="min-w-[80px] h-12 flex items-center justify-center bg-rose-500 rounded-2xl shadow-lg">
+                                    <span className="text-lg font-black text-white font-display tabular-nums">
+                                        {formatNumber(competitorEconDiscount, 1)}%
                                     </span>
                                 </div>
-                                <div className="text-[10px] text-slate-500 mt-1">
-                                    {t('dashboard.max_best_offer', { discount: formatNumber(competitorDiscount, 2) })}
-                                </div>
+                            </div>
+                            <div className="flex justify-between mt-2 font-display text-[9px] font-black uppercase tracking-widest text-slate-400 opacity-60">
+                                <span>BASELINE: 0.0%</span>
+                                <span>BEST OFFER: {formatNumber(competitorDiscount, 1)}%</span>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Optimizer Results - Discount Scenarios */}
-                        {optimizerLoading ? (
-                            <div className="mt-4 flex items-center justify-center py-8">
-                                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-                            </div>
-                        ) : optimizerResults && (
-                            <div className="mt-4 space-y-3">
+                    {/* Optimizer Results - Discount Scenarios */}
+                    {optimizerLoading ? (
+                        <div className="mt-4 flex flex-col items-center justify-center py-20 bg-slate-50/30 rounded-3xl border border-dashed border-slate-200">
+                            <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display animate-pulse">Calculating Optimal Trajectories</span>
+                        </div>
+                    ) : optimizerResults && (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                 {/* Competitor Summary */}
-                                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">{t('dashboard.competitor_total')}</div>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-xl font-bold text-slate-800">{formatNumber(optimizerResults.competitor_total_score, 2)}</span>
-                                        <span className="text-xs text-slate-500">
-                                            ({t('dashboard.tech')}: {formatNumber(optimizerResults.competitor_tech_score, 2)} + {t('dashboard.econ')}: {formatNumber(optimizerResults.competitor_econ_score, 2)})
-                                        </span>
+                                <div className="p-4 bg-indigo-500/5 backdrop-blur-md rounded-[2rem] border border-indigo-100/50 shadow-xl shadow-indigo-500/5 flex flex-col justify-between group/comp transition-all duration-300 hover:bg-indigo-500/10 hover:border-indigo-200">
+                                    <div className="text-[9px] text-indigo-400 uppercase font-black tracking-widest mb-3 font-display">Target Competitor Score</div>
+                                    <div className="flex flex-col">
+                                        <span className="text-3xl font-black text-slate-800 font-display tracking-tightest leading-none group-hover/comp:scale-105 transition-transform origin-left">{formatNumber(optimizerResults.competitor_total_score, 2)}</span>
+                                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-indigo-100/50">
+                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">PT: {formatNumber(optimizerResults.competitor_tech_score, 1)}</div>
+                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">PE: {formatNumber(optimizerResults.competitor_econ_score, 1)}</div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Current Scenario */}
-                                <div className="p-3 bg-blue-50 rounded-lg border-2 border-blue-300">
-                                    <div className="text-[10px] text-blue-700 uppercase font-bold mb-2">{t('dashboard.current_scenario')}</div>
-                                    <div className="space-y-1.5">
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-[10px] text-slate-600">{t('dashboard.discount')}</span>
-                                            <span className="text-lg font-bold text-slate-800">
-                                                {formatNumber(myDiscount, 2)}%
-                                            </span>
+                                <div className="lg:col-span-2 p-6 bg-white/40 backdrop-blur-md rounded-[2rem] border border-white/60 shadow-xl shadow-indigo-500/5 group/scenario relative overflow-hidden transition-all duration-300 hover:border-indigo-200">
+                                    <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl group-hover/scenario:bg-indigo-500/10 transition-colors" />
+                                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                        <div className="space-y-6 flex-1">
+                                            <div className="flex items-center gap-3">
+                                                <div className="px-3 py-1 bg-indigo-50 border border-indigo-100/50 rounded-full">
+                                                    <span className="text-[9px] text-indigo-600 uppercase font-black tracking-widest font-display">{t('dashboard.current_scenario')}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display">Live Analysis</span>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">Sconto Attuale</div>
+                                                    <div className="text-2xl font-black text-slate-800 font-display">{formatNumber(myDiscount, 2)}%</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">Win Probability</div>
+                                                    <div className="text-2xl font-black text-indigo-600 font-display">{monteCarlo?.win_probability || 0}%</div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-[10px] text-slate-600">{t('dashboard.total_score')}</span>
-                                            <span className="text-sm font-bold text-slate-700">
-                                                {formatNumber(results.total_score, 2)}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-[10px] text-slate-600">{t('dashboard.win_prob')}</span>
-                                            <span className={`text-sm font-bold ${monteCarlo?.win_probability >= 90 ? 'text-green-600' : monteCarlo?.win_probability >= 80 ? 'text-blue-600' : monteCarlo?.win_probability >= 70 ? 'text-orange-600' : 'text-red-600'}`}>
-                                                {monteCarlo?.win_probability || 0}%
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-[10px] text-slate-600">{t('dashboard.delta_vs_comp')}</span>
-                                            <span className={`text-xs font-bold ${(results.total_score - optimizerResults.competitor_total_score) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {(results.total_score - optimizerResults.competitor_total_score) > 0 ? '+' : ''}{formatNumber(results.total_score - optimizerResults.competitor_total_score, 2)}
-                                            </span>
-                                        </div>
-                                        <div className="pt-1.5 border-t border-blue-200 mt-1.5">
-                                            <div className="flex justify-between items-baseline">
-                                                <span className="text-[10px] text-slate-600">{t('dashboard.offer_value')}</span>
-                                                <span className="text-xs font-semibold text-blue-600">
-                                                    {formatCurrency(lotData?.base_amount * (1 - myDiscount / 100))}
-                                                </span>
+                                        <div className="w-px h-24 bg-slate-200/60 hidden md:block" />
+                                        <div className="space-y-2 text-right">
+                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">Controvalore Reale</div>
+                                            <div className="text-xl font-black text-slate-800 font-display">{formatCurrency(lotData?.base_amount * (1 - myDiscount / 100))}</div>
+                                            <div className="inline-flex px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest font-display mt-2 shadow-sm">
+                                                Score: {formatNumber(results.total_score, 2)}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                {/* Discount Impact Calculator */}
-                                <div className="mt-4 mb-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-                                    <div className="text-xs font-bold text-purple-900 mb-3 uppercase tracking-wide">📊 {t('dashboard.discount_impact_calculator')}</div>
-                                    <div className="grid grid-cols-3 gap-3 text-center">
-                                        <div>
-                                            <div className="text-[10px] text-slate-600 mb-1">{t('dashboard.current_discount')}</div>
-                                            <div className="text-lg font-bold text-slate-900">{formatNumber(myDiscount, 1)}%</div>
-                                            <div className="text-xs text-slate-600">{formatNumber(results?.economic_score || 0, 2)} {t('dashboard.points_short')}</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-[10px] text-slate-600 mb-1">{t('dashboard.best_offer')}</div>
-                                            <div className="text-lg font-bold text-orange-600">{formatNumber(competitorDiscount, 1)}%</div>
-                                            <div className="text-xs text-slate-600">
-                                                {formatNumber(simulationData?.find(p => Math.abs(p.discount - competitorDiscount) < 0.1)?.economic_score || 0, 2)} {t('dashboard.points_short')}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="text-[10px] text-slate-600 mb-1">{t('dashboard.econ_points_diff')}</div>
-                                            <div className={`text-lg font-bold ${(results?.economic_score || 0) - (simulationData?.find(p => Math.abs(p.discount - competitorDiscount) < 0.1)?.economic_score || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {formatNumber((results?.economic_score || 0) - (simulationData?.find(p => Math.abs(p.discount - competitorDiscount) < 0.1)?.economic_score || 0), 2)}
-                                            </div>
-                                            <div className="text-[10px] text-slate-500">{t('dashboard.vs_competitor')}</div>
-                                        </div>
-                                    </div>
+                            {/* Scenarios Grid */}
+                            <div>
+                                <div className="flex items-center justify-between mb-6">
+                                    <h4 className="text-[9px] text-slate-400 uppercase font-black tracking-widest font-display">Strategie di posizionamento suggerite</h4>
+                                    <div className="h-px bg-slate-200 flex-1 ml-6" />
                                 </div>
-
-                                {/* Scenarios Grid */}
-                                <div className="text-[10px] text-slate-600 uppercase font-bold mb-2">{t('dashboard.discount_scenarios')}</div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     {optimizerResults.scenarios?.map((scenario, i) => {
-                                        const colorClasses = {
-                                            'Conservativo': 'border-yellow-200 bg-yellow-50',
-                                            'Bilanciato': 'border-blue-200 bg-blue-50',
-                                            'Aggressivo': 'border-orange-200 bg-orange-50',
-                                            'Max': 'border-green-200 bg-green-50'
-                                        };
-                                        const textColorClasses = {
-                                            'Conservativo': 'text-yellow-700',
-                                            'Bilanciato': 'text-blue-700',
-                                            'Aggressivo': 'text-orange-700',
-                                            'Max': 'text-green-700'
-                                        };
+                                        const theme = {
+                                            'Conservativo': { bg: 'bg-white/40', border: 'border-amber-200', text: 'text-amber-600', accent: 'bg-amber-500', icon: '🛡️', shadow: 'shadow-amber-500/10' },
+                                            'Bilanciato': { bg: 'bg-white/40', border: 'border-indigo-200', text: 'text-indigo-600', accent: 'bg-indigo-500', icon: '⚖️', shadow: 'shadow-indigo-500/10' },
+                                            'Aggressivo': { bg: 'bg-white/40', border: 'border-orange-200', text: 'text-orange-600', accent: 'bg-orange-500', icon: '🚀', shadow: 'shadow-orange-500/10' },
+                                            'Max': { bg: 'bg-white/40', border: 'border-emerald-200', text: 'text-emerald-600', accent: 'bg-emerald-500', icon: '🏆', shadow: 'shadow-emerald-500/10' }
+                                        }[scenario.name] || { bg: 'bg-white/40', border: 'border-slate-200', text: 'text-slate-600', accent: 'bg-slate-500', icon: '📊', shadow: 'shadow-slate-500/10' };
 
                                         return (
                                             <motion.div
                                                 key={scenario.name}
-                                                className={`p-3 rounded-lg border-2 ${colorClasses[scenario.name] || 'border-slate-200 bg-slate-50'} cursor-pointer`}
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.28, ease: 'easeOut' } }}
-                                                whileHover={{ scale: 1.02, y: -3, transition: { duration: 0.15, ease: 'easeOut' } }}
+                                                className={`backdrop-blur-md rounded-[1.5rem] border ${theme.border} ${theme.bg} p-5 shadow-sm hover:shadow-xl ${theme.shadow} hover:-translate-y-1.5 transition-all duration-300 group relative overflow-hidden`}
+                                                initial={{ opacity: 0, scale: 0.95 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ delay: i * 0.1 }}
                                             >
-                                                <div className={`text-xs font-bold mb-2 ${textColorClasses[scenario.name] || 'text-slate-700'}`}>
-                                                    {t(`dashboard.scenarios.${scenario.name.toLowerCase()}`)}
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <div className="flex justify-between items-baseline">
-                                                        <span className="text-[10px] text-slate-500">{t('dashboard.discount')}</span>
-                                                        <span className="text-lg font-bold text-slate-800">
-                                                            {formatNumber(scenario.suggested_discount, 2)}%
+                                                <div className="absolute top-0 right-0 w-16 h-16 bg-white/20 rounded-full -mr-8 -mt-8 blur-xl" />
+                                                <div className="relative z-10">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest font-display ${theme.text}`}>
+                                                            {theme.icon} {t(`dashboard.scenarios.${scenario.name.toLowerCase()}`)}
                                                         </span>
+                                                        <div className={`w-8 h-8 rounded-xl ${theme.accent} flex items-center justify-center shadow-lg shadow-black/5`}>
+                                                            <span className="text-white text-[10px] font-black">{formatNumber(scenario.win_probability, 0)}%</span>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex justify-between items-baseline">
-                                                        <span className="text-[10px] text-slate-500">{t('dashboard.total_score')}</span>
-                                                        <span className="text-sm font-bold text-slate-700">
-                                                            {formatNumber(scenario.resulting_total_score, 2)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between items-baseline">
-                                                        <span className="text-[10px] text-slate-500">{t('dashboard.win_prob')}</span>
-                                                        <span className={`text-sm font-bold ${scenario.win_probability >= 90 ? 'text-green-600' : scenario.win_probability >= 80 ? 'text-blue-600' : 'text-orange-600'}`}>
-                                                            {formatNumber(scenario.win_probability, 2)}%
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between items-baseline">
-                                                        <span className="text-[10px] text-slate-500">{t('dashboard.delta_vs_comp')}</span>
-                                                        <span className={`text-xs font-bold ${scenario.delta_vs_competitor > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                            {scenario.delta_vs_competitor > 0 ? '+' : ''}{formatNumber(scenario.delta_vs_competitor, 2)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="pt-1.5 border-t border-slate-200 mt-1.5">
-                                                        <div className="flex justify-between items-baseline">
-                                                            <span className="text-[10px] text-slate-500 font-bold">{t('dashboard.offer_value')}</span>
-                                                            <span className="text-sm font-bold text-slate-900">
-                                                                {formatCurrency(lotData?.base_amount * (1 - scenario.suggested_discount / 100))}
-                                                            </span>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">Suggerito</div>
+                                                            <div className="text-[22px] font-black text-slate-900 font-display tabular-nums leading-none tracking-tightest">{formatNumber(scenario.suggested_discount, 2)}%</div>
+                                                        </div>
+                                                        <div className="pt-4 border-t border-slate-100/50 flex flex-col gap-2">
+                                                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500 font-display">
+                                                                <span>Score Tot:</span>
+                                                                <span className="text-slate-900 font-bold">{formatNumber(scenario.resulting_total_score, 2)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500 font-display">
+                                                                <span>Valore:</span>
+                                                                <span className="text-slate-900 font-bold">{formatCurrency(lotData?.base_amount * (1 - scenario.suggested_discount / 100))}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -455,9 +447,8 @@ export default function Dashboard({ onNavigate }) {
                                     })}
                                 </div>
                             </div>
-                        )}
-                    </div>
-
+                        </div>
+                    )}
                 </div>
             </motion.div>
 
@@ -473,51 +464,67 @@ export default function Dashboard({ onNavigate }) {
             </motion.div>
 
             {/* 3. Detailed Score Table */}
-            <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="glass-card rounded-xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-slate-800">{t('dashboard.detail_table')}</h3>
-                    <div className="flex gap-2">
-                        <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100 shadow-sm">
-                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{t('dashboard.weighted')}:</span>
-                            <span className="text-sm font-bold">{formatNumber(results.technical_score, 2)} / {results?.calculated_max_tech_score || lotData?.max_tech_score || 60}</span>
+            <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-1 shadow-2xl shadow-slate-500/5 overflow-hidden">
+                <div className="p-6 border-b border-white/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center shadow-xl shadow-slate-900/10">
+                            <Info className="w-6 h-6 text-white" />
                         </div>
-                        <div className="flex items-center gap-1.5 bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200">
-                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{t('dashboard.raw')}:</span>
-                            <span className="text-sm font-bold">{formatNumber(results.raw_technical_score || 0, 2)} / {lotData?.max_raw_score || 0}</span>
+                        <div>
+                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest font-display">{t('dashboard.detail_table')}</h3>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">Ripartizione Puntuale Requisiti Gara</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3 flex-wrap">
+                        <div className="px-6 py-3 bg-indigo-500 text-white rounded-[1.25rem] shadow-lg shadow-indigo-500/20 flex items-center gap-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest font-display opacity-80">PT Pesato:</span>
+                            <span className="text-lg font-black font-display tabular-nums">{formatNumber(results.technical_score, 2)} / {results?.calculated_max_tech_score || lotData?.max_tech_score || 60}</span>
+                        </div>
+                        <div className="px-6 py-3 bg-white/60 border border-white/60 rounded-[1.25rem] shadow-sm flex items-center gap-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest font-display text-slate-400">Raw Ponti:</span>
+                            <span className="text-lg font-black font-display text-slate-800 tabular-nums">{formatNumber(results.raw_technical_score || 0, 1)} / {lotData?.max_raw_score || 0}</span>
                         </div>
                     </div>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-500">
-                        <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-100">
-                            <tr>
-                                <th scope="col" className="px-6 py-3">{t('dashboard.requirement')}</th>
-                                <th scope="col" className="px-6 py-3 text-right">{t('dashboard.raw')}</th>
-                                <th scope="col" className="px-6 py-3 text-right">{t('dashboard.max_raw')}</th>
-                                <th scope="col" className="px-6 py-3 text-right text-amber-700">{t('dashboard.weighted')}</th>
-                                <th scope="col" className="px-6 py-3 text-right text-amber-700">{t('dashboard.tender_weight')}</th>
-                                <th scope="col" className="px-6 py-3 text-center">{t('dashboard.status')}</th>
+
+                <div className="overflow-x-auto p-4 pt-2">
+                    <table className="w-full text-sm text-left border-separate border-spacing-y-2 lg:border-spacing-y-3">
+                        <thead>
+                            <tr className="text-slate-400">
+                                <th scope="col" className="px-8 py-4 text-left text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.requirement')}</th>
+                                <th scope="col" className="px-6 py-4 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.raw')}</th>
+                                <th scope="col" className="px-6 py-4 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.max_raw')}</th>
+                                <th scope="col" className="px-6 py-4 text-right text-[9px] font-black text-indigo-500 uppercase tracking-widest font-display">{t('dashboard.weighted')}</th>
+                                <th scope="col" className="px-6 py-4 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.tender_weight')}</th>
+                                <th scope="col" className="px-8 py-4 text-center text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.status')}</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-transparent border-separate" style={{ borderSpacing: "0 8px" }}>
+                        <tbody>
                             {/* Company Certs */}
-                            <tr className="bg-white/70 backdrop-blur-md rounded-xl shadow-sm hover:shadow hover:bg-white/90 transition-all border border-white/50">
-                                <td className="px-6 py-4 font-medium text-slate-900 rounded-l-xl">
-                                    {t('dashboard.company_certs')}
-                                    <div className="text-xs text-slate-400 font-normal">{t('config.company_certs')}</div>
+                            <tr className="bg-white/60 backdrop-blur-md rounded-[2rem] hover:bg-white transition-all shadow-sm hover:shadow-md group">
+                                <td className="px-8 py-5 font-black text-slate-800 rounded-l-[1.5rem] font-display uppercase tracking-tight">
+                                    <div className="flex flex-col">
+                                        <span className="group-hover:text-indigo-600 transition-colors">{t('dashboard.company_certs')}</span>
+                                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest opacity-60 mt-0.5">{t('config.company_certs')}</span>
+                                    </div>
                                 </td>
-                                <td className="px-6 py-4 text-right font-bold text-blue-600">{formatNumber(results.company_certs_score || 0, 2)}</td>
-                                <td className="px-6 py-4 text-right text-slate-500">{formatNumber(results.max_company_certs_raw || lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0, 1)}</td>
-                                <td className="px-6 py-4 text-right font-bold text-amber-600">{formatNumber(results.category_company_certs || 0, 2)}</td>
-                                <td className="px-6 py-4 text-right text-amber-500">{formatNumber(lotData.company_certs?.reduce((sum, c) => sum + (c.gara_weight || 0), 0) || 0, 1)}</td>
-                                <td className="px-6 py-4 text-center">
+                                <td className="px-6 py-5 text-right font-black text-slate-900 font-display tabular-nums text-lg">{formatNumber(results.company_certs_score || 0, 1)}</td>
+                                <td className="px-6 py-5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(results.max_company_certs_raw || lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0, 1)}</td>
+                                <td className="px-6 py-5 text-right font-black text-indigo-600 font-display tabular-nums text-lg">{formatNumber(results.category_company_certs || 0, 2)}</td>
+                                <td className="px-6 py-5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(lotData.company_certs?.reduce((sum, c) => sum + (c.gara_weight || 0), 0) || 0, 1)}</td>
+                                <td className="px-8 py-5 text-center rounded-r-[1.5rem]">
                                     {(() => {
                                         const maxRaw = results.max_company_certs_raw || (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0);
                                         const score = results.company_certs_score || 0;
                                         const isMax = score >= maxRaw && score > 0;
                                         return isMax ?
-                                            <span className="bg-green-100/50 backdrop-blur-sm text-green-800 text-xs font-medium px-2.5 py-1 rounded-full border border-green-200/50 shadow-sm">{t('dashboard.max_status')}</span> :
-                                            <span className="bg-slate-100/50 backdrop-blur-sm text-slate-800 text-xs font-medium px-2.5 py-1 rounded-full border border-slate-200/50 shadow-sm">{formatNumber(maxRaw > 0 ? (score / maxRaw * 100) : 0, 0)}%</span>;
+                                            <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl border border-emerald-200 shadow-sm">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest font-display">{t('dashboard.max_status')}</span>
+                                            </div> :
+                                            <div className="flex items-center justify-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl border border-slate-200">
+                                                <span className="text-[10px] font-black uppercase tracking-widest font-display">{formatNumber(maxRaw > 0 ? (score / maxRaw * 100) : 0, 0)}%</span>
+                                            </div>;
                                     })()}
                                 </td>
                             </tr>
@@ -525,39 +532,44 @@ export default function Dashboard({ onNavigate }) {
                             {/* Requirements */}
                             {lotData?.reqs?.map(req => {
                                 const score = results.details[req.id] || 0;
-                                const maxRaw = results.max_raw_scores?.[req.id] || req.max_points; // Use API max_raw if available
+                                const maxRaw = results.max_raw_scores?.[req.id] || req.max_points;
                                 const weightedScore = results.weighted_scores?.[req.id] || 0;
                                 const isMax = score >= maxRaw;
                                 const percentage = maxRaw > 0 ? (score / maxRaw * 100) : 0;
                                 const isResourceType = req.type === 'resource';
                                 return (
-                                    <tr key={req.id} className="bg-white/70 backdrop-blur-md rounded-xl shadow-sm hover:shadow hover:bg-white/90 transition-all border border-white/50">
-                                        <td className="px-6 py-4 font-medium text-slate-900 rounded-l-xl">
-                                            <div className="flex items-center gap-2">
-                                                <div>
-                                                    {req.label}
-                                                    <div className="text-xs text-slate-400 font-normal">{req.id}</div>
+                                    <tr key={req.id} className="bg-white/60 backdrop-blur-md rounded-[2rem] hover:bg-white transition-all shadow-sm hover:shadow-md group">
+                                        <td className="px-8 py-5 font-black text-slate-800 rounded-l-[1.5rem] font-display uppercase tracking-tight">
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex flex-col">
+                                                    <span className="group-hover:text-indigo-600 transition-colors leading-tight">{req.label}</span>
+                                                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest opacity-60 mt-0.5">{req.id}</span>
                                                 </div>
                                                 {isResourceType && (
                                                     <button
                                                         onClick={() => onNavigate && onNavigate('certs')}
-                                                        className="p-1.5 rounded-md text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                                                        className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center shadow-inner"
                                                         title={t('dashboard.verify_certifications') || 'Verifica Certificazioni PDF'}
                                                     >
-                                                        <FileSearch className="w-4 h-4" />
+                                                        <FileSearch className="w-5 h-5" />
                                                     </button>
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-right font-bold text-blue-600">{formatNumber(score, 2)}</td>
-                                        <td className="px-6 py-4 text-right text-slate-500">{formatNumber(maxRaw, 2)}</td>
-                                        <td className="px-6 py-4 text-right font-bold text-amber-600">{formatNumber(weightedScore, 2)}</td>
-                                        <td className="px-6 py-4 text-right text-amber-500">{formatNumber(req.gara_weight || 0, 1)}</td>
-                                        <td className="px-6 py-4 text-center rounded-r-xl">
+                                        <td className="px-6 py-5 text-right font-black text-slate-900 font-display tabular-nums text-lg">{formatNumber(score, 1)}</td>
+                                        <td className="px-6 py-5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(maxRaw, 1)}</td>
+                                        <td className="px-6 py-5 text-right font-black text-indigo-600 font-display tabular-nums text-lg">{formatNumber(weightedScore, 2)}</td>
+                                        <td className="px-6 py-5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(req.gara_weight || 0, 1)}</td>
+                                        <td className="px-8 py-5 text-center rounded-r-[1.5rem]">
                                             {isMax ?
-                                                <span className="bg-green-100/50 backdrop-blur-sm text-green-800 text-xs font-medium px-2.5 py-1 rounded-full border border-green-200/50 shadow-sm">{t('dashboard.max_status')}</span>
+                                                <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl border border-emerald-200 shadow-sm">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest font-display">{t('dashboard.max_status')}</span>
+                                                </div>
                                                 :
-                                                <span className="bg-slate-100/50 backdrop-blur-sm text-slate-800 text-xs font-medium px-2.5 py-1 rounded-full border border-slate-200/50 shadow-sm">{formatNumber(percentage, 0)}%</span>
+                                                <div className="flex items-center justify-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl border border-slate-200">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest font-display text-nowrap">{formatNumber(percentage, 0)}% Complete</span>
+                                                </div>
                                             }
                                         </td>
                                     </tr>
@@ -567,7 +579,6 @@ export default function Dashboard({ onNavigate }) {
                     </table>
                 </div>
             </motion.div>
-
         </div>
     );
 }

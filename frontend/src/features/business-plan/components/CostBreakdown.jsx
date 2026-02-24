@@ -170,24 +170,24 @@ export default function CostBreakdown({
   return (
     <div className="glass-card rounded-2xl">
       {/* Header */}
-      <div className="p-4 border-b border-slate-100 glass-card-header">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-emerald-600" />
+      <div className="p-4 border-b border-white/20 bg-white/40">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">
                 {t('business_plan.cost_breakdown')}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">
                 {t('business_plan.cost_breakdown_desc')}
               </p>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs text-slate-500 uppercase font-bold tracking-wider tracking-tighter">Totale BP (IVA escl.)</div>
-            <div className="text-xl font-bold text-slate-800 tracking-tight">{formatCurrency(total)}</div>
+            <div className="text-[10px] text-slate-400 uppercase font-black tracking-widest-plus font-display">Totale BP (IVA escl.)</div>
+            <div className="text-3xl font-black text-slate-800 tracking-tightest font-display">{formatCurrency(total)}</div>
           </div>
         </div>
 
@@ -196,28 +196,28 @@ export default function CostBreakdown({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setViewMode('total')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${viewMode === 'total'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border font-display ${viewMode === 'total'
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                : 'bg-white/50 text-slate-500 border-white/40 hover:bg-white/80'
                 }`}
             >
               Vista Totale
             </button>
             <button
               onClick={() => setViewMode('yearly')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${viewMode === 'yearly'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border font-display ${viewMode === 'yearly'
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                : 'bg-white/50 text-slate-500 border-white/40 hover:bg-white/80'
                 }`}
             >
-              <Calendar className="w-3 h-3" />
+              <Calendar className="w-3.5 h-3.5" />
               Vista Annuale ({yearlyBreakdown.length} anni)
             </button>
           </div>
         )}
       </div>
 
-      <div className="p-5">
+      <div className="p-4">
         {total === 0 ? (
           <div className="py-8 text-center text-slate-500">
             <BarChart3 className="w-10 h-10 mx-auto mb-3 text-slate-300" />
@@ -441,13 +441,13 @@ export default function CostBreakdown({
                       onClick={() => toggleMain(item.key)}
                       className={`flex items-center gap-4 p-2 rounded-xl transition-all cursor-pointer hover:bg-slate-50 ${isExpanded ? 'bg-slate-50 ring-1 ring-slate-100 mb-1' : ''}`}
                     >
-                      <div className={`w-10 h-10 rounded-lg ${colorMap[item.color].bg} flex items-center justify-center`}>
+                      <div className={`w-10 h-10 rounded-xl ${colorMap[item.color].bg} flex items-center justify-center shadow-sm`}>
                         <item.icon className={`w-5 h-5 ${colorMap[item.color].text}`} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-bold text-slate-700">{item.label}</span>
-                          <span className="text-sm font-bold text-slate-800 tracking-tight">{formatCurrency(item.value)}</span>
+                          <span className="text-xs font-black text-slate-700 uppercase tracking-widest font-display">{item.label}</span>
+                          <span className="text-sm font-black text-slate-800 tracking-tightest font-display tabular-nums">{formatCurrency(item.value)}</span>
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div

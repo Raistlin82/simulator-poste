@@ -34,14 +34,14 @@ export default function OfferSchemeTable({
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-slate-100 glass-card-header">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-            <Table className="w-5 h-5 text-emerald-600" />
+      <div className="p-5 border-b border-white/20 bg-white/40">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <Table className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-800">Schema di Offerta</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Schema di Offerta</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">
               Dettaglio prezzi unitari e totali per Type of Work (PxQ)
             </p>
           </div>
@@ -50,15 +50,15 @@ export default function OfferSchemeTable({
 
       {/* Tabella */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
+        <table className="w-full text-sm border-separate border-spacing-y-1 px-4">
           <thead className="">
             <tr>
-              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">TOW ID</th>
-              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrizione</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">Tipo</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Quantità</th>
-              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">Prezzo Unitario</th>
-              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">Prezzo Totale</th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-24">TOW ID</th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Descrizione</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-24">Tipo</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-28">Quantità</th>
+              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-32">Pz. Unitario</th>
+              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-32">Pz. Totale</th>
               <th className="px-4 py-2 w-8"></th>
             </tr>
           </thead>
@@ -86,8 +86,8 @@ export default function OfferSchemeTable({
                         onClick={() => isCatalog && toggleRow(row.tow_id)}
                         className={`group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 ${isCatalog ? 'cursor-pointer' : ''}`}
                       >
-                        <td className="px-4 py-3 font-bold text-slate-800 rounded-l-xl">{row.tow_id}</td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-4 py-2 font-bold text-slate-800 rounded-l-xl">{row.tow_id}</td>
+                        <td className="px-4 py-2 text-slate-600">
                           <div className="flex items-center gap-2">
                             {isCatalog && (
                               <BookOpen className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
@@ -95,12 +95,12 @@ export default function OfferSchemeTable({
                             {row.label}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-2 text-center">
                           <span className={`px-2 py-1 rounded text-xs font-medium ${typeCfg.cls}`}>
                             {typeCfg.label}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center font-mono text-slate-700">
+                        <td className="px-4 py-2 text-center font-mono text-slate-700">
                           {isCatalog ? (
                             <span>
                               {formatNumber(row.quantity)}
@@ -117,13 +117,13 @@ export default function OfferSchemeTable({
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-slate-700">
+                        <td className="px-4 py-2 text-right font-mono text-slate-700">
                           {row.unit_price != null ? formatCurrency(row.unit_price) : <span className="text-slate-400 text-xs">Per voce</span>}
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-800">
+                        <td className="px-4 py-2 text-right font-bold text-slate-800">
                           {formatCurrency(row.total_price)}
                         </td>
-                        <td className="px-4 py-3 text-center rounded-r-xl">
+                        <td className="px-4 py-2 text-center rounded-r-xl">
                           {isCatalog && (
                             <div className={`p-1 rounded-full transition-colors ${isExpanded ? 'bg-rose-100 text-rose-600' : 'text-slate-400 group-hover:bg-slate-100'}`}>
                               {isExpanded ? <ChevronUp className="w-4 h-4 mx-auto" /> : <ChevronDown className="w-4 h-4 mx-auto" />}
@@ -159,7 +159,7 @@ export default function OfferSchemeTable({
                                         <th className="px-3 py-1.5 text-right font-semibold text-rose-800 w-28">Pz. Vend. Tot.</th>
                                       </tr>
                                     </thead>
-                                    <tbody className="bg-transparent border-separate" style={{ borderSpacing: "0 8px" }}>
+                                    <tbody className="bg-transparent border-separate" style={{ borderSpacing: "0 4px" }}>
                                       {group.items.length === 0 ? (
                                         <tr>
                                           <td colSpan={4} className="px-3 py-2 text-center text-slate-400 italic text-[10px]">
@@ -204,7 +204,7 @@ export default function OfferSchemeTable({
                                         <th className="px-3 py-1.5 text-right font-semibold text-slate-600 w-28">Pz. Vend. Tot.</th>
                                       </tr>
                                     </thead>
-                                    <tbody className="bg-transparent border-separate" style={{ borderSpacing: "0 8px" }}>
+                                    <tbody className="bg-transparent border-separate" style={{ borderSpacing: "0 4px" }}>
                                       {row.catalog_detail.ungrouped.map((item, iIdx) => (
                                         <tr key={item.id || iIdx} className="bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 group">
                                           <td className="px-3 py-1.5 text-slate-700 rounded-l-xl">{item.label || '—'}</td>
@@ -233,16 +233,16 @@ export default function OfferSchemeTable({
                 })}
 
                 {/* Riga Totale */}
-                <tr className="bg-slate-50 border-t-2 border-slate-200">
-                  <td colSpan={3} className="px-4 py-3 text-right font-bold text-slate-700">
+                <tr className="bg-slate-900/5 !border-none">
+                  <td colSpan={3} className="px-4 py-2.5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">
                     TOTALE OFFERTA
                   </td>
-                  <td className="px-4 py-3 text-center font-bold text-slate-800">-</td>
-                  <td className="px-4 py-3"></td>
-                  <td className="px-4 py-3 text-right font-bold text-emerald-700 text-base">
+                  <td className="px-4 py-2.5 text-center font-black text-slate-800">—</td>
+                  <td className="px-4 py-2.5"></td>
+                  <td className="px-4 py-2.5 text-right font-black text-indigo-700 text-xl font-display tracking-tightest">
                     {formatCurrency(totalOffer)}
                   </td>
-                  <td className="px-4 py-3"></td>
+                  <td className="px-4 py-2.5"></td>
                 </tr>
               </>
             )}

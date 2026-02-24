@@ -193,8 +193,8 @@ export default function VolumeAdjustments({
             {effectInfo && (
               <span className="text-xs text-slate-500">{effectInfo}</span>
             )}
-            <span className={`text-sm font-semibold px-2 py-0.5 rounded
-                             ${isReduced ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`text-[10px] font-black font-display px-2.5 py-1 rounded-xl shadow-sm border
+                             ${isReduced ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
               {pct.toFixed(0)}%
             </span>
           </div>
@@ -217,39 +217,39 @@ export default function VolumeAdjustments({
   return (
     <div className="glass-card rounded-2xl">
       {/* Header */}
-      <div className="p-4 border-b border-slate-100 glass-card-header">
+      <div className="p-5 border-b border-slate-100 bg-white/40">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-              <SlidersHorizontal className="w-5 h-5 text-amber-600" />
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <SlidersHorizontal className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">
                 {t('business_plan.volume_adjustments')}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">
                 Rettifica FTE per profilo e volumi per TOW
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {coverage.isComplete ? (
-              <div className="flex items-center gap-1 text-xs text-green-600">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{coverage.covered}/{coverage.total} mesi</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{coverage.covered}/{coverage.total} Mesi</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1 text-xs text-amber-600">
-                <AlertCircle className="w-4 h-4" />
-                <span>{coverage.covered}/{coverage.total} mesi</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{coverage.covered}/{coverage.total} Mesi</span>
               </div>
             )}
             <button
               onClick={handleAddPeriod}
               disabled={disabled}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
-                         text-amber-600 hover:bg-amber-50 rounded-lg transition-colors
-                         disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-widest
+                         text-amber-600 hover:bg-white/80 rounded-xl transition-all shadow-sm border border-amber-100
+                         disabled:opacity-50 disabled:cursor-not-allowed font-display"
             >
               <Plus className="w-4 h-4" />
               Periodo
@@ -271,20 +271,20 @@ export default function VolumeAdjustments({
               {/* Header Periodo */}
               <button
                 onClick={() => setExpandedPeriod(isExpanded ? null : periodIndex)}
-                className={`w-full flex items-center justify-between p-4 transition-all text-left rounded-xl border ${isExpanded ? 'bg-white/60 shadow-md border-amber-200/50' : 'bg-white/30 border-transparent hover:bg-white/50'}`}
+                className={`w-full flex items-center justify-between p-4 transition-all text-left rounded-2xl border ${isExpanded ? 'bg-white/60 shadow-lg border-amber-200/50 scale-[1.01]' : 'bg-white/30 border-transparent hover:bg-white/50'}`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${isExpanded ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-600'}`}>
                     <Calendar className="w-6 h-6" />
                   </div>
                   <div className="text-left">
-                    <div className="font-bold text-slate-800 tracking-tight">
+                    <div className="font-black text-slate-800 tracking-tight font-display text-base">
                       Mesi {period.month_start || 1} - {period.month_end || durationMonths}
                     </div>
-                    <div className="text-sm text-slate-500 flex items-center gap-2">
-                      <span className="font-medium">{monthCount} mesi</span>
-                      <span className="text-slate-300">·</span>
-                      <span>{hasAdjustments ? 'Con rettifiche' : 'Nessuna rettifica'}</span>
+                    <div className="text-[10px] text-slate-400 font-bold flex items-center gap-2 uppercase tracking-widest mt-0.5">
+                      <span className="text-amber-600">{monthCount} MESI</span>
+                      <span className="opacity-30">|</span>
+                      <span>{hasAdjustments ? 'CON RETTIFICHE' : 'NESSUNA RETTIFICA'}</span>
                     </div>
                   </div>
                 </div>
@@ -455,8 +455,8 @@ export default function VolumeAdjustments({
                                         )}
                                         <span>{tow.tow_id} - {tow.label}</span>
                                         <span className={`text-xs px-1.5 py-0.5 rounded ${tow.type === 'task' ? 'bg-blue-100 text-blue-700' :
-                                            tow.type === 'canone' ? 'bg-green-100 text-green-700' :
-                                              'bg-purple-100 text-purple-700'
+                                          tow.type === 'canone' ? 'bg-green-100 text-green-700' :
+                                            'bg-purple-100 text-purple-700'
                                           }`}>
                                           {tow.type === 'task' ? 'A Task' : tow.type === 'canone' ? 'Canone' : 'A Corpo'}
                                         </span>

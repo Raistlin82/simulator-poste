@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Settings, X, FileSearch, Building2, AlertCircle, Briefcase } from 'lucide-react';
+import { Settings, X, FileSearch, Building2, AlertCircle, Briefcase, Home } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../utils/formatters';
 import { useConfig } from '../features/config/context/ConfigContext';
@@ -138,59 +138,69 @@ export default function Sidebar({
     const allRtiCompanies = isRti ? ['Lutech', ...rtiCompanies] : [];
 
     return (
-        <div className="w-[85vw] max-w-80 md:w-80 glass border-r flex flex-col h-full shadow-xl z-20">
-            {/* Lutech Logo Banner */}
-            <div className="p-4 glass-subtle flex justify-between items-center">
+        <div className="w-[85vw] max-w-80 md:w-80 bg-white/40 backdrop-blur-2xl border-r border-white/60 flex flex-col h-full shadow-2xl z-20 overflow-hidden">
+            <div className="p-6 bg-white/60 backdrop-blur-xl border-b border-white/60 flex justify-between items-center group/logo">
                 <button
                     onClick={() => {
                         if (onNavigate) onNavigate('dashboard');
                         if (window.innerWidth < 768 && onClose) onClose();
                     }}
-                    className="hover:opacity-80 transition-opacity cursor-pointer"
+                    className="hover:scale-105 transition-transform cursor-pointer p-1"
                     aria-label="Vai alla Home"
                 >
-                    <img src="/logo-lutech.png" alt="Lutech" className="h-10 object-contain" />
+                    <img src="/logo-lutech.png" alt="Lutech" className="h-10 object-contain drop-shadow-sm" />
                 </button>
                 {/* Close button - mobile only */}
                 <button
                     onClick={onClose}
-                    className="md:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                    className="md:hidden p-3 bg-white/60 hover:bg-rose-50 hover:text-rose-600 rounded-2xl transition-all border border-white/60 shadow-sm"
                     aria-label="Chiudi menu"
                 >
-                    <X className="w-5 h-5 text-slate-600" />
+                    <X className="w-5 h-5" />
                 </button>
             </div>
 
-            <div className="p-6 border-b border-white/60 bg-white/30">
-                <div className="flex items-center gap-2 mb-4">
-                    <Settings className="w-5 h-5 text-blue-600" />
-                    <h2 className="font-semibold text-lg">{t('simulation.title')}</h2>
+            <div className="p-6 border-b border-white/60 bg-white/30 backdrop-blur-md">
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover/logo:-rotate-3 transition-transform">
+                        <Settings className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display leading-tight">{t('simulation.title')}</h2>
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest font-display">{selectedLot || 'Nessun Lotto'}</p>
+                    </div>
                 </div>
 
-                <label className="block text-sm font-medium text-slate-700 mb-1">{t('sidebar.title')}</label>
-                <select
-                    value={selectedLot || ''}
-                    onChange={(e) => {
-                        setLot(e.target.value);
-                        // Close sidebar on mobile after selection
-                        if (window.innerWidth < 768 && onClose) onClose();
-                    }}
-                    className="w-full p-2 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                    {config && Object.keys(config)
-                        .filter(k => config[k]?.is_active !== false)
-                        .sort((a, b) => a.localeCompare(b, 'it'))
-                        .map(k => (
-                            <option key={k} value={k}>
-                                {k}
-                            </option>
-                        ))}
-                </select>
+                <div className="space-y-2">
+                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest-plus ml-1 font-display opacity-60">Seleziona Lotto</label>
+                    <div className="relative group/select">
+                        <select
+                            value={selectedLot || ''}
+                            onChange={(e) => {
+                                setLot(e.target.value);
+                                if (window.innerWidth < 768 && onClose) onClose();
+                            }}
+                            className="w-full p-3.5 pl-4 pr-10 border border-white/60 rounded-2xl bg-white/60 backdrop-blur-md focus:ring-4 focus:ring-indigo-500/10 outline-none font-black text-xs transition-all shadow-sm shadow-indigo-500/5 appearance-none cursor-pointer font-display text-slate-800"
+                        >
+                            {config && Object.keys(config)
+                                .filter(k => config[k]?.is_active !== false)
+                                .sort((a, b) => a.localeCompare(b, 'it'))
+                                .map(k => (
+                                    <option key={k} value={k}>
+                                        {k}
+                                    </option>
+                                ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover/select:text-indigo-500 transition-colors">
+                            <Settings className="w-4 h-4" />
+                        </div>
+                    </div>
+                </div>
                 {config && selectedLot && config[selectedLot] && (
-                    <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs text-slate-500">{config[selectedLot].name}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                        <p className="text-[10px] font-bold text-slate-500 leading-tight flex-1">{config[selectedLot].name}</p>
                         {config[selectedLot].rti_enabled && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-full border border-indigo-200">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 text-[9px] font-black rounded-lg border border-indigo-100/50 shadow-sm font-display uppercase tracking-widest">
                                 <Building2 className="w-3 h-3" />
                                 RTI ({(config[selectedLot].rti_companies?.length || 0) + 1})
                             </span>
@@ -202,28 +212,33 @@ export default function Sidebar({
             <div className="p-6 flex-1 overflow-y-auto space-y-4">
 
                 {/* Economic Inputs */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {/* Base Amount - compact */}
-                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
-                        <label className="text-xs font-medium text-slate-600">{t('config.base_amount')}</label>
-                        <span className="text-sm font-mono font-semibold text-slate-700">{formatCurrency(baseAmount)}</span>
+                    <div className="p-6 bg-white/60 backdrop-blur-md rounded-[2rem] border border-white/60 shadow-xl shadow-slate-200/40 group/base">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 group-hover/base:rotate-6 transition-transform">
+                                <Briefcase className="w-4 h-4 text-slate-500" />
+                            </div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('config.base_amount')}</label>
+                        </div>
+                        <div className="text-xl font-black text-slate-800 font-display tracking-tight leading-none">{formatCurrency(baseAmount)}</div>
                     </div>
 
                     {/* Discount inputs - unified compact style */}
-                    <div className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="rounded-[2.5rem] border border-white/60 bg-white/40 backdrop-blur-xl overflow-hidden shadow-2xl shadow-indigo-500/5">
                         {/* Best Offer row */}
-                        <div className="relative">
+                        <div className="relative group/comp">
                             <div
-                                className="absolute inset-y-0 left-0 bg-orange-50 transition-all duration-300"
+                                className="absolute inset-y-0 left-0 bg-orange-50/50 transition-all duration-700"
                                 style={{ width: `${Math.min(competitorDiscount, 100)}%` }}
                             />
-                            <div className="relative px-4 py-3 flex items-center gap-3 border-b border-slate-100">
-                                <div className="w-1 h-8 rounded-full bg-orange-500" />
+                            <div className="relative px-6 py-5 flex items-center gap-4 border-b border-white/60">
+                                <div className="w-1.5 h-10 rounded-full bg-orange-500 shadow-lg shadow-orange-500/20 group-hover/comp:scale-y-110 transition-transform" />
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-semibold text-slate-700 uppercase">{t('simulation.competitor_discount')}</div>
-                                    <div className="text-[11px] text-slate-500 font-mono">{formatCurrency(p_best)}</div>
+                                    <div className="text-[10px] font-black text-slate-700 uppercase tracking-tight font-display mb-1">{t('simulation.competitor_discount')}</div>
+                                    <div className="text-xs text-slate-500 font-black tracking-tight font-display">{formatCurrency(p_best)}</div>
                                 </div>
-                                <div className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                                <div className="flex items-center bg-white/80 border border-orange-200/50 rounded-xl shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-orange-500/10 transition-all">
                                     <input
                                         type="number"
                                         step="0.1"
@@ -231,31 +246,31 @@ export default function Sidebar({
                                         max="100"
                                         value={competitorDiscount.toFixed(1)}
                                         onChange={(e) => setDiscount('competitorDiscount', Math.round(parseFloat(e.target.value) * 10) / 10 || 0)}
-                                        className="w-16 text-sm font-mono text-right px-2 py-1.5 focus:outline-none focus:bg-orange-50"
+                                        className="w-14 text-xs font-black text-orange-700 text-right px-2 py-2.5 bg-transparent focus:outline-none font-display"
                                     />
-                                    <span className="text-xs text-slate-400 pr-2 bg-slate-50 py-1.5 pl-0.5">%</span>
+                                    <span className="text-[10px] font-black text-orange-400 pr-3 bg-orange-50/50 py-2.5 font-display">%</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* My Discount row */}
-                        <div className="relative">
+                        <div className="relative group/my">
                             <div
-                                className={`absolute inset-y-0 left-0 ${isBest ? 'bg-green-50' : 'bg-blue-50'} transition-all duration-300`}
+                                className={`absolute inset-y-0 left-0 ${isBest ? 'bg-emerald-50/50' : 'bg-indigo-50/50'} transition-all duration-700`}
                                 style={{ width: `${Math.min(myDiscount, 100)}%` }}
                             />
-                            <div className="relative px-4 py-3 flex items-center gap-3">
-                                <div className={`w-1 h-8 rounded-full ${isBest ? 'bg-green-500' : 'bg-blue-500'}`} />
+                            <div className="relative px-6 py-5 flex items-center gap-4">
+                                <div className={`w-1.5 h-10 rounded-full ${isBest ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-indigo-500 shadow-lg shadow-indigo-500/20'} group-hover/my:scale-y-110 transition-transform`} />
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-semibold text-slate-700 uppercase">
+                                    <div className="text-[10px] font-black text-slate-700 uppercase tracking-tight font-display mb-1">
                                         {isRti ? t('simulation.my_discount_rti') : t('simulation.my_discount')}
                                     </div>
-                                    <div className="text-[11px] text-slate-500 font-mono">
-                                        {formatCurrency(p_my)}
-                                        {isBest && <span className="ml-2 text-green-600 font-bold">🔥 BEST</span>}
+                                    <div className="flex items-center gap-2">
+                                        <div className={`text-xs ${isBest ? 'text-emerald-700' : 'text-indigo-700'} font-black tracking-tight font-display`}>{formatCurrency(p_my)}</div>
+                                        {isBest && <span className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full shadow-lg shadow-emerald-500/20 animate-pulse uppercase tracking-widest font-display">Best</span>}
                                     </div>
                                 </div>
-                                <div className={`flex items-center bg-white border rounded-lg shadow-sm overflow-hidden ${isBest ? 'border-green-300' : 'border-slate-200'}`}>
+                                <div className={`flex items-center bg-white/80 border rounded-xl shadow-sm overflow-hidden transition-all focus-within:ring-4 ${isBest ? 'border-emerald-200 focus-within:ring-emerald-500/10' : 'border-indigo-200 focus-within:ring-indigo-500/10'}`}>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -263,120 +278,117 @@ export default function Sidebar({
                                         max="100"
                                         value={myDiscount.toFixed(1)}
                                         onChange={(e) => setDiscount('myDiscount', Math.round(parseFloat(e.target.value) * 10) / 10 || 0)}
-                                        className={`w-16 text-sm font-mono text-right px-2 py-1.5 focus:outline-none font-bold ${isBest ? 'text-green-600 focus:bg-green-50' : 'text-blue-600 focus:bg-blue-50'}`}
+                                        className={`w-14 text-xs font-black text-right px-2 py-2.5 bg-transparent focus:outline-none font-display ${isBest ? 'text-emerald-700' : 'text-indigo-700'}`}
                                     />
-                                    <span className="text-xs text-slate-400 pr-2 bg-slate-50 py-1.5 pl-0.5">%</span>
+                                    <span className={`text-[10px] font-black ${isBest ? 'text-emerald-400 bg-emerald-50/50' : 'text-indigo-400 bg-indigo-50/50'} pr-3 py-2.5 font-display`}>%</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    {/* RTI Quota Breakdown */}
-                    {isRti && allRtiCompanies.length > 0 && (
-                        <div className="rounded-xl border border-indigo-200 overflow-hidden">
-                            {/* Header */}
-                            <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2.5">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
+                </div>
+                {/* RTI Quota Breakdown */}
+                {isRti && allRtiCompanies.length > 0 && (
+                    <div className="rounded-[2.5rem] border border-white/60 bg-white/40 backdrop-blur-xl overflow-hidden shadow-2xl shadow-indigo-500/5">
+                        {/* Header */}
+                        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 px-6 py-5">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20">
                                         <Building2 className="w-4 h-4 text-white" />
-                                        <span className="text-sm font-semibold text-white">{t('simulation.rti_breakdown')}</span>
                                     </div>
-                                    <span className="font-mono text-sm font-semibold text-white">{formatCurrency(p_my)}</span>
-                                </div>
-                            </div>
-
-                            {quotaError && (
-                                <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border-b border-red-200 text-red-700 text-xs">
-                                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                                    {quotaError}
-                                </div>
-                            )}
-
-                            {/* Company rows */}
-                            <div className="flex flex-col gap-2 p-2 bg-slate-50/50">
-                                {allRtiCompanies.map((company) => {
-                                    const quota = parseFloat(localQuotas[company]) || 0;
-                                    const amount = p_my * (quota / 100);
-                                    const isLutech = company === 'Lutech';
-                                    const barColor = isLutech ? 'bg-blue-500' : 'bg-indigo-400';
-                                    const textColor = isLutech ? 'text-blue-700' : 'text-slate-700';
-
-                                    return (
-                                        <div key={company} className="relative group bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-all overflow-hidden">
-                                            {/* Background progress bar */}
-                                            <div
-                                                className={`absolute inset-y-0 left-0 ${isLutech ? 'bg-blue-50/80' : 'bg-indigo-50/80'} transition-all duration-300`}
-                                                style={{ width: `${Math.min(quota, 100)}%` }}
-                                            />
-
-                                            <div className="relative px-3 py-2 flex items-center gap-3">
-                                                {/* Company indicator */}
-                                                <div className={`w-1 h-7 rounded-full ${barColor}`} />
-
-                                                {/* Company name */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className={`text-sm font-semibold ${textColor} truncate`}>
-                                                        {company}
-                                                    </div>
-                                                    <div className="text-[11px] text-slate-500 font-mono">
-                                                        {formatCurrency(amount)}
-                                                    </div>
-                                                </div>
-
-                                                {/* Quota input */}
-                                                <div className="flex items-center bg-white/80 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-indigo-300 transition-all">
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        min="0"
-                                                        max="100"
-                                                        value={quota.toFixed(1)}
-                                                        onChange={(e) => handleQuotaChange(company, e.target.value)}
-                                                        className="w-16 text-sm font-mono text-right px-2 py-1.5 focus:outline-none focus:bg-white"
-                                                    />
-                                                    <span className="text-xs text-slate-400 pr-2 bg-slate-50 py-1.5 pl-0.5">%</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Footer with total */}
-                            <div className="bg-slate-50 px-4 py-2 border-t border-slate-200">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">{t('simulation.rti_total')}</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-sm font-mono font-bold ${isQuotaValid ? 'text-green-600' : 'text-red-500'}`}>
-                                            {totalQuota.toFixed(1)}%
-                                        </span>
-                                        {!isQuotaValid && (
-                                            <span className="text-[10px] text-red-500 font-mono">
-                                                ({totalQuota < 100 ? `+${(100 - totalQuota).toFixed(1)}` : `-${(totalQuota - 100).toFixed(1)}`})
-                                            </span>
-                                        )}
-                                    </div>
+                                    <span className="text-[10px] font-black text-white uppercase tracking-widest font-display">{t('simulation.rti_breakdown')}</span>
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
+
+                        {quotaError && (
+                            <div className="flex items-center gap-3 px-6 py-3 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest font-display">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                {quotaError}
+                            </div>
+                        )}
+
+                        {/* Company rows */}
+                        <div className="flex flex-col gap-2 p-3 bg-white/20">
+                            {allRtiCompanies.map((company) => {
+                                const quota = parseFloat(localQuotas[company]) || 0;
+                                const amount = p_my * (quota / 100);
+                                const isLutech = company === 'Lutech';
+                                const indicatorColor = isLutech ? 'bg-indigo-500' : 'bg-purple-400';
+
+                                return (
+                                    <div key={company} className="relative group bg-white/60 backdrop-blur-md border border-white/60 rounded-2xl shadow-sm hover:shadow-md transition-all duration-500 overflow-hidden">
+                                        {/* Background progress bar */}
+                                        <div
+                                            className={`absolute inset-y-0 left-0 ${isLutech ? 'bg-indigo-500/10' : 'bg-purple-500/10'} transition-all duration-700`}
+                                            style={{ width: `${Math.min(quota, 100)}%` }}
+                                        />
+
+                                        <div className="relative px-4 py-3.5 flex items-center gap-3">
+                                            {/* Company indicator */}
+                                            <div className={`w-1 h-8 rounded-full ${indicatorColor} group-hover:scale-y-110 transition-transform`} />
+
+                                            {/* Company name */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-[10px] font-black text-slate-800 uppercase tracking-tight font-display truncate">
+                                                    {company}
+                                                </div>
+                                                <div className="text-[10px] font-black text-indigo-500/70 font-display">
+                                                    {formatCurrency(amount)}
+                                                </div>
+                                            </div>
+
+                                            {/* Quota input */}
+                                            <div className="flex items-center bg-white/80 border border-indigo-100 rounded-xl shadow-sm overflow-hidden focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    min="0"
+                                                    max="100"
+                                                    value={quota.toFixed(1)}
+                                                    onChange={(e) => handleQuotaChange(company, e.target.value)}
+                                                    className="w-12 text-[10px] font-black text-indigo-700 text-right px-2 py-2 bg-transparent focus:outline-none font-display"
+                                                />
+                                                <span className="text-[9px] font-black text-indigo-300 pr-2.5 bg-indigo-50/50 py-2 font-display">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Footer with total */}
+                        <div className="bg-white/40 px-6 py-4 border-t border-white/60">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-display">{t('simulation.rti_total')}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-xs font-black font-display ${isQuotaValid ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {totalQuota.toFixed(1)}%
+                                    </span>
+                                    {!isQuotaValid && (
+                                        <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-lg shadow-rose-500/50" />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Mini Summary */}
                 {results && (
-                    <div className="mt-8 pt-6 border-t border-slate-100">
+                    <div className="mt-8 pt-6 border-t border-white/20">
                         <div className="grid grid-cols-3 gap-3 text-center mb-6">
-                            <div>
-                                <div className="text-2xl font-bold text-slate-800">{results.total_score}</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard.total')}</div>
+                            <div className="bg-white/30 p-2 rounded-xl border border-white/20 backdrop-blur-sm">
+                                <div className="text-2xl font-black text-slate-800 font-display tracking-tightest">{results.total_score}</div>
+                                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest-plus">{t('dashboard.total')}</div>
                             </div>
-                            <div>
-                                <div className="text-2xl font-bold text-blue-600">{results.technical_score}</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard.technical')}</div>
+                            <div className="bg-blue-50/40 p-2 rounded-xl border border-blue-200/30 backdrop-blur-sm">
+                                <div className="text-2xl font-black text-blue-600 font-display tracking-tightest">{results.technical_score}</div>
+                                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest-plus">{t('dashboard.technical')}</div>
                             </div>
-                            <div>
-                                <div className="text-2xl font-bold text-green-600">{results.economic_score}</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard.economic')}</div>
+                            <div className="bg-green-50/40 p-2 rounded-xl border border-green-200/30 backdrop-blur-sm">
+                                <div className="text-2xl font-black text-green-600 font-display tracking-tightest">{results.economic_score}</div>
+                                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest-plus">{t('dashboard.economic')}</div>
                             </div>
                         </div>
                     </div>
@@ -384,18 +396,31 @@ export default function Sidebar({
             </div>
 
             {/* Bottom Section - Business Plan & Cert Verification */}
-            <div className="p-4 border-t border-white/60 bg-white/30 space-y-2">
+            <div className="p-4 border-t border-white/60 bg-white/20 space-y-3">
+                <button
+                    onClick={() => {
+                        if (onNavigate) onNavigate('dashboard');
+                        if (window.innerWidth < 768 && onClose) onClose();
+                    }}
+                    className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest-plus font-display shadow-lg ${currentView === 'dashboard'
+                        ? 'bg-indigo-600 text-white shadow-indigo-500/20 shadow-xl -translate-y-0.5'
+                        : 'text-slate-500 hover:bg-white/60 hover:text-indigo-600 border border-transparent hover:border-indigo-100 shadow-none'
+                        }`}
+                >
+                    <Home className={`w-4 h-4 ${currentView === 'dashboard' ? 'text-white' : 'text-indigo-400'}`} />
+                    <span>{t('common.home')}</span>
+                </button>
                 <button
                     onClick={() => {
                         if (onNavigate) onNavigate('businessPlan');
                         if (window.innerWidth < 768 && onClose) onClose();
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm ${currentView === 'businessPlan'
-                            ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm'
-                            : 'text-slate-600 hover:bg-slate-100'
+                    className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest-plus font-display shadow-lg ${currentView === 'businessPlan'
+                        ? 'bg-indigo-600 text-white shadow-indigo-500/20 shadow-xl -translate-y-0.5'
+                        : 'text-slate-500 hover:bg-white/60 hover:text-indigo-600 border border-transparent hover:border-indigo-100 shadow-none'
                         }`}
                 >
-                    <Briefcase className="w-4 h-4" />
+                    <Briefcase className={`w-4 h-4 ${currentView === 'businessPlan' ? 'text-white' : 'text-indigo-400'}`} />
                     <span>{t('business_plan.title')}</span>
                 </button>
                 <button
@@ -403,12 +428,12 @@ export default function Sidebar({
                         if (onNavigate) onNavigate('certs');
                         if (window.innerWidth < 768 && onClose) onClose();
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm ${currentView === 'certs'
-                            ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm'
-                            : 'text-slate-600 hover:bg-slate-100'
+                    className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest-plus font-display shadow-lg ${currentView === 'certs'
+                        ? 'bg-indigo-600 text-white shadow-indigo-500/20 shadow-xl -translate-y-0.5'
+                        : 'text-slate-500 hover:bg-white/60 hover:text-indigo-600 border border-transparent hover:border-indigo-100 shadow-none'
                         }`}
                 >
-                    <FileSearch className="w-4 h-4" />
+                    <FileSearch className={`w-4 h-4 ${currentView === 'certs' ? 'text-white' : 'text-indigo-400'}`} />
                     <span>Verifica Certificazioni</span>
                 </button>
             </div>

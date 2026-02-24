@@ -107,7 +107,7 @@ function AppContent() {
       // Try to restore from localStorage first
       const lastLot = localStorage.getItem('lastSelectedLot');
       const activeLots = Object.keys(config).filter(k => config[k]?.is_active !== false);
-      
+
       // Use last lot if it exists and is still active, otherwise use first active lot
       if (lastLot && config[lastLot] && config[lastLot]?.is_active !== false) {
         setLot(lastLot);
@@ -290,7 +290,7 @@ function AppContent() {
   if (loading) return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
 
   return (
-    <div className="flex h-screen overflow-hidden font-sans text-slate-900">
+    <div className="flex h-screen overflow-hidden text-slate-900 relative">
       {/* Mobile overlay backdrop */}
       {sidebarOpen && (
         <div
@@ -313,7 +313,7 @@ function AppContent() {
         />
       </div>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
         {/* Demo mode banner */}
         {mockMode && (
           <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-center">
@@ -323,63 +323,61 @@ function AppContent() {
           </div>
         )}
 
-        <header className="glass border-b p-4 shadow-sm z-10 sticky top-0">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3 md:gap-6">
+        <header className="glass border-b border-white/60 p-4 shadow-sm z-30 sticky top-0 backdrop-blur-2xl">
+          <div className="max-w-[1600px] mx-auto flex justify-between items-center">
+            <div className="flex items-center gap-4 md:gap-8">
               {/* Hamburger button - mobile only */}
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="md:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="md:hidden p-2.5 hover:bg-white/40 rounded-xl transition-all border border-transparent hover:border-white/60 active:scale-95"
                 aria-label={t('app.toggle_menu')}
               >
                 <Menu className="w-6 h-6 text-slate-600" />
               </button>
 
-              <div className="flex items-center gap-2 md:gap-3">
-                <img src="/poste-italiane-logo.svg" alt={t('app.poste_italiane_logo')} className="h-6 md:h-8 object-contain" />
-                <div className="hidden md:block w-px h-8 bg-slate-200"></div>
-                <h1 className="hidden md:block text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
-                  {t('app.title')}
-                </h1>
-                <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full shadow-sm">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    {view === 'dashboard' ? t('common.home') : view === 'config' ? t('common.gara_lotto') : view === 'certs' ? 'Certificazioni' : view === 'businessPlan' ? t('business_plan.title') : t('common.master_data')}
-                  </span>
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="relative group">
+                  <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <img src="/poste-italiane-logo.svg" alt={t('app.poste_italiane_logo')} className="h-7 md:h-10 object-contain relative transition-transform duration-500 group-hover:scale-105" />
+                </div>
+
+                <div className="hidden md:block w-px h-8 bg-slate-200/60 shadow-[1px_0_0_rgba(255,255,255,0.8)]"></div>
+
+                <div className="hidden md:flex flex-col">
+                  <h1 className="text-xl font-black bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent tracking-tightest font-display leading-tight">
+                    {t('app.title')}
+                  </h1>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">
+                      {view === 'dashboard' ? t('common.home') : view === 'config' ? t('common.gara_lotto') : view === 'certs' ? 'Certificazioni' : view === 'businessPlan' ? t('business_plan.title') : t('common.master_data')}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 md:gap-3">
-              <button
-                onClick={() => setView('dashboard')}
-                className={`flex items-center gap-2 px-2 md:px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'dashboard' ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                aria-label={t('common.home')}
-              >
-                <span className="text-lg md:hidden">🏠</span>
-                <span className="hidden md:inline">🏠 {t('common.home')}</span>
-              </button>
-              <button
-                onClick={() => setView('config')}
-                className={`flex items-center gap-2 px-2 md:px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'config' ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                aria-label={t('sidebar.config_btn')}
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden md:inline">{t('sidebar.config_btn')}</span>
-              </button>
+            <div className="flex items-center gap-1.5 md:gap-2">
+
+
+              {/* Configurazioni Globali */}
               <button
                 onClick={() => setView('master')}
-                className={`hidden sm:flex items-center gap-2 px-2 md:px-4 py-2 rounded-xl transition-all font-medium text-sm ${view === 'master' ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                className={`hidden sm:flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-2xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest font-display border ${view === 'master' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20' : 'bg-white/40 backdrop-blur-sm text-slate-600 border-white/60 hover:bg-white/70 hover:border-indigo-200 hover:text-indigo-600'}`}
                 aria-label={t('common.master_data')}
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4 flex-shrink-0" />
                 <span className="hidden md:inline">{t('common.master_data')}</span>
               </button>
+
+              <div className="w-px h-7 bg-slate-200/60 mx-1 hidden md:block" />
+
+              {/* Save */}
               <button
                 onClick={handleUnifiedSave}
-                className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl transition-all font-medium text-sm bg-green-500 text-white hover:bg-green-600 shadow-sm"
+                className="flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-2xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest font-display bg-emerald-500 text-white border border-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/20"
                 aria-label={t('common.save')}
               >
-                <Save className="w-4 h-4" />
+                <Save className="w-4 h-4 flex-shrink-0" />
                 <span className="hidden md:inline">{t('common.save')}</span>
               </button>
               <LogoutButton />
@@ -390,10 +388,10 @@ function AppContent() {
         <AnimatePresence mode="wait">
           <motion.div
             key={view}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            initial={{ opacity: 0, y: 12, filter: 'blur(8px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: -12, filter: 'blur(8px)' }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="flex-1 overflow-auto flex flex-col min-h-0"
           >
             {view === 'config' ? (
@@ -438,12 +436,9 @@ function AppContent() {
                 <BusinessPlanPage />
               </BusinessPlanProvider>
             ) : (
-              <div className="flex-1 overflow-auto p-3 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-                <div className="lg:col-span-7 space-y-4 md:space-y-6">
-                  <TechEvaluator />
-                </div>
-                <div className="lg:col-span-5 space-y-4 md:space-y-6">
-                  <Dashboard onNavigate={setView} />
+              <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center">
+                <div className="w-full max-w-[1600px]">
+                  <TechEvaluator onNavigate={setView} />
                 </div>
               </div>
             )}

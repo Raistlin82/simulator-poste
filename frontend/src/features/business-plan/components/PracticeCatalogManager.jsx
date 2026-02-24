@@ -141,23 +141,23 @@ export default function PracticeCatalogManager({
   return (
     <div className="glass-card rounded-2xl">
       {/* Header */}
-      <div className="p-4 border-b border-slate-100 glass-card-header">
+      <div className="p-5 border-b border-slate-100 bg-white/40">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-purple-600" />
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">Catalogo Profili Lutech</h3>
-              <p className="text-xs text-slate-500">Definisci Practice e figure professionali con tariffe</p>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Catalogo Profili Lutech</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">Definisci Practice e figure professionali con tariffe</p>
             </div>
           </div>
           <button
             onClick={() => setShowAddPractice(true)}
             disabled={disabled || showAddPractice}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
-                       text-purple-600 hover:bg-purple-50 rounded-lg transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-widest
+                       text-indigo-600 hover:bg-white/80 rounded-xl transition-all shadow-sm border border-indigo-100
+                       disabled:opacity-50 disabled:cursor-not-allowed font-display"
           >
             <Plus className="w-4 h-4" />
             Nuova Practice
@@ -214,20 +214,20 @@ export default function PracticeCatalogManager({
             return (
               <div key={practice.id}>
                 {/* Riga Practice */}
-                <div className={`flex items-center justify-between p-4 transition-all text-left rounded-2xl border ${isExpanded ? 'bg-white/60 shadow-md border-purple-200/50' : 'bg-white/30 border-transparent hover:bg-white/50'}`}>
+                <div className={`flex items-center justify-between p-4 transition-all text-left rounded-2xl border ${isExpanded ? 'bg-white/60 shadow-lg border-indigo-200/50 scale-[1.01]' : 'bg-white/30 border-transparent hover:bg-white/50'}`}>
                   <button
                     onClick={() => setExpandedPractice(isExpanded ? null : practice.id)}
                     className="flex items-center gap-4 flex-1 text-left"
                   >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${isExpanded ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white' : 'bg-purple-100 text-purple-600'}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-md transition-all ${isExpanded ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white scale-110 shadow-indigo-500/20' : 'bg-white text-indigo-600 border border-slate-100'}`}>
                       <Building2 className="w-6 h-6" />
                     </div>
                     <div>
-                      <div className="font-bold text-slate-800 tracking-tight">{practice.label}</div>
-                      <div className="text-sm text-slate-500 flex items-center gap-2">
-                        <span className="font-medium">{profiles.length} profili</span>
-                        <span className="text-slate-300">·</span>
-                        <span className="text-[10px] uppercase font-bold tracking-tighter text-slate-400">ID: {practice.id}</span>
+                      <div className="font-black text-slate-800 tracking-tight font-display text-base">{practice.label}</div>
+                      <div className="text-[10px] text-slate-400 font-bold flex items-center gap-2 uppercase tracking-widest mt-0.5 font-body">
+                        <span className="text-indigo-500">{profiles.length} PROFILI</span>
+                        <span className="opacity-30">|</span>
+                        <span className="opacity-60">ID: {practice.id}</span>
                       </div>
                     </div>
                   </button>
@@ -282,10 +282,10 @@ export default function PracticeCatalogManager({
                   <div className="px-0 pb-4 bg-white/30 backdrop-blur-sm border-t border-purple-200/30 rounded-b-xl overflow-hidden">
                     <div className="p-4">
                       {/* Intestazione tabella */}
-                      <div className="grid grid-cols-12 gap-3 mb-3 pb-2 border-b border-slate-100">
-                        <div className="col-span-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">ID</div>
-                        <div className="col-span-6 text-[10px] font-black text-slate-400 uppercase tracking-wider">Profilo</div>
-                        <div className="col-span-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Tariffa/GG</div>
+                      <div className="grid grid-cols-12 gap-3 mb-4 pb-2 border-b border-slate-100">
+                        <div className="col-span-1 text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">ID</div>
+                        <div className="col-span-6 text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Profilo</div>
+                        <div className="col-span-4 text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display text-right pr-4">Tariffa/GG</div>
                         <div className="col-span-1"></div>
                       </div>
 
@@ -323,23 +323,23 @@ export default function PracticeCatalogManager({
                               </div>
 
                               {/* Daily Rate */}
-                              <div className="col-span-4">
+                              <div className="col-span-4 flex justify-end pr-4">
                                 {isEditing ? (
-                                  <div className="flex items-center gap-1">
-                                    <Euro className="w-4 h-4 text-slate-400" />
+                                  <div className="flex items-center gap-1 group">
+                                    <Euro className="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
                                     <input
                                       type="number"
                                       value={profile.daily_rate}
                                       onChange={(e) => handleUpdateProfile(idx, 'daily_rate', e.target.value)}
                                       step="10"
                                       min="0"
-                                      className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg
-                                                 focus:border-purple-500 focus:outline-none bg-white/80"
+                                      className="w-24 px-3 py-1.5 text-sm font-bold border border-slate-200 rounded-xl
+                                                 focus:border-indigo-500 focus:outline-none bg-white transition-all shadow-sm"
                                     />
                                   </div>
                                 ) : (
-                                  <span className="text-sm font-bold text-slate-800 bg-purple-50/50 px-2 py-1 rounded-md border border-purple-100/50">
-                                    {formatCurrency(profile.daily_rate || 0)}/gg
+                                  <span className="text-sm font-black text-indigo-700 bg-indigo-50/50 px-3 py-1.5 rounded-xl border border-indigo-100/50 font-display tabular-nums shadow-sm">
+                                    {formatCurrency(profile.daily_rate || 0)}/GG
                                   </span>
                                 )}
                               </div>

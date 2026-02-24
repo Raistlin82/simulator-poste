@@ -103,281 +103,237 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
   const chartHeight = isFullscreen ? window.innerHeight - 100 : 400;
 
   return (
-    <div ref={chartRef} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 ${isFullscreen ? 'fixed inset-0 z-50 flex flex-col' : ''}`}>
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="font-semibold text-slate-800">{t('dashboard.bid_to_win')}</h3>
-        <div className="flex gap-2 md:gap-4 items-center flex-wrap">
+    <div ref={chartRef} className={`bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-8 shadow-2xl shadow-blue-500/5 transition-all duration-500 hover:shadow-blue-500/10 ${isFullscreen ? 'fixed inset-0 z-50 flex flex-col !bg-white' : ''}`}>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
+        <div>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest-plus font-display flex items-center gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            {t('dashboard.bid_to_win')}
+          </h3>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-4.5 font-display">Simulazione Sensibilità Sconto-Punteggio</p>
+        </div>
+
+        <div className="flex gap-2 md:gap-4 items-center flex-wrap w-full md:w-auto">
           {/* Line toggles */}
-          <div className="flex gap-2 md:gap-3 border-r pr-2 md:pr-4 border-slate-200">
+          <div className="flex gap-2 md:gap-3 bg-white/40 p-1.5 rounded-2xl border border-white/60 shadow-inner">
             <button
               onClick={() => setShowEconomic(!showEconomic)}
-              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded transition-all ${showEconomic ? 'bg-green-50 border border-green-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest font-display ${showEconomic ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-600'}`}
               aria-label="Mostra punteggio economico"
-              aria-pressed={showEconomic}
             >
-              <div className="w-3 h-3 bg-green-500 rounded"></div>
-              <span className="hidden sm:inline text-xs text-slate-700 font-bold uppercase tracking-tight">Economico</span>
+              <div className={`w-2 h-2 rounded-full ${showEconomic ? 'bg-white' : 'bg-emerald-500'}`}></div>
+              <span className="hidden sm:inline">Economia</span>
             </button>
             <button
               onClick={() => setShowTotal(!showTotal)}
-              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded transition-all ${showTotal ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest font-display ${showTotal ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-600'}`}
               aria-label="Mostra punteggio totale"
-              aria-pressed={showTotal}
             >
-              <div className="w-3 h-3 bg-blue-500 rounded"></div>
-              <span className="hidden sm:inline text-xs text-slate-700 font-bold uppercase tracking-tight">Totale</span>
+              <div className={`w-2 h-2 rounded-full ${showTotal ? 'bg-white' : 'bg-indigo-500'}`}></div>
+              <span className="hidden sm:inline">Totale</span>
             </button>
           </div>
 
           {/* Point toggles */}
-          <div className="flex gap-2 md:gap-3 border-r pr-2 md:pr-4 border-slate-200">
+          <div className="flex gap-2 md:gap-3 bg-white/40 p-1.5 rounded-2xl border border-white/60 shadow-inner">
             <button
               onClick={() => setShowCompetitor(!showCompetitor)}
-              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded transition-all ${showCompetitor ? 'bg-slate-100 border border-slate-300' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest font-display ${showCompetitor ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/20' : 'text-slate-400 hover:text-slate-600'}`}
               aria-label="Mostra competitor"
-              aria-pressed={showCompetitor}
             >
-              <div className="w-3 h-3 bg-black rounded-full"></div>
-              <span className="hidden sm:inline text-xs text-slate-700 font-bold uppercase tracking-tight">Competitor</span>
+              <div className={`w-2 h-2 rounded-full ${showCompetitor ? 'bg-white' : 'bg-black'}`}></div>
+              <span className="hidden sm:inline">Target</span>
             </button>
             <button
               onClick={() => setShowLutech(!showLutech)}
-              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded transition-all ${showLutech ? 'bg-red-50 border border-red-200' : 'bg-slate-50 border border-slate-200 opacity-50'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest font-display ${showLutech ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-slate-400 hover:text-slate-600'}`}
               aria-label="Mostra LUTECH"
-              aria-pressed={showLutech}
             >
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="hidden sm:inline text-xs text-slate-700 font-bold uppercase tracking-tight">LUTECH</span>
+              <div className={`w-2 h-2 rounded-full ${showLutech ? 'bg-white' : 'bg-rose-500'}`}></div>
+              <span className="hidden sm:inline">Lutech</span>
             </button>
           </div>
 
           {/* Fullscreen button */}
           <button
             onClick={toggleFullscreen}
-            className="p-3 min-w-[44px] min-h-[44px] hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-3 bg-white/60 border border-white/60 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-2xl transition-all shadow-sm"
             title={isFullscreen ? "Esci da fullscreen" : "Fullscreen"}
-            aria-label={isFullscreen ? "Esci da fullscreen" : "Fullscreen"}
           >
-            {isFullscreen ? <Minimize2 className="w-5 h-5 text-slate-600" /> : <Maximize2 className="w-5 h-5 text-slate-600" />}
+            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      <div className={`w-full ${isFullscreen ? 'flex-1' : ''}`} style={{ height: isFullscreen ? chartHeight : '400px' }}>
+      <div className={`w-full ${isFullscreen ? 'flex-1' : ''}`} style={{ height: isFullscreen ? chartHeight : '450px' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 20, right: 100, left: 10, bottom: 60 }}>
+          <AreaChart data={chartData} margin={{ top: 20, right: 40, left: 10, bottom: 60 }}>
             <defs>
               <linearGradient id="colorEconomic" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
 
             <XAxis
               dataKey="discount"
-              tick={{ fontSize: 11, fill: '#475569' }}
+              tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700, fontFamily: 'Inter' }}
               ticks={chartData.filter((_, i) => i % 5 === 0).map(d => d.discount)}
               label={{
-                value: 'Sconto (%)',
+                value: 'Sconto Gara (%)',
                 position: 'insideBottom',
-                offset: -35,
-                fontSize: 12,
-                fill: '#1e293b',
-                fontWeight: 600
+                offset: -40,
+                fontSize: 10,
+                fill: '#94a3b8',
+                fontWeight: 900,
+                fontFamily: 'Sora',
+                textAnchor: 'middle'
               }}
-              tickLine={{ stroke: '#cbd5e1' }}
-              axisLine={{ stroke: '#cbd5e1' }}
+              tickLine={false}
+              axisLine={false}
+              dy={10}
             />
 
             <YAxis
               domain={[0, 100]}
-              tick={{ fontSize: 11, fill: '#475569' }}
+              tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700, fontFamily: 'Inter' }}
               label={{
-                value: 'Punteggio',
+                value: 'Punteggio Totale',
                 angle: -90,
                 position: 'insideLeft',
-                fontSize: 12,
-                fill: '#1e293b',
-                fontWeight: 600,
-                offset: 5
+                fontSize: 10,
+                fill: '#94a3b8',
+                fontWeight: 900,
+                fontFamily: 'Sora',
+                offset: 10
               }}
-              tickLine={{ stroke: '#cbd5e1' }}
-              axisLine={{ stroke: '#cbd5e1' }}
+              tickLine={false}
+              axisLine={false}
             />
 
             <Tooltip
-              formatter={(value, name) => {
-                if (name === 'economic_score') return [`${value.toFixed(2)} Punti`, 'Economico'];
-                if (name === 'total_score') return [`${value.toFixed(2)} Punti`, 'Totale (Econ. + Tecn.)'];
-                return [value, name];
-              }}
-              labelFormatter={(label) => `Sconto: ${label}%`}
-              contentStyle={{
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                fontSize: '11px',
-                backgroundColor: 'white'
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  return (
+                    <div className="bg-white/90 backdrop-blur-xl border border-white p-4 rounded-2xl shadow-2xl shadow-slate-900/10">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 font-display">Sconto: {label}%</div>
+                      <div className="space-y-1.5">
+                        {payload.map((p, i) => (
+                          <div key={i} className="flex items-center justify-between gap-6">
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.stroke }} />
+                              <span className="text-[10px] font-black text-slate-700 uppercase tracking-tight font-display">{p.name === 'economic_score' ? 'ECON' : 'TOT'}</span>
+                            </div>
+                            <span className="text-sm font-black text-slate-900 font-display">{p.value.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
               }}
             />
 
-            {/* Brush for zoom functionality */}
             <Brush
               dataKey="discount"
-              height={25}
-              stroke="#3b82f6"
-              fill="#eff6ff"
-              travellerWidth={10}
-              y={10}
+              height={20}
+              stroke="#6366f1"
+              fill="#f1f5f9"
+              travellerWidth={8}
+              y={20}
+              strokeOpacity={0.3}
             />
 
-            {/* Economic score line (green) */}
             {showEconomic && (
               <Area
                 type="monotone"
                 dataKey="economic_score"
                 stroke="#10b981"
-                strokeWidth={3}
+                strokeWidth={4}
                 fillOpacity={1}
                 fill="url(#colorEconomic)"
-                name="Economico"
+                name="economic_score"
+                animationDuration={1500}
               />
             )}
 
-            {/* Total score line (blue) */}
             {showTotal && (
               <Area
                 type="monotone"
                 dataKey="total_score"
-                stroke="#3b82f6"
-                strokeWidth={3}
+                stroke="#6366f1"
+                strokeWidth={4}
                 fillOpacity={1}
                 fill="url(#colorTotal)"
-                name="Totale (Econ. + Tecn.)"
+                name="total_score"
+                animationDuration={1500}
               />
             )}
 
-            {/* 4 Key Points as Reference Dots */}
-            {/* 1. Competitor Economic Point (black) */}
             {showCompetitor && (
               <>
                 <ReferenceDot
                   x={competitorDiscount}
                   y={competitorEconScore}
-                  r={8}
+                  r={10}
                   fill="#000000"
                   stroke="#ffffff"
-                  strokeWidth={2}
-                  label={{ value: 'Comp Econ', position: 'top', fontSize: 10, fill: '#000000' }}
+                  strokeWidth={4}
+                  className="drop-shadow-lg"
                 />
-                {/* Competitor Economic horizontal line */}
                 <ReferenceLine
                   y={competitorEconScore}
                   stroke="#000000"
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
-                  label={{ position: 'right', value: `${competitorEconScore.toFixed(1)}`, fill: '#000000', fontSize: 9 }}
-                />
-              </>
-            )}
-
-            {/* 2. Competitor Total Point (black) */}
-            {showCompetitor && (
-              <>
-                <ReferenceDot
-                  x={competitorDiscount}
-                  y={competitorTotalScore}
-                  r={8}
-                  fill="#000000"
-                  stroke="#ffffff"
                   strokeWidth={2}
-                  label={{ value: 'Comp Tot', position: 'top', fontSize: 10, fill: '#000000' }}
-                />
-                {/* Competitor Total horizontal line */}
-                <ReferenceLine
-                  y={competitorTotalScore}
-                  stroke="#000000"
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
-                  label={{ position: 'right', value: `${competitorTotalScore.toFixed(1)}`, fill: '#000000', fontSize: 9 }}
+                  strokeDasharray="4 4"
+                  opacity={0.3}
                 />
               </>
             )}
 
-            {/* 3. LUTECH Economic Point (red) - Toggleable */}
-            {showLutech && results && typeof results.economic_score === 'number' && (
+            {showLutech && results && (
               <>
                 <ReferenceDot
                   x={myDiscount}
                   y={results.economic_score}
-                  r={12}
-                  fill="#dc2626"
+                  r={10}
+                  fill="#f43f5e"
                   stroke="#ffffff"
                   strokeWidth={4}
-                  label={{
-                    value: `LUTECH (${formatNumber(myDiscount, 1)}%)`,
-                    position: 'top',
-                    fontSize: 11,
-                    fill: '#dc2626',
-                    fontWeight: 'bold',
-                    offset: 15
-                  }}
+                  className="drop-shadow-lg"
                 />
-                {/* LUTECH Economic horizontal line */}
                 <ReferenceLine
                   y={results.economic_score}
-                  stroke="#dc2626"
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
-                  label={{ position: 'right', value: `${results.economic_score.toFixed(1)}`, fill: '#dc2626', fontSize: 9 }}
+                  stroke="#f43f5e"
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  opacity={0.3}
                 />
               </>
             )}
 
-            {/* 4. LUTECH Total Point (red) - Toggleable */}
-            {showLutech && results && typeof results.total_score === 'number' && (
-              <>
-                <ReferenceDot
-                  x={myDiscount}
-                  y={results.total_score}
-                  r={12}
-                  fill="#dc2626"
-                  stroke="#ffffff"
-                  strokeWidth={4}
-                  label={{
-                    value: `LUTECH TOT (${formatNumber(myDiscount, 1)}%)`,
-                    position: 'bottom',
-                    fontSize: 11,
-                    fill: '#dc2626',
-                    fontWeight: 'bold',
-                    offset: 15
-                  }}
-                />
-                {/* LUTECH Total horizontal line */}
-                <ReferenceLine
-                  y={results.total_score}
-                  stroke="#dc2626"
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
-                  label={{ position: 'right', value: `${results.total_score.toFixed(1)}`, fill: '#dc2626', fontSize: 9 }}
-                />
-              </>
-            )}
-
-            {/* Safe Zone Marker */}
             {monteCarlo?.optimal_discount && (
               <ReferenceLine
                 x={monteCarlo.optimal_discount}
                 stroke="#10b981"
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                label={{ position: 'top', value: 'Safe Zone', fill: '#10b981', fontSize: 9, fontWeight: 'bold' }}
+                strokeWidth={3}
+                strokeDasharray="6 6"
+                label={{
+                  position: 'top',
+                  value: 'TARGET OPTIMAL',
+                  fill: '#10b981',
+                  fontSize: 10,
+                  fontWeight: 900,
+                  fontFamily: 'Sora',
+                  offset: 20
+                }}
               />
             )}
           </AreaChart>

@@ -445,13 +445,13 @@ export default function CertVerification({ onClose }) {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requisito</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risorsa</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificazione</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validità</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stato</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requisito</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risorsa</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificazione</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validità</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stato</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -459,11 +459,11 @@ export default function CertVerification({ onClose }) {
                         const displayFilename = r.filename?.split('/').pop() || r.filename;
                         return (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate" title={r.filename}>
+                          <td className="px-4 py-1.5 text-sm text-gray-900 max-w-xs truncate" title={r.filename}>
                             {displayFilename}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{r.req_code || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
+                          <td className="px-4 py-1.5 text-sm text-gray-700">{r.req_code || '-'}</td>
+                          <td className="px-4 py-1.5 text-sm text-gray-700">
                             <div>
                               {r.resource_name || '-'}
                               {r.resource_name_detected && r.resource_name !== r.resource_name_detected && (
@@ -473,8 +473,8 @@ export default function CertVerification({ onClose }) {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{r.vendor_detected || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
+                          <td className="px-4 py-1.5 text-sm text-gray-700">{r.vendor_detected || '-'}</td>
+                          <td className="px-4 py-1.5 text-sm text-gray-700">
                             <div className="max-w-xs">
                               {r.cert_name_detected && <div className="font-medium">{r.cert_name_detected}</div>}
                               {r.cert_code_detected && <div className="text-xs text-gray-500">{r.cert_code_detected}</div>}
@@ -489,7 +489,7 @@ export default function CertVerification({ onClose }) {
                               </div>
                             ) : '-'}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-1.5">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[r.status] || STATUS_COLORS.unprocessed}`}>
                               {STATUS_LABELS[r.status] || r.status}
                             </span>

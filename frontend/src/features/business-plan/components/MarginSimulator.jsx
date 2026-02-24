@@ -200,7 +200,7 @@ export default function MarginSimulator({
           <div className="lg:col-span-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Card Margine Corrente */}
-              <div className={`p-5 rounded-xl border-2 ${
+              <div className={`p-4 rounded-xl border-2 ${
                 marginStatus.color === 'green'
                   ? 'border-green-500 bg-green-50'
                   : 'border-amber-500 bg-amber-50'
@@ -233,7 +233,7 @@ export default function MarginSimulator({
               </div>
 
               {/* Card Margine Target */}
-              <div className="p-5 rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50">
+              <div className="p-4 rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50">
                 <div className="flex items-center gap-2 mb-3">
                   <Target className="w-5 h-5 text-blue-600" />
                   <span className="text-sm font-semibold text-slate-700">Margine Target</span>
@@ -278,7 +278,7 @@ export default function MarginSimulator({
 
               {/* Card Info RTI o Gara Singola */}
               {isRti ? (
-                <div className="p-5 rounded-xl border-2 border-indigo-300 bg-indigo-50">
+                <div className="p-4 rounded-xl border-2 border-indigo-300 bg-indigo-50">
                   <div className="flex items-center gap-2 mb-3">
                     <Calculator className="w-5 h-5 text-indigo-600" />
                     <span className="text-sm font-semibold text-slate-700">RTI - Quota Lutech</span>
@@ -304,7 +304,7 @@ export default function MarginSimulator({
                   </div>
                 </div>
               ) : (
-                <div className="p-5 rounded-xl border-2 border-slate-200 bg-slate-50">
+                <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50">
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="w-5 h-5 text-slate-400" />
                     <span className="text-sm font-semibold text-slate-500">Gara Singola</span>

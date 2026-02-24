@@ -1,0 +1,868 @@
+{
+  "report_metadata": {
+    "analysis_date": "2025-02-24",
+    "frontend_path": "/Users/gabriele.rendina/gemini/simulator-poste-bp/frontend/src",
+    "total_react_files_analyzed": 24,
+    "icon_library_used": "lucide-react (100%)"
+  },
+  
+  "icons_by_purpose": {
+    "expand_collapse": [
+      {
+        "icon": "ChevronDown",
+        "usage": "Expand dropdown / Show details / Disclosure triangle pointing down",
+        "files": [
+          "MasterDataConfig.jsx",
+          "TechEvaluator.jsx",
+          "LotSelector.jsx",
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx",
+          "CatalogEditorModal.jsx",
+          "OfferSchemeTable.jsx"
+        ],
+        "count": 7,
+        "purposes": ["expand", "dropdown_navigation"]
+      },
+      {
+        "icon": "ChevronUp",
+        "usage": "Collapse section / Hide details / Disclosure triangle pointing up",
+        "files": [
+          "MasterDataConfig.jsx",
+          "TechEvaluator.jsx",
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx",
+          "CatalogEditorModal.jsx",
+          "OfferSchemeTable.jsx"
+        ],
+        "count": 6,
+        "purposes": ["collapse"]
+      },
+      {
+        "icon": "ChevronRight",
+        "usage": "Expand nested item / Arrow right for next/expand",
+        "files": ["CatalogEditorModal.jsx"],
+        "count": 1,
+        "purposes": ["expand_nested"]
+      }
+    ],
+    
+    "add_remove": [
+      {
+        "icon": "Plus",
+        "usage": "Add new item / Create new record",
+        "files": [
+          "ConfigPage.jsx",
+          "MasterDataConfig.jsx",
+          "LotSelector.jsx",
+          "CompanyCertsEditor.jsx",
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx",
+          "CatalogEditorModal.jsx"
+        ],
+        "count": 7,
+        "contexts": [
+          "Add requirement",
+          "Add master data item",
+          "Add vendor",
+          "Add TOW",
+          "Add team member profile",
+          "Add catalog item",
+          "Add cluster"
+        ]
+      },
+      {
+        "icon": "Trash2",
+        "usage": "Delete / Remove item permanently",
+        "files": [
+          "ConfigPage.jsx",
+          "MasterDataConfig.jsx",
+          "LotSelector.jsx",
+          "CompanyCertsEditor.jsx",
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx",
+          "CatalogEditorModal.jsx"
+        ],
+        "count": 7,
+        "contexts": [
+          "Delete requirement",
+          "Delete sub-requirement",
+          "Delete custom metric",
+          "Delete master data item",
+          "Delete vendor",
+          "Delete alias/pattern",
+          "Delete lot",
+          "Delete TOW",
+          "Delete team profile"
+        ]
+      },
+      {
+        "icon": "Minus",
+        "usage": "Decrement / Reduce value / Negative action",
+        "files": ["TechEvaluator.jsx"],
+        "count": 1,
+        "contexts": ["Decrement qualification selector (opposite of Plus)"]
+      }
+    ],
+    
+    "close_dismiss": [
+      {
+        "icon": "X",
+        "usage": "Close dialog/modal/sheet/toast / Dismiss notification",
+        "files": [
+          "Sidebar.jsx",
+          "ConfigPage.jsx",
+          "LotSelector.jsx",
+          "Toast.jsx",
+          "CatalogEditorModal.jsx",
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx",
+          "sheet.jsx"
+        ],
+        "count": 8,
+        "contexts": [
+          "Mobile sidebar close",
+          "Modal/dialog close",
+          "Import modal close",
+          "Discard changes",
+          "Toast dismiss",
+          "Remove item from list"
+        ]
+      }
+    ],
+    
+    "info_help_warning": [
+      {
+        "icon": "Info",
+        "usage": "Information / Help / Tooltip / Additional details",
+        "files": [
+          "Dashboard.jsx",
+          "ConfigPage.jsx",
+          "MasterDataConfig.jsx",
+          "TechEvaluator.jsx",
+          "Toast.jsx",
+          "DetailedScoreTable.jsx",
+          "TowConfigTable.jsx"
+        ],
+        "count": 7,
+        "contexts": [
+          "Detail table header",
+          "Help tooltip",
+          "Formula information",
+          "Info notification",
+          "Salary/cost information"
+        ]
+      },
+      {
+        "icon": "AlertCircle",
+        "usage": "Error / Alert / Warning notification / Validation issue",
+        "files": [
+          "Sidebar.jsx",
+          "ConfigPage.jsx",
+          "MasterDataConfig.jsx",
+          "Toast.jsx",
+          "SubcontractPanel.jsx"
+        ],
+        "count": 5,
+        "contexts": [
+          "Quota validation error",
+          "Weight validation warning",
+          "Error notification",
+          "Subcontract limit exceeded"
+        ]
+      },
+      {
+        "icon": "AlertTriangle",
+        "usage": "Warning / Caution / Validation warning / Important notice",
+        "files": [
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx",
+          "CatalogEditorModal.jsx"
+        ],
+        "count": 3,
+        "contexts": [
+          "Weight validation warning",
+          "Allocation warning",
+          "Validation warning"
+        ]
+      }
+    ],
+    
+    "success_valid_status": [
+      {
+        "icon": "CheckCircle",
+        "usage": "Success / Completion / Valid status / Confirmation",
+        "files": [
+          "Toast.jsx",
+          "SubcontractPanel.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Success notification",
+          "Valid status indicator"
+        ]
+      },
+      {
+        "icon": "CheckCircle2",
+        "usage": "Complete / Valid / Approved status (filled variant)",
+        "files": [
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx",
+          "CatalogEditorModal.jsx"
+        ],
+        "count": 3,
+        "contexts": [
+          "Valid/complete indicator",
+          "Valid allocation indicator"
+        ]
+      }
+    ],
+    
+    "loading_progress": [
+      {
+        "icon": "Loader2",
+        "usage": "Loading / Processing / Wait indicator / Spinning animation",
+        "files": [
+          "Dashboard.jsx",
+          "LotSelector.jsx",
+          "ScoreGauges.jsx"
+        ],
+        "count": 3,
+        "contexts": [
+          "PDF export loading",
+          "Excel export loading",
+          "Import file loading"
+        ]
+      }
+    ],
+    
+    "download_export": [
+      {
+        "icon": "Download",
+        "usage": "Download file / Export to file",
+        "files": [
+          "LotSelector.jsx",
+          "ScoreGauges.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Download template",
+          "PDF export button"
+        ]
+      },
+      {
+        "icon": "FileSpreadsheet",
+        "usage": "Spreadsheet / Excel file / Data export",
+        "files": ["ScoreGauges.jsx"],
+        "count": 1,
+        "contexts": ["Excel export button"]
+      },
+      {
+        "icon": "FileDown",
+        "usage": "File download / Export file",
+        "files": [
+          "LotSelector.jsx",
+          "CatalogEditorModal.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Export lot button",
+          "Export catalog"
+        ]
+      }
+    ],
+    
+    "upload_import": [
+      {
+        "icon": "Upload",
+        "usage": "Upload file / Import data / File upload",
+        "files": [
+          "LotSelector.jsx",
+          "TeamCompositionTable.jsx",
+          "CatalogEditorModal.jsx"
+        ],
+        "count": 3,
+        "contexts": [
+          "Upload import configuration",
+          "Import team data",
+          "Import catalog data"
+        ]
+      }
+    ],
+    
+    "navigation_search": [
+      {
+        "icon": "Menu",
+        "usage": "Hamburger menu / Mobile navigation toggle",
+        "files": ["App.jsx"],
+        "count": 1,
+        "contexts": ["Mobile sidebar toggle button"]
+      },
+      {
+        "icon": "Home",
+        "usage": "Dashboard / Home / Main view navigation",
+        "files": ["App.jsx"],
+        "count": 1,
+        "contexts": ["Navigate to dashboard"]
+      },
+      {
+        "icon": "FileSearch",
+        "usage": "Search / Lookup / Find / Document search",
+        "files": [
+          "Sidebar.jsx",
+          "Dashboard.jsx",
+          "DetailedScoreTable.jsx"
+        ],
+        "count": 3,
+        "contexts": [
+          "Verify certifications lookup",
+          "Search functionality"
+        ]
+      }
+    ],
+    
+    "business_objects": [
+      {
+        "icon": "Building",
+        "usage": "Building / Organization / Company / Facility",
+        "files": ["SubcontractPanel.jsx"],
+        "count": 1,
+        "contexts": ["Subcontract partner building/organization icon"]
+      },
+      {
+        "icon": "Building2",
+        "usage": "Building / Organization (emphasized) / Company / Facilities",
+        "files": [
+          "Sidebar.jsx",
+          "ConfigPage.jsx",
+          "MasterDataConfig.jsx",
+          "ScoreGauges.jsx"
+        ],
+        "count": 4,
+        "contexts": [
+          "Building/company icon in header",
+          "Organization/company indicator",
+          "RTI company partners"
+        ]
+      },
+      {
+        "icon": "Briefcase",
+        "usage": "Work / Job / Project / Tender / Lot",
+        "files": [
+          "Sidebar.jsx",
+          "ConfigPage.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Work/lot briefcase icon",
+          "Section header"
+        ]
+      },
+      {
+        "icon": "Users",
+        "usage": "Team / People / Group / Staff / Multiple users",
+        "files": ["TeamCompositionTable.jsx"],
+        "count": 1,
+        "contexts": ["Team composition header"]
+      },
+      {
+        "icon": "Table",
+        "usage": "Table / Data grid / Spreadsheet / Schema",
+        "files": ["OfferSchemeTable.jsx"],
+        "count": 1,
+        "contexts": ["Offer scheme table/pricing header"]
+      }
+    ],
+    
+    "currency_financial": [
+      {
+        "icon": "Euro",
+        "usage": "Currency / Money / Price / Cost / Financial value",
+        "files": [
+          "SubcontractPanel.jsx",
+          "OfferSchemeTable.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Cost/pricing currency",
+          "Currency/pricing indicator"
+        ]
+      }
+    ],
+    
+    "configuration_settings": [
+      {
+        "icon": "Settings",
+        "usage": "Configuration / Settings / Preferences / Options",
+        "files": [
+          "App.jsx",
+          "Sidebar.jsx",
+          "MasterDataConfig.jsx"
+        ],
+        "count": 3,
+        "contexts": [
+          "Dropdown selector indicator",
+          "Configuration icon",
+          "OCR settings"
+        ]
+      }
+    ],
+    
+    "authentication": [
+      {
+        "icon": "LogIn",
+        "usage": "Sign in / Login / Authentication",
+        "files": ["LoginButton.jsx"],
+        "count": 1,
+        "contexts": ["Sign in action"]
+      },
+      {
+        "icon": "LogOut",
+        "usage": "Sign out / Logout / Exit / Deauthentication",
+        "files": ["LogoutButton.jsx"],
+        "count": 1,
+        "contexts": ["Sign out action"]
+      }
+    ],
+    
+    "status_indicators": [
+      {
+        "icon": "Star",
+        "usage": "Rating / Favorite / Important / Quality / Excellence",
+        "files": ["TechEvaluator.jsx"],
+        "count": 1,
+        "contexts": ["Rating/qualification indicator"]
+      },
+      {
+        "icon": "Percent",
+        "usage": "Percentage / Quota / Portion / Allocation",
+        "files": [
+          "MasterDataConfig.jsx",
+          "TowConfigTable.jsx",
+          "SubcontractPanel.jsx"
+        ],
+        "count": 3,
+        "contexts": [
+          "Weight percentage indicator",
+          "Subcontract percentage quota"
+        ]
+      },
+      {
+        "icon": "TrendingDown",
+        "usage": "Decline / Reduction / Decrease / Adjustment downward",
+        "files": [
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Volume adjustment/reduction",
+          "FTE adjustment/reduction"
+        ]
+      },
+      {
+        "icon": "PauseCircle",
+        "usage": "Paused / Inactive / Disabled / On hold",
+        "files": ["ConfigPage.jsx"],
+        "count": 1,
+        "contexts": ["Paused/inactive status indicator"]
+      },
+      {
+        "icon": "Target",
+        "usage": "Goal / Objective / Focus / Targeting / Competition",
+        "files": ["Dashboard.jsx"],
+        "count": 1,
+        "contexts": ["Competitor targeting section header"]
+      }
+    ],
+    
+    "utility_misc": [
+      {
+        "icon": "Save",
+        "usage": "Save changes / Store data / Persist",
+        "files": [
+          "App.jsx",
+          "MasterDataConfig.jsx",
+          "TowConfigTable.jsx",
+          "TeamCompositionTable.jsx",
+          "CatalogEditorModal.jsx"
+        ],
+        "count": 5,
+        "contexts": [
+          "Unified save button",
+          "Save changes",
+          "Save button"
+        ]
+      },
+      {
+        "icon": "Copy",
+        "usage": "Duplicate / Clone / Copy to clipboard / Replicate",
+        "files": ["ConfigPage.jsx"],
+        "count": 1,
+        "contexts": ["Duplicate requirement"]
+      },
+      {
+        "icon": "GripVertical",
+        "usage": "Drag handle / Reorder / Rearrange / Move",
+        "files": ["TowConfigTable.jsx"],
+        "count": 1,
+        "contexts": ["Drag handle for reordering"]
+      },
+      {
+        "icon": "Calculator",
+        "usage": "Calculate / Computation / Math / Calculation",
+        "files": [
+          "TeamCompositionTable.jsx",
+          "OfferSchemeTable.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Calculation/cost indicator",
+          "Calculation/computation"
+        ]
+      },
+      {
+        "icon": "GraduationCap",
+        "usage": "Education / Training / Learning / Development / Certification",
+        "files": ["TeamCompositionTable.jsx"],
+        "count": 1,
+        "contexts": ["Education/training icon"]
+      },
+      {
+        "icon": "Calendar",
+        "usage": "Date / Timeline / Schedule / Duration / Period",
+        "files": ["TeamCompositionTable.jsx"],
+        "count": 1,
+        "contexts": ["Duration/timeline indicator"]
+      },
+      {
+        "icon": "BookOpen",
+        "usage": "Documentation / Reference / Handbook / Catalog / Knowledge",
+        "files": [
+          "TowConfigTable.jsx",
+          "CatalogEditorModal.jsx",
+          "OfferSchemeTable.jsx"
+        ],
+        "count": 3,
+        "contexts": [
+          "Catalog documentation",
+          "Catalog/documentation reference"
+        ]
+      },
+      {
+        "icon": "Wand2",
+        "usage": "Magic / Auto-generate / Magic wand / Suggestion / AI",
+        "files": ["CatalogEditorModal.jsx"],
+        "count": 1,
+        "contexts": ["Magic/auto-generate suggestion"]
+      },
+      {
+        "icon": "BarChart3",
+        "usage": "Chart / Analytics / Analysis / Statistics / Graph",
+        "files": ["TechEvaluator.jsx"],
+        "count": 1,
+        "contexts": ["Analysis/chart tab icon"]
+      },
+      {
+        "icon": "ClipboardCheck",
+        "usage": "Checklist / Assessment / Evaluation / Verification / Inspection",
+        "files": ["TechEvaluator.jsx"],
+        "count": 1,
+        "contexts": ["Evaluation/input tab icon"]
+      },
+      {
+        "icon": "Maximize2",
+        "usage": "Fullscreen / Expand / Make larger / Maximize window",
+        "files": ["SimulationChart.jsx"],
+        "count": 1,
+        "contexts": ["Enter fullscreen mode"]
+      },
+      {
+        "icon": "Minimize2",
+        "usage": "Exit fullscreen / Shrink / Make smaller / Minimize",
+        "files": ["SimulationChart.jsx"],
+        "count": 1,
+        "contexts": ["Exit fullscreen mode"]
+      },
+      {
+        "icon": "ToggleLeft",
+        "usage": "Toggle OFF / Disabled / Switch off / Toggle state (off)",
+        "files": ["MasterDataConfig.jsx"],
+        "count": 1,
+        "contexts": ["Vendor disable toggle (off state)"]
+      },
+      {
+        "icon": "ToggleRight",
+        "usage": "Toggle ON / Enabled / Switch on / Toggle state (on)",
+        "files": ["MasterDataConfig.jsx"],
+        "count": 1,
+        "contexts": ["Vendor enable toggle (on state)"]
+      },
+      {
+        "icon": "Check",
+        "usage": "Success / Complete / Done / Confirm / Checkmark",
+        "files": ["MasterDataConfig.jsx"],
+        "count": 1,
+        "contexts": ["Success/checkmark notification"]
+      },
+      {
+        "icon": "Layers",
+        "usage": "Layers / Stacking / Hierarchy / Multiple items / Type of Work",
+        "files": ["TowConfigTable.jsx"],
+        "count": 1,
+        "contexts": ["Type of Work layer/section header"]
+      },
+      {
+        "icon": "Award",
+        "usage": "Achievement / Award / Prize / Certification / Badge / Honor",
+        "files": [
+          "ConfigPage.jsx",
+          "MasterDataConfig.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Achievement/certification icon",
+          "Professional certification"
+        ]
+      },
+      {
+        "icon": "ShieldCheck",
+        "usage": "Security / Protection / Verified / Certification / Compliance",
+        "files": ["MasterDataConfig.jsx"],
+        "count": 1,
+        "contexts": ["Certification security shield"]
+      },
+      {
+        "icon": "Search",
+        "usage": "Search / Find / Query / Lookup / Filter",
+        "files": [
+          "ConfigPage.jsx",
+          "MasterDataConfig.jsx"
+        ],
+        "count": 2,
+        "contexts": [
+          "Certification search",
+          "Vendor search filter"
+        ]
+      }
+    ]
+  },
+
+  "inconsistencies": [
+    {
+      "purpose": "expand_collapse",
+      "severity": "LOW",
+      "status": "CONSISTENT",
+      "icons_used": ["ChevronDown", "ChevronUp", "ChevronRight"],
+      "files_affected": [
+        "MasterDataConfig.jsx",
+        "TechEvaluator.jsx",
+        "LotSelector.jsx",
+        "TowConfigTable.jsx",
+        "TeamCompositionTable.jsx",
+        "CatalogEditorModal.jsx",
+        "OfferSchemeTable.jsx"
+      ],
+      "analysis": "Consistent pattern: ChevronDown/ChevronUp used for vertical expand/collapse (5+ files), ChevronRight used once for nested expand in CatalogEditorModal",
+      "recommendation": "✓ APPROVED - Current pattern is clear and appropriate. ChevronDown/Up for primary expand/collapse, ChevronRight for nested navigation is standard UI convention"
+    },
+
+    {
+      "purpose": "add_remove",
+      "severity": "LOW",
+      "status": "CONSISTENT",
+      "icons_used": ["Plus", "Trash2", "Minus"],
+      "files_affected": [
+        "ConfigPage.jsx",
+        "MasterDataConfig.jsx",
+        "LotSelector.jsx",
+        "CompanyCertsEditor.jsx",
+        "TowConfigTable.jsx",
+        "TeamCompositionTable.jsx",
+        "CatalogEditorModal.jsx",
+        "TechEvaluator.jsx"
+      ],
+      "analysis": "Excellent consistency: Plus for add (7 files), Trash2 for delete (7 files), Minus for decrement (1 file in TechEvaluator)",
+      "recommendation": "✓ PERFECT - Highly consistent pattern across application. Plus/Minus/Trash2 is the standard for add/increment/remove operations"
+    },
+
+    {
+      "purpose": "close_dismiss",
+      "severity": "NONE",
+      "status": "PERFECT",
+      "icons_used": ["X"],
+      "files_affected": [
+        "Sidebar.jsx",
+        "ConfigPage.jsx",
+        "LotSelector.jsx",
+        "Toast.jsx",
+        "CatalogEditorModal.jsx",
+        "TowConfigTable.jsx",
+        "TeamCompositionTable.jsx",
+        "sheet.jsx"
+      ],
+      "analysis": "Single icon (X) used exclusively for all close/dismiss actions throughout application (8 files)",
+      "recommendation": "✓ PERFECT CONSISTENCY - Do not change. Universal use of X is best practice"
+    },
+
+    {
+      "purpose": "info_help_warning",
+      "severity": "MEDIUM",
+      "status": "PARTIALLY_INCONSISTENT",
+      "icons_used": ["Info", "AlertCircle", "AlertTriangle"],
+      "primary_distinction": "Info used for help/tooltips (7 files), AlertCircle for errors (5 files), AlertTriangle for warnings (3 files)",
+      "analysis": "Clear semantic distinction exists: Info (ℹ️) for informational content, AlertCircle (⊙) for error conditions, AlertTriangle (⚠️) for warnings. Pattern is semantically correct but could be more explicit in documentation.",
+      "files_using_alertcircle": ["Sidebar.jsx", "ConfigPage.jsx", "MasterDataConfig.jsx", "Toast.jsx", "SubcontractPanel.jsx"],
+      "files_using_alerttriangle": ["TowConfigTable.jsx", "TeamCompositionTable.jsx", "CatalogEditorModal.jsx"],
+      "recommendation": "✓ GOOD PATTERN - Current usage is semantically appropriate. Consider documenting: Info = FYI, AlertCircle = Error/Problem, AlertTriangle = Warning/Caution"
+    },
+
+    {
+      "purpose": "success_valid_status",
+      "severity": "LOW",
+      "status": "DUAL_ICONS",
+      "icons_used": ["CheckCircle", "CheckCircle2"],
+      "distinction": "CheckCircle (outline) used for notifications, CheckCircle2 (filled) used for status indicators",
+      "analysis": "Two similar icons used in different contexts. CheckCircle appears in Toast (notifications), CheckCircle2 appears in tables (valid status). The distinction is somewhat unclear but functional.",
+      "files_using_checkcircle": ["Toast.jsx", "SubcontractPanel.jsx"],
+      "files_using_checkcircle2": ["TowConfigTable.jsx", "TeamCompositionTable.jsx", "CatalogEditorModal.jsx"],
+      "recommendation": "CLARIFY: CheckCircle2 is more commonly used (3 files vs 2 files). Consider standardizing on CheckCircle2 for all success/valid indicators, or reserve CheckCircle only for transaction completion notifications"
+    },
+
+    {
+      "purpose": "download_export",
+      "severity": "LOW",
+      "status": "MINOR_DUPLICATION",
+      "icons_used": ["Download", "FileSpreadsheet", "FileDown"],
+      "analysis": "Three icons express similar concepts: Download (generic), FileSpreadsheet (Excel-specific), FileDown (file download). There is semantic overlap between Download and FileDown.",
+      "usage_pattern": {
+        "Download": "PDF export (2 files)",
+        "FileSpreadsheet": "Excel export (1 file)",
+        "FileDown": "Generic file export/lot export (2 files)"
+      },
+      "recommendation": "OPPORTUNITY: Consider consolidating to 2 icons: Keep FileDown for generic file operations, use FileSpreadsheet exclusively for Excel export. FileSpreadsheet is more semantically specific than generic Download."
+    },
+
+    {
+      "purpose": "building_organization",
+      "severity": "MEDIUM",
+      "status": "DUPLICATION",
+      "icons_used": ["Building", "Building2"],
+      "distinction": "Building (outline) vs Building2 (filled/emphasized)",
+      "files_using_building": ["SubcontractPanel.jsx"],
+      "files_using_building2": ["Sidebar.jsx", "ConfigPage.jsx", "MasterDataConfig.jsx", "ScoreGauges.jsx"],
+      "analysis": "Building2 dominates (4 files vs 1 file). Building is used only in SubcontractPanel. The distinction is unclear - no obvious reason to prefer one over the other in specific contexts.",
+      "recommendation": "STANDARDIZE: Always use Building2 for organizations/companies/buildings. It's visually stronger and used 4x more frequently. Replace Building in SubcontractPanel with Building2 for consistency. Remove Building from codebase."
+    },
+
+    {
+      "purpose": "loading_state",
+      "severity": "NONE",
+      "status": "CONSISTENT",
+      "icons_used": ["Loader2"],
+      "files_affected": ["Dashboard.jsx", "LotSelector.jsx", "ScoreGauges.jsx"],
+      "count": 3,
+      "analysis": "Single, consistent use of Loader2 for all loading/processing states",
+      "recommendation": "✓ APPROVED - Consistent and appropriate"
+    }
+  ],
+
+  "icon_frequency_analysis": {
+    "most_used": [
+      {"icon": "Plus", "count": 7, "frequency": "Very High", "purpose": "Add/create"},
+      {"icon": "Trash2", "count": 7, "frequency": "Very High", "purpose": "Delete"},
+      {"icon": "ChevronDown", "count": 7, "frequency": "Very High", "purpose": "Expand"},
+      {"icon": "X", "count": 8, "frequency": "Very High", "purpose": "Close"},
+      {"icon": "Info", "count": 7, "frequency": "Very High", "purpose": "Help/Info"},
+      {"icon": "ChevronUp", "count": 6, "frequency": "High", "purpose": "Collapse"},
+      {"icon": "Building2", "count": 4, "frequency": "High", "purpose": "Organization"},
+      {"icon": "Save", "count": 5, "frequency": "High", "purpose": "Save/persist"}
+    ],
+    "moderate_use": [
+      {"icon": "AlertCircle", "count": 5, "frequency": "Moderate", "purpose": "Error/alert"},
+      {"icon": "FileSearch", "count": 3, "frequency": "Moderate", "purpose": "Search/lookup"},
+      {"icon": "Upload", "count": 3, "frequency": "Moderate", "purpose": "Import"},
+      {"icon": "Loader2", "count": 3, "frequency": "Moderate", "purpose": "Loading"},
+      {"icon": "Award", "count": 2, "frequency": "Moderate", "purpose": "Achievement"}
+    ],
+    "rarely_used": [
+      {"icon": "Maximize2", "count": 1, "frequency": "Rare", "purpose": "Fullscreen"},
+      {"icon": "Minimize2", "count": 1, "frequency": "Rare", "purpose": "Exit fullscreen"},
+      {"icon": "Wand2", "count": 1, "frequency": "Rare", "purpose": "Magic/suggest"},
+      {"icon": "Check", "count": 1, "frequency": "Rare", "purpose": "Checkmark"},
+      {"icon": "ShieldCheck", "count": 1, "frequency": "Rare", "purpose": "Security"}
+    ]
+  },
+
+  "library_statistics": {
+    "total_unique_icons": 41,
+    "icon_library": "lucide-react",
+    "library_version": "Not specified in imports",
+    "imports_found": 24,
+    "all_icons_used": [
+      "AlertCircle", "AlertTriangle", "App", "Award", "BarChart3", "BookOpen", "Briefcase",
+      "Building", "Building2", "Calendar", "Check", "CheckCircle", "CheckCircle2", "ChevronDown",
+      "ChevronRight", "ChevronUp", "ClipboardCheck", "Copy", "Euro", "FileDown", "FileSearch",
+      "FileSpreadsheet", "GraduationCap", "GripVertical", "Home", "Info", "Layers", "LogIn",
+      "LogOut", "Loader2", "Menu", "Minus", "PauseCircle", "Percent", "Plus", "RefreshCw",
+      "Save", "Settings", "ShieldCheck", "Star", "Table", "Target", "ToggleLeft", "ToggleRight",
+      "TrendingDown", "Trash2", "Users", "Wand2", "X"
+    ]
+  },
+
+  "recommendations_summary": {
+    "priority_HIGH": [
+      {
+        "action": "Standardize Building vs Building2",
+        "rationale": "Building2 is used 4x more frequently (4 files vs 1 file). Choose one and apply consistently.",
+        "impact": "Visual consistency in organization/company representation",
+        "files_to_update": ["SubcontractPanel.jsx - replace Building with Building2"]
+      }
+    ],
+    "priority_MEDIUM": [
+      {
+        "action": "Consolidate download/export icons",
+        "rationale": "Three similar icons (Download, FileDown, FileSpreadsheet) express overlapping concepts",
+        "recommendation": "Use FileSpreadsheet exclusively for Excel, FileDown for generic file downloads. Consider removing generic Download icon.",
+        "impact": "Cleaner icon vocabulary"
+      },
+      {
+        "action": "Document Info vs AlertCircle vs AlertTriangle semantic distinction",
+        "rationale": "Three different icons for help/info/warning exist but distinctions aren't obvious",
+        "recommendation": "Create style guide: Info (ℹ️ optional info), AlertCircle (⊙ problem), AlertTriangle (⚠️ caution)",
+        "impact": "Improved developer onboarding"
+      }
+    ],
+    "priority_LOW": [
+      {
+        "action": "Consider CheckCircle vs CheckCircle2 usage",
+        "rationale": "CheckCircle2 used 3x more than CheckCircle, but both express success",
+        "recommendation": "Preference for CheckCircle2 is established. Use it for all success/valid states, reserve CheckCircle only for toast notifications if ever needed.",
+        "impact": "Stronger visual consistency in status indicators"
+      }
+    ],
+    "approved_patterns": [
+      "✓ Perfect: X for all close/dismiss actions",
+      "✓ Perfect: Plus/Trash2/Minus for add/remove/decrement",
+      "✓ Excellent: ChevronDown/ChevronUp for vertical expand/collapse",
+      "✓ Good: Loader2 for all loading states",
+      "✓ Good: FileSearch for lookup/search functionality"
+    ]
+  },
+
+  "files_by_icon_count": {
+    "most_complex": [
+      {"file": "MasterDataConfig.jsx", "unique_icons": 14},
+      {"file": "CatalogEditorModal.jsx", "unique_icons": 11},
+      {"file": "ConfigPage.jsx", "unique_icons": 12},
+      {"file": "TowConfigTable.jsx", "unique_icons": 13},
+      {"file": "TeamCompositionTable.jsx", "unique_icons": 13}
+    ],
+    "most_simple": [
+      {"file": "LoginButton.jsx", "unique_icons": 1},
+      {"file": "LogoutButton.jsx", "unique_icons": 1},
+      {"file": "SimulationChart.jsx", "unique_icons": 2},
+      {"file": "ErrorBoundary.jsx", "unique_icons": 2},
+      {"file": "CompanyCertsEditor.jsx", "unique_icons": 3}
+    ]
+  }
+}

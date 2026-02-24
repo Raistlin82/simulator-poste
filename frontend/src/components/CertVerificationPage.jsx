@@ -30,7 +30,8 @@ import {
   FolderOpen,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ChevronDown
 } from 'lucide-react';
 
 // Status badge colors
@@ -550,19 +551,19 @@ export default function CertVerificationPage() {
   };
 
   return (
-    <div className="flex-1 overflow-auto p-4 md:p-6 bg-slate-50">
+    <div className="flex-1 overflow-auto p-6 md:p-8 bg-slate-50">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 rounded-xl">
-              <FileSearch className="w-6 h-6 text-indigo-600" />
+        <div className="mb-10 animate-fade-in">
+          <div className="flex items-center gap-6">
+            <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg shadow-indigo-500/30">
+              <FileSearch className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-slate-800">
+              <h1 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tightest">
                 {t('cert_verification.title')}
               </h1>
-              <p className="text-sm text-slate-500">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest-plus mt-1">
                 {t('cert_verification.subtitle')}
               </p>
             </div>
@@ -570,510 +571,533 @@ export default function CertVerificationPage() {
         </div>
 
         {/* Main Content Card */}
-        <div className="glass-card rounded-2xl shadow-sm border border-slate-200/50 p-4 md:p-6">
+        <div className="glass-card rounded-[2rem] shadow-2xl shadow-slate-200/50 border border-white/60 p-6 md:p-10">
           {/* OCR Status Check */}
-          <div className="mb-6">
-            <button
-              onClick={checkOcrStatus}
-              disabled={checkingOcr}
-              className="text-sm text-indigo-600 hover:text-indigo-800 underline flex items-center gap-1"
-            >
-              <Search className="w-4 h-4" />
-              {checkingOcr ? t('cert_verification.checking') : t('cert_verification.check_ocr')}
-            </button>
-            {ocrStatus && (
-              <div className={`mt-2 p-3 rounded-lg text-sm flex items-center gap-2 ${ocrStatus.ocr_available
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
-                }`}>
-                {ocrStatus.ocr_available ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    {t('cert_verification.ocr_available')}
-                    {ocrStatus.tesseract_version && (
-                      <span className="ml-2 text-green-600">(Tesseract v{ocrStatus.tesseract_version})</span>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="w-4 h-4" />
-                    {t('cert_verification.ocr_unavailable')}: {ocrStatus.error || ocrStatus.message}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Input Mode Toggle */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              {t('cert_verification.input_mode') || 'Modalità input'}
-            </label>
-            <div className="flex rounded-lg border border-slate-300 overflow-hidden w-fit">
+          <div className="mb-10">
+            <div className="flex items-center gap-4 mb-4">
               <button
-                onClick={() => setInputMode(INPUT_MODES.UPLOAD)}
-                className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${inputMode === INPUT_MODES.UPLOAD
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
+                onClick={checkOcrStatus}
+                disabled={checkingOcr}
+                className="group flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-all text-[10px] font-black uppercase tracking-widest font-display border border-indigo-100"
               >
-                <Upload className="w-4 h-4" />
-                {t('cert_verification.upload_zip') || 'Upload ZIP'}
+                <Search className={`w-3.5 h-3.5 ${checkingOcr ? 'animate-spin' : 'group-hover:scale-110 transition-transform'}`} />
+                {checkingOcr ? t('cert_verification.checking') : t('cert_verification.check_ocr')}
               </button>
-              <button
-                onClick={() => setInputMode(INPUT_MODES.FOLDER)}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-l border-slate-300 flex items-center gap-2 ${inputMode === INPUT_MODES.FOLDER
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-              >
-                <FolderOpen className="w-4 h-4" />
-                {t('cert_verification.local_folder') || 'Cartella locale'}
-              </button>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              {inputMode === INPUT_MODES.UPLOAD
-                ? (t('cert_verification.upload_hint') || 'Carica un file ZIP contenente i PDF delle certificazioni')
-                : (t('cert_verification.folder_mode_hint') || 'Inserisci il percorso di una cartella locale (solo per esecuzione locale)')}
-            </p>
-          </div>
-
-          {/* Input Form */}
-          <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              {inputMode === INPUT_MODES.FOLDER ? (
-                /* Folder Path Input */
-                <>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    {t('cert_verification.folder_label')}
-                  </label>
-                  <input
-                    type="text"
-                    value={folderPath}
-                    onChange={(e) => setFolderPath(e.target.value)}
-                    placeholder={t('cert_verification.folder_placeholder')}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
-                  />
-                </>
-              ) : (
-                /* ZIP Upload Input */
-                <>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    {t('cert_verification.zip_label') || 'File ZIP certificazioni'}
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".zip"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                      id="zip-upload"
-                    />
-                    <label
-                      htmlFor="zip-upload"
-                      className="flex-1 px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-center"
-                    >
-                      {selectedFile ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <FileText className="w-5 h-5 text-green-600" />
-                          <span className="text-slate-700 font-medium">{selectedFile.name}</span>
-                          <span className="text-slate-500 text-sm">
-                            ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="text-slate-500">
-                          <Upload className="w-8 h-8 mx-auto mb-1 text-slate-400" />
-                          <p className="text-sm">{t('cert_verification.click_to_select') || 'Clicca per selezionare un file ZIP'}</p>
-                        </div>
+              {ocrStatus && (
+                <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest font-display flex items-center gap-2 shadow-sm ${ocrStatus.ocr_available
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                  : 'bg-rose-50 text-rose-700 border border-rose-100'
+                  }`}>
+                  {ocrStatus.ocr_available ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {t('cert_verification.ocr_available')}
+                      {ocrStatus.tesseract_version && (
+                        <span className="opacity-50">(Tesseract v{ocrStatus.tesseract_version})</span>
                       )}
-                    </label>
-                    {selectedFile && (
-                      <button
-                        onClick={clearFile}
-                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                        title={t('cert_verification.remove_file') || 'Rimuovi file'}
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-                </>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-3.5 h-3.5" />
+                      {t('cert_verification.ocr_unavailable')}: {ocrStatus.error || ocrStatus.message}
+                    </>
+                  )}
+                </div>
               )}
-              <p className="mt-1 text-xs text-slate-500">
-                {t('cert_verification.folder_hint')}
-              </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t('cert_verification.lot_label')}
+
+            {/* Input Mode Toggle */}
+            <div className="mb-6">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest-plus mb-3 ml-1 font-display">
+                {t('cert_verification.input_mode') || 'Modalità input'}
               </label>
-              <select
-                value={selectedLot}
-                onChange={(e) => setSelectedLot(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-shadow"
-              >
-                <option value="">{t('cert_verification.lot_placeholder')}</option>
-                {lots.map(lot => (
-                  <option key={lot} value={lot}>{lot}</option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-slate-500">
-                {t('cert_verification.lot_hint')}
-              </p>
-            </div>
-          </div>
+              <div className="bg-white/40 backdrop-blur-md rounded-2xl border border-white/60 p-6 md:p-8 mb-10 shadow-sm">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest-plus mb-3 ml-1 font-display">
+                        {t('cert_verification.input_mode_label') || 'Modalità Input'}
+                      </label>
+                      <div className="flex bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50">
+                        <button
+                          onClick={() => setInputMode(INPUT_MODES.UPLOAD)}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest font-display transition-all ${inputMode === INPUT_MODES.UPLOAD
+                            ? 'bg-white text-indigo-700 shadow-md shadow-indigo-500/5 border border-white'
+                            : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          {t('cert_verification.mode_upload') || 'Caricamento ZIP'}
+                        </button>
+                        <button
+                          onClick={() => setInputMode(INPUT_MODES.FOLDER)}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest font-display transition-all ${inputMode === INPUT_MODES.FOLDER
+                            ? 'bg-white text-indigo-700 shadow-md shadow-indigo-500/5 border border-white'
+                            : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                          <FolderOpen className="w-3.5 h-3.5" />
+                          {t('cert_verification.mode_folder') || 'Cartella Locale'}
+                        </button>
+                      </div>
+                    </div>
 
-          <button
-            onClick={handleVerify}
-            disabled={loading || !canVerify}
-            className={`w-full lg:w-auto px-6 py-2.5 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${loading || !canVerify
-              ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
-              }`}
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="w-5 h-5 animate-spin" />
-                {uploadProgress?.phase === 'uploading'
-                  ? `${t('cert_verification.uploading') || 'Caricamento'}... ${uploadProgress.percent || 0}%`
-                  : t('cert_verification.processing')}
-              </>
-            ) : (
-              <>
-                <Search className="w-5 h-5" />
-                {t('cert_verification.verify_btn')}
-              </>
-            )}
-          </button>
+                    <div className="animate-fade-in">
+                      {inputMode === INPUT_MODES.FOLDER ? (
+                        /* Folder Path Input */
+                        <>
+                          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest-plus mb-3 ml-1 font-display">
+                            {t('cert_verification.folder_label') || 'Percorso cartella certificazioni'}
+                          </label>
+                          <input
+                            type="text"
+                            value={folderPath}
+                            onChange={(e) => setFolderPath(e.target.value)}
+                            placeholder={t('cert_verification.folder_placeholder')}
+                            className="w-full px-5 py-4 bg-white/60 border border-slate-200/50 rounded-2xl text-sm font-black text-slate-800 placeholder-slate-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-inner font-display"
+                          />
+                        </>
+                      ) : (
+                        /* ZIP Upload Input */
+                        <>
+                          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest-plus mb-3 ml-1 font-display">
+                            {t('cert_verification.zip_label') || 'File ZIP certificazioni'}
+                          </label>
+                          <div className="flex items-center gap-4">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept=".zip"
+                              onChange={handleFileSelect}
+                              className="hidden"
+                              id="zip-upload"
+                            />
+                            <label
+                              htmlFor="zip-upload"
+                              className="flex-1 px-6 py-10 border-2 border-dashed border-indigo-200/50 rounded-[2rem] cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all text-center group bg-white/40 shadow-sm"
+                            >
+                              {selectedFile ? (
+                                <div className="flex flex-col items-center justify-center gap-3">
+                                  <div className="p-3 bg-emerald-100 rounded-2xl">
+                                    <FileText className="w-8 h-8 text-emerald-600" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-black text-slate-800 font-display uppercase tracking-tight">{selectedFile.name}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-slate-400">
+                                  <div className="p-4 bg-slate-50 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-indigo-100 transition-colors">
+                                    <Upload className="w-10 h-10 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                                  </div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest font-display">{t('cert_verification.click_to_select') || 'Clicca per selezionare un file ZIP'}</p>
+                                  <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider mt-1">Massimo 50MB consigliati</p>
+                                </div>
+                              )}
+                            </label>
+                            {selectedFile && (
+                              <button
+                                onClick={clearFile}
+                                className="p-4 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all border border-slate-100 shadow-sm"
+                                title={t('cert_verification.remove_file') || 'Rimuovi file'}
+                              >
+                                <X className="w-6 h-6" />
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                      <p className="mt-3 text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-relaxed ml-1">
+                        {t('cert_verification.folder_hint')}
+                      </p>
+                    </div>
+                  </div>
 
-          {/* Progress Bar */}
-          {loading && progress.total > 0 && (
-            <div className="mt-4 space-y-2 p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex justify-between items-center text-sm text-slate-600">
-                <span className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  {t('cert_verification.processing_label')}: {progress.current}/{progress.total}
-                </span>
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">{Math.round((progress.current / progress.total) * 100)}%</span>
-                  <button
-                    onClick={handleCancel}
-                    className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1"
-                  >
-                    <X className="w-4 h-4" />
-                    {t('cert_verification.cancel_btn')}
-                  </button>
-                </div>
-              </div>
-              <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                <div
-                  className="bg-indigo-600 h-full rounded-full transition-all duration-300"
-                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                />
-              </div>
-              {progress.filename && (
-                <p className="text-xs text-slate-500 truncate flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  {progress.filename}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2">
-              <XCircle className="w-5 h-5 flex-shrink-0" />
-              {error}
-            </div>
-          )}
-
-          {/* Results */}
-          {results && (
-            <div className="mt-8 space-y-6">
-              {/* Summary */}
-              <div className="bg-gradient-to-br from-slate-50 to-indigo-50 rounded-xl p-6 border border-slate-200">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-indigo-600" />
-                  {t('cert_verification.summary')}
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-slate-100/50">
-                    <div className="text-3xl font-bold text-slate-800">{results.summary?.total || 0}</div>
-                    <div className="text-sm text-slate-500 mt-1">{t('cert_verification.total')}</div>
-                  </div>
-                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-green-100/50">
-                    <div className="text-3xl font-bold text-green-600">{results.summary?.valid || 0}</div>
-                    <div className="text-sm text-slate-500 mt-1">{t('cert_verification.extracted')}</div>
-                  </div>
-                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-yellow-100/50">
-                    <div className="text-3xl font-bold text-yellow-600">{results.summary?.expired || 0}</div>
-                    <div className="text-sm text-slate-500 mt-1">{t('cert_verification.expired')}</div>
-                  </div>
-                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-orange-100/50">
-                    <div className="text-3xl font-bold text-orange-600">{results.summary?.mismatch || 0}</div>
-                    <div className="text-sm text-slate-500 mt-1">{t('cert_verification.mismatch')}</div>
-                  </div>
-                  <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-red-100/50">
-                    <div className="text-3xl font-bold text-red-600">{(results.summary?.unreadable || 0) + (results.summary?.error || 0)}</div>
-                    <div className="text-sm text-slate-500 mt-1">{t('cert_verification.unreadable')}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* By Requirement */}
-              {results.summary?.by_requirement && Object.keys(results.summary.by_requirement).length > 0 && (
-                <div className="bg-indigo-50 rounded-xl p-6 border border-indigo-100">
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-indigo-600" />
-                    {t('cert_verification.by_requirement')}
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    {Object.entries(results.summary.by_requirement).map(([req, data]) => (
-                      <div key={req} className="bg-white/40 backdrop-blur-sm rounded-lg p-3 shadow-sm border border-indigo-100/50">
-                        <div className="font-medium text-slate-800 truncate" title={req}>{req}</div>
-                        <div className="text-sm text-slate-500">
-                          {data.valid}/{data.total} {t('cert_verification.valid_label')}
+                  <div className="space-y-8">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest-plus mb-3 ml-1 font-display">
+                        {t('cert_verification.lot_label')}
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={selectedLot}
+                          onChange={(e) => setSelectedLot(e.target.value)}
+                          className="w-full h-[54px] px-5 bg-white/60 border border-slate-200/50 rounded-2xl text-sm font-black text-slate-800 appearance-none focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-inner font-display uppercase tracking-tight"
+                        >
+                          <option value="">{t('cert_verification.lot_placeholder')}</option>
+                          {lots.map(lot => (
+                            <option key={lot} value={lot}>{lot}</option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                          <ChevronDown className="w-5 h-5 text-slate-300" />
                         </div>
                       </div>
-                    ))}
+                      <p className="mt-3 text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-relaxed ml-1">
+                        {t('cert_verification.lot_hint')}
+                      </p>
+                    </div>
+
+                    <div className="pt-4">
+                      <button
+                        onClick={handleVerify}
+                        disabled={loading || !canVerify}
+                        className={`w-full py-5 rounded-[1.5rem] font-black uppercase tracking-widest-plus text-xs font-display transition-all flex items-center justify-center gap-4 ${loading || !canVerify
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-2xl hover:shadow-indigo-500/40 hover:-translate-y-1 active:translate-y-0'
+                          }`}
+                      >
+                        {loading ? (
+                          <>
+                            <RefreshCw className="w-6 h-6 animate-spin opacity-50" />
+                            <span className="animate-pulse">
+                              {uploadProgress?.phase === 'uploading'
+                                ? `${t('cert_verification.uploading') || 'Caricamento'}... ${uploadProgress.percent || 0}%`
+                                : t('cert_verification.processing')}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-6 h-6 drop-shadow-sm" />
+                            {t('cert_verification.verify_btn')}
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
+                </div>
+              </div>
+              {/* Progress Bar */}
+              {loading && progress.total > 0 && (
+                <div className="mt-4 space-y-2 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="flex justify-between items-center text-sm text-slate-600">
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      {t('cert_verification.processing_label')}: {progress.current}/{progress.total}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{Math.round((progress.current / progress.total) * 100)}%</span>
+                      <button
+                        onClick={handleCancel}
+                        className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1"
+                      >
+                        <X className="w-4 h-4" />
+                        {t('cert_verification.cancel_btn')}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="bg-indigo-600 h-full rounded-full transition-all duration-300"
+                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                    />
+                  </div>
+                  {progress.filename && (
+                    <p className="text-xs text-slate-500 truncate flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      {progress.filename}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Detail Table */}
-              <div className="glass-card rounded-xl border border-slate-200/50 overflow-hidden mt-6">
-                <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-wrap justify-between items-center gap-4">
-                  <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-slate-600" />
-                    {t('cert_verification.file_detail')} ({filteredResults.length}/{results.results?.length || 0})
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {/* Filters */}
-                    <div className="flex items-center gap-2">
-                      <Filter className="w-4 h-4 text-slate-400" />
-                      <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        className="px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 bg-white"
-                      >
-                        <option value="">{t('cert_verification.all_statuses')}</option>
-                        <option value="valid">{t('cert_verification.status_valid')}</option>
-                        <option value="expired">{t('cert_verification.status_expired')}</option>
-                        <option value="mismatch">{t('cert_verification.status_mismatch')}</option>
-                        <option value="unreadable">{t('cert_verification.status_unreadable')}</option>
-                        <option value="error">{t('cert_verification.status_error')}</option>
-                      </select>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder={t('cert_verification.filter_req_placeholder')}
-                      value={filterReq}
-                      onChange={(e) => setFilterReq(e.target.value)}
-                      className="px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 w-32"
-                    />
-                    {(filterStatus || filterReq) && (
-                      <button
-                        onClick={() => { setFilterStatus(''); setFilterReq(''); }}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                      >
-                        <X className="w-3 h-3" />
-                        {t('cert_verification.clear_filters')}
-                      </button>
-                    )}
-                    <button
-                      onClick={exportToExcel}
-                      className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1 transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                      {t('cert_verification.export_excel')}
-                    </button>
-                    <button
-                      onClick={() => setColumnWidths(DEFAULT_COLUMN_WIDTHS)}
-                      className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      {t('cert_verification.reset_columns')}
-                    </button>
-                  </div>
+              {/* Error Message */}
+              {error && (
+                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2">
+                  <XCircle className="w-5 h-5 flex-shrink-0" />
+                  {error}
                 </div>
-                <div className="overflow-x-auto" style={{ position: 'relative' }}>
-                  <table ref={tableRef} className="divide-y divide-slate-200" style={{ minWidth: '100%', tableLayout: 'fixed' }}>
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th style={{ width: columnWidths.file, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100" onClick={() => handleSort('filename')}>
-                          {t('cert_verification.col_file')}<SortIcon field="filename" />
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'file')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.requisito, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100" onClick={() => handleSort('req_code')}>
-                          {t('cert_verification.col_requisito')}<SortIcon field="req_code" />
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'requisito')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.certFile, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100" onClick={() => handleSort('cert_name_from_file')}>
-                          {t('cert_verification.col_cert_file')}<SortIcon field="cert_name_from_file" />
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'certFile')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.certAttesa, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          {t('cert_verification.col_cert_expected')}
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'certAttesa')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.risorsa, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100" onClick={() => handleSort('resource_name')}>
-                          {t('cert_verification.col_resource')}<SortIcon field="resource_name" />
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'risorsa')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.risorsaOcr, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          {t('cert_verification.col_resource_ocr')}
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'risorsaOcr')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.vendor, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100" onClick={() => handleSort('vendor_detected')}>
-                          {t('cert_verification.col_vendor')}<SortIcon field="vendor_detected" />
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'vendor')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.certificazione, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100" onClick={() => handleSort('cert_name_detected')}>
-                          {t('cert_verification.col_cert_ocr')}<SortIcon field="cert_name_detected" />
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'certificazione')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.validita, position: 'relative' }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          {t('cert_verification.col_validity')}
-                          <div
-                            className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseDown={(e) => handleResizeStart(e, 'validita')}
-                          />
-                        </th>
-                        <th style={{ width: columnWidths.stato }} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100" onClick={() => handleSort('status')}>
-                          {t('cert_verification.col_status')}<SortIcon field="status" />
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-slate-200">
-                      {filteredResults.map((r, idx) => {
-                        const displayFilename = r.filename?.split('/').pop() || r.filename;
-                        return (
-                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                            <td style={{ width: columnWidths.file }} className="px-4 py-3 text-sm text-slate-900 overflow-hidden" title={r.filename}>
-                              <div className="truncate">{displayFilename}</div>
-                            </td>
-                            <td style={{ width: columnWidths.requisito }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                              <div className="truncate font-medium">{r.req_code || '-'}</div>
-                            </td>
-                            <td style={{ width: columnWidths.certFile }} className="px-4 py-3 text-sm text-purple-600 overflow-hidden" title={r.cert_name_from_file || ''}>
-                              <div className="truncate">{r.cert_name_from_file || '-'}</div>
-                            </td>
-                            <td style={{ width: columnWidths.certAttesa }} className="px-4 py-3 text-sm text-indigo-600">
-                              {r.expected_cert_names && r.expected_cert_names.length > 0 ? (
-                                <div className="flex flex-wrap gap-1" title={r.expected_cert_names.join(', ')}>
-                                  {r.expected_cert_names.map((cert, certIdx) => (
-                                    <span
-                                      key={`${r.req_code || 'req'}-${certIdx}-${cert}`}
-                                      className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs break-words"
-                                    >
-                                      {cert}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : '-'}
-                            </td>
-                            <td style={{ width: columnWidths.risorsa }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                              <div className="truncate">{r.resource_name || '-'}</div>
-                            </td>
-                            <td style={{ width: columnWidths.risorsaOcr }} className="px-4 py-3 text-sm text-indigo-600 overflow-hidden">
-                              <div className="truncate" title={r.resource_name_detected || ''}>{r.resource_name_detected || '-'}</div>
-                            </td>
-                            <td style={{ width: columnWidths.vendor }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                              <div className="truncate">{r.vendor_detected || '-'}</div>
-                            </td>
-                            <td style={{ width: columnWidths.certificazione }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                              <div className="break-words">
-                                {r.cert_name_detected && <div className="font-medium">{r.cert_name_detected}</div>}
-                                {r.cert_code_detected && <div className="text-xs text-slate-500">{r.cert_code_detected}</div>}
-                                {!r.cert_name_detected && !r.cert_code_detected && '-'}
-                              </div>
-                            </td>
-                            <td style={{ width: columnWidths.validita }} className="px-4 py-3 text-sm text-slate-700 overflow-hidden">
-                              {r.valid_from || r.valid_until ? (
-                                <div className="text-xs">
-                                  {r.valid_from && <div className="truncate">{t('cert_verification.valid_from')}: {normalizeDate(r.valid_from)}</div>}
-                                  {r.valid_until && <div className="truncate">{t('cert_verification.valid_until')}: {normalizeDate(r.valid_until)}</div>}
-                                </div>
-                              ) : '-'}
-                            </td>
-                            <td style={{ width: columnWidths.stato }} className="px-4 py-3">
-                              <div className="flex flex-col gap-1.5 items-start">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${STATUS_COLORS[r.status] || STATUS_COLORS.unprocessed}`}>
-                                  {STATUS_ICONS[r.status] || STATUS_ICONS.unprocessed}
-                                  {t(`cert_verification.${STATUS_LABELS[r.status]}`) || r.status}
-                                </span>
-                                {(r.status === 'error' || r.status === 'unreadable') && (
-                                  <button
-                                    onClick={() => handleRetry(r.filename)}
-                                    disabled={retryingFile === r.filename}
-                                    className={`text-xs px-2 py-0.5 rounded-lg transition-colors ${retryingFile === r.filename
-                                      ? 'bg-slate-200 text-slate-400 cursor-wait'
-                                      : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                      }`}
-                                    title={t('cert_verification.retry_tooltip')}
-                                  >
-                                    {retryingFile === r.filename ? (
-                                      <RefreshCw className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <RotateCcw className="w-3 h-3" />
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              )}
 
-              {/* Warning if any */}
-              {results.warning && (
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                  {results.warning}
+              {/* Results */}
+              {results && (
+                <div className="mt-8 space-y-6">
+                  {/* Summary */}
+                  <div className="bg-gradient-to-br from-slate-50 to-indigo-50 rounded-xl p-6 border border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-indigo-600" />
+                      {t('cert_verification.summary')}
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-slate-100/50">
+                        <div className="text-3xl font-bold text-slate-800">{results.summary?.total || 0}</div>
+                        <div className="text-sm text-slate-500 mt-1">{t('cert_verification.total')}</div>
+                      </div>
+                      <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-green-100/50">
+                        <div className="text-3xl font-bold text-green-600">{results.summary?.valid || 0}</div>
+                        <div className="text-sm text-slate-500 mt-1">{t('cert_verification.extracted')}</div>
+                      </div>
+                      <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-yellow-100/50">
+                        <div className="text-3xl font-bold text-yellow-600">{results.summary?.expired || 0}</div>
+                        <div className="text-sm text-slate-500 mt-1">{t('cert_verification.expired')}</div>
+                      </div>
+                      <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-orange-100/50">
+                        <div className="text-3xl font-bold text-orange-600">{results.summary?.mismatch || 0}</div>
+                        <div className="text-sm text-slate-500 mt-1">{t('cert_verification.mismatch')}</div>
+                      </div>
+                      <div className="text-center bg-white/40 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-red-100/50">
+                        <div className="text-3xl font-bold text-red-600">{(results.summary?.unreadable || 0) + (results.summary?.error || 0)}</div>
+                        <div className="text-sm text-slate-500 mt-1">{t('cert_verification.unreadable')}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* By Requirement */}
+                  {results.summary?.by_requirement && Object.keys(results.summary.by_requirement).length > 0 && (
+                    <div className="bg-indigo-50 rounded-xl p-6 border border-indigo-100">
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-indigo-600" />
+                        {t('cert_verification.by_requirement')}
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {Object.entries(results.summary.by_requirement).map(([req, data]) => (
+                          <div key={req} className="bg-white/40 backdrop-blur-sm rounded-lg p-3 shadow-sm border border-indigo-100/50">
+                            <div className="font-medium text-slate-800 truncate" title={req}>{req}</div>
+                            <div className="text-sm text-slate-500">
+                              {data.valid}/{data.total} {t('cert_verification.valid_label')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detail Table */}
+                  <div className="glass-card rounded-xl border border-slate-200/50 overflow-hidden mt-6">
+                    <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-wrap justify-between items-center gap-4">
+                      <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-slate-600" />
+                        {t('cert_verification.file_detail')} ({filteredResults.length}/{results.results?.length || 0})
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Filters */}
+                        <div className="flex items-center gap-2">
+                          <Filter className="w-4 h-4 text-slate-400" />
+                          <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 bg-white"
+                          >
+                            <option value="">{t('cert_verification.all_statuses')}</option>
+                            <option value="valid">{t('cert_verification.status_valid')}</option>
+                            <option value="expired">{t('cert_verification.status_expired')}</option>
+                            <option value="mismatch">{t('cert_verification.status_mismatch')}</option>
+                            <option value="unreadable">{t('cert_verification.status_unreadable')}</option>
+                            <option value="error">{t('cert_verification.status_error')}</option>
+                          </select>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder={t('cert_verification.filter_req_placeholder')}
+                          value={filterReq}
+                          onChange={(e) => setFilterReq(e.target.value)}
+                          className="px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 w-32"
+                        />
+                        {(filterStatus || filterReq) && (
+                          <button
+                            onClick={() => { setFilterStatus(''); setFilterReq(''); }}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                          >
+                            <X className="w-3 h-3" />
+                            {t('cert_verification.clear_filters')}
+                          </button>
+                        )}
+                        <button
+                          onClick={exportToExcel}
+                          className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1 transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          {t('cert_verification.export_excel')}
+                        </button>
+                        <button
+                          onClick={() => setColumnWidths(DEFAULT_COLUMN_WIDTHS)}
+                          className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          {t('cert_verification.reset_columns')}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto" style={{ position: 'relative' }}>
+                      <table ref={tableRef} className="divide-y divide-slate-200" style={{ minWidth: '100%', tableLayout: 'fixed' }}>
+                        <thead className="bg-slate-100/50 border-b border-slate-200/50">
+                          <tr>
+                            <th style={{ width: columnWidths.file, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display cursor-pointer hover:bg-indigo-100/30 transition-colors" onClick={() => handleSort('filename')}>
+                              {t('cert_verification.col_file')}<SortIcon field="filename" />
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500 opacity-0 group-hover:opacity-100"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'file')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.requisito, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display cursor-pointer hover:bg-indigo-100/30 transition-colors" onClick={() => handleSort('req_code')}>
+                              {t('cert_verification.col_requisito')}<SortIcon field="req_code" />
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'requisito')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.certFile, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display cursor-pointer hover:bg-indigo-100/30 transition-colors" onClick={() => handleSort('cert_name_from_file')}>
+                              {t('cert_verification.col_cert_file')}<SortIcon field="cert_name_from_file" />
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'certFile')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.certAttesa, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display">
+                              {t('cert_verification.col_cert_expected')}
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'certAttesa')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.risorsa, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display cursor-pointer hover:bg-indigo-100/30 transition-colors" onClick={() => handleSort('resource_name')}>
+                              {t('cert_verification.col_resource')}<SortIcon field="resource_name" />
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'risorsa')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.risorsaOcr, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display">
+                              {t('cert_verification.col_resource_ocr')}
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'risorsaOcr')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.vendor, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display cursor-pointer hover:bg-indigo-100/30 transition-colors" onClick={() => handleSort('vendor_detected')}>
+                              {t('cert_verification.col_vendor')}<SortIcon field="vendor_detected" />
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'vendor')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.certificazione, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display cursor-pointer hover:bg-indigo-100/30 transition-colors" onClick={() => handleSort('cert_name_detected')}>
+                              {t('cert_verification.col_cert_ocr')}<SortIcon field="cert_name_detected" />
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'certificazione')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.validita, position: 'relative' }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display">
+                              {t('cert_verification.col_validity')}
+                              <div
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-indigo-500"
+                                style={{ backgroundColor: 'transparent' }}
+                                onMouseDown={(e) => handleResizeStart(e, 'validita')}
+                              />
+                            </th>
+                            <th style={{ width: columnWidths.stato }} className="px-5 py-2 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display cursor-pointer hover:bg-indigo-100/30 transition-colors" onClick={() => handleSort('status')}>
+                              {t('cert_verification.col_status')}<SortIcon field="status" />
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-slate-200">
+                          {filteredResults.map((r, idx) => {
+                            const displayFilename = r.filename?.split('/').pop() || r.filename;
+                            return (
+                              <tr key={idx} className={`group border-b border-slate-100/50 transition-colors ${idx % 2 === 0 ? 'bg-white/40' : 'bg-slate-50/40'} hover:bg-indigo-50/30`}>
+                                <td style={{ width: columnWidths.file }} className="px-4 py-2 text-sm text-slate-900 overflow-hidden" title={r.filename}>
+                                  <div className="truncate">{displayFilename}</div>
+                                </td>
+                                <td style={{ width: columnWidths.requisito }} className="px-4 py-2 text-sm text-slate-700 overflow-hidden">
+                                  <div className="truncate font-medium">{r.req_code || '-'}</div>
+                                </td>
+                                <td style={{ width: columnWidths.certFile }} className="px-4 py-2 text-sm text-purple-600 overflow-hidden" title={r.cert_name_from_file || ''}>
+                                  <div className="truncate">{r.cert_name_from_file || '-'}</div>
+                                </td>
+                                <td style={{ width: columnWidths.certAttesa }} className="px-4 py-2 text-sm text-indigo-600">
+                                  {r.expected_cert_names && r.expected_cert_names.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1" title={r.expected_cert_names.join(', ')}>
+                                      {r.expected_cert_names.map((cert, certIdx) => (
+                                        <span
+                                          key={`${r.req_code || 'req'}-${certIdx}-${cert}`}
+                                          className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs break-words"
+                                        >
+                                          {cert}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : '-'}
+                                </td>
+                                <td style={{ width: columnWidths.risorsa }} className="px-4 py-2 text-sm text-slate-700 overflow-hidden">
+                                  <div className="truncate">{r.resource_name || '-'}</div>
+                                </td>
+                                <td style={{ width: columnWidths.risorsaOcr }} className="px-4 py-2 text-sm text-indigo-600 overflow-hidden">
+                                  <div className="truncate" title={r.resource_name_detected || ''}>{r.resource_name_detected || '-'}</div>
+                                </td>
+                                <td style={{ width: columnWidths.vendor }} className="px-4 py-2 text-sm text-slate-700 overflow-hidden">
+                                  <div className="truncate">{r.vendor_detected || '-'}</div>
+                                </td>
+                                <td style={{ width: columnWidths.certificazione }} className="px-4 py-2 text-sm text-slate-700 overflow-hidden">
+                                  <div className="break-words">
+                                    {r.cert_name_detected && <div className="font-medium">{r.cert_name_detected}</div>}
+                                    {r.cert_code_detected && <div className="text-xs text-slate-500">{r.cert_code_detected}</div>}
+                                    {!r.cert_name_detected && !r.cert_code_detected && '-'}
+                                  </div>
+                                </td>
+                                <td style={{ width: columnWidths.validita }} className="px-4 py-2 text-sm text-slate-700 overflow-hidden">
+                                  {r.valid_from || r.valid_until ? (
+                                    <div className="text-xs">
+                                      {r.valid_from && <div className="truncate">{t('cert_verification.valid_from')}: {normalizeDate(r.valid_from)}</div>}
+                                      {r.valid_until && <div className="truncate">{t('cert_verification.valid_until')}: {normalizeDate(r.valid_until)}</div>}
+                                    </div>
+                                  ) : '-'}
+                                </td>
+                                <td style={{ width: columnWidths.stato }} className="px-4 py-3">
+                                  <div className="flex flex-col gap-1.5 items-start">
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${STATUS_COLORS[r.status] || STATUS_COLORS.unprocessed}`}>
+                                      {STATUS_ICONS[r.status] || STATUS_ICONS.unprocessed}
+                                      {t(`cert_verification.${STATUS_LABELS[r.status]}`) || r.status}
+                                    </span>
+                                    {(r.status === 'error' || r.status === 'unreadable') && (
+                                      <button
+                                        onClick={() => handleRetry(r.filename)}
+                                        disabled={retryingFile === r.filename}
+                                        className={`text-xs px-2 py-0.5 rounded-lg transition-colors ${retryingFile === r.filename
+                                          ? 'bg-slate-200 text-slate-400 cursor-wait'
+                                          : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                          }`}
+                                        title={t('cert_verification.retry_tooltip')}
+                                      >
+                                        {retryingFile === r.filename ? (
+                                          <RefreshCw className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                          <RotateCcw className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Warning if any */}
+                  {results.warning && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                      {results.warning}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

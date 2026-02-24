@@ -23,8 +23,8 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
   }
 
   // RTI companies: Lutech always present, partners added if rti_enabled
-  const rtiCompanies = lotData?.rti_enabled 
-    ? ['Lutech', ...(lotData.rti_companies || [])] 
+  const rtiCompanies = lotData?.rti_enabled
+    ? ['Lutech', ...(lotData.rti_companies || [])]
     : ['Lutech'];
   const hasMultipleCompanies = rtiCompanies.length > 1;
 
@@ -92,39 +92,46 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
   const totalAttributable = Object.values(companyContributions).reduce((sum, c) => sum + c.total, 0);
 
   return (
-    <div className="glass-card rounded-xl p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="font-semibold text-slate-800">{t('dashboard.performance_score')}</h3>
-        <div className="flex gap-2">
+    <div className="bg-white/40 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white/60 shadow-2xl shadow-blue-500/5 transition-all duration-500 hover:shadow-blue-500/10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest-plus font-display flex items-center gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            {t('dashboard.performance_score')}
+          </h3>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-4.5 font-display">Sintesi Risultati Simulazione</p>
+        </div>
+        <div className="flex gap-3 w-full md:w-auto">
           <button
             onClick={onExcelExport}
             disabled={excelExportLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm font-medium disabled:opacity-50"
+            className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-white/60 border border-emerald-100 text-emerald-600 rounded-2xl hover:bg-emerald-50 transition-all font-black text-[10px] uppercase tracking-widest-plus font-display shadow-lg shadow-emerald-500/5 disabled:opacity-50 group"
             title={t('dashboard.export_excel')}
           >
-            {excelExportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+            {excelExportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 group-hover:scale-110 transition-transform" />}
             Excel
           </button>
           <button
             onClick={onExport}
             disabled={exportLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all text-sm font-medium disabled:opacity-50"
+            className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-slate-800 text-white rounded-2xl hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest-plus font-display shadow-xl shadow-slate-500/20 disabled:opacity-50 group"
           >
-            {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />}
             {t('dashboard.export_pdf')}
           </button>
         </div>
       </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.35, ease: 'easeOut' }}>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05, duration: 0.5 }}>
           <Gauge
             value={results.technical_score}
             max={results?.calculated_max_tech_score || lotData.max_tech_score || 60}
-            color="#3b82f6"
+            color="#6366f1"
             label={t('dashboard.technical')}
           />
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.35, ease: 'easeOut' }}>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, duration: 0.5 }}>
           <Gauge
             value={results.economic_score}
             max={lotData.max_econ_score || 40}
@@ -132,7 +139,7 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
             label={t('dashboard.economic')}
           />
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.35, ease: 'easeOut' }}>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.25, duration: 0.5 }}>
           <Gauge
             value={results.total_score}
             max={100}
@@ -147,95 +154,119 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
         results.category_resource !== undefined ||
         results.category_reference !== undefined ||
         results.category_project !== undefined) && (
-        <div className="mt-6 pt-6 border-t border-slate-200">
-          <h4 className="font-semibold text-slate-700 mb-4 text-sm">Punteggi Pesati per Categoria</h4>
-          <div className="grid grid-cols-2 gap-3">
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.35, duration: 0.3, ease: 'easeOut' }} className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-              <div className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-1">Cert. Aziendali</div>
-              <div className="text-2xl font-black text-purple-700">{(results.category_company_certs || 0).toFixed(2)}</div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.42, duration: 0.3, ease: 'easeOut' }} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Cert. Professionali</div>
-              <div className="text-2xl font-black text-blue-700">{(results.category_resource || 0).toFixed(2)}</div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.49, duration: 0.3, ease: 'easeOut' }} className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-              <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Referenze</div>
-              <div className="text-2xl font-black text-emerald-700">{(results.category_reference || 0).toFixed(2)}</div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.56, duration: 0.3, ease: 'easeOut' }} className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-              <div className="text-[10px] font-bold text-orange-600 uppercase tracking-wider mb-1">Progetto Tecnico</div>
-              <div className="text-2xl font-black text-orange-700">{(results.category_project || 0).toFixed(2)}</div>
-            </motion.div>
+          <div className="mt-8 pt-6 border-t border-white/60">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus mb-4 font-display text-center">Analisi Punteggi Pesati</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Cert. Aziendali', value: results.category_company_certs, color: 'from-purple-500 to-indigo-600', bg: 'bg-purple-50/50' },
+                { label: 'Cert. Professionali', value: results.category_resource, color: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-50/50' },
+                { label: 'Referenze', value: results.category_reference, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50/50' },
+                { label: 'Progetto Tecnico', value: results.category_project, color: 'from-orange-500 to-amber-600', bg: 'bg-orange-50/50' }
+              ].map((cat, i) => (
+                <motion.div
+                  key={cat.label}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 + (i * 0.07), duration: 0.4 }}
+                  className={`${cat.bg} border border-white/60 backdrop-blur-md rounded-2xl p-3 shadow-sm hover:shadow-md transition-all duration-300 group`}
+                >
+                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 font-display">{cat.label}</div>
+                  <div className={`text-2xl font-black bg-gradient-to-br ${cat.color} bg-clip-text text-transparent font-display tabular-nums group-hover:scale-105 transition-transform origin-left uppercase`}>
+                    {(cat.value || 0).toFixed(2)}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* RTI Company Contributions */}
       {hasMultipleCompanies && totalAttributable > 0 && (
-        <div className="mt-6 pt-6 border-t border-slate-200">
-          <div className="flex items-center gap-2 mb-4">
-            <Building2 className="w-4 h-4 text-indigo-600" />
-            <h4 className="font-semibold text-slate-700 text-sm">{t('dashboard.rti_contributions')}</h4>
-          </div>
-          
-          {/* Shared RTI Score (Company Certs) */}
-          {(results.category_company_certs || 0) > 0 && (
-            <div className="bg-purple-50/50 border border-purple-200 rounded-lg p-3 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold text-purple-700">{t('dashboard.shared_rti_certs')}</span>
-                <span className="text-lg font-black text-purple-700">{(results.category_company_certs || 0).toFixed(2)}</span>
-              </div>
-              <div className="text-[10px] text-purple-600 mt-1">{t('dashboard.shared_rti_desc')}</div>
+        <div className="mt-8 pt-6 border-t border-white/60">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Building2 className="w-5 h-5 text-white" />
             </div>
-          )}
+            <div>
+              <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest-plus font-display">{t('dashboard.rti_contributions')}</h4>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 font-display">Split Punteggio Tecnico per Partner</p>
+            </div>
+          </div>
 
-          {/* Per-Company Breakdown */}
-          <div className="space-y-2">
-            {rtiCompanies.map(company => {
-              const contrib = companyContributions[company] || { total: 0, resource: 0, reference: 0, project: 0 };
-              const percentage = totalAttributable > 0 ? (contrib.total / totalAttributable * 100) : 0;
-              
-              return (
-                <div key={company} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-bold text-slate-800">{company}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-black text-indigo-700">{contrib.total.toFixed(2)}</span>
-                      <span className="text-xs font-semibold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
-                        {percentage.toFixed(1)}%
-                      </span>
-                    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Shared RTI Score (Company Certs) */}
+            {(results.category_company_certs || 0) > 0 && (
+              <div className="bg-gradient-to-br from-purple-500/5 to-indigo-600/5 border border-purple-100 rounded-[2rem] p-4 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:scale-110 transition-transform" />
+                <div className="relative z-10 flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest-plus font-display block mb-1">{t('dashboard.shared_rti_certs')}</span>
+                    <div className="text-[9px] text-slate-500 font-medium font-display leading-tight max-w-[200px]">{t('dashboard.shared_rti_desc')}</div>
                   </div>
-                  {/* Category breakdown for this company */}
-                  <div className="flex gap-4 text-[10px]">
-                    {contrib.resource > 0 && (
-                      <span className="text-blue-600">
-                        <span className="font-semibold">Cert.Prof:</span> {contrib.resource.toFixed(2)}
-                      </span>
-                    )}
-                    {contrib.reference > 0 && (
-                      <span className="text-emerald-600">
-                        <span className="font-semibold">Ref:</span> {contrib.reference.toFixed(2)}
-                      </span>
-                    )}
-                    {contrib.project > 0 && (
-                      <span className="text-orange-600">
-                        <span className="font-semibold">Prog:</span> {contrib.project.toFixed(2)}
-                      </span>
-                    )}
-                    {contrib.total === 0 && (
-                      <span className="text-slate-400 italic">{t('dashboard.no_contribution')}</span>
-                    )}
+                  <div className="text-3xl font-black text-purple-600 font-display tabular-nums">
+                    {(results.category_company_certs || 0).toFixed(2)}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            {/* Per-Company Breakdown */}
+            <div className="space-y-2">
+              {rtiCompanies.map((company, i) => {
+                const contrib = companyContributions[company] || { total: 0, resource: 0, reference: 0, project: 0 };
+                const percentage = totalAttributable > 0 ? (contrib.total / totalAttributable * 100) : 0;
+                const colors = i === 0 ? 'from-indigo-500 to-purple-600' : 'from-indigo-400 to-blue-500';
+
+                return (
+                  <motion.div
+                    key={company}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * i }}
+                    className="bg-white/60 border border-white/60 backdrop-blur-md rounded-2xl p-3 hover:bg-white/80 transition-all duration-300 shadow-sm"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full bg-gradient-to-br ${colors}`} />
+                        <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest font-display">{company}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-black text-slate-800 font-display">{contrib.total.toFixed(2)}</span>
+                        <span className="text-[9px] font-black text-indigo-500 bg-indigo-50/80 px-2.5 py-1 rounded-full uppercase tracking-widest font-display">
+                          {percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Category dots breakdown */}
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { label: 'Cert.Prof', val: contrib.resource, color: 'text-blue-500' },
+                        { label: 'Referenze', val: contrib.reference, color: 'text-emerald-500' },
+                        { label: 'Progetto', val: contrib.project, color: 'text-orange-500' }
+                      ].map(item => item.val > 0 && (
+                        <div key={item.label} className="flex items-center gap-1.5 grayscale hover:grayscale-0 transition-all cursor-default">
+                          <span className={`text-[9px] font-black uppercase tracking-tight ${item.color} font-display`}>{item.label}:</span>
+                          <span className="text-[10px] font-bold text-slate-600 font-display">{item.val.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {contrib.total === 0 && (
+                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest font-display opacity-50">{t('dashboard.no_contribution')}</span>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Total Attributable */}
-          <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center">
-            <span className="text-xs font-semibold text-slate-600">{t('dashboard.total_attributable')}</span>
-            <span className="text-lg font-black text-slate-800">{totalAttributable.toFixed(2)}</span>
+          <div className="mt-6 p-4 bg-slate-900 rounded-[2rem] flex justify-between items-center shadow-xl shadow-slate-900/10">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('dashboard.total_attributable')}</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-white font-display tabular-nums leading-none">{totalAttributable.toFixed(2)}</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-display leading-none">PT Pesati</span>
+            </div>
           </div>
         </div>
       )}
