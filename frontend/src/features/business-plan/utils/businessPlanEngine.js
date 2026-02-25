@@ -362,210 +362,98 @@ export const calculateGovernanceCost = (bp, lutechRates, teamCost) => {
  * Calcola i Costi a Catalogo (Margin-First)
  */
 export const calculateCatalogCost = (bp, lutechRates) => {
-    const durationMonths = bp.duration_months || 36;
-    const durationYears = durationMonths / 12;
-    const daysPerFte = bp.days_per_fte || DAYS_PER_FTE;
-    const defaultRate = bp.default_daily_rate || DEFAULT_DAILY_RATE;
-    const inflationPct = bp.inflation_pct ?? 0;
-
     const tows = bp.tows || bp.tow_config || [];
     const catalogTows = tows.filter(t => t.type === 'catalogo');
 
     let total = 0;
     const byTow = [];
 
-    const profileMappings = bp.profile_mappings || {};
+    for (const tow of catalogTows) {
+        const computed = tow.catalog_computed;
 
-    const computeRate = (mixArr) => {
-        if (!mixArr || mixArr.length === 0) return defaultRate;
-        let totalWeighted = 0;
-        let totalPctSum = 0;
-        for (const entry of mixArr) {
-            const pct = (entry.pct || 0) / 100;
-            if (pct <= 0) continue;
+        if (computed && computed.items && computed.items.length > 0) {
+            // ── READ pre-computed values from CatalogEditorModal ──
+            const towCost = computed.total_cost || 0;
+            const towSellPrice = computed.total_sell_price || 0;
 
-            // Catalog items have poste_profile → need to go through profile_mappings
-            const posteProfile = entry.poste_profile || entry.lutech_profile || '';
-            const mappings = profileMappings[posteProfile];
-            let entryRate = defaultRate;
+            const itemsDetail = computed.items.map(ci => ({
+                label: ci.label || '',
+                tipo: ci.tipo || '',
+                complessita: ci.complessita || '',
+                price_base: 0,
+                group_pct: 0,
+                poste_total: Math.round(ci.poste_total || 0),
+                lutech_cost: Math.round(ci.cost || 0),
+                lutech_revenue: Math.round(ci.sell_price || 0),
+                lutech_margin: Math.round((ci.sell_price || 0) - (ci.cost || 0)),
+                effective_margin_pct: ci.margin_pct || 0,
+                fte: Math.round((ci.fte || 0) * 100) / 100,
+                lutech_unit_price: 0,
+                sconto_pct: 0,
+            }));
 
-            if (mappings && mappings.length > 0) {
-                // Duration-weighted averaging across mapping periods
-                let periodWeighted = 0;
-                let periodMonthsTotal = 0;
-                for (const m of mappings) {
-                    const ms = parseFloat(m.month_start ?? 1);
-                    const me = parseFloat(m.month_end ?? durationMonths);
-                    const months = Math.max(0, me - ms + 1);
-                    if (months <= 0) continue;
-                    let pRate = 0;
-                    for (const mi of (m.mix || [])) {
-                        const mpct = (parseFloat(mi.pct) || 0) / 100;
-                        pRate += mpct * (lutechRates[mi.lutech_profile] || defaultRate);
-                    }
-                    periodWeighted += pRate * months;
-                    periodMonthsTotal += months;
+            const groupsDetail = (computed.groups || []).map(g => ({
+                label: g.label || '',
+                target_value: g.target_value || 0,
+                lutech_cost: Math.round(g.cost || 0),
+                lutech_revenue: Math.round(g.sell_price || 0),
+                lutech_margin: Math.round(g.margin || 0),
+                fte: 0,
+            }));
+
+            // Cluster distribution (still computed here since it's structural, not cost)
+            const clusters = tow.catalog_clusters || [];
+            const clusterDetail = [];
+            let distribution = null;
+            if (clusters.length > 0) {
+                distribution = {};
+                const profileToCluster = {};
+                for (const c of clusters) {
+                    for (const p of (c.poste_profiles || [])) profileToCluster[p] = c.id;
                 }
-                entryRate = periodMonthsTotal > 0 ? periodWeighted / periodMonthsTotal : defaultRate;
-                if (entryRate <= 0) entryRate = defaultRate;
-            } else {
-                // Fallback: try direct lutechRates lookup (for backward compat)
-                entryRate = lutechRates[posteProfile] || defaultRate;
+                const clusterAccum = {};
+                for (const c of clusters) clusterAccum[c.id] = 0;
+                const totalFteItems = itemsDetail.reduce((s, it) => s + it.fte, 0);
+
+                if (totalFteItems > 0) {
+                    (tow.catalog_items || []).forEach((item, i) => {
+                        const weight = (itemsDetail[i]?.fte || 0) / totalFteItems;
+                        for (const entry of (item.profile_mix || [])) {
+                            const cid = profileToCluster[entry.poste_profile];
+                            if (cid !== undefined) {
+                                clusterAccum[cid] = (clusterAccum[cid] || 0) + weight * (parseFloat(entry.pct) || 0);
+                            }
+                        }
+                    });
+                }
+
+                for (const c of clusters) {
+                    const actualPct = clusterAccum[c.id] || 0;
+                    const requiredPct = parseFloat(c.required_pct) || 0;
+                    const constraintType = c.constraint_type || 'equality';
+                    let ok;
+                    if (constraintType === 'maximum') ok = actualPct <= requiredPct;
+                    else if (constraintType === 'minimum') ok = actualPct >= requiredPct;
+                    else ok = Math.abs(actualPct - requiredPct) <= 2;
+                    clusterDetail.push({ label: c.label, required_pct: requiredPct, constraint_type: constraintType, actual_pct: Math.round(actualPct * 10) / 10, ok });
+                }
             }
 
-            totalWeighted += pct * entryRate;
-            totalPctSum += pct;
-        }
-        return totalPctSum > 0 ? totalWeighted / totalPctSum : defaultRate;
-    };
-
-    for (const tow of catalogTows) {
-        const refTotalFte = parseFloat(tow.total_fte ?? 0);
-        const totalCatalogValue = parseFloat(tow.total_catalog_value ?? 0);
-        const defaultTargetMarginPct = parseFloat(tow.target_margin_pct ?? 20);
-        const defaultCatalogReuseFactor = parseFloat(tow.catalog_reuse_factor ?? 0);
-        const groups = tow.catalog_groups || [];
-
-        const itemGroupMap = {};
-        for (const g of groups) {
-            for (const id of (g.item_ids || [])) itemGroupMap[id] = g;
-        }
-
-        let towCost = 0, towSellPrice = 0;
-        const itemsDetail = [];
-
-        for (const item of (tow.catalog_items || [])) {
-            const group = itemGroupMap[item.id];
-            const group_target = group ? (parseFloat(group.target_value) || 0) : 0;
-            const group_fte = (totalCatalogValue > 0 && group_target > 0) ? (group_target / totalCatalogValue) * refTotalFte : 0;
-            const group_reuse_raw = group?.reuse_factor;
-            const group_reuse_factor = (group_reuse_raw !== null && group_reuse_raw !== undefined) ? parseFloat(group_reuse_raw) : defaultCatalogReuseFactor;
-            const effective_group_fte = group_fte * (1.0 - group_reuse_factor);
-
-            const item_pct = parseFloat(item.group_pct) || 0;
-            const item_fte = effective_group_fte * item_pct / 100;
-
-            const rate = computeRate(item.profile_mix);
-
-            // Catalogo: NESSUNA inflazione applicata come da specifica
-            // (l'inflazione si applica solo al team standard)
-            const item_cost = item_fte * rate * durationYears * daysPerFte;
-
-            const isDefaultMargin = item.target_margin_pct === null || item.target_margin_pct === undefined;
-            const effectiveMarginPct = isDefaultMargin ? defaultTargetMarginPct : parseFloat(item.target_margin_pct);
-            const marginFactor = 1 - effectiveMarginPct / 100;
-
-            const item_sell_price = marginFactor > 0.001 ? item_cost / marginFactor : item_cost;
-
-            const priceBase = parseFloat(item.price_base) || 0;
-            const scontoGaraPct = parseFloat(tow.sconto_gara_pct ?? 0);
-            const scontoGaraFactor = 1 - scontoGaraPct / 100;
-            const effective_price_base = priceBase * scontoGaraFactor;
-            const effective_group_target = group_target * scontoGaraFactor;
-
-            const item_poste_total = effective_group_target * item_pct / 100;
-            const item_lutech_unit = (item_poste_total > 0 && effective_price_base > 0) ? (item_sell_price / item_poste_total) * effective_price_base : 0;
-            const item_sconto_pct = (effective_price_base > 0 && item_lutech_unit > 0) ? (1 - item_lutech_unit / effective_price_base) * 100 : 0;
-
-            towCost += item_cost;
-            towSellPrice += item_sell_price;
-            itemsDetail.push({
-                label: item.label || '', tipo: item.tipo, complessita: item.complessita, price_base: priceBase,
-                group_pct: item_pct, poste_total: Math.round(item_poste_total),
-                lutech_cost: Math.round(item_cost), lutech_revenue: Math.round(item_sell_price), lutech_margin: Math.round(item_sell_price - item_cost),
-                effective_margin_pct: effectiveMarginPct, fte: Math.round(item_fte * 100) / 100, lutech_unit_price: Math.round(item_lutech_unit * 100) / 100, sconto_pct: Math.round(item_sconto_pct * 100) / 100,
+            total += towCost;
+            byTow.push({
+                tow_id: tow.tow_id || tow.id,
+                label: tow.label || tow.tow_name,
+                cost: towCost,
+                sell_price: towSellPrice,
+                margin: towSellPrice - towCost,
+                margin_pct: towSellPrice > 0 ? (towSellPrice - towCost) / towSellPrice * 100 : 0,
+                items: itemsDetail,
+                groups: groupsDetail,
+                clusters: clusterDetail,
+                cluster_distribution: distribution
             });
         }
-
-        // Cluster distribution pesata su FTE
-        const clusters = tow.catalog_clusters || [];
-        const clusterDetail = [];
-        let distribution = null;
-        if (clusters.length > 0) {
-            distribution = {};
-            const profileToCluster = {};
-            for (const c of clusters) {
-                for (const p of (c.poste_profiles || [])) profileToCluster[p] = c.id;
-            }
-            const clusterAccum = {};
-            for (const c of clusters) clusterAccum[c.id] = 0;
-            const totalFteItems = itemsDetail.reduce((s, it) => s + it.fte, 0);
-
-            if (totalFteItems > 0) {
-                (tow.catalog_items || []).forEach((item, i) => {
-                    const weight = itemsDetail[i].fte / totalFteItems;
-                    for (const entry of (item.profile_mix || [])) {
-                        const cid = profileToCluster[entry.poste_profile];
-                        if (cid !== undefined) {
-                            clusterAccum[cid] = (clusterAccum[cid] || 0) + weight * (parseFloat(entry.pct) || 0);
-                        }
-                    }
-                });
-            }
-
-            for (const c of clusters) {
-                const actualPct = clusterAccum[c.id] || 0;
-                const requiredPct = parseFloat(c.required_pct) || 0;
-                const constraintType = c.constraint_type || 'equality';
-
-                let ok;
-                if (constraintType === 'maximum') ok = actualPct <= requiredPct;
-                else if (constraintType === 'minimum') ok = actualPct >= requiredPct;
-                else ok = Math.abs(actualPct - requiredPct) <= 2;
-
-                clusterDetail.push({
-                    label: c.label,
-                    required_pct: requiredPct,
-                    constraint_type: constraintType,
-                    actual_pct: Math.round(actualPct * 10) / 10,
-                    ok,
-                });
-
-                // Distribution value
-                let totalClusterFte = 0;
-                clusters.forEach(c2 => totalClusterFte += parseFloat(c2.valore) || 0);
-                if (totalClusterFte > 0) {
-                    const w = (parseFloat(c.valore) || 0) / totalClusterFte;
-                    distribution[c.nome] = {
-                        weight: w,
-                        allocated_cost: towCost * w,
-                        allocated_revenue: towSellPrice * w,
-                        allocated_margin: (towSellPrice - towCost) * w
-                    };
-                }
-            }
-        }
-
-        // Groups totals
-        const groupsDetail = groups.map(g => {
-            const gItemIdxs = (tow.catalog_items || []).reduce((arr, it, i) => {
-                if ((g.item_ids || []).includes(it.id)) arr.push(i);
-                return arr;
-            }, []);
-            const gItems = gItemIdxs.map(i => itemsDetail[i]).filter(Boolean);
-            return {
-                label: g.label || '',
-                target_value: parseFloat(g.target_value) || 0,
-                lutech_cost: gItems.reduce((s, it) => s + it.lutech_cost, 0),
-                lutech_revenue: gItems.reduce((s, it) => s + it.lutech_revenue, 0),
-                lutech_margin: gItems.reduce((s, it) => s + it.lutech_margin, 0),
-                fte: gItems.reduce((s, it) => s + it.fte, 0),
-            };
-        });
-
-        total += towCost;
-        byTow.push({
-            tow_id: tow.tow_id || tow.id,
-            label: tow.label || tow.tow_name,
-            cost: towCost,
-            sell_price: towSellPrice,
-            margin: towSellPrice - towCost,
-            margin_pct: towSellPrice > 0 ? (towSellPrice - towCost) / towSellPrice * 100 : 0,
-            items: itemsDetail,
-            groups: groupsDetail,
-            clusters: clusterDetail,
-            cluster_distribution: distribution
-        });
+        // If no catalog_computed, this TOW contributes 0 (user hasn't opened the editor yet)
     }
 
     return { total: Math.round(total * 100) / 100, detail: { byTow } };

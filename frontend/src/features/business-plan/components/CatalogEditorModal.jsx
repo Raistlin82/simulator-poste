@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, Fragment } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, Fragment } from 'react';
 import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CheckCircle2, BookOpen, Wand2, Save, Upload, FileDown } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 import { bpSaveTrigger } from '../../../utils/bpSaveTrigger';
@@ -1061,6 +1061,61 @@ export default function CatalogEditorModal({
     });
     return map;
   }, [catalogGroups, items, itemCalcs]);
+
+  // ── Persist computed values into tow.catalog_computed ──
+  // This makes the engine a simple READER instead of re-computing everything.
+  const computedFingerprint = useMemo(() => {
+    // Build the per-item computed data
+    const computedItems = items.map((item, i) => {
+      const c = itemCalcs[i];
+      return {
+        id: item.id,
+        label: item.label || '',
+        tipo: item.tipo || '',
+        complessita: item.complessita || '',
+        fte: c.item_fte,
+        rate: c.rate,
+        cost: c.item_cost,
+        sell_price: c.item_sell_price,
+        margin_pct: c.effective_margin,
+        poste_total: c.item_poste_total,
+        group_label: c.in_group ? (itemToGroup[item.id]?.group?.label || '') : '',
+      };
+    });
+    // Build per-group computed data
+    const computedGroups = catalogGroups.map(g => {
+      const gt = groupTotals[g.id] || { cost: 0, sell: 0, margin: 0, marginPct: 0 };
+      return {
+        id: g.id,
+        label: g.label || '',
+        target_value: parseFloat(g.target_value) || 0,
+        cost: gt.cost,
+        sell_price: gt.sell,
+        margin: gt.margin,
+        margin_pct: gt.marginPct,
+      };
+    });
+    return {
+      total_cost: totals.totalCost,
+      total_sell_price: totals.totalSellPrice,
+      total_fte: totals.totalDerivedFte,
+      total_margin_pct: totals.totalMarginPct,
+      tow_id: tow?.id || '',
+      items: computedItems,
+      groups: computedGroups,
+    };
+  }, [items, itemCalcs, catalogGroups, groupTotals, totals, itemToGroup, tow?.id]);
+
+  const prevFingerprintRef = useRef(null);
+  useEffect(() => {
+    const fpJson = JSON.stringify(computedFingerprint);
+    if (prevFingerprintRef.current === fpJson) return;  // no change
+    prevFingerprintRef.current = fpJson;
+    // Persist into tow without triggering a full re-render cycle
+    if (tow && typeof onChange === 'function') {
+      onChange({ ...tow, catalog_computed: computedFingerprint });
+    }
+  }, [computedFingerprint]);  // intentionally omit tow/onChange to avoid loops
 
   // Raggruppa gli item per gruppo (usato per collapse nel tab Voci)
   const groupedItems = useMemo(() => {
