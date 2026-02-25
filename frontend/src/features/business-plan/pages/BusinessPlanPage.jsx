@@ -235,7 +235,7 @@ export default function BusinessPlanPage() {
         for (const catalogTow of catalogDetail.byTow) {
           mergedTowBreakdown[catalogTow.tow_id] = {
             cost: catalogTow.cost,
-            revenue: catalogTow.revenue,
+            revenue: catalogTow.sell_price,
             label: catalogTow.label,
             type: 'catalogo'
           };

@@ -778,7 +778,7 @@ export default function CostBreakdown({
                                   <div className="px-3 py-2 bg-rose-50 flex items-center justify-between">
                                     <span className="font-semibold text-rose-800 text-xs">{towData.label}</span>
                                     <div className="flex gap-3 text-[10px]">
-                                      <span className="text-slate-500">{formatCurrency(towData.revenue)} ricavi Lu.</span>
+                                      <span className="text-slate-500">{formatCurrency(towData.sell_price)} ricavi Lu.</span>
                                       <span className="font-bold text-slate-700">{formatCurrency(towData.cost)} costo Lu.</span>
                                     </div>
                                   </div>
