@@ -647,7 +647,7 @@ export default function BusinessPlanPage() {
         }
 
         // Prezzo catalogo = Σ lutech_revenue (Prezzo Vendita Tot. per voce)
-        const catalogTotal = towDetail ? towDetail.revenue : 0;
+        const catalogTotal = towDetail ? towDetail.sell_price : 0;
 
         const itemMap = Object.fromEntries(items.map(it => [it.id, it]));
         const groupedIds = new Set(groups.flatMap(g => g.item_ids || []));
