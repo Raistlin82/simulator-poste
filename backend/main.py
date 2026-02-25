@@ -2807,8 +2807,10 @@ def export_business_plan_excel(data: schemas.ExportBusinessPlanRequest, db: Sess
             lutech_breakdown=data.lutech_breakdown,
         )
     except Exception as e:
-        logger.error(f"Error generating Business Plan Excel: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Errore nella generazione dell'Excel")
+        import traceback
+        tb = traceback.format_exc()
+        logger.error(f"Error generating Business Plan Excel: {str(e)}\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Errore nella generazione dell'Excel: {str(e)}")
 
     logger.info(f"Business Plan Excel export completed for lot: {data.lot_key}")
 

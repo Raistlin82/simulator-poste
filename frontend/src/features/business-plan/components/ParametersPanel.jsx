@@ -911,7 +911,7 @@ export default function ParametersPanel({
                     {t('business_plan.reuse_factor')}
                   </div>
                   <div className="text-xs text-emerald-600">
-                    Efficienza da riuso asset
+                    Efficienza da riuso asset (Valido per TOW non catalogo)
                   </div>
                 </div>
               </div>

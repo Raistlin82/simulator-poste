@@ -220,34 +220,30 @@ class BusinessPlanService:
                 adj_period = get_adj_period_at(start)
                 p_factor = adj_period.get("by_profile", {}).get(poste_profile_id, 1.0)
 
-                # YoY inflation: compute month-weighted inflation factor for the interval
-                if inflation_pct and inflation_pct > 0 and months_in_interval > 0:
-                    sum_factors = 0.0
-                    for m in range(start, next_boundary):
-                        yr_idx = (m - 1) // 12
-                        sum_factors += (1 + inflation_pct / 100) ** yr_idx
-                    inflation_factor = sum_factors / months_in_interval
+                # YoY inflation: year 0 = no change, year 1 = +inflationPct%, etc.
+                year_index = (start - 1) // 12
+                if inflation_pct > 0:
+                    inflation_factor = round((1 + inflation_pct / 100) ** year_index, 8)
                 else:
                     inflation_factor = 1.0
-                
+
                 # Calcolo TOW factor per questo membro in questo intervallo
-                tow_factor = 1.0
-                total_alloc = sum(tow_allocation.values())
+                tow_factor_sum = 0.0
+                total_alloc = sum([float(v) for v in tow_allocation.values() if float(v) > 0])
                 if total_alloc > 0:
-                    weighted_sum = 0.0
                     for tow_id, pct in tow_allocation.items():
-                        t_factor = adj_period.get("by_tow", {}).get(tow_id, 1.0)
-                        weighted_sum += (pct / total_alloc) * t_factor
-                    tow_factor = weighted_sum
+                        tow_pct = float(pct)
+                        if tow_pct > 0:
+                            t_factor = float(adj_period.get("by_tow", {}).get(tow_id, 1.0))
+                            tow_factor_sum += (tow_pct / 100.0) * t_factor
+                    final_tow_factor = tow_factor_sum / (total_alloc / 100.0)
+                else:
+                    final_tow_factor = 1.0
 
-                # Logic Parity: Frontend factor = p_factor * tow_factor * reuse
-                interval_raw_days = fte_original * days_per_fte * years_in_interval
+                # Logic Parity: fte * daysPerFte * years
+                interval_raw_days = float(fte_original) * days_per_fte * years_in_interval
                 interval_base_days = interval_raw_days * p_factor
-                # interval_days is the effective effort BEFORE rounding
-                interval_days = interval_base_days * (tow_factor * reuse_multiplier)
-
-                # Final combined factor for FTE efficiency
-                final_factor = p_factor * tow_factor * reuse_multiplier
+                interval_days = interval_base_days * (reuse_multiplier * final_tow_factor)
                 effective_fte = fte_original * final_factor
                 
                 # We'll use this list to accurately share costs between Lutech profiles AND TOWs
@@ -360,13 +356,18 @@ class BusinessPlanService:
                 member_total_days += interval_days
                 member_weighted_fte_sum += effective_fte * months_in_interval
 
-                if not tow_allocation:
-                    # Fallback TOW if none allocated
-                    tow_allocation = {"__no_tow__": 100}
-                    total_alloc = 100
+                allocated_pcts = {k: v for k, v in tow_allocation.items() if float(v) > 0}
+                sum_allocated_pcts = sum([float(v) for v in allocated_pcts.values()])
+                
+                if sum_allocated_pcts > 0:
+                    active_allocations = allocated_pcts
+                    final_sum = sum_allocated_pcts
+                else:
+                    active_allocations = {"__no_tow__": 100.0}
+                    final_sum = 100.0
                     
-                for tow_id, pct in tow_allocation.items():
-                    ratio = pct / total_alloc
+                for tow_id, pct in active_allocations.items():
+                    ratio = float(pct) / final_sum
                     if tow_id not in result["by_tow"]:
                          label = "Da Allocare (Membro senza TOW)" if tow_id == "__no_tow__" else tow_id
                          result["by_tow"][tow_id] = {"cost": 0.0, "days": 0.0, "days_base": 0.0, "days_raw": 0.0, "label": label, "contributions": []}
@@ -816,34 +817,164 @@ class BusinessPlanService:
         }
 
     @staticmethod
-    def calculate_total_cost(bp_data: Dict[str, Any]) -> Dict[str, Any]:
+    def calculate_governance_cost(
+        bp_data: Dict[str, Any],
+        profile_rates: Dict[str, float],
+        team_cost: float,
+        duration_months: int = 36,
+        default_daily_rate: float = 250.0,
+        days_per_fte: int = 220,
+        inflation_pct: float = 0.0,
+    ) -> Dict[str, Any]:
+        """
+        Calcola il costo di Governance supportando Modalità 4:
+        - percentage
+        - manual
+        - fte
+        - team_mix
+        """
+        mode = bp_data.get("governance_mode", "percentage")
+        duration_years = duration_months / 12.0
+        
+        base_cost = 0.0
+        meta = {}
+
+        if mode == "manual":
+            val = bp_data.get("governance_cost_manual")
+            if val is not None:
+                base_cost = float(val)
+                meta = {"method": "manuale"}
+        
+        elif mode == "fte" and bp_data.get("governance_fte_periods"):
+            total_cost = 0.0
+            periods = bp_data.get("governance_fte_periods", [])
+            for period in periods:
+                p_fte = float(period.get("fte", 0) or 0)
+                p_start = int(period.get("month_start", 1) or 1)
+                p_end = int(period.get("month_end", duration_months) or duration_months)
+                p_months = p_end - p_start + 1
+                p_years = p_months / 12.0
+                mix = period.get("team_mix", [])
+                
+                period_avg_rate = 0.0
+                total_pct = 0.0
+                for item in mix:
+                    lutech_id = item.get("lutech_profile")
+                    rate = profile_rates.get(lutech_id, default_daily_rate)
+                    pct = float(item.get("pct", 0) or 0) / 100.0
+                    total_pct += pct
+                    period_avg_rate += rate * pct
+                
+                if total_pct > 0:
+                    period_avg_rate /= total_pct
+                
+                # Inflation YoY for period
+                yr_idx = (p_start - 1) // 12
+                if inflation_pct > 0:
+                    period_inf_factor = round((1 + inflation_pct / 100)**yr_idx, 8)
+                else:
+                    period_inf_factor = 1.0
+                
+                total_cost += p_fte * period_avg_rate * period_inf_factor * days_per_fte * p_years
+                
+            base_cost = total_cost
+            meta = {"method": "fte", "periods": len(periods)}
+            
+        elif mode == "team_mix":
+            team_composition = bp_data.get("team_composition", [])
+            total_fte = sum([float(m.get("fte", 0) or 0) for m in team_composition])
+            gov_pct = float(bp_data.get("governance_pct", 0) or 0)
+            gov_fte = total_fte * (gov_pct / 100.0)
+            gov_mix = bp_data.get("governance_profile_mix", [])
+            
+            if gov_mix:
+                weighted_rate = 0.0
+                total_pct = 0.0
+                for item in gov_mix:
+                    lutech_id = item.get("lutech_profile")
+                    rate = profile_rates.get(lutech_id, default_daily_rate)
+                    pct = float(item.get("pct", 0) or 0) / 100.0
+                    total_pct += pct
+                    weighted_rate += rate * pct
+                
+                if total_pct > 0:
+                    avg_rate = weighted_rate / total_pct
+                    if inflation_pct > 0:
+                        inflated_cost = 0.0
+                        import math
+                        total_years = math.ceil(duration_months / 12.0)
+                        for yr in range(total_years):
+                            yr_start = yr * 12 + 1
+                            yr_end = min((yr + 1) * 12, duration_months)
+                            yr_frac = (yr_end - yr_start + 1) / 12.0
+                            yr_inf = round((1 + inflation_pct / 100)**yr, 8)
+                            inflated_cost += gov_fte * days_per_fte * yr_frac * avg_rate * yr_inf
+                        base_cost = inflated_cost
+                    else:
+                        base_cost = gov_fte * days_per_fte * duration_years * avg_rate
+                    meta = {"method": "mix_profili"}
+                    
+        if base_cost == 0.0 and not meta:
+            gov_pct = float(bp_data.get("governance_pct", 0) or 0)
+            base_cost = team_cost * (gov_pct / 100.0)
+            meta = {"method": "percentuale_team", "pct": gov_pct}
+            
+        final_cost = base_cost
+        if bp_data.get("governance_apply_reuse") and float(bp_data.get("reuse_factor", 0) or 0) > 0:
+            reuse_factor = float(bp_data.get("reuse_factor", 0) or 0) / 100.0
+            final_cost = base_cost * (1 - reuse_factor)
+            meta["reuse_applied"] = True
+            
+        return {
+            "value": round(final_cost, 2),
+            "meta": meta
+        }
+
+    @staticmethod
+    def calculate_total_cost(bp_data: Dict[str, Any], profile_rates: Dict[str, float] = None) -> Dict[str, Any]:
         """
         STEP 5: Calcola costi totali con breakdown.
         
         Returns:
             {"team": ..., "governance": ..., "risk": ..., "subcontract": ..., "total": ...}
         """
+        if profile_rates is None:
+            profile_rates = {}
+            
         team_cost = float(bp_data.get("total_cost", 0.0))
-        governance_pct = float(bp_data.get("governance_pct", 0.04))
+        catalog_cost = float(bp_data.get("catalog_cost", 0.0))
+        
+        # Governance calcolata sulla base_overhead (Team + Catalogo)
+        base_overhead = team_cost + catalog_cost
+        gov_result = BusinessPlanService.calculate_governance_cost(
+            bp_data=bp_data,
+            profile_rates=profile_rates,
+            team_cost=base_overhead,
+            duration_months=bp_data.get("duration_months", 36),
+            days_per_fte=bp_data.get("days_per_fte", 220),
+            inflation_pct=bp_data.get("inflation_pct", 0)
+        )
+        governance_cost = gov_result.get("value", 0.0)
+        
         risk_pct = float(bp_data.get("risk_contingency_pct", 0.03))
-
-        governance_cost = team_cost * governance_pct
         # Risk includes governance cost (aligned with frontend calculation)
-        risk_cost = (team_cost + governance_cost) * risk_pct
+        risk_cost = (base_overhead + governance_cost) * risk_pct
 
         # Subcontract
         sub_config = bp_data.get("subcontract_config", {})
-        sub_quota = float(sub_config.get("quota_pct", 0.0))
-        subcontract_cost = team_cost * sub_quota
+        tow_split = sub_config.get("tow_split", {})
+        sub_quota = sum([float(v) for v in tow_split.values()])
+        subcontract_cost = base_overhead * (sub_quota / 100.0)
 
-        total = team_cost + governance_cost + risk_cost + subcontract_cost
+        total = base_overhead + governance_cost + risk_cost + subcontract_cost
 
         return {
             "team": round(team_cost, 2),
+            "catalog": round(catalog_cost, 2),
             "governance": round(governance_cost, 2),
             "risk": round(risk_cost, 2),
             "subcontract": round(subcontract_cost, 2),
-            "total": round(team_cost + governance_cost + risk_cost + subcontract_cost, 2),
+            "total": round(total, 2),
         }
 
     @staticmethod

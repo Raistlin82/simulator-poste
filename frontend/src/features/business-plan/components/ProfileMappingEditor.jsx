@@ -37,6 +37,7 @@ export default function ProfileMappingEditor({
   reuseFactor = 0,
   tows = [],               // TOW list to detect catalog
   defaultDailyRate = 250,  // Default daily rate for catalog calculations
+  inflationPct = 0,        // Annual inflation percentage
 }) {
   const { t } = useTranslation();
   const [expandedProfile, setExpandedProfile] = useState(null);
@@ -119,27 +120,44 @@ export default function ProfileMappingEditor({
     });
 
     // Calculate rate and FTE-weighted breakdown for each item
+    // IMPORTANT: Catalog FTEs already include reuse from the CatalogEditorModal.
+    // effective_group_fte = groupFte × (1 - reuse_factor)
+    // So the weighted cost computed with effective FTEs IS the effective cost.
     const breakdown = [];
-    let totalWeightedCost = 0;
+    let dailyWeightedCost = 0;
+    let mappedFte = 0;
     let validItems = 0;
+    let hasReuse = false;
 
     for (const item of items) {
       const profileMix = item.profile_mix || [];
       if (profileMix.length > 0) {
         const itemRate = computeItemMixRate(profileMix);
-        
-        // Calculate item's FTE: (group_target / total_catalog_value) × total_fte × (item_group_pct / 100)
+
+        // Calculate item's effective FTE (already including reuse):
+        // groupFte = (group_target / total_catalog_value) × total_fte
+        // effective_groupFte = groupFte × (1 - reuse_factor)
+        // itemFte = effective_groupFte × (item_group_pct / 100)
         const group = itemToGroup[item.id];
         const groupTarget = group ? (parseFloat(group.target_value) || 0) : 0;
         const groupFte = (totalCatalogValue > 0 && groupTarget > 0)
           ? (groupTarget / totalCatalogValue) * totalFte
           : 0;
-        const itemFte = groupFte > 0 ? groupFte * (parseFloat(item.group_pct || 0) / 100) : 0;
-        
-        // Weighted cost: tariffa × FTE
+
+        // Apply reuse to get effective FTE (matching CatalogEditorModal logic)
+        const reuse = (group?.reuse_factor !== null && group?.reuse_factor !== undefined)
+          ? parseFloat(group.reuse_factor)
+          : parseFloat(catalogTow.catalog_reuse_factor || 0);
+        if (reuse > 0) hasReuse = true;
+
+        const effectiveGroupFte = groupFte * (1 - reuse);
+        const itemFte = effectiveGroupFte > 0 ? effectiveGroupFte * (parseFloat(item.group_pct || 0) / 100) : 0;
+
+        // Weighted cost: tariffa × effectiveFTE (already includes reuse)
         const itemWeightedCost = itemRate * itemFte;
-        totalWeightedCost += itemWeightedCost;
+        dailyWeightedCost += itemWeightedCost;
         validItems++;
+        mappedFte += itemFte;
 
         // Detail breakdown: which profiles + their rates
         const mixDetails = [];
@@ -149,7 +167,7 @@ export default function ProfileMappingEditor({
             const posteProfile = m.poste_profile || '?';
             const periodMappings = mappings[posteProfile] || [];
             let profileRate = defaultDailyRate;
-            
+
             if (periodMappings.length > 0) {
               let periodWeighted = 0, periodMonthsTotal = 0;
               for (const pm of periodMappings) {
@@ -188,19 +206,27 @@ export default function ProfileMappingEditor({
       }
     }
 
-    // FTE-weighted average rate
-    const avgRate = totalFte > 0 ? totalWeightedCost / totalFte : defaultDailyRate;
+    // Since FTEs already include reuse, the single rate IS the effective rate
+    const effectiveAvgRate = mappedFte > 0 ? dailyWeightedCost / mappedFte : defaultDailyRate;
+
+    // Total project costs (for reference/validation)
+    const projectDays = (durationMonths * daysPerFte / 12);
+    const totalProjectCost = dailyWeightedCost * projectDays;
 
     return {
       totalFte,
-      avgRate,
+      mappedFte,
+      avgRate: effectiveAvgRate,       // Same as effective since FTEs include reuse
+      effectiveAvgRate,
+      hasReuse,
       itemCount: items.length,
       towLabel: catalogTow.label || 'Catalogo',
       breakdown,
       hasMappings: validItems > 0,
-      totalWeightedCost
+      dailyWeightedCost,
+      totalProjectCost: Math.round(totalProjectCost),
     };
-  }, [tows, computeItemMixRate, defaultDailyRate, mappings, lutechProfiles, durationMonths]);
+  }, [tows, computeItemMixRate, defaultDailyRate, mappings, lutechProfiles, durationMonths, daysPerFte]);
 
   const calculatePeriodMixCost = useCallback((mix) => {
     if (!mix || mix.length === 0) return { totalPct: 0, mixRate: 0, isComplete: false };
@@ -537,33 +563,39 @@ export default function ProfileMappingEditor({
     return { effectiveFte: Math.round(effectiveFte * 100) / 100, factor: combinedFactor * reuseMultiplier };
   };
 
-  // Calcola tariffa media complessiva pesata per FTE con breakdown dettagliato
+  // Calcola tariffa media complessiva pesata con analisi temporale (Time-Aware)
   const overallTeamMixRate = useMemo(() => {
-    if (teamComposition.length === 0) return { avgRate: 0, totalFte: 0, totalDaysYear: 0, hasMappings: false, breakdown: [] };
+    if (teamComposition.length === 0) return { avgRate: 0, effectiveAvgRate: 0, totalFte: 0, totalDaysYear: 0, hasMappings: false, breakdown: [], reuseFactor };
 
-    let totalWeightedRate = 0;
-    let totalFte = 0;
+    let totalNominalCost = 0;
+    let totalEffectiveCost = 0;
+    let totalNominalDays = 0;
+    let totalEffectiveDays = 0;
     let mappedFte = 0;
-    const breakdown = []; // Dettaglio per ogni profilo mappato
+    const breakdown = [];
+
+    const monthsPerYear = 12;
 
     for (const member of teamComposition) {
       const profileId = member.profile_id || member.label;
-      const profileLabel = member.label || profileId;
       const fte = parseFloat(member.fte) || 0;
-      totalFte += fte;
+      if (fte <= 0) continue;
 
       const periodMappings = mappings[profileId] || [];
       if (periodMappings.length === 0) continue;
 
-      // Dettaglio periodi per questo profilo
+      let profileNominalCost = 0;
+      let profileEffectiveCost = 0;
+      let profileNominalDays = 0;
+      let profileEffectiveDays = 0;
+      let hasValidMapping = false;
       const periodDetails = [];
-      let profileRate = 0;
       let validPeriods = 0;
+      let avgRateForUI = 0;
 
       for (const pm of periodMappings) {
         const { mixRate, totalPct } = calculatePeriodMixCost(pm.mix);
         if (mixRate > 0) {
-          // Dettaglio mix Lutech per questo periodo
           const mixDetails = (pm.mix || []).map(m => {
             const lp = lutechProfiles.find(p => p.full_id === m.lutech_profile);
             return {
@@ -580,40 +612,81 @@ export default function ProfileMappingEditor({
             totalPct,
             mixDetails,
           });
-          profileRate += mixRate;
+          avgRateForUI += mixRate;
           validPeriods++;
         }
       }
 
-      if (validPeriods > 0) {
-        profileRate = profileRate / validPeriods;
-        const weightedContrib = profileRate * fte;
-        totalWeightedRate += weightedContrib;
+      const displayedAvgRate = validPeriods > 0 ? avgRateForUI / validPeriods : 0;
+
+      // Iteriamo mese per mese per precisione assoluta (inflazione + rettifiche)
+      for (let m = 1; m <= durationMonths; m++) {
+        const pm = periodMappings.find(p => m >= (p.month_start || 1) && m <= (p.month_end || durationMonths));
+        if (!pm) continue;
+
+        const { mixRate } = calculatePeriodMixCost(pm.mix);
+        if (mixRate <= 0) continue;
+        hasValidMapping = true;
+
+        // Inflazione YoY
+        const yearIdx = Math.floor((m - 1) / monthsPerYear);
+        const inflationFactor = Math.pow(1 + inflationPct / 100, yearIdx);
+        const inflatedRate = mixRate * inflationFactor;
+
+        // Fattore di rettifica (Volume + TOW + Reuse)
+        const adjDetail = getProfileFteForPeriod(profileId, m, m);
+        const effectiveFactor = adjDetail ? adjDetail.factor : 1.0;
+        const volumeFactor = effectiveFactor / (1 - (reuseFactor / 100)); // Fattore senza riuso
+
+        const daysInMonth = (1 / 12) * daysPerFte;
+
+        // Nominale (Include Volume/TOW ma NON riuso e NON inflazione per la "Nominale" pura, o forse sì?)
+        // Per "Nominale" in Italia di solito si intende la tariffa di listino.
+        // Ma per il mix Poste, vogliamo la tariffa media pesata Lutech.
+        profileNominalCost += mixRate * fte * daysInMonth;
+        profileNominalDays += fte * daysInMonth;
+
+        // Effettiva (Include TUTTO: Volume, TOW, Riuso, Inflazione)
+        profileEffectiveCost += inflatedRate * (fte * effectiveFactor) * daysInMonth;
+        profileEffectiveDays += (fte * effectiveFactor) * daysInMonth;
+      }
+
+      if (hasValidMapping && profileNominalDays > 0) {
         mappedFte += fte;
+        totalNominalCost += profileNominalCost;
+        totalNominalDays += profileNominalDays;
+        totalEffectiveCost += profileEffectiveCost;
+        totalEffectiveDays += profileEffectiveDays;
 
         breakdown.push({
           profileId,
-          profileLabel,
+          profileLabel: member.label || profileId,
           fte,
           periodCount: validPeriods,
           periodDetails,
-          avgRate: Math.round(profileRate),
-          weightedContrib: Math.round(weightedContrib),
+          avgRate: Math.round(displayedAvgRate),
+          weightedContrib: profileNominalCost,
         });
       }
     }
 
-    const avgRate = mappedFte > 0 ? totalWeightedRate / mappedFte : 0;
+    const avgRate = totalNominalDays > 0 ? totalNominalCost / totalNominalDays : 0;
+    const effectiveAvgRate = totalNominalDays > 0 ? totalEffectiveCost / totalNominalDays : avgRate * (1 - (reuseFactor / 100));
+
     return {
       avgRate,
-      totalFte,
+      effectiveAvgRate,
+      reuseFactor,
+      totalFte: teamComposition.reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0),
       mappedFte,
-      totalDaysYear: Math.round(totalFte * daysPerFte),
+      totalNominalDays,
+      totalEffectiveDays,
       hasMappings: mappedFte > 0,
       breakdown,
-      totalWeightedRate: Math.round(totalWeightedRate),
+      totalWeightedRate: Math.round(totalNominalCost),
+      totalEffWeightedCost: Math.round(totalEffectiveCost)
     };
-  }, [teamComposition, mappings, calculatePeriodMixCost, daysPerFte, lutechProfiles]);
+  }, [teamComposition, mappings, calculatePeriodMixCost, daysPerFte, durationMonths, inflationPct, getProfileFteForPeriod, reuseFactor]);
 
   if (teamComposition.length === 0) {
     return (
@@ -968,14 +1041,38 @@ export default function ProfileMappingEditor({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 glass-card px-6 py-4 rounded-2xl shadow-sm border border-slate-100/50 self-end md:self-auto">
-              <div className="text-right">
-                <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Costo medio €/giorno</div>
-                <div className="flex items-baseline justify-end gap-1">
-                  <div className="text-4xl font-black text-slate-900 tracking-tighter">
-                    {formatCurrency(overallTeamMixRate.avgRate)}
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              {/* Tariffe Mix */}
+              <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                {/* Tariffa Nominale */}
+                <div className="flex items-center gap-3 glass-card px-5 py-3 rounded-2xl shadow-sm border border-slate-100/50 bg-white/40">
+                  <div className="text-right">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Tariffa Nominale</div>
+                    <div className="flex items-baseline justify-end gap-1">
+                      <div className="text-2xl font-black text-slate-600 tracking-tighter">
+                        {formatCurrency(overallTeamMixRate.avgRate)}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-400">/GG</div>
+                    </div>
                   </div>
-                  <div className="text-sm font-bold text-slate-400">/GG</div>
+                </div>
+
+                {/* Tariffa Effettiva (Riuso) */}
+                <div className="flex items-center gap-3 glass-card px-6 py-4 rounded-2xl shadow-lg border-2 border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 transition-all hover:scale-[1.02]">
+                  <div className="text-right">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-0.5 flex items-center justify-end gap-1">
+                      Tariffa Effettiva
+                      {overallTeamMixRate.reuseFactor > 0 && (
+                        <span className="bg-emerald-100 text-emerald-700 px-1 rounded text-[9px]">-{overallTeamMixRate.reuseFactor}% RIUSO</span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline justify-end gap-1">
+                      <div className="text-4xl font-black text-indigo-700 tracking-tightest drop-shadow-sm">
+                        {formatCurrency(overallTeamMixRate.effectiveAvgRate)}
+                      </div>
+                      <div className="text-sm font-bold text-indigo-400">/GG</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1039,22 +1136,22 @@ export default function ProfileMappingEditor({
               <div className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-700 mb-1">Media pesata per FTE:</div>
+                  <div className="font-semibold text-slate-700 mb-1">Costo Progetto per Profilo:</div>
                   <code className="bg-slate-100 px-2 py-1 rounded text-xs block mb-2">
-                    costo_pesato = Σ(tariffa_profilo × FTE)
+                    costo_profilo = tariffa_profilo ×_gg_profilo
                   </code>
                   {overallTeamMixRate.breakdown.length > 0 && (
                     <div className="bg-slate-50 rounded-lg p-2 border border-slate-100 text-xs">
                       <div className="space-y-1">
                         {overallTeamMixRate.breakdown.map((prof, idx) => (
                           <div key={idx} className="flex items-center justify-between">
-                            <span>{prof.profileLabel}: €{prof.avgRate} × {prof.fte} FTE</span>
+                            <span>{prof.profileLabel}: €{prof.avgRate} × {prof.fte.toFixed(2)} FTE</span>
                             <span className="font-medium">= €{prof.weightedContrib.toLocaleString('it-IT')}</span>
                           </div>
                         ))}
                       </div>
                       <div className="border-t mt-2 pt-2 flex justify-between font-bold text-slate-700">
-                        <span>Totale pesato:</span>
+                        <span>Totale Costo Progetto Mappato:</span>
                         <span>€{overallTeamMixRate.totalWeightedRate.toLocaleString('it-IT')}</span>
                       </div>
                     </div>
@@ -1062,19 +1159,46 @@ export default function ProfileMappingEditor({
                 </div>
               </div>
 
-              {/* STEP 4: Divisione finale */}
+              {/* STEP 4: Divisione finale (Nominale) */}
               <div className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold">4</span>
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-700 mb-1">Costo medio finale:</div>
+                  <div className="font-semibold text-slate-700 mb-1">Tariffa Nominale Media:</div>
                   <code className="bg-slate-100 px-2 py-1 rounded text-xs block mb-2">
-                    COSTO_MEDIO = costo_pesato ÷ FTE_mappati
+                    TARIFFA_NOMINALE = Costo Progetto Mappato ÷ GG Mappati
+                  </code>
+                  {overallTeamMixRate.mappedFte > 0 && (
+                    <div className="bg-white rounded-lg p-3 border border-slate-100">
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>€{overallTeamMixRate.totalWeightedRate.toLocaleString('it-IT')} ÷ {Math.round(overallTeamMixRate.totalNominalDays).toLocaleString('it-IT')} GG ({durationMonths} Mesi)</span>
+                        <span className="text-lg font-bold text-slate-800">= €{Math.round(overallTeamMixRate.avgRate)}/gg</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* STEP 5: Fattori Effettivi (Riuso, Inflazione, Volumi) */}
+              <div className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold">5</span>
+                <div className="flex-1">
+                  <div className="font-semibold text-slate-700 mb-1">Tariffa Effettiva (Riuso, Volume, Inflazione):</div>
+                  <code className="bg-slate-100 px-2 py-1 rounded text-xs block mb-2">
+                    TARIFFA_EFFETTIVA = Costo Reale (Inflazionato + Riuso) ÷ GG_Nominali
                   </code>
                   {overallTeamMixRate.mappedFte > 0 && (
                     <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-100">
                       <div className="flex items-center justify-between text-indigo-800">
-                        <span>€{overallTeamMixRate.totalWeightedRate.toLocaleString('it-IT')} ÷ {overallTeamMixRate.mappedFte.toFixed(1)} FTE</span>
-                        <span className="text-xl font-black">= €{Math.round(overallTeamMixRate.avgRate)}/gg</span>
+                        <div className="flex flex-col">
+                          <span className="font-semibold">
+                            €{overallTeamMixRate.totalEffWeightedCost.toLocaleString('it-IT')} ÷ {Math.round(overallTeamMixRate.totalNominalDays).toLocaleString('it-IT')} GG
+                          </span>
+                          <span className="text-xs opacity-75 mt-0.5">
+                            {(inflationPct > 0 ? `Inflazione: +${inflationPct}%, ` : "")}
+                            Riuso: -{overallTeamMixRate.reuseFactor}%
+                          </span>
+                        </div>
+                        <span className="text-xl font-black">= €{Math.round(overallTeamMixRate.effectiveAvgRate)}/gg</span>
                       </div>
                     </div>
                   )}
@@ -1110,14 +1234,22 @@ export default function ProfileMappingEditor({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 glass-card px-6 py-4 rounded-2xl shadow-sm border border-slate-100/50 self-end md:self-auto">
-                  <div className="text-right">
-                    <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Costo medio catalogo €/giorno</div>
-                    <div className="flex items-baseline justify-end gap-1">
-                      <div className="text-4xl font-black text-slate-900 tracking-tighter">
-                        {formatCurrency(getCatalogMixStats.avgRate)}
+                <div className="flex flex-col md:flex-row md:items-center gap-6 justify-end flex-1">
+                  {/* Tariffa Effettiva Catalogo (unica — FTE già includono riuso) */}
+                  <div className="flex items-center gap-3 glass-card px-6 py-4 rounded-2xl shadow-lg border-2 border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-pink-500/10 transition-all hover:scale-[1.02]">
+                    <div className="text-right">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-rose-600 mb-0.5 flex items-center justify-end gap-1">
+                        Tariffa Effettiva
+                        {getCatalogMixStats.hasReuse && (
+                          <span className="bg-emerald-100 text-emerald-700 px-1 rounded text-[9px]">INCL. RIUSO</span>
+                        )}
                       </div>
-                      <div className="text-sm font-bold text-slate-400">/GG</div>
+                      <div className="flex items-baseline justify-end gap-1">
+                        <div className="text-4xl font-black text-rose-700 tracking-tightest drop-shadow-sm">
+                          {formatCurrency(getCatalogMixStats.effectiveAvgRate)}
+                        </div>
+                        <div className="text-sm font-bold text-rose-400">/GG</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1187,27 +1319,39 @@ export default function ProfileMappingEditor({
                               ))}
                             </div>
                             <div className="border-t mt-2 pt-2 flex justify-between font-bold text-slate-700">
-                              <span>Totale pesato:</span>
-                              <span>€{getCatalogMixStats.totalWeightedCost.toLocaleString('it-IT')}</span>
+                              <span>costo_pesato (Giornaliero):</span>
+                              <span>€{getCatalogMixStats.dailyWeightedCost.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* STEP 4: Divisione finale */}
+                    {/* STEP 4: Tariffa Effettiva (FTE già includono riuso catalogo) */}
                     <div className="flex items-start gap-2">
                       <span className="flex-shrink-0 w-6 h-6 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center text-xs font-bold">4</span>
                       <div className="flex-1">
-                        <div className="font-semibold text-slate-700 mb-1">Costo medio finale:</div>
+                        <div className="font-semibold text-slate-700 mb-1">Tariffa Effettiva (Riuso Catalogo):</div>
                         <code className="bg-slate-100 px-2 py-1 rounded text-xs block mb-2">
-                          COSTO_MEDIO = costo_pesato ÷ FTE_totali
+                          TARIFFA_EFFETTIVA = costo_pesato ÷ FTE_Mappati (con riuso)
                         </code>
-                        {getCatalogMixStats.totalFte > 0 && (
+                        <div className="text-xs text-slate-500 mb-2">
+                          Gli FTE mappati includono già il riuso del catalogo (FTE_effettivi = FTE_lordi × (1 - riuso%))
+                        </div>
+                        {getCatalogMixStats.mappedFte > 0 && (
                           <div className="bg-rose-50 rounded-lg p-3 border border-rose-100">
                             <div className="flex items-center justify-between text-rose-800">
-                              <span>€{getCatalogMixStats.totalWeightedCost.toLocaleString('it-IT')} ÷ {getCatalogMixStats.totalFte.toFixed(1)} FTE</span>
-                              <span className="text-xl font-black">= €{Math.round(getCatalogMixStats.avgRate)}/gg</span>
+                              <div className="flex flex-col">
+                                <span className="font-semibold">
+                                  €{getCatalogMixStats.dailyWeightedCost.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ {getCatalogMixStats.mappedFte.toFixed(2)} FTE
+                                </span>
+                                {getCatalogMixStats.hasReuse && (
+                                  <span className="text-xs opacity-75 mt-0.5">
+                                    costo_pesato su FTE effettivi (incl. Riuso, no Inflazione)
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xl font-black">= €{Math.round(getCatalogMixStats.effectiveAvgRate)}/gg</span>
                             </div>
                           </div>
                         )}

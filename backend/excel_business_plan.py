@@ -68,7 +68,16 @@ class BusinessPlanExcelGenerator:
 
         self.lot_key = lot_key
         self.bp = business_plan or {}
-        self.costs = costs or {}
+        
+        # Sanitize costs to extract .amount if frontend sent an explanation object
+        raw_costs = costs or {}
+        self.costs = {}
+        for k, v in raw_costs.items():
+            if isinstance(v, dict) and 'amount' in v:
+                self.costs[k] = v['amount']
+            else:
+                self.costs[k] = v
+                
         self.clean_team_cost = clean_team_cost
         self.base_amount = base_amount
         self.is_rti = is_rti
@@ -89,19 +98,34 @@ class BusinessPlanExcelGenerator:
         if 'Sheet' in self.wb.sheetnames:
             del self.wb['Sheet']
 
+        import logging
+        _log = logging.getLogger(__name__)
+
         # Create sheets in order - PARAMS FIRST so other sheets can reference them
-        self._create_params_sheet()           # 1. All input parameters
-        self._create_lutech_catalog_sheet()   # 2. Lutech profiles with rates
-        self._create_tow_config_sheet()       # 3. TOW configuration
-        self._create_team_sheet()             # 4. Team (Poste profiles, FTE, TOW allocation)
-        self._create_volume_adj_sheet()       # 5. Rettifica Volumi (riduzione per periodo)
-        self._create_mapping_sheet()          # 6. Profile mapping Poste → Lutech
-        self._create_subcontract_sheet()      # 7. Subcontract config
-        self._create_tow_analysis_sheet()     # 8. ANALISI TOW (Margine per TOW) - NEW!
-        self._create_cost_calc_sheet()        # 9. Cost calculations (ALL FORMULAS)
-        self._create_pl_sheet()               # 10. P&L (ALL FORMULAS)
-        self._create_scenarios_sheet()        # 11. Scenarios
-        self._create_offer_sheet()            # 12. Offer scheme (ALL FORMULAS)
+        sheet_steps = [
+            ("PARAMETRI", self._create_params_sheet),
+            ("CATALOGO_LUTECH", self._create_lutech_catalog_sheet),
+            ("TOW_CONFIG", self._create_tow_config_sheet),
+            ("TEAM", self._create_team_sheet),
+            ("RETTIFICA_VOLUMI", self._create_volume_adj_sheet),
+            ("MAPPING", self._create_mapping_sheet),
+            ("SUBAPPALTO", self._create_subcontract_sheet),
+            ("ANALISI_TOW", self._create_tow_analysis_sheet),
+            ("CATALOGO", self._create_catalog_sheet),
+            ("GOVERNANCE", self._create_governance_sheet),
+            ("CRONOPROGRAMMA", self._create_timeline_sheet),
+            ("CALCOLO_COSTI", self._create_cost_calc_sheet),
+            ("CONTO_ECONOMICO", self._create_pl_sheet),
+            ("SCENARI", self._create_scenarios_sheet),
+            ("OFFERTA", self._create_offer_sheet),
+        ]
+
+        for sheet_name, create_fn in sheet_steps:
+            try:
+                create_fn()
+            except Exception as e:
+                _log.error(f"Error creating sheet '{sheet_name}': {e}", exc_info=True)
+                raise RuntimeError(f"Errore nel foglio '{sheet_name}': {e}") from e
 
         buffer = io.BytesIO()
         self.wb.save(buffer)
@@ -1502,6 +1526,342 @@ class BusinessPlanExcelGenerator:
             ws.cell(row=row, column=1).font = Font(italic=True, color='666666')
             row += 1
 
+    # ========== SHEET 8.5: CATALOGO (Margin First) ==========
+    def _create_catalog_sheet(self):
+        ws = self.wb.create_sheet("CATALOGO")
+        
+        ws.column_dimensions['A'].width = 15
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['G'].width = 15
+        ws.column_dimensions['H'].width = 15
+        ws.column_dimensions['I'].width = 15
+        ws.column_dimensions['J'].width = 15
+        
+        ws['A1'] = "DETTAGLIO TOW A CATALOGO (MARGIN-FIRST)"
+        ws['A1'].font = TITLE_FONT
+        
+        catalog_tows = [t for t in (self.bp.get('tows') or self.bp.get('tow_config') or []) if t.get('type', '') == 'catalogo']
+        
+        if not catalog_tows:
+            ws['A3'] = "Nessun TOW a catalogo presente."
+            ws['B3'] = 0
+            self.named_ranges['CATALOG_COST'] = "CATALOGO!$B$3"
+            return
+            
+        row = 4
+        total_costs_cells = []
+        
+        for tow in catalog_tows:
+            tow_id = tow.get('tow_id', tow.get('id', ''))
+            tow_label = tow.get('label', tow_id)
+            ref_total_fte = float(tow.get('total_fte', 0) or 0)
+            total_catalog_value = float(tow.get('total_catalog_value', 0) or 0)
+            target_margin = float(tow.get('target_margin_pct', 20) or 20) / 100.0
+            def_reuse = float(tow.get('catalog_reuse_factor', 0) or 0)
+            
+            ws['A' + str(row)] = f"TOW: {tow_label} ({tow_id})"
+            ws['A' + str(row)].font = BOLD_FONT
+            row += 1
+            
+            # Parametri base del TOW
+            ws['A' + str(row)] = "FTE di Riferimento"
+            ws['B' + str(row)] = ref_total_fte
+            self._style_input_cell(ws['B' + str(row)])
+            ref_fte_cell = f"B{row}"
+            row += 1
+            
+            ws['A' + str(row)] = "Valore Catalogo Totale"
+            ws['B' + str(row)] = total_catalog_value
+            self._style_input_cell(ws['B' + str(row)])
+            tot_val_cell = f"B{row}"
+            row += 1
+            
+            ws['A' + str(row)] = "Margine Target Default"
+            ws['B' + str(row)] = target_margin
+            ws['B' + str(row)].number_format = '0.0%'
+            self._style_input_cell(ws['B' + str(row)])
+            def_margin_cell = f"B{row}"
+            row += 1
+            
+            ws['A' + str(row)] = "Riuso Default"
+            ws['B' + str(row)] = def_reuse
+            ws['B' + str(row)].number_format = '0.0%'
+            self._style_input_cell(ws['B' + str(row)])
+            def_reuse_cell = f"B{row}"
+            row += 2
+            
+            # Intestazioni voci
+            headers = ['ID Voce', 'Descrizione', 'Target Gruppo', 'Riuso Grp.', 'Peso %', 'Tariffa/gg', 'Margine %', 'FTE Reale', 'Costo Lutech', 'Vendita']
+            self._add_header_row(ws, row, headers)
+            row += 1
+            
+            items_start = row
+            
+            catalog_groups = tow.get('catalog_groups', []) or []
+            item_group_map = {}
+            for g in catalog_groups:
+                g_ids = g.get('item_ids', [])
+                for iid in g_ids:
+                    item_group_map[iid] = g
+                    
+            catalog_items = tow.get('catalog_items', []) or []
+            
+            for item in catalog_items:
+                item_id = item.get('id', '')
+                item_label = item.get('label', item_id)
+                item_pct = float(item.get('group_pct', 0) or 0) / 100.0
+                raw_margin = item.get('target_margin_pct')
+                margin_val = float(raw_margin)/100.0 if raw_margin is not None else f"={def_margin_cell}"
+                
+                group = item_group_map.get(item_id, {})
+                group_target = float(group.get('target_value', 0) or 0)
+                group_reuse = group.get('reuse_factor')
+                try:
+                    reuse_val = float(group_reuse) if group_reuse is not None else f"={def_reuse_cell}"
+                except (ValueError, TypeError):
+                    reuse_val = f"={def_reuse_cell}"
+                
+                # Tariffa Media precalcolata per praticità su Excel (evita matrice mista in riga singola)
+                tow_costs = self.costs.get('by_tow', {}).get(tow_id, {})
+                costs_items = tow_costs.get('items', [])
+                avg_rate = 250.0
+                for ci in costs_items:
+                    if ci.get('id') == item_id:
+                        avg_rate = ci.get('avg_daily_rate', 250.0)
+                        break
+                        
+                ws.cell(row=row, column=1, value=item_id).border = THIN_BORDER
+                ws.cell(row=row, column=2, value=item_label).border = THIN_BORDER
+                
+                c_tgt = ws.cell(row=row, column=3, value=group_target)
+                self._style_input_cell(c_tgt)
+                c_tgt.number_format = '#,##0.00'
+                
+                c_reuse = ws.cell(row=row, column=4, value=reuse_val)
+                self._style_input_cell(c_reuse)
+                c_reuse.number_format = '0.0%'
+                
+                c_pct = ws.cell(row=row, column=5, value=item_pct)
+                self._style_input_cell(c_pct)
+                c_pct.number_format = '0.0%'
+                
+                c_rate = ws.cell(row=row, column=6, value=avg_rate)
+                self._style_input_cell(c_rate)
+                c_rate.number_format = '#,##0.00'
+                
+                c_margin = ws.cell(row=row, column=7, value=margin_val)
+                self._style_input_cell(c_margin)
+                c_margin.number_format = '0.0%'
+                
+                # FTE Reale
+                c_fte = ws.cell(row=row, column=8)
+                c_fte.value = f"=IF({tot_val_cell}>0, (C{row}/{tot_val_cell})*{ref_fte_cell}*(1-D{row})*E{row}, 0)"
+                self._style_formula_cell(c_fte)
+                c_fte.number_format = '0.0000'
+                
+                # Costo (Assenza Inflazione per Catalogo come da specifica)
+                c_cost = ws.cell(row=row, column=9)
+                # Formula: FTE_Reale * Tariffa * (Durata/12) * GG_Anno
+                c_cost.value = f"=H{row}*F{row}*({self.named_ranges['DURATA_MESI']}/12)*{self.named_ranges['GG_ANNO']}"
+                self._style_formula_cell(c_cost)
+                c_cost.number_format = '#,##0.00'
+                
+                # Vendita
+                c_sell = ws.cell(row=row, column=10)
+                c_sell.value = f"=IF(1-G{row}>0, I{row}/(1-G{row}), I{row})"
+                self._style_formula_cell(c_sell)
+                c_sell.number_format = '#,##0.00'
+                
+                row += 1
+                
+            items_end = row - 1
+            
+            ws.cell(row=row, column=1, value="TOTALE TOW").font = BOLD_FONT
+            c_tot_cost = ws.cell(row=row, column=9)
+            if items_end >= items_start:
+                c_tot_cost.value = f"=SUM(I{items_start}:I{items_end})"
+            else:
+                c_tot_cost.value = 0
+            self._style_formula_cell(c_tot_cost)
+            c_tot_cost.font = BOLD_FONT
+            c_tot_cost.number_format = '#,##0.00'
+            
+            total_costs_cells.append(f"I{row}")
+            
+            from openpyxl.styles import PatternFill
+            for col in range(1, 11):
+                ws.cell(row=row, column=col).fill = PatternFill(start_color='E2EFDA', end_color='E2EFDA', fill_type='solid')
+                ws.cell(row=row, column=col).border = THIN_BORDER
+                
+            row += 3
+            
+        ws['A' + str(row)] = "COSTO TOTALE CATALOGO"
+        ws['A' + str(row)].font = BOLD_FONT
+        
+        c_overall = ws['B' + str(row)]
+        if total_costs_cells:
+            c_overall.value = "=" + "+".join(total_costs_cells)
+        else:
+            c_overall.value = 0
+        self._style_formula_cell(c_overall)
+        c_overall.font = BOLD_FONT
+        c_overall.number_format = '#,##0.00'
+        
+        self.named_ranges['CATALOG_COST'] = f"CATALOGO!$B${row}"
+        row += 2
+        
+        # --- SUMMARY FOR TARIFFS (Steps 4 & 5 Verification) ---
+        ws.cell(row=row, column=1, value="RIEPILOGO TARIFFE CATALOGO").font = SECTION_FONT
+        row += 1
+        
+        ws.cell(row=row, column=1, value="Totale FTE Mappati")
+        # Sum of column H (FTE Reale) for all items
+        ws.cell(row=row, column=2, value=f"=SUM(H{items_start}:H{items_end})")
+        ws.cell(row=row, column=2).number_format = '0.00'
+        mapped_fte_ref = f"B{row}"
+        row += 1
+        
+        ws.cell(row=row, column=1, value="Costo Giornaliero Pesato (Nominale)")
+        # Sum of (FTE * Rate) - this is easier to verify
+        ws.cell(row=row, column=2, value=f"=SUMPRODUCT(H{items_start}:H{items_end},F{items_start}:F{items_end})")
+        ws.cell(row=row, column=2).number_format = '#,##0'
+        weighted_daily_ref = f"B{row}"
+        row += 1
+        
+        ws.cell(row=row, column=1, value="Tariffa Media Nominale (/gg)")
+        ws.cell(row=row, column=2, value=f"=IF({mapped_fte_ref}>0, {weighted_daily_ref}/{mapped_fte_ref}, 0)")
+        ws.cell(row=row, column=2).font = BOLD_FONT
+        ws.cell(row=row, column=2).number_format = '#,##0'
+        row += 1
+        
+        ws.cell(row=row, column=1, value="Tariffa Media Effettiva (/gg)")
+        # Eff_Rate = Total_Project_Cost / (Duration/12 * Days_per_year * Mapped_FTE)
+        ws.cell(row=row, column=2, value=f"=IF({mapped_fte_ref}>0, {self.named_ranges['CATALOG_COST']}/(({self.named_ranges['DURATA_MESI']}/12)*{self.named_ranges['GG_ANNO']}*{mapped_fte_ref}), 0)")
+        ws.cell(row=row, column=2).font = BOLD_FONT
+        ws.cell(row=row, column=2).number_format = '#,##0'
+        row += 1
+        
+        # Add informative label
+        ws.cell(row=row, column=1, value="Nota: La Tariffa Effettiva include l'incidenza di Inflazione e Riuso.")
+        ws.cell(row=row, column=1).font = Font(italic=True, size=9, color='666666')
+
+    # ========== SHEET 8.6: GOVERNANCE ==========
+    def _create_governance_sheet(self):
+        ws = self.wb.create_sheet("GOVERNANCE")
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 40
+        
+        ws['A1'] = "CALCOLO GOVERNANCE"
+        ws['A1'].font = TITLE_FONT
+        
+        gov_mode = self.bp.get('governance_mode', 'percentage')
+        row = 3
+        
+        ws['A' + str(row)] = "Modalità Governance attiva:"
+        ws['B' + str(row)] = gov_mode.upper()
+        ws['B' + str(row)].font = BOLD_FONT
+        row += 2
+        
+        if gov_mode == 'percentage':
+            ws['A' + str(row)] = "Percentuale"
+            ws['B' + str(row)] = f"={self.named_ranges['GOVERNANCE_PCT']}"
+            self._style_link_cell(ws['B' + str(row)])
+            ws['B' + str(row)].number_format = '0.0%'
+            row += 1
+            
+            ws['A' + str(row)] = "Applica Riuso"
+            apply_reuse = 1 if self.bp.get('governance_apply_reuse') else 0
+            ws['B' + str(row)] = apply_reuse
+            self._style_input_cell(ws['B' + str(row)])
+            reuse_cell = f"B{row}"
+            row += 1
+            
+            ws['A' + str(row)] = "Costo Governance"
+            ws['B' + str(row)] = f"=({self.named_ranges.get('TEAM_COST', '0')}+{self.named_ranges.get('CATALOG_COST', '0')})*{self.named_ranges['GOVERNANCE_PCT']}*IF({reuse_cell}=1, 1-{self.named_ranges.get('REUSE_FACTOR', '0')}, 1)"
+            self._style_formula_cell(ws['B' + str(row)])
+            ws['B' + str(row)].number_format = '#,##0.00'
+            ws['B' + str(row)].font = BOLD_FONT
+            
+            self.named_ranges['GOV_COST'] = f"GOVERNANCE!$B${row}"
+            
+        elif gov_mode == 'manual':
+            ws['A' + str(row)] = "Importo Manuale Fisso"
+            ws['B' + str(row)] = float(self.bp.get('governance_cost_manual', 0) or 0)
+            self._style_input_cell(ws['B' + str(row)])
+            ws['B' + str(row)].number_format = '#,##0.00'
+            row += 1
+            
+            ws['A' + str(row)] = "Costo Governance"
+            ws['B' + str(row)] = f"=B{row-1}"
+            self._style_formula_cell(ws['B' + str(row)])
+            ws['B' + str(row)].number_format = '#,##0.00'
+            ws['B' + str(row)].font = BOLD_FONT
+            
+            self.named_ranges['GOV_COST'] = f"GOVERNANCE!$B${row}"
+
+        elif gov_mode in ('fte', 'team_mix'):
+            periods = self.bp.get('governance_fte_periods', []) or []
+            if not periods:
+                ws['A' + str(row)] = "Nessun periodo configurato. Costo 0."
+                ws['B' + str(row)] = 0
+                self.named_ranges['GOV_COST'] = f"GOVERNANCE!$B${row}"
+                return
+                
+            headers = ['Inizio Mese', 'Fine Mese', 'FTE', 'Tariffa media/gg (€)', 'Mesi', 'Costo Periodo']
+            self._add_header_row(ws, row, headers)
+            row += 1
+            
+            data_start = row
+            for p in periods:
+                m_start = p.get('month_start', 1)
+                m_end = p.get('month_end', 36)
+                fte = p.get('fte', 0)
+                
+                mix = p.get('team_mix', [])
+                rate = 250.0
+                if mix:
+                    total_pct = sum(m.get('pct', 0) for m in mix)
+                    if total_pct > 0:
+                        total_rate = 0
+                        for m in mix:
+                            l_id = m.get('lutech_profile', '')
+                            l_rate = self.profile_rates.get(l_id, self.bp.get('default_daily_rate', 250))
+                            total_rate += l_rate * (m.get('pct', 0) / 100)
+                        rate = total_rate / (total_pct / 100)
+                        
+                ws.cell(row=row, column=1, value=m_start)
+                ws.cell(row=row, column=2, value=m_end)
+                c_fte = ws.cell(row=row, column=3, value=fte)
+                self._style_input_cell(c_fte)
+                c_rate = ws.cell(row=row, column=4, value=rate)
+                self._style_input_cell(c_rate)
+                
+                c_mesi = ws.cell(row=row, column=5, value=f"=B{row}-A{row}+1")
+                self._style_formula_cell(c_mesi)
+                
+                # Inflation factor based on period start month (year index)
+                year_idx = max(0, (m_start - 1) // 12)
+                infl_ref = self.named_ranges.get('INFLATION_PCT', '0')
+                c_cost = ws.cell(row=row, column=6, value=f"=C{row}*D{row}*(E{row}/12)*{self.named_ranges['GG_ANNO']}*((1+{infl_ref}/100)^{year_idx})")
+                self._style_formula_cell(c_cost)
+                c_cost.number_format = '#,##0.00'
+                
+                row += 1
+                
+            data_end = row - 1
+            ws.cell(row=row, column=1, value="TOTALE GOVERNANCE").font = BOLD_FONT
+            c_tot = ws.cell(row=row, column=6)
+            c_tot.value = f"=SUM(F{data_start}:F{data_end})"
+            c_tot.font = BOLD_FONT
+            c_tot.number_format = '#,##0.00'
+            self._style_formula_cell(c_tot)
+            self.named_ranges['GOV_COST'] = f"GOVERNANCE!$F${row}"
+
     # ========== SHEET 9: CALCOLO COSTI (ALL FORMULAS) ==========
     def _create_cost_calc_sheet(self):
         ws = self.wb.create_sheet("CALCOLO_COSTI")
@@ -1527,6 +1887,16 @@ class BusinessPlanExcelGenerator:
         ws['C' + str(row)] = "Formula: Link a MAPPING!Totale Costo"
         ws['C' + str(row)].font = Font(italic=True, color='666666')
         team_cost_row = row
+        row += 1
+
+        # Costo Catalogo
+        ws['A' + str(row)] = "Costo TOW a Catalogo"
+        ws['B' + str(row)] = f"={self.named_ranges.get('CATALOG_COST', '0')}"
+        ws['B' + str(row)].number_format = '#,##0'
+        self._style_link_cell(ws['B' + str(row)])
+        ws['C' + str(row)] = "Formula: Link a CATALOGO!Costo Totale"
+        ws['C' + str(row)].font = Font(italic=True, color='666666')
+        catalog_cost_row = row
         row += 2
 
         ws['A' + str(row)] = "OVERHEAD"
@@ -1535,30 +1905,43 @@ class BusinessPlanExcelGenerator:
 
         # Governance
         ws['A' + str(row)] = "Governance"
-        ws['B' + str(row)] = f"=B{team_cost_row}*{self.named_ranges['GOVERNANCE_PCT']}"
+        
+        ws['B' + str(row)] = f"={self.named_ranges.get('GOV_COST', '0')}"
         ws['B' + str(row)].number_format = '#,##0'
-        self._style_formula_cell(ws['B' + str(row)])
-        ws['C' + str(row)] = f"Formula: Team Cost × Governance%"
+        self._style_link_cell(ws['B' + str(row)])
+        ws['C' + str(row)] = "Formula: Link a GOVERNANCE!Costo Totale"
         ws['C' + str(row)].font = Font(italic=True, color='666666')
         gov_row = row
         row += 1
 
         # Risk
         ws['A' + str(row)] = "Risk Contingency"
-        ws['B' + str(row)] = f"=(B{team_cost_row}+B{gov_row})*{self.named_ranges['RISK_PCT']}"
+        # Risk su Team + Catalogo + Governance
+        ws['B' + str(row)] = f"=(B{team_cost_row}+B{catalog_cost_row}+B{gov_row})*{self.named_ranges['RISK_PCT']}"
         ws['B' + str(row)].number_format = '#,##0'
         self._style_formula_cell(ws['B' + str(row)])
-        ws['C' + str(row)] = f"Formula: (Team + Gov) × Risk%"
+        ws['C' + str(row)] = f"Formula: (Team + Catalog + Gov) × Risk%"
         ws['C' + str(row)].font = Font(italic=True, color='666666')
         risk_row = row
         row += 1
 
         # Subappalto
         ws['A' + str(row)] = "Subappalto"
-        ws['B' + str(row)] = f"={self.named_ranges.get('SUB_COST', '0')}"
+        sub_cost_front = self.costs.get('subcontract', 0)
+        
+        # Se c'è configurazione, possiamo provare a linkarlo al foglio subappalto che magari punta a team_cost... 
+        # MA il subappalto dipende da TeamCost + CatalogCost! 
+        # Modifichiamo la formula del foglio subappalti? Facciamo prima a fidarci del calcolatore FE per coerenza se diverso da 0.
+        if sub_cost_front > 0:
+            ws['B' + str(row)] = sub_cost_front
+            self._style_input_cell(ws['B' + str(row)])
+            ws['C' + str(row)] = "Valore Fisso calcolato dal Simulatore"
+        else:
+            ws['B' + str(row)] = f"={self.named_ranges.get('SUB_COST', '0')}"
+            self._style_link_cell(ws['B' + str(row)])
+            ws['C' + str(row)] = "Formula: Link a SUBAPPALTO!Totale"
+            
         ws['B' + str(row)].number_format = '#,##0'
-        self._style_link_cell(ws['B' + str(row)])
-        ws['C' + str(row)] = "Formula: Link a SUBAPPALTO!Totale"
         ws['C' + str(row)].font = Font(italic=True, color='666666')
         sub_row = row
         row += 2
@@ -1566,14 +1949,71 @@ class BusinessPlanExcelGenerator:
         # TOTALE COSTI
         ws['A' + str(row)] = "TOTALE COSTI"
         ws['A' + str(row)].font = BOLD_FONT
-        ws['B' + str(row)] = f"=B{team_cost_row}+B{gov_row}+B{risk_row}+B{sub_row}"
+        ws['B' + str(row)] = f"=B{team_cost_row}+B{catalog_cost_row}+B{gov_row}+B{risk_row}+B{sub_row}"
         ws['B' + str(row)].number_format = '#,##0'
         ws['B' + str(row)].font = BOLD_FONT
         ws['B' + str(row)].fill = LIGHT_FILL
         ws['B' + str(row)].border = THIN_BORDER
-        ws['C' + str(row)] = "Formula: Team + Gov + Risk + Sub"
+        ws['C' + str(row)] = "Formula: Team + Catalog + Gov + Risk + Sub"
         ws['C' + str(row)].font = Font(italic=True, color='666666')
         self.named_ranges['TOTAL_COST'] = f"CALCOLO_COSTI!$B${row}"
+
+    # ========== SHEET 11.5: CRONOPROGRAMMA (TIMELINE) ==========
+    def _create_timeline_sheet(self):
+        ws = self.wb.create_sheet("CRONOPROGRAMMA")
+        self.wb.sheet_state = 'hidden' # We can hide it or leave it visible for audit
+        
+        ws['A1'] = "CRONOPROGRAMMA CALCOLI MESE-PER-MESE"
+        ws['A1'].font = TITLE_FONT
+        
+        duration = int(self.bp.get('duration_months', 36))
+        
+        # Headers: Member, Profile, Lutech, Start, End, and Months 1..N
+        row = 3
+        headers = ['Membro Team', 'Profilo Poste', 'Profilo Lutech', 'TOW', 'Mese Inizio', 'Mese Fine']
+        for m in range(1, duration + 1):
+            headers.append(f"Mese {m}")
+        self._add_header_row(ws, row, headers)
+        
+        row += 1
+        data_start = row
+        
+        for interval in self.intervals:
+            ws.cell(row=row, column=1, value=interval.get('member', ''))
+            ws.cell(row=row, column=2, value=interval.get('poste_profile', ''))
+            ws.cell(row=row, column=3, value=interval.get('lutech_profile', ''))
+            
+            ws.cell(row=row, column=5, value=interval.get('start', 1))
+            ws.cell(row=row, column=6, value=interval.get('end', duration))
+            
+            start_m = interval.get('start', 1)
+            end_m = interval.get('end', duration)
+            fte_eff = interval.get('fte_eff', 0)
+            
+            lutech_id = interval.get('lutech_profile', '')
+            
+            for m in range(1, duration + 1):
+                col = 6 + m
+                if start_m <= m <= end_m:
+                    # Apply inflation
+                    year_idx = (m - 1) // 12
+                    
+                    formula_str = (
+                        f"=({fte_eff} * ({self.named_ranges['GG_ANNO']}/12)) * "
+                        f"IFERROR(VLOOKUP(\"{lutech_id}\", {self.named_ranges['CATALOGO_RANGE']}, 3, FALSE), {self.named_ranges['TARIFFA_DEFAULT']}) * "
+                        f"((1 + {self.named_ranges['INFLATION_PCT']}/100)^{year_idx})"
+                    )
+                    ws.cell(row=row, column=col, value=formula_str)
+                    ws.cell(row=row, column=col).number_format = '#,##0.00'
+                else:
+                    ws.cell(row=row, column=col, value=0)
+            row += 1
+            
+        data_end = row - 1 if row > data_start else data_start
+        self.named_ranges['CRONOPROGRAMMA_RANGE'] = f"CRONOPROGRAMMA!$G${data_start}:${get_column_letter(6+duration)}${data_end}"
+        
+        # We also create a total sum to override the macroscopic TEAM_COST formula generated in MAPPING
+        self.named_ranges['TEAM_COST'] = f"SUM({self.named_ranges['CRONOPROGRAMMA_RANGE']})"
 
     # ========== SHEET 8: CONTO ECONOMICO (P&L) ==========
     def _create_pl_sheet(self):
