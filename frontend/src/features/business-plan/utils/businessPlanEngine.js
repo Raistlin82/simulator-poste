@@ -374,13 +374,45 @@ export const calculateCatalogCost = (bp, lutechRates) => {
     let total = 0;
     const byTow = [];
 
+    const profileMappings = bp.profile_mappings || {};
+
     const computeRate = (mixArr) => {
         if (!mixArr || mixArr.length === 0) return defaultRate;
         let totalWeighted = 0;
         let totalPctSum = 0;
-        for (const m of mixArr) {
-            const pct = (m.pct || 0) / 100;
-            const entryRate = lutechRates[m.lutech_profile] || defaultRate;
+        for (const entry of mixArr) {
+            const pct = (entry.pct || 0) / 100;
+            if (pct <= 0) continue;
+
+            // Catalog items have poste_profile → need to go through profile_mappings
+            const posteProfile = entry.poste_profile || entry.lutech_profile || '';
+            const mappings = profileMappings[posteProfile];
+            let entryRate = defaultRate;
+
+            if (mappings && mappings.length > 0) {
+                // Duration-weighted averaging across mapping periods
+                let periodWeighted = 0;
+                let periodMonthsTotal = 0;
+                for (const m of mappings) {
+                    const ms = parseFloat(m.month_start ?? 1);
+                    const me = parseFloat(m.month_end ?? durationMonths);
+                    const months = Math.max(0, me - ms + 1);
+                    if (months <= 0) continue;
+                    let pRate = 0;
+                    for (const mi of (m.mix || [])) {
+                        const mpct = (parseFloat(mi.pct) || 0) / 100;
+                        pRate += mpct * (lutechRates[mi.lutech_profile] || defaultRate);
+                    }
+                    periodWeighted += pRate * months;
+                    periodMonthsTotal += months;
+                }
+                entryRate = periodMonthsTotal > 0 ? periodWeighted / periodMonthsTotal : defaultRate;
+                if (entryRate <= 0) entryRate = defaultRate;
+            } else {
+                // Fallback: try direct lutechRates lookup (for backward compat)
+                entryRate = lutechRates[posteProfile] || defaultRate;
+            }
+
             totalWeighted += pct * entryRate;
             totalPctSum += pct;
         }
