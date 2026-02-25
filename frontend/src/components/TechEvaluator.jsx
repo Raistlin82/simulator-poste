@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Star, Info, ChevronDown, ChevronUp, Plus, Minus, ClipboardCheck, BarChart3, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
+import { useReactToPrint } from 'react-to-print';
+import PremiumReport from '../features/reports/PremiumReport';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
 import ConfigPage from './ConfigPage';
@@ -14,11 +16,13 @@ import ScoreGauges from '../features/simulation/components/ScoreGauges';
 import SimulationChart from '../features/simulation/components/SimulationChart';
 import DetailedScoreTable from '../features/simulation/components/DetailedScoreTable';
 import CompetitorAnalysis from '../features/simulation/components/CompetitorAnalysis';
+import React, { useRef } from 'react';
 
 export default function TechEvaluator({ onNavigate }) {
     const { t } = useTranslation();
     const { config } = useConfig();
     const [activeTab, setActiveTab] = useState('valutazione'); // 'valutazione' | 'configurazione' | 'analisi'
+    const reportRef = useRef();
     const {
         selectedLot,
         techInputs: inputs,
@@ -36,50 +40,20 @@ export default function TechEvaluator({ onNavigate }) {
     const [exportLoading, setExportLoading] = useState(false);
     const [excelExportLoading, setExcelExportLoading] = useState(false);
 
-    const handleExport = async () => {
-        setExportLoading(true);
-        try {
-            const res = await axios.post(`${API_URL}/export-pdf`, {
-                lot_key: selectedLot,
-                base_amount: lotData.base_amount,
-                technical_score: results.technical_score,
-                economic_score: results.economic_score,
-                total_score: results.total_score,
-                my_discount: myDiscount,
-                competitor_discount: competitorDiscount,
-                alpha: lotData.alpha || 0.3,
-                win_probability: monteCarlo?.win_probability || 50,
-                details: results.details,
-                weighted_scores: results.weighted_scores || {},
-                category_scores: {
-                    company_certs: results.category_company_certs || 0,
-                    resource: results.category_resource || 0,
-                    reference: results.category_reference || 0,
-                    project: results.category_project || 0
-                },
-                max_tech_score: results?.calculated_max_tech_score || lotData.max_tech_score || 60,
-                max_econ_score: lotData.max_econ_score || 40,
-                tech_inputs_full: inputs || {},
-                rti_quotas: lotData.rti_quotas || {}
-            }, { responseType: 'blob' });
-
-            const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Report_${selectedLot.replace(/\s+/g, '_')}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-            }, 100);
-        } catch (err) {
-            logger.error('PDF Export Error', err, { lot: selectedLot });
+    const handleExport = useReactToPrint({
+        content: () => reportRef.current,
+        documentTitle: `Report_${selectedLot?.replace(/\s+/g, '_') || 'Simulazione'}`,
+        onBeforeGetContent: () => {
+            setExportLoading(true);
+            return Promise.resolve();
+        },
+        onAfterPrint: () => setExportLoading(false),
+        onPrintError: (error) => {
+            logger.error('PDF Export Error', error, { lot: selectedLot });
             toast.error(t('errors.export_failed') || 'Esportazione fallita');
-        } finally {
             setExportLoading(false);
         }
-    };
+    });
 
     const handleExcelExport = async () => {
         setExcelExportLoading(true);
@@ -974,6 +948,34 @@ export default function TechEvaluator({ onNavigate }) {
 
                 </div>
             )}
+
+            {/* Hidden container per il PDF Export (PremiumReport) */}
+            <div style={{ display: 'none' }}>
+                <PremiumReport
+                    ref={reportRef}
+                    lotKey={selectedLot}
+                    simulationData={{
+                        base_amount: lotData.base_amount,
+                        technical_score: results.technical_score,
+                        economic_score: results.economic_score,
+                        total_score: results.total_score,
+                        my_discount: myDiscount,
+                        competitor_discount: competitorDiscount,
+                        alpha: lotData.alpha || 0.3
+                    }}
+                    lotConfig={lotData}
+                    details={results.details}
+                    categoryScores={{
+                        company_certs: results.category_company_certs || 0,
+                        resource: results.category_resource || 0,
+                        reference: results.category_reference || 0,
+                        project: results.category_project || 0
+                    }}
+                    winProbability={monteCarlo?.win_probability || 50}
+                    businessPlanData={simulationData?.business_plan || {}} // we will get the plan from sim context later
+                    t={t}
+                />
+            </div>
         </div>
     );
 }

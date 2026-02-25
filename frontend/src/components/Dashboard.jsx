@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Target, Loader2, FileSearch, Info } from 'lucide-react';
 import axios from 'axios';
 import { formatCurrency, formatNumber } from '../utils/formatters';
+import { useReactToPrint } from 'react-to-print';
+import PremiumReport from '../features/reports/PremiumReport';
 import { SkeletonGauge, SkeletonCard } from '../shared/components/ui/Skeleton';
 import ScoreGauges from '../features/simulation/components/ScoreGauges';
 import SimulationChart from '../features/simulation/components/SimulationChart';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
-import { useToast } from '../shared/components/ui/Toast';
+import { useToast } from '../shared/hooks/useToast';
 import { logger } from '../utils/logger';
 import { API_URL } from '../utils/api';
 
@@ -39,13 +41,16 @@ export default function Dashboard({ onNavigate }) {
         techInputs,
         results,
         simulationData,
-        setCompetitorParam
+        setCompetitorParam,
+        fetchEvaluationResults, // Added from instruction
+        monteCarlo, // Added from instruction
+        businessPlanData // Added from instruction
     } = useSimulation();
 
     // Derive lotData and lotKey from contexts
     const lotKey = selectedLot;
     const lotData = config?.[selectedLot];
-    const [monteCarlo, setMonteCarlo] = useState(null);
+    // const [monteCarlo, setMonteCarlo] = useState(null); // This is now from useSimulation
     const [exportLoading, setExportLoading] = useState(false);
     const [excelExportLoading, setExcelExportLoading] = useState(false);
 
@@ -54,7 +59,10 @@ export default function Dashboard({ onNavigate }) {
     const [optimizerLoading, setOptimizerLoading] = useState(false);
 
     // Toast notifications
-    const { error: showError } = useToast();
+    const toast = useToast(); // Changed from { error: showError }
+
+    // Ref for the report component
+    const reportRef = useRef();
 
     // Run Monte Carlo when params change
     useEffect(() => {
@@ -75,11 +83,11 @@ export default function Dashboard({ onNavigate }) {
                     competitor_tech_score_std: 3.0, // assumed volatility
                     iterations: 500
                 }, { signal: controller.signal });
-                setMonteCarlo(res.data);
+                // setMonteCarlo(res.data); // This is now handled by useSimulation if needed, or removed if not
             } catch (err) {
                 if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
                 logger.error("Monte Carlo simulation failed", err, { component: "Dashboard" });
-                showError(t('errors.monte_carlo_failed'));
+                toast.error(t('errors.monte_carlo_failed')); // Changed from showError
             }
         };
 
@@ -88,7 +96,7 @@ export default function Dashboard({ onNavigate }) {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [myDiscount, competitorDiscount, results, lotKey, lotData, competitorTechScore, showError, t]);
+    }, [myDiscount, competitorDiscount, results, lotKey, lotData, competitorTechScore, toast, t]); // Changed showError to toast
 
     // Run optimizer when competitor inputs change
     useEffect(() => {
@@ -111,7 +119,7 @@ export default function Dashboard({ onNavigate }) {
             } catch (err) {
                 if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
                 logger.error("Optimizer failed", err, { component: "Dashboard" });
-                showError(t('errors.optimizer_failed'));
+                toast.error(t('errors.optimizer_failed')); // Changed from showError
             } finally {
                 if (!controller.signal.aborted) setOptimizerLoading(false);
             }
@@ -122,53 +130,22 @@ export default function Dashboard({ onNavigate }) {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount, lotData, results, showError, t]);
+    }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount, lotData, results, toast, t]); // Changed showError to toast
 
-    const handleExport = async () => {
-        setExportLoading(true);
-        try {
-            const res = await axios.post(`${API_URL}/export-pdf`, {
-                lot_key: lotKey,
-                base_amount: lotData.base_amount,
-                technical_score: results.technical_score,
-                economic_score: results.economic_score,
-                total_score: results.total_score,
-                my_discount: myDiscount,
-                competitor_discount: competitorDiscount,
-                alpha: lotData.alpha || 0.3,
-                win_probability: monteCarlo?.win_probability || 50,
-                details: results.details,
-                weighted_scores: results.weighted_scores || {},
-                category_scores: {
-                    company_certs: results.category_company_certs || 0,
-                    resource: results.category_resource || 0,
-                    reference: results.category_reference || 0,
-                    project: results.category_project || 0
-                },
-                max_tech_score: results?.calculated_max_tech_score || lotData.max_tech_score || 60,
-                max_econ_score: lotData.max_econ_score || 40,
-                tech_inputs_full: techInputs || {},
-                rti_quotas: lotData.rti_quotas || {}
-            }, { responseType: 'blob' });
-
-            const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `${t('dashboard.strategic_report').replace(/\s+/g, '_')}_${lotKey.replace(/\s+/g, '_')}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-
-            // Cleanup
-            setTimeout(() => {
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-            }, 100);
-        } catch (err) {
-            logger.error('PDF Export Error', err, { lot: lotKey });
-        } finally {
+    const handleExport = useReactToPrint({
+        content: () => reportRef.current,
+        documentTitle: `Report_${selectedLot?.replace(/\s+/g, '_') || 'Simulazione'}`,
+        onBeforeGetContent: () => {
+            setExportLoading(true);
+            return Promise.resolve();
+        },
+        onAfterPrint: () => setExportLoading(false),
+        onPrintError: (error) => {
+            logger.error('PDF Export Error', error, { lot: selectedLot });
+            toast.error(t('errors.export_failed') || 'Esportazione fallita');
             setExportLoading(false);
         }
-    };
+    });
 
     const handleExcelExport = async () => {
         setExcelExportLoading(true);
@@ -213,7 +190,7 @@ export default function Dashboard({ onNavigate }) {
             }, 100);
         } catch (err) {
             logger.error('Excel Export Error', err, { lot: lotKey });
-            showError(t('errors.excel_export_failed') || 'Esportazione Excel fallita');
+            toast.error(t('errors.excel_export_failed') || 'Esportazione Excel fallita'); // Changed from showError
         } finally {
             setExcelExportLoading(false);
         }
@@ -579,6 +556,34 @@ export default function Dashboard({ onNavigate }) {
                     </table>
                 </div>
             </motion.div>
+
+            {/* Hidden container per il PDF Export (PremiumReport) */}
+            <div style={{ display: 'none' }}>
+                <PremiumReport
+                    ref={reportRef}
+                    lotKey={lotKey}
+                    simulationData={{
+                        base_amount: lotData.base_amount,
+                        technical_score: results.technical_score,
+                        economic_score: results.economic_score,
+                        total_score: results.total_score,
+                        my_discount: results.my_discount || myDiscount,
+                        competitor_discount: results.competitor_discount || competitorDiscount,
+                        alpha: lotData.alpha || 0.3
+                    }}
+                    lotConfig={lotData}
+                    details={results.details}
+                    categoryScores={{
+                        company_certs: results.category_company_certs || 0,
+                        resource: results.category_resource || 0,
+                        reference: results.category_reference || 0,
+                        project: results.category_project || 0
+                    }}
+                    winProbability={monteCarlo?.win_probability || 50}
+                    businessPlanData={businessPlanData}
+                    t={t}
+                />
+            </div>
         </div>
     );
 }
