@@ -790,8 +790,8 @@ export default function CostBreakdown({
                                         <tr>
                                           <th className="px-3 py-1.5 text-left">Voce</th>
                                           <th className="px-3 py-1.5 text-right">FTE</th>
-                                          <th className="px-3 py-1.5 text-right">Pz. Poste Tot.</th>
-                                          <th className="px-3 py-1.5 text-right">Costo Lu.</th>
+                                          <th className="px-3 py-1.5 text-right">Pz. Vend. Tot.</th>
+                                          <th className="px-3 py-1.5 text-right">Costo Tot.</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -802,7 +802,7 @@ export default function CostBreakdown({
                                               <div className="text-[10px] text-slate-400">{it.tipo} · {it.complessita}</div>
                                             </td>
                                             <td className="px-3 py-1.5 text-right text-slate-600">{(it.fte ?? 0).toFixed(2)}</td>
-                                            <td className="px-3 py-1.5 text-right text-slate-600">{formatCurrency(it.poste_total ?? 0, 0)}</td>
+                                            <td className="px-3 py-1.5 text-right text-slate-600">{formatCurrency(it.lutech_revenue ?? 0, 0)}</td>
                                             <td className="px-3 py-1.5 text-right font-medium text-slate-700">{formatCurrency(it.lutech_cost, 0)}</td>
                                           </tr>
                                         ))}
@@ -819,7 +819,7 @@ export default function CostBreakdown({
                                           <div key={gi} className="flex justify-between items-center text-xs py-0.5">
                                             <span className="text-slate-700 font-medium">{g.label}</span>
                                             <div className="flex gap-3 text-[10px]">
-                                              <span className="text-slate-400">{formatCurrency(g.target_value ?? 0, 0)} target</span>
+                                              <span className="text-slate-400">{formatCurrency(g.lutech_revenue ?? 0, 0)} ricavi</span>
                                               <span className="font-medium text-slate-600">{formatCurrency(g.lutech_cost, 0)} costo</span>
                                             </div>
                                           </div>
