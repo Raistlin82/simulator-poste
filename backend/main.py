@@ -486,6 +486,64 @@ def calculate_prof_score(R, C, max_res, max_points, max_certs=5, max_points_manu
 # --- API ROUTER (Business endpoints with /api prefix) ---
 api_router = APIRouter(prefix="/api")
 
+def get_sqlite_db_path():
+    """Retrieve the absolute path to the SQLite database file from DATABASE_URL."""
+    from database import DATABASE_URL
+    if DATABASE_URL.startswith("sqlite:///"):
+        # Remove sqlite:/// prefix and handle both absolute and relative paths
+        path = DATABASE_URL.replace("sqlite:///", "")
+        return os.path.abspath(path)
+    return os.path.abspath("./simulator_poste.db")
+
+@api_router.get("/system/export-db")
+def export_database(db: Session = Depends(get_db)):
+    """Export the entire SQLite database."""
+    try:
+        db.commit()
+    except Exception:
+        pass
+        
+    db_path = get_sqlite_db_path()
+    logger.info(f"Exporting database from path: {db_path}")
+    
+    if not os.path.exists(db_path):
+        logger.error(f"Database file not found at {db_path}")
+        raise HTTPException(status_code=404, detail=f"Database file not found at {db_path}")
+        
+    return FileResponse(
+        path=db_path,
+        filename=f"simulator_poste_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
+        media_type="application/octet-stream"
+    )
+
+@api_router.post("/system/import-db")
+async def import_database(file: UploadFile = File(...), db=Depends(get_db)):
+    """Import and replace the SQLite database."""
+    if not file.filename.endswith('.db'):
+        raise HTTPException(status_code=400, detail="Il file deve avere estensione .db")
+        
+    db_path = get_sqlite_db_path()
+    
+    try:
+        from database import engine
+        engine.dispose()
+    except Exception as e:
+        logger.warning(f"Error disposing engine: {e}")
+    
+    try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
+        with open(db_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        logger.info(f"Database successfully restored from {file.filename} to {db_path}")
+        return {"status": "success", "message": "Database ripristinato con successo"}
+    except Exception as e:
+        logger.error(f"Error restoring database: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Errore durante il ripristino del database")
+
+
 
 def calculate_max_points_for_req(req):
     """
@@ -2903,51 +2961,6 @@ async def import_business_plan_excel(
     except Exception as e:
         logger.error(f"Error importing business plan from Excel: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Errore nell'importazione dell'Excel")
-
-
-# --- SYSTEM ENDPOINTS ---
-
-@api_router.get("/system/export-db")
-def export_database(db: Session = Depends(get_db)):
-    """Export the entire SQLite database."""
-    try:
-        db.commit()
-    except Exception:
-        pass
-        
-    db_path = "./simulator_poste.db"
-    if not os.path.exists(db_path):
-        raise HTTPException(status_code=404, detail="Database file not found")
-        
-    return FileResponse(
-        path=db_path,
-        filename=f"simulator_poste_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
-        media_type="application/octet-stream"
-    )
-
-@api_router.post("/system/import-db")
-async def import_database(file: UploadFile = File(...), db=Depends(get_db)):
-    """Import and replace the SQLite database."""
-    if not file.filename.endswith('.db'):
-        raise HTTPException(status_code=400, detail="Il file deve avere estensione .db")
-        
-    db_path = "./simulator_poste.db"
-    
-    try:
-        from database import engine
-        engine.dispose()
-    except Exception as e:
-        logger.warning(f"Error disposing engine: {e}")
-    
-    try:
-        with open(db_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        logger.info(f"Database successfully restored from {file.filename}")
-        return {"status": "success", "message": "Database ripristinato con successo"}
-    except Exception as e:
-        logger.error(f"Error restoring database: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Errore durante il ripristino del database")
 
 
 # --- PRACTICE ENDPOINTS ---
