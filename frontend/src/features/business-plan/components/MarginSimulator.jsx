@@ -153,7 +153,7 @@ export default function MarginSimulator({
             <div className="space-y-3">
               <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                 <Percent className="w-4 h-4 text-slate-400" />
-                Sconto Offerto
+                {t('business_plan.margin_simulator.offered_discount', 'Sconto Offerto')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -190,7 +190,7 @@ export default function MarginSimulator({
               </div>
 
               <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-                <div className="text-xs text-amber-700 font-medium">Break-even</div>
+                <div className="text-xs text-amber-700 font-medium">{t('business_plan.margin_simulator.break_even', 'Break-even')}</div>
                 <div className="text-sm font-bold text-amber-800">{calculations.breakEvenDiscount}%</div>
               </div>
             </div>
@@ -200,33 +200,30 @@ export default function MarginSimulator({
           <div className="lg:col-span-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Card Margine Corrente */}
-              <div className={`p-4 rounded-xl border-2 ${
-                marginStatus.color === 'green'
+              <div className={`p-4 rounded-xl border-2 ${marginStatus.color === 'green'
                   ? 'border-green-500 bg-green-50'
                   : 'border-amber-500 bg-amber-50'
-              }`}>
-                <div className="flex items-center gap-2 mb-3">
-                  <marginStatus.icon className={`w-5 h-5 ${
-                    marginStatus.color === 'green' ? 'text-green-600' : 'text-amber-600'
-                  }`} />
-                  <span className="text-sm font-semibold text-slate-700">Margine Corrente</span>
-                </div>
-                <div className={`text-4xl font-bold mb-4 ${
-                  marginStatus.color === 'green' ? 'text-green-700' : 'text-amber-700'
                 }`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <marginStatus.icon className={`w-5 h-5 ${marginStatus.color === 'green' ? 'text-green-600' : 'text-amber-600'
+                    }`} />
+                  <span className="text-sm font-semibold text-slate-700">{t('business_plan.margin_simulator.current_margin', 'Margine Corrente')}</span>
+                </div>
+                <div className={`text-4xl font-bold mb-4 ${marginStatus.color === 'green' ? 'text-green-700' : 'text-amber-700'
+                  }`}>
                   {calculations.marginPct}%
                 </div>
                 <div className="space-y-2 pt-3 border-t border-current/20">
                   <div className="flex justify-between text-sm">
-                    <span className="opacity-70">Revenue</span>
+                    <span className="opacity-70">{t('business_plan.margin_simulator.revenue', 'Revenue')}</span>
                     <span className="font-semibold">{formatCurrency(calculations.revenue)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="opacity-70">Costo</span>
+                    <span className="opacity-70">{t('business_plan.margin_simulator.cost', 'Costo')}</span>
                     <span className="font-semibold">{formatCurrency(totalCost)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="opacity-70">Margine</span>
+                    <span className="opacity-70">{t('business_plan.margin_simulator.margin', 'Margine')}</span>
                     <span className="font-bold">{formatCurrency(calculations.margin)}</span>
                   </div>
                 </div>
@@ -236,7 +233,7 @@ export default function MarginSimulator({
               <div className="p-4 rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50">
                 <div className="flex items-center gap-2 mb-3">
                   <Target className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-semibold text-slate-700">Margine Target</span>
+                  <span className="text-sm font-semibold text-slate-700">{t('business_plan.margin_simulator.target_margin', 'Margine Target')}</span>
                 </div>
                 <div className="flex items-center gap-2 mb-3">
                   <input
@@ -254,10 +251,10 @@ export default function MarginSimulator({
                   <span className="text-2xl font-bold text-blue-700">%</span>
                 </div>
                 <div className="mb-3 p-2.5 bg-blue-100/50 rounded-lg text-sm text-blue-700">
-                  + Risk: <strong>{riskContingency}%</strong> = Soglia <strong>{(targetMargin + riskContingency).toFixed(1)}%</strong>
+                  {t('business_plan.margin_simulator.risk', '+ Risk:')} <strong>{riskContingency}%</strong> = {t('business_plan.margin_simulator.threshold', 'Soglia')} <strong>{(targetMargin + riskContingency).toFixed(1)}%</strong>
                 </div>
                 <div className="pt-3 border-t border-blue-200">
-                  <div className="text-sm text-slate-600 mb-2">Sconto suggerito per target</div>
+                  <div className="text-sm text-slate-600 mb-2">{t('business_plan.margin_simulator.suggested_discount', 'Sconto suggerito per target')}</div>
                   <div className="flex items-center justify-between">
                     <div className="text-2xl font-bold text-blue-700">
                       {calculations.suggestedDiscount}%
@@ -269,7 +266,7 @@ export default function MarginSimulator({
                                  hover:bg-blue-700 transition-colors flex items-center gap-1.5
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Applica
+                      {t('common.apply', 'Applica')}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -281,25 +278,25 @@ export default function MarginSimulator({
                 <div className="p-4 rounded-xl border-2 border-indigo-300 bg-indigo-50">
                   <div className="flex items-center gap-2 mb-3">
                     <Calculator className="w-5 h-5 text-indigo-600" />
-                    <span className="text-sm font-semibold text-slate-700">RTI - Quota Lutech</span>
+                    <span className="text-sm font-semibold text-slate-700">{t('business_plan.margin_simulator.rti_lutech_quota', 'RTI - Quota Lutech')}</span>
                   </div>
                   <div className="text-4xl font-bold text-indigo-700 mb-3">
                     {(quotaLutech * 100).toFixed(0)}%
                   </div>
                   <div className="text-sm text-indigo-600 mb-3">
-                    Quota Lutech sul totale gara
+                    {t('business_plan.margin_simulator.lutech_quota_total', 'Quota Lutech sul totale gara')}
                   </div>
                   <div className="pt-3 border-t border-indigo-200 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-indigo-600">Base Lutech</span>
+                      <span className="text-indigo-600">{t('business_plan.margin_simulator.base_lutech', 'Base Lutech')}</span>
                       <span className="font-semibold text-indigo-700">{formatCurrency(baseAmount)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-indigo-600">Costo totale</span>
+                      <span className="text-indigo-600">{t('business_plan.margin_simulator.total_cost', 'Costo totale')}</span>
                       <span className="font-semibold text-indigo-700">{formatCurrency(totalCost)}</span>
                     </div>
                     <div className="text-xs text-indigo-500 pt-1">
-                      Tutti i calcoli sono sulla quota Lutech
+                      {t('business_plan.margin_simulator.all_calcs_on_lutech', 'Tutti i calcoli sono sulla quota Lutech')}
                     </div>
                   </div>
                 </div>
@@ -307,19 +304,19 @@ export default function MarginSimulator({
                 <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50">
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="w-5 h-5 text-slate-400" />
-                    <span className="text-sm font-semibold text-slate-500">Gara Singola</span>
+                    <span className="text-sm font-semibold text-slate-500">{t('business_plan.margin_simulator.single_tender', 'Gara Singola')}</span>
                   </div>
                   <div className="text-4xl font-bold text-slate-400 mb-3">100%</div>
                   <div className="text-sm text-slate-500 mb-3">
-                    Calcolo su importo pieno
+                    {t('business_plan.margin_simulator.full_amount_calc', 'Calcolo su importo pieno')}
                   </div>
                   <div className="pt-3 border-t border-slate-200 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Base d'asta</span>
+                      <span className="text-slate-500">{t('business_plan.margin_simulator.auction_base', 'Base d\'asta')}</span>
                       <span className="font-semibold text-slate-700">{formatCurrency(baseAmount)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Costo totale</span>
+                      <span className="text-slate-500">{t('business_plan.margin_simulator.total_cost', 'Costo totale')}</span>
                       <span className="font-semibold text-slate-700">{formatCurrency(totalCost)}</span>
                     </div>
                   </div>

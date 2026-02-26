@@ -205,8 +205,8 @@ export default function TowAnalysis({
       identified.push({
         type: 'loss',
         severity: 'high',
-        title: `${lossCount} TOW in perdita`,
-        description: 'Alcuni TOW hanno costi superiori ai ricavi allocati',
+        title: t('business_plan.tow_analysis.loss_title', { count: lossCount }),
+        description: t('business_plan.tow_analysis.loss_desc'),
         icon: XCircle,
       });
     }
@@ -217,8 +217,8 @@ export default function TowAnalysis({
       identified.push({
         type: 'low_margin',
         severity: 'medium',
-        title: `${lowMarginCount} TOW con margine < 10%`,
-        description: 'Margini bassi che potrebbero diventare critici',
+        title: t('business_plan.tow_analysis.low_margin_title', { count: lowMarginCount }),
+        description: t('business_plan.tow_analysis.low_margin_desc'),
         icon: AlertTriangle,
       });
     }
@@ -232,8 +232,8 @@ export default function TowAnalysis({
       identified.push({
         type: 'concentration',
         severity: 'medium',
-        title: `Alta concentrazione costi (${concentration.toFixed(0)}%)`,
-        description: `Il TOW "${topTow?.label}" assorbe oltre metà dei costi`,
+        title: t('business_plan.tow_analysis.high_cost_title', { pct: concentration.toFixed(0) }),
+        description: t('business_plan.tow_analysis.high_cost_desc', { tow: topTow?.label }),
         icon: PieChart,
       });
     }
@@ -244,8 +244,8 @@ export default function TowAnalysis({
       identified.push({
         type: 'senior_allocation',
         severity: 'medium',
-        title: 'Senior su TOW a basso margine',
-        description: `${seniorOnLowMargin.length} TOW con >60% senior potrebbero beneficiare di juniorization`,
+        title: t('business_plan.tow_analysis.senior_low_margin_title'),
+        description: t('business_plan.tow_analysis.senior_low_margin_desc', { count: seniorOnLowMargin.length }),
         icon: Users,
       });
     }
@@ -289,7 +289,7 @@ export default function TowAnalysis({
               currentMargin: tow.marginPct,
               newMargin: newMarginPct,
               impact: 'medium',
-              recommendation: `Considera di sostituire parte del profilo "${contrib.label}" con risorse junior (−40% tariffa)`,
+              recommendation: t('business_plan.tow_analysis.junior_proposal', { profile: contrib.label }),
             });
           }
         }
@@ -302,7 +302,7 @@ export default function TowAnalysis({
           towLabel: tow.label,
           type: 'capacity',
           currentMargin: tow.marginPct,
-          recommendation: `Il TOW "${tow.label}" ha alto margine (${tow.marginPct.toFixed(1)}%) - considera di allocare più risorse qui`,
+          recommendation: t('business_plan.tow_analysis.margin_rebalance_proposal', { tow: tow.label, pct: tow.marginPct.toFixed(1) }),
           impact: 'low',
         });
       }
@@ -779,8 +779,8 @@ export default function TowAnalysis({
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-800">{t('business_plan.tow_analysis_risks_title')}</h3>
-                <p className="text-xs text-slate-500">{t('business_plan.tow_analysis_risks_sub', { count: risks.length })}</p>
+                <h3 className="font-semibold text-slate-800">{t('business_plan.tow_analysis.risks_title')}</h3>
+                <p className="text-xs text-slate-500">{t('business_plan.tow_analysis.risks_sub', { count: risks.length })}</p>
               </div>
             </div>
           </div>
@@ -821,9 +821,9 @@ export default function TowAnalysis({
                   <Shuffle className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-800">{t('business_plan.tow_analysis_mix_title')}</h3>
+                  <h3 className="font-semibold text-slate-800">{t('business_plan.tow_analysis.mix_title')}</h3>
                   <p className="text-xs text-slate-500">
-                    {t('business_plan.tow_analysis_mix_sub')}
+                    {t('business_plan.tow_analysis.mix_sub')}
                   </p>
                 </div>
               </div>
@@ -831,7 +831,7 @@ export default function TowAnalysis({
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 rounded-lg border border-green-200">
                   <Zap className="w-4 h-4 text-green-600" />
                   <span className="text-sm font-semibold text-green-700">
-                    {t('business_plan.tow_analysis_savings')}: {formatCurrency(totalPotentialSavings)}
+                    {t('business_plan.tow_analysis.savings')}: {formatCurrency(totalPotentialSavings)}
                   </span>
                 </div>
               )}

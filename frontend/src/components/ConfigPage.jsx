@@ -829,7 +829,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                         <Award className="w-6 h-6 text-indigo-600" />
                                                     </div>
                                                     <div className="flex-1">
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display mb-1">Titolo Requisito</p>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display mb-1">{t('config.req_title', 'Titolo Requisito')}</p>
                                                         <input
                                                             type="text"
                                                             value={req.label}
@@ -841,17 +841,17 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                 </div>
                                                 <div className="flex items-center gap-6 ml-16">
                                                     <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Identificativo</span>
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('config.req_id', 'Identificativo')}</span>
                                                         <input
                                                             type="text"
                                                             value={req.id}
-                                                            placeholder="E.g. REQ_01"
+                                                            placeholder={t('config.req_id_placeholder', 'E.g. REQ_01')}
                                                             onChange={(e) => updateRequirement(req.id, 'id', e.target.value)}
                                                             className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50/50 px-3 py-1.5 rounded-xl border border-indigo-100/50 focus:ring-2 focus:ring-indigo-500/20 outline-none w-40 uppercase tracking-tight mt-1"
                                                         />
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Peso Gara</span>
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('config.req_gara_weight', 'Peso Gara')}</span>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <input
                                                                 type="number"
@@ -892,7 +892,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                             <div className="p-6 bg-purple-50/50 backdrop-blur-md rounded-2xl border border-purple-200/50">
                                                 <div className="mb-6 flex items-center justify-between">
                                                     <div>
-                                                        <h4 className="font-black text-purple-800 text-sm uppercase tracking-tight font-display mb-1">Certificazioni Professionali</h4>
+                                                        <h4 className="font-black text-purple-800 text-sm uppercase tracking-tight font-display mb-1">{t('tech.prof_certs', 'Certificazioni Professionali')}</h4>
                                                         <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest font-display">
                                                             P = (2 × R) + (R × C), dove R ≥ C
                                                         </p>
@@ -901,7 +901,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
 
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                                                     <div className="bg-white/50 p-4 rounded-xl border border-purple-200/50 shadow-sm">
-                                                        <label className="block text-[10px] font-black text-purple-700 uppercase tracking-widest font-display mb-2 ml-1">R - Risorse</label>
+                                                        <label className="block text-[10px] font-black text-purple-700 uppercase tracking-widest font-display mb-2 ml-1">{t('config.r_risorse', 'R - Risorse')}</label>
                                                         <input
                                                             type="number"
                                                             min="1"
@@ -928,7 +928,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                     </div>
 
                                                     <div className="bg-white/50 p-4 rounded-xl border border-purple-200/50 shadow-sm">
-                                                        <label className="block text-[10px] font-black text-purple-700 uppercase tracking-widest font-display mb-2 ml-1">C - Certificati</label>
+                                                        <label className="block text-[10px] font-black text-purple-700 uppercase tracking-widest font-display mb-2 ml-1">{t('config.c_certificati', 'C - Certificati')}</label>
                                                         <input
                                                             type="number"
                                                             min="1"
@@ -954,9 +954,9 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
 
                                                     <div className={`p-4 rounded-xl border transition-all shadow-sm ${req.max_points_manual ? 'bg-amber-100/50 border-amber-300' : 'bg-white/60 border-purple-200/50'}`}>
                                                         <div className="text-[10px] font-black text-purple-700 uppercase tracking-widest font-display mb-2 flex items-center justify-center gap-2">
-                                                            Punteggio Max
+                                                            {t('config.punteggio_max', 'Punteggio Max')}
                                                             {req.max_points_manual && (
-                                                                <span className="text-[9px] font-black text-amber-600 bg-white px-2 py-0.5 rounded-full border border-amber-200 shadow-sm uppercase">manuale</span>
+                                                                <span className="text-[9px] font-black text-amber-600 bg-white px-2 py-0.5 rounded-full border border-amber-200 shadow-sm uppercase">{t('config.manual', 'manuale')}</span>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center justify-center gap-3">
@@ -991,7 +991,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                         });
                                                                     }}
                                                                     className="p-2 text-amber-600 hover:text-amber-800 hover:bg-white rounded-xl transition-all shadow-sm border border-amber-200/50"
-                                                                    title="Ripristina calcolo automatico"
+                                                                    title={t('config.restore_auto_calc', 'Ripristina calcolo automatico')}
                                                                 >
                                                                     <X className="w-4 h-4" />
                                                                 </button>
@@ -1030,7 +1030,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                         ))}
                                                         {(!req.selected_prof_certs || req.selected_prof_certs.length === 0) && (
                                                             <div className="w-full text-center py-4 bg-white/30 rounded-xl border border-dashed border-purple-200/50 text-[10px] font-black text-purple-400 uppercase tracking-widest font-display">
-                                                                Nessuna certificazione selezionata
+                                                                {t('config.no_cert_selected', 'Nessuna certificazione selezionata')}
                                                             </div>
                                                         )}
                                                     </div>
@@ -1068,12 +1068,12 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                             ))}
                                                         {knownProfCerts.length === 0 && (
                                                             <div className="py-8 text-center">
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">Nessuna certificazione in Master Data</p>
+                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">{t('config.no_certs_master_data', 'Nessuna certificazione in Master Data')}</p>
                                                             </div>
                                                         )}
                                                         {knownProfCerts.length > 0 && knownProfCerts.filter(cert => !req.selected_prof_certs?.includes(cert)).filter(cert => cert.toLowerCase().includes(certSearch.toLowerCase())).length === 0 && (
                                                             <div className="py-8 text-center">
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">Nessun risultato trovato</p>
+                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">{t('config.no_results', 'Nessun risultato trovato')}</p>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1090,11 +1090,11 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                     <div className="flex items-center justify-between mb-6">
                                                         <div className="flex items-center gap-6">
                                                             <div>
-                                                                <h4 className="font-black text-blue-800 text-sm uppercase tracking-tight font-display">{t('tech.criteria')} e Pesi</h4>
-                                                                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest font-display">Raw = Σ(Peso_Interno × Max_Punteggio)</p>
+                                                                <h4 className="font-black text-blue-800 text-sm uppercase tracking-tight font-display">{t('config.criteria_and_weights', 'Criteri e Pesi')}</h4>
+                                                                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest font-display">{t('config.raw_formula_desc', 'Raw = Σ(Peso_Interno × Max_Punteggio)')}</p>
                                                             </div>
                                                             <div className="bg-white/60 backdrop-blur-md px-4 py-2 rounded-xl border border-blue-200/50 text-center shadow-lg shadow-blue-500/5">
-                                                                <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest font-display mb-1">Max Req</div>
+                                                                <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest font-display mb-1">{t('config.max_req', 'Max Req')}</div>
                                                                 <div className="text-xl font-black text-blue-600 font-display">{(req.max_points || 0).toFixed(1)}</div>
                                                             </div>
                                                         </div>
@@ -1119,11 +1119,11 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                                 type="text"
                                                                                 value={sub.label}
                                                                                 onChange={(e) => updateSubReq(req.id, sub.id, 'label', e.target.value)}
-                                                                                placeholder={t('tech.criteria') + ' label'}
+                                                                                placeholder={t('tech.criteria') + ' ' + t('common.label', 'Label')}
                                                                                 className="flex-1 px-4 py-2 border border-slate-200/50 bg-white shadow-inner rounded-xl text-xs font-black text-slate-700 focus:ring-2 focus:ring-blue-500/30 outline-none font-display uppercase tracking-tight"
                                                                             />
                                                                             <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/50">
-                                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">Peso</span>
+                                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">{t('config.weight', 'Peso')}</span>
                                                                                 <input
                                                                                     type="number"
                                                                                     step="0.1"
@@ -1131,7 +1131,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                                     value={sub.weight}
                                                                                     onChange={(e) => updateSubReq(req.id, sub.id, 'weight', Math.max(0.1, parseFloat(e.target.value) || 0.1))}
                                                                                     className="w-14 bg-transparent text-sm font-black text-blue-700 text-center outline-none font-display"
-                                                                                    title="Peso interno del criterio"
+                                                                                    title={t('config.criteria_internal_weight', 'Peso interno del criterio')}
                                                                                 />
                                                                             </div>
                                                                             <div className="text-[10px] font-black text-purple-600 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200/50 font-display uppercase tracking-tightest">
@@ -1146,7 +1146,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                         </div>
                                                                         {/* Row 2: 5 Judgement Level inputs */}
                                                                         <div className="flex gap-3 items-center pl-12">
-                                                                            <span className="text-[10px] font-black text-slate-400 uppercase shrink-0 font-display tracking-widest">Punteggi:</span>
+                                                                            <span className="text-[10px] font-black text-slate-400 uppercase shrink-0 font-display tracking-widest">{t('config.scores', 'Punteggi:')}</span>
                                                                             <div className="flex flex-wrap gap-3">
                                                                                 <div className="flex gap-2 items-center bg-red-50/50 px-3 py-1 rounded-lg border border-red-100">
                                                                                     <input
@@ -1156,9 +1156,9 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                                         value={levels.assente_inadeguato ?? 0}
                                                                                         onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'assente_inadeguato', parseFloat(e.target.value) || 0)}
                                                                                         className="w-10 bg-transparent text-xs font-black text-red-700 text-center outline-none font-display"
-                                                                                        title="Assente/Inadeguato"
+                                                                                        title={t('config.absent_inadequate', 'Assente/Inadeguato')}
                                                                                     />
-                                                                                    <span className="text-[8px] text-red-600 font-black uppercase font-display tracking-tightest">Ass.</span>
+                                                                                    <span className="text-[8px] text-red-600 font-black uppercase font-display tracking-tightest">{t('config.score_ass', 'Ass.')}</span>
                                                                                 </div>
                                                                                 <div className="flex gap-2 items-center bg-orange-50/50 px-3 py-1 rounded-lg border border-orange-100">
                                                                                     <input
@@ -1168,9 +1168,9 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                                         value={levels.parzialmente_adeguato ?? 2}
                                                                                         onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'parzialmente_adeguato', parseFloat(e.target.value) || 0)}
                                                                                         className="w-10 bg-transparent text-xs font-black text-orange-700 text-center outline-none font-display"
-                                                                                        title="Parzialmente Adeguato"
+                                                                                        title={t('config.partially_adequate', 'Parzialmente Adeguato')}
                                                                                     />
-                                                                                    <span className="text-[8px] text-orange-600 font-black uppercase font-display tracking-tightest">Parz.</span>
+                                                                                    <span className="text-[8px] text-orange-600 font-black uppercase font-display tracking-tightest">{t('config.score_parz', 'Parz.')}</span>
                                                                                 </div>
                                                                                 <div className="flex gap-2 items-center bg-yellow-50/50 px-3 py-1 rounded-lg border border-yellow-200">
                                                                                     <input
@@ -1180,9 +1180,9 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                                         value={levels.adeguato ?? 3}
                                                                                         onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'adeguato', parseFloat(e.target.value) || 0)}
                                                                                         className="w-10 bg-transparent text-xs font-black text-yellow-700 text-center outline-none font-display"
-                                                                                        title="Adeguato"
+                                                                                        title={t('config.adequate', 'Adeguato')}
                                                                                     />
-                                                                                    <span className="text-[8px] text-yellow-600 font-black uppercase font-display tracking-tightest">Adeg.</span>
+                                                                                    <span className="text-[8px] text-yellow-600 font-black uppercase font-display tracking-tightest">{t('config.score_adeg', 'Adeg.')}</span>
                                                                                 </div>
                                                                                 <div className="flex gap-2 items-center bg-lime-50/50 px-3 py-1 rounded-lg border border-lime-200">
                                                                                     <input
@@ -1192,9 +1192,9 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                                         value={levels.piu_che_adeguato ?? 4}
                                                                                         onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'piu_che_adeguato', parseFloat(e.target.value) || 0)}
                                                                                         className="w-10 bg-transparent text-xs font-black text-lime-700 text-center outline-none font-display"
-                                                                                        title="Più che Adeguato"
+                                                                                        title={t('config.more_than_adequate', 'Più che Adeguato')}
                                                                                     />
-                                                                                    <span className="text-[8px] text-lime-600 font-black uppercase font-display tracking-tightest">+Adeg.</span>
+                                                                                    <span className="text-[8px] text-lime-600 font-black uppercase font-display tracking-tightest">{t('config.score_more_adeg', '+Adeg.')}</span>
                                                                                 </div>
                                                                                 <div className="flex gap-2 items-center bg-green-50 px-3 py-1 rounded-lg border border-green-200 shadow-sm">
                                                                                     <input
@@ -1204,9 +1204,9 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                                                         value={levels.ottimo ?? 5}
                                                                                         onChange={(e) => updateSubReqJudgementLevel(req.id, sub.id, 'ottimo', parseFloat(e.target.value) || 0)}
                                                                                         className="w-10 bg-transparent text-xs font-black text-green-700 text-center outline-none font-display"
-                                                                                        title="Ottimo (= Max)"
+                                                                                        title={t('config.excellent_max', 'Ottimo (= Max)')}
                                                                                     />
-                                                                                    <span className="text-[8px] text-green-600 font-black uppercase font-display tracking-tightest">Ott.</span>
+                                                                                    <span className="text-[8px] text-green-600 font-black uppercase font-display tracking-tightest">{t('config.score_ott', 'Ott.')}</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -1322,8 +1322,8 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                     isOpen={deleteModalState.isOpen}
                     onClose={() => setDeleteModalState({ isOpen: false, actionType: null, data: null })}
                     onConfirm={handleDeleteConfirm}
-                    title="Conferma Eliminazione"
-                    description={`Sei sicuro di voler eliminare "${deleteModalState.data?.label || ''}"? Questa azione non può essere annullata.`}
+                    title={t('common.confirm_deletion')}
+                    description={t('common.confirm_deletion_desc', { item: deleteModalState.data?.label || '' }, `Sei sicuro di voler eliminare "${deleteModalState.data?.label || ''}"? Questa azione non può essere annullata.`)}
                 />
             </div>
         </div>

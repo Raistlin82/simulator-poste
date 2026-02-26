@@ -394,7 +394,7 @@ export default function MasterDataConfig() {
                             <ShieldCheck className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-slate-800 font-display tracking-tightest leading-tight">Poste Master Data</h1>
+                            <h1 className="text-2xl font-black text-slate-800 font-display tracking-tightest leading-tight">{t('master.poste_data', 'Poste Master Data')}</h1>
                             <div className="flex items-center gap-3 mt-1.5">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('master.system_config')}</span>
                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>

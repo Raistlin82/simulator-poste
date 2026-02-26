@@ -54,7 +54,7 @@ export default function ProtectedRoute({ children }) {
                 <div className="text-center max-w-md p-8 bg-white rounded-xl shadow-lg">
                     <img
                         src="/poste-italiane-logo.svg"
-                        alt={t('app.poste_italiane_logo')}
+                        alt={t('auth.poste_italiane_logo')}
                         className="h-16 object-contain mx-auto mb-6"
                     />
                     <h1 className="text-2xl font-bold text-slate-800 mb-2">

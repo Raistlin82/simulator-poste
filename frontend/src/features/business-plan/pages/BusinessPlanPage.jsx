@@ -914,10 +914,10 @@ export default function BusinessPlanPage() {
           {/* Tab Navigation */}
           <div className="flex bg-white/30 backdrop-blur-xl border border-white/40 p-1.5 rounded-2xl shadow-sm">
             {[
-              { id: 'poste', label: 'Poste', icon: MailCheck, desc: 'Requisiti' },
-              { id: 'lutech', label: 'Lutech', icon: Users, desc: 'Team' },
-              { id: 'analisi', label: 'Analisi', icon: BarChart3, desc: 'P&L' },
-              { id: 'offerta', label: 'Offerta', icon: FileDown, desc: 'PxQ' },
+              { id: 'poste', label: t('business_plan.tabs.poste', 'Poste'), icon: MailCheck, desc: t('business_plan.tabs.poste_desc', 'Requisiti') },
+              { id: 'lutech', label: t('business_plan.tabs.lutech', 'Lutech'), icon: Users, desc: t('business_plan.tabs.lutech_desc', 'Team') },
+              { id: 'analisi', label: t('business_plan.tabs.analisi', 'Analisi'), icon: BarChart3, desc: t('business_plan.tabs.analisi_desc', 'P&L') },
+              { id: 'offerta', label: t('business_plan.tabs.offerta', 'Offerta'), icon: FileDown, desc: t('business_plan.tabs.offerta_desc', 'PxQ') },
             ].map(tab => (
               <button
                 key={tab.id}
