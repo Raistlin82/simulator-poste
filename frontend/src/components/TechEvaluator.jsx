@@ -951,30 +951,32 @@ export default function TechEvaluator({ onNavigate }) {
 
             {/* Hidden container per il PDF Export (PremiumReport) */}
             <div style={{ display: 'none' }}>
-                <PremiumReport
-                    ref={reportRef}
-                    lotKey={selectedLot}
-                    simulationData={{
-                        base_amount: lotData.base_amount,
-                        technical_score: results.technical_score,
-                        economic_score: results.economic_score,
-                        total_score: results.total_score,
-                        my_discount: myDiscount,
-                        competitor_discount: competitorDiscount,
-                        alpha: lotData.alpha || 0.3
-                    }}
-                    lotConfig={lotData}
-                    details={results.details}
-                    categoryScores={{
-                        company_certs: results.category_company_certs || 0,
-                        resource: results.category_resource || 0,
-                        reference: results.category_reference || 0,
-                        project: results.category_project || 0
-                    }}
-                    winProbability={monteCarlo?.win_probability || 50}
-                    businessPlanData={simulationData?.business_plan || {}} // we will get the plan from sim context later
-                    t={t}
-                />
+                {results && lotData && (
+                    <PremiumReport
+                        ref={reportRef}
+                        lotKey={selectedLot}
+                        simulationData={{
+                            base_amount: lotData.base_amount,
+                            technical_score: results.technical_score,
+                            economic_score: results.economic_score,
+                            total_score: results.total_score,
+                            my_discount: myDiscount,
+                            competitor_discount: competitorDiscount,
+                            alpha: lotData.alpha || 0.3
+                        }}
+                        lotConfig={lotData}
+                        details={results.details}
+                        categoryScores={{
+                            company_certs: results.category_company_certs || 0,
+                            resource: results.category_resource || 0,
+                            reference: results.category_reference || 0,
+                            project: results.category_project || 0
+                        }}
+                        winProbability={monteCarlo?.win_probability || 50}
+                        businessPlanData={simulationData?.business_plan || {}} // we will get the plan from sim context later
+                        t={t}
+                    />
+                )}
             </div>
         </div>
     );
