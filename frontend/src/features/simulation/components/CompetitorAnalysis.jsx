@@ -90,7 +90,7 @@ export default function CompetitorAnalysis() {
                             </div>
                             <div>
                                 <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest font-display">{t('dashboard.competitor_to_beat')}</h3>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">Targeting & Scenario Optimization</p>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">{t('dashboard.targeting_optimization')}</p>
                             </div>
                         </div>
                     </div>
@@ -148,19 +148,19 @@ export default function CompetitorAnalysis() {
                     {optimizerLoading ? (
                         <div className="mt-4 flex flex-col items-center justify-center py-20 bg-slate-50/30 rounded-3xl border border-dashed border-slate-200">
                             <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display animate-pulse">Calculating Optimal Trajectories</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display animate-pulse">{t('dashboard.calculating_trajectories')}</span>
                         </div>
                     ) : optimizerResults && (
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 gap-6">
                                 {/* Competitor Summary */}
                                 <div className="p-6 bg-indigo-500/5 backdrop-blur-md rounded-[2rem] border border-indigo-100/50 shadow-xl shadow-indigo-500/5 flex flex-col justify-between group/comp transition-all duration-300 hover:bg-indigo-500/10 hover:border-indigo-200">
-                                    <div className="text-[9px] text-indigo-400 uppercase font-black tracking-widest mb-3 font-display">Target Competitor Score</div>
+                                    <div className="text-[9px] text-indigo-400 uppercase font-black tracking-widest mb-3 font-display">{t('dashboard.target_comp_score')}</div>
                                     <div className="flex flex-col">
                                         <span className="text-3xl font-black text-slate-800 font-display tracking-tightest leading-none group-hover/comp:scale-105 transition-transform origin-left">{formatNumber(optimizerResults.competitor_total_score, 2)}</span>
                                         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-indigo-100/50">
-                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">PT: {formatNumber(optimizerResults.competitor_tech_score, 1)}</div>
-                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">PE: {formatNumber(optimizerResults.competitor_econ_score, 1)}</div>
+                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">{t('dashboard.tech_pt')}: {formatNumber(optimizerResults.competitor_tech_score, 1)}</div>
+                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">{t('dashboard.econ_pt')}: {formatNumber(optimizerResults.competitor_econ_score, 1)}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -175,11 +175,11 @@ export default function CompetitorAnalysis() {
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">Sconto</div>
+                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">{t('dashboard.discount')}</div>
                                                 <div className="text-xl font-black text-slate-800 font-display">{formatNumber(myDiscount, 2)}%</div>
                                             </div>
                                             <div>
-                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">Win Prob.</div>
+                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">{t('dashboard.win_prob_label')}</div>
                                                 <div className="text-xl font-black text-indigo-600 font-display">{monteCarlo?.win_probability || 0}%</div>
                                             </div>
                                         </div>
@@ -190,7 +190,7 @@ export default function CompetitorAnalysis() {
                             {/* Scenarios Grid */}
                             <div>
                                 <div className="flex items-center justify-between mb-6">
-                                    <h4 className="text-[9px] text-slate-400 uppercase font-black tracking-widest font-display">Strategie</h4>
+                                    <h4 className="text-[9px] text-slate-400 uppercase font-black tracking-widest font-display">{t('dashboard.strategies')}</h4>
                                     <div className="h-px bg-slate-200 flex-1 ml-6" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">

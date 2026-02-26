@@ -250,7 +250,7 @@ export default function TeamCompositionTable({
           <thead>
             <tr>
               <th className="px-4 py-2 w-8"></th>
-              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Profilo / Ruolo</th>
+              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.team_profile_role', 'Profilo / Ruolo')}</th>
               <th className="px-4 py-2 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-28">Seniority</th>
               <th className="px-4 py-2 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-24">FTE Nom.</th>
               {hasAnyAdjustment && (
@@ -273,7 +273,7 @@ export default function TeamCompositionTable({
                   </div>
                 </th>
               ))}
-              <th className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">Tot %</th>
+              <th className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">{t('business_plan.team_total_pct', 'Tot %')}</th>
               <th className="px-4 py-2 w-12"></th>
             </tr>
           </thead>
@@ -283,7 +283,7 @@ export default function TeamCompositionTable({
                 <td colSpan={(hasAnyAdjustment ? 8 : 6) + tows.length + 1} className="px-4 py-8 text-center text-slate-500">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="w-8 h-8 text-slate-300" />
-                    <p>Nessun profilo configurato</p>
+                    <p>{t('business_plan.team_no_profiles')}</p>
                     <button
                       onClick={() => setShowAddRow(true)}
                       disabled={disabled}
@@ -463,7 +463,7 @@ export default function TeamCompositionTable({
                               {adj.periodDetails.map((p, pIdx) => (
                                 <div key={pIdx} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-xs">
                                   <div className="flex items-center justify-between mb-2">
-                                    <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Mesi {p.start} - {p.end}</span>
+                                    <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">{t('business_plan.cb_months', 'Mesi')} {p.start} - {p.end}</span>
                                     <span className="font-bold text-slate-700">{p.effectiveFte.toFixed(2)} FTE eff.</span>
                                   </div>
                                   <div className="space-y-1 text-slate-500">
@@ -473,20 +473,20 @@ export default function TeamCompositionTable({
                                     </div>
                                     {p.pFactor < 1.0 && (
                                       <div className="flex justify-between items-center text-emerald-600">
-                                        <span>Fattore Profilo:</span>
+                                        <span>{t('business_plan.team_factor_profile')}:</span>
                                         <span className="font-medium">-{Math.round((1 - p.pFactor) * 100)}%</span>
                                       </div>
                                     )}
                                     {p.reuseMultiplier < 1.0 && (
                                       <div className="flex justify-between items-center text-blue-600">
-                                        <span>Fattore Riuso:</span>
+                                        <span>{t('business_plan.team_factor_reuse')}:</span>
                                         <span className="font-medium">-{Math.round((1 - p.reuseMultiplier) * 100)}%</span>
                                       </div>
                                     )}
                                     {p.finalTowFactor < 1.0 && (
                                       <div className="flex flex-col gap-1 pt-1 border-t border-slate-50 mt-1">
                                         <div className="flex justify-between items-center text-amber-600 font-medium">
-                                          <span>Riduzione TOW:</span>
+                                          <span>{t('business_plan.team_tow_reduction')}:</span>
                                           <span>-{Math.round((1 - p.finalTowFactor) * 100)}%</span>
                                         </div>
                                         {p.towBreakdown.map(tb => (
@@ -597,7 +597,7 @@ export default function TeamCompositionTable({
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Calculator className="w-4 h-4 text-slate-400" />
-                  <span className="text-sm text-slate-600">Totale:</span>
+                  <span className="text-sm text-slate-600">{t('business_plan.team_total', 'Totale:')}</span>
                 </div>
                 <div className="px-3 py-1 bg-blue-100 rounded-lg">
                   <span className="text-sm font-semibold text-blue-700">

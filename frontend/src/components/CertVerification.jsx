@@ -11,6 +11,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_URL } from '../utils/api';
 import { logger } from '../utils/logger';
@@ -27,16 +28,7 @@ const STATUS_COLORS = {
   unprocessed: 'bg-gray-100 text-gray-500',
 };
 
-const STATUS_LABELS = {
-  valid: 'Estratto',
-  expired: 'Scaduto',
-  mismatch: 'Nome non corrisponde',
-  unreadable: 'Non leggibile',
-  not_downloaded: 'Non scaricato',
-  too_large: 'File troppo grande',
-  error: 'Errore',
-  unprocessed: 'Non elaborato',
-};
+// Status labels will be resolved via t() inside the component
 
 // Input mode options
 const INPUT_MODES = {
@@ -48,6 +40,7 @@ const INPUT_MODES = {
  * Main CertVerification component
  */
 export default function CertVerification({ onClose }) {
+  const { t } = useTranslation();
   const [inputMode, setInputMode] = useState(INPUT_MODES.UPLOAD); // Default to upload for remote compatibility
   const [folderPath, setFolderPath] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
@@ -78,7 +71,7 @@ export default function CertVerification({ onClose }) {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.name.toLowerCase().endsWith('.zip')) {
-        setError('Seleziona un file ZIP');
+        setError(t('cert_verification.select_zip_error'));
         setSelectedFile(null);
         return;
       }
@@ -98,7 +91,7 @@ export default function CertVerification({ onClose }) {
   // Verify certificates in folder (original mode)
   const handleVerifyFolder = async () => {
     if (!folderPath.trim()) {
-      setError('Inserisci il percorso della cartella');
+      setError(t('cert_verification.enter_path'));
       return;
     }
 
@@ -127,7 +120,7 @@ export default function CertVerification({ onClose }) {
   // Verify certificates from ZIP upload
   const handleVerifyUpload = async () => {
     if (!selectedFile) {
-      setError('Seleziona un file ZIP');
+      setError(t('cert_verification.select_zip_error'));
       return;
     }
 
@@ -180,7 +173,7 @@ export default function CertVerification({ onClose }) {
   };
 
   // Check if verify button should be enabled
-  const canVerify = inputMode === INPUT_MODES.FOLDER 
+  const canVerify = inputMode === INPUT_MODES.FOLDER
     ? folderPath.trim() !== ''
     : selectedFile !== null;
 
@@ -190,7 +183,7 @@ export default function CertVerification({ onClose }) {
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-800">
-            🔍 Verifica Certificazioni
+            🔍 {t('cert_verification.title')}
           </h2>
           <button
             onClick={onClose}
@@ -211,24 +204,23 @@ export default function CertVerification({ onClose }) {
               disabled={checkingOcr}
               className="text-sm text-blue-600 hover:text-blue-800 underline"
             >
-              {checkingOcr ? 'Controllo...' : 'Verifica disponibilità OCR'}
+              {checkingOcr ? t('cert_verification.checking') : t('cert_verification.check_ocr')}
             </button>
             {ocrStatus && (
-              <div className={`mt-2 p-3 rounded-lg text-sm ${
-                ocrStatus.ocr_available 
-                  ? 'bg-green-50 text-green-700' 
-                  : 'bg-red-50 text-red-700'
-              }`}>
+              <div className={`mt-2 p-3 rounded-lg text-sm ${ocrStatus.ocr_available
+                ? 'bg-green-50 text-green-700'
+                : 'bg-red-50 text-red-700'
+                }`}>
                 {ocrStatus.ocr_available ? (
                   <>
-                    ✅ OCR disponibile
+                    ✅ {t('cert_verification.ocr_available')}
                     {ocrStatus.tesseract_version && (
                       <span className="ml-2">(Tesseract v{ocrStatus.tesseract_version})</span>
                     )}
                   </>
                 ) : (
                   <>
-                    ❌ OCR non disponibile: {ocrStatus.error || ocrStatus.message}
+                    ❌ {t('cert_verification.ocr_unavailable')}: {ocrStatus.error || ocrStatus.message}
                   </>
                 )}
               </div>
@@ -238,34 +230,32 @@ export default function CertVerification({ onClose }) {
           {/* Input Mode Toggle */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Modalità input
+              {t('cert_verification.input_mode')}
             </label>
             <div className="flex rounded-lg border border-gray-300 overflow-hidden w-fit">
               <button
                 onClick={() => setInputMode(INPUT_MODES.UPLOAD)}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
-                  inputMode === INPUT_MODES.UPLOAD
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${inputMode === INPUT_MODES.UPLOAD
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
-                📤 Upload ZIP
+                📤 {t('cert_verification.upload_zip')}
               </button>
               <button
                 onClick={() => setInputMode(INPUT_MODES.FOLDER)}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-l border-gray-300 ${
-                  inputMode === INPUT_MODES.FOLDER
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-l border-gray-300 ${inputMode === INPUT_MODES.FOLDER
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
-                📁 Cartella locale
+                📁 {t('cert_verification.local_folder')}
               </button>
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              {inputMode === INPUT_MODES.UPLOAD 
-                ? 'Carica un file ZIP contenente i PDF delle certificazioni'
-                : 'Inserisci il percorso di una cartella locale (solo per esecuzione locale)'}
+              {inputMode === INPUT_MODES.UPLOAD
+                ? t('cert_verification.upload_hint')
+                : t('cert_verification.folder_mode_hint')}
             </p>
           </div>
 
@@ -275,7 +265,7 @@ export default function CertVerification({ onClose }) {
               /* Folder Path Input */
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Percorso cartella certificazioni
+                  {t('cert_verification.folder_label')}
                 </label>
                 <input
                   type="text"
@@ -289,7 +279,7 @@ export default function CertVerification({ onClose }) {
               /* ZIP Upload Input */
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  File ZIP certificazioni
+                  {t('cert_verification.zip_label')}
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -315,8 +305,8 @@ export default function CertVerification({ onClose }) {
                     ) : (
                       <div className="text-gray-500">
                         <span className="text-2xl">📤</span>
-                        <p className="mt-1">Clicca per selezionare un file ZIP</p>
-                        <p className="text-xs mt-1">o trascina qui il file</p>
+                        <p className="mt-1">{t('cert_verification.click_to_select')}</p>
+                        <p className="text-xs mt-1">{t('cert_verification.upload_hint')}</p>
                       </div>
                     )}
                   </label>
@@ -324,7 +314,7 @@ export default function CertVerification({ onClose }) {
                     <button
                       onClick={clearFile}
                       className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                      title="Rimuovi file"
+                      title={t('cert_verification.remove_file')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -336,12 +326,12 @@ export default function CertVerification({ onClose }) {
             )}
 
             <p className="text-xs text-gray-500">
-              Formato file atteso: CODICE_NOMECERTIFICAZIONE_NOMECOGNOME.pdf
+              {t('cert_verification.folder_hint')}
             </p>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filtra per requisito (opzionale)
+                {t('cert_verification.filter_req_placeholder')}
               </label>
               <input
                 type="text"
@@ -355,11 +345,10 @@ export default function CertVerification({ onClose }) {
             <button
               onClick={handleVerify}
               disabled={loading || !canVerify}
-              className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                loading || !canVerify
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
+              className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${loading || !canVerify
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -367,12 +356,12 @@ export default function CertVerification({ onClose }) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  {uploadProgress?.phase === 'uploading' 
-                    ? `Caricamento... ${uploadProgress.percent || 0}%`
-                    : 'Elaborazione OCR...'}
+                  {uploadProgress?.phase === 'uploading'
+                    ? `${t('cert_verification.uploading')}... ${uploadProgress.percent || 0}%`
+                    : t('cert_verification.processing')}
                 </span>
               ) : (
-                '🔍 Verifica Certificazioni'
+                `🔍 ${t('cert_verification.title')}`
               )}
             </button>
           </div>
@@ -396,27 +385,27 @@ export default function CertVerification({ onClose }) {
 
               {/* Summary */}
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-800 mb-3">📊 Riepilogo</h3>
+                <h3 className="text-lg font-medium text-gray-800 mb-3">📊 {t('cert_verification.summary')}</h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-gray-800">{results.summary?.total || 0}</div>
-                    <div className="text-sm text-gray-500">Totale</div>
+                    <div className="text-sm text-gray-500">{t('cert_verification.total')}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">{results.summary?.valid || 0}</div>
-                    <div className="text-sm text-gray-500">Estratti</div>
+                    <div className="text-sm text-gray-500">{t('cert_verification.extracted')}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-yellow-600">{results.summary?.expired || 0}</div>
-                    <div className="text-sm text-gray-500">Scaduti</div>
+                    <div className="text-sm text-gray-500">{t('cert_verification.expired')}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-orange-600">{results.summary?.mismatch || 0}</div>
-                    <div className="text-sm text-gray-500">Nome errato</div>
+                    <div className="text-sm text-gray-500">{t('cert_verification.mismatch')}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">{(results.summary?.unreadable || 0) + (results.summary?.error || 0)}</div>
-                    <div className="text-sm text-gray-500">Non leggibili</div>
+                    <div className="text-sm text-gray-500">{t('cert_verification.unreadable')}</div>
                   </div>
                 </div>
               </div>
@@ -424,13 +413,13 @@ export default function CertVerification({ onClose }) {
               {/* By Requirement */}
               {results.summary?.by_requirement && Object.keys(results.summary.by_requirement).length > 0 && (
                 <div className="bg-blue-50 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-gray-800 mb-3">📋 Per Requisito</h3>
+                  <h3 className="text-lg font-medium text-gray-800 mb-3">📋 {t('cert_verification.by_requirement')}</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {Object.entries(results.summary.by_requirement).map(([req, data]) => (
                       <div key={req} className="bg-white rounded-lg p-3 shadow-sm">
                         <div className="font-medium text-gray-800">{req || '(vuoto)'}</div>
                         <div className="text-sm text-gray-500">
-                          {data.valid}/{data.total} validi
+                          {data.valid}/{data.total} {t('cert_verification.valid_label')}
                         </div>
                       </div>
                     ))}
@@ -445,62 +434,63 @@ export default function CertVerification({ onClose }) {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
-                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requisito</th>
-                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risorsa</th>
-                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificazione</th>
-                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validità</th>
-                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stato</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('cert_verification.col_file')}</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('cert_verification.col_requisito')}</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('cert_verification.col_resource')}</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('cert_verification.col_vendor')}</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('common.certificates')}</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('cert_verification.col_validity')}</th>
+                        <th className="px-4 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('cert_verification.col_status')}</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {results.results?.map((r, idx) => {
                         const displayFilename = r.filename?.split('/').pop() || r.filename;
                         return (
-                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-1.5 text-sm text-gray-900 max-w-xs truncate" title={r.filename}>
-                            {displayFilename}
-                          </td>
-                          <td className="px-4 py-1.5 text-sm text-gray-700">{r.req_code || '-'}</td>
-                          <td className="px-4 py-1.5 text-sm text-gray-700">
-                            <div>
-                              {r.resource_name || '-'}
-                              {r.resource_name_detected && r.resource_name !== r.resource_name_detected && (
-                                <div className="text-xs text-orange-600" title="Nome rilevato dall'OCR">
-                                  OCR: {r.resource_name_detected}
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-1.5 text-sm text-gray-900 max-w-xs truncate" title={r.filename}>
+                              {displayFilename}
+                            </td>
+                            <td className="px-4 py-1.5 text-sm text-gray-700">{r.req_code || '-'}</td>
+                            <td className="px-4 py-1.5 text-sm text-gray-700">
+                              <div>
+                                {r.resource_name || '-'}
+                                {r.resource_name_detected && r.resource_name !== r.resource_name_detected && (
+                                  <div className="text-xs text-orange-600" title="Nome rilevato dall'OCR">
+                                    OCR: {r.resource_name_detected}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-1.5 text-sm text-gray-700">{r.vendor_detected || '-'}</td>
+                            <td className="px-4 py-1.5 text-sm text-gray-700">
+                              <div className="max-w-xs">
+                                {r.cert_name_detected && <div className="font-medium">{r.cert_name_detected}</div>}
+                                {r.cert_code_detected && <div className="text-xs text-gray-500">{r.cert_code_detected}</div>}
+                                {!r.cert_name_detected && !r.cert_code_detected && '-'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {r.valid_from || r.valid_until ? (
+                                <div className="text-xs">
+                                  {r.valid_from && <div>{t('cert_verification.valid_from')}: {r.valid_from}</div>}
+                                  {r.valid_until && <div>{t('cert_verification.valid_until')}: {r.valid_until}</div>}
+                                </div>
+                              ) : '-'}
+                            </td>
+                            <td className="px-4 py-1.5">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[r.status] || STATUS_COLORS.unprocessed}`}>
+                                {t(`cert_verification.status_${r.status}`, { defaultValue: r.status })}
+                              </span>
+                              {r.errors && r.errors.length > 0 && (
+                                <div className="text-xs text-red-500 mt-1" title={r.errors.join(', ')}>
+                                  {r.errors[0].substring(0, 50)}...
                                 </div>
                               )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-1.5 text-sm text-gray-700">{r.vendor_detected || '-'}</td>
-                          <td className="px-4 py-1.5 text-sm text-gray-700">
-                            <div className="max-w-xs">
-                              {r.cert_name_detected && <div className="font-medium">{r.cert_name_detected}</div>}
-                              {r.cert_code_detected && <div className="text-xs text-gray-500">{r.cert_code_detected}</div>}
-                              {!r.cert_name_detected && !r.cert_code_detected && '-'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
-                            {r.valid_from || r.valid_until ? (
-                              <div className="text-xs">
-                                {r.valid_from && <div>Da: {r.valid_from}</div>}
-                                {r.valid_until && <div>A: {r.valid_until}</div>}
-                              </div>
-                            ) : '-'}
-                          </td>
-                          <td className="px-4 py-1.5">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[r.status] || STATUS_COLORS.unprocessed}`}>
-                              {STATUS_LABELS[r.status] || r.status}
-                            </span>
-                            {r.errors && r.errors.length > 0 && (
-                              <div className="text-xs text-red-500 mt-1" title={r.errors.join(', ')}>
-                                {r.errors[0].substring(0, 50)}...
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      )})}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -523,7 +513,7 @@ export default function CertVerification({ onClose }) {
               onClick={onClose}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
-              Chiudi
+              {t('common.cancel')}
             </button>
           </div>
         </div>

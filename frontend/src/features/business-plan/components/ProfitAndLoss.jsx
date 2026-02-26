@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../../utils/formatters';
 import {
   Receipt,
@@ -26,6 +27,7 @@ export default function ProfitAndLoss({
   targetMargin = 15,
   riskContingency = 0,
 }) {
+  const { t } = useTranslation();
 
   const pnl = useMemo(() => {
     // baseAmount e gia la quota Lutech, sconto applicato direttamente
@@ -63,12 +65,12 @@ export default function ProfitAndLoss({
 
   const getMarginStatus = () => {
     if (pnl.marginPct >= pnl.effectiveTarget) {
-      return { color: 'green', label: 'Sano', Icon: CheckCircle2 };
+      return { color: 'green', label: t('business_plan.pnl_status_healthy', 'Sano'), Icon: CheckCircle2 };
     }
     if (pnl.marginPct >= 0) {
-      return { color: 'amber', label: 'Sotto target', Icon: AlertTriangle };
+      return { color: 'amber', label: t('business_plan.pnl_status_under_target', 'Sotto target'), Icon: AlertTriangle };
     }
-    return { color: 'red', label: 'In perdita', Icon: XCircle };
+    return { color: 'red', label: t('business_plan.pnl_status_loss', 'In perdita'), Icon: XCircle };
   };
 
   const status = getMarginStatus();
@@ -103,8 +105,8 @@ export default function ProfitAndLoss({
     return (
       <div className="glass-card rounded-2xl p-8 text-center text-slate-500">
         <Receipt className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-        <p className="font-medium">Conto Economico</p>
-        <p className="text-sm mt-1">Configura l'importo base d'asta del lotto per visualizzare il P&L</p>
+        <p className="font-medium">{t('business_plan.pnl_title', 'Conto Economico')}</p>
+        <p className="text-sm mt-1">{t('business_plan.pnl_no_base_amount', "Configura l'importo base d'asta del lotto per visualizzare il P&L")}</p>
       </div>
     );
   }
@@ -119,19 +121,19 @@ export default function ProfitAndLoss({
               <Receipt className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Conto Economico di Commessa</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">Sintesi P&L: ricavi, costi e margine</p>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">{t('business_plan.pnl_full_title', 'Conto Economico di Commessa')}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">{t('business_plan.pnl_subtitle', 'Sintesi P&L: ricavi, costi e margine')}</p>
             </div>
           </div>
           {isRti && (
             <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-indigo-500/5 backdrop-blur-md rounded-xl border border-indigo-100 shadow-sm font-display uppercase tracking-tighter">
               <div className="flex flex-col">
-                <span className="text-[9px] text-slate-400 font-bold">BASE GARA TOTALE</span>
+                <span className="text-[9px] text-slate-400 font-bold">{t('business_plan.pnl_total_base_amount', 'BASE GARA TOTALE')}</span>
                 <span className="text-xs font-black text-indigo-600">{formatCurrency(fullBaseAmount)}</span>
               </div>
               <div className="w-px h-6 bg-indigo-200" />
               <div className="flex flex-col">
-                <span className="text-[9px] text-slate-400 font-bold">QUOTA LUTECH ({(quotaLutech * 100).toFixed(0)}%)</span>
+                <span className="text-[9px] text-slate-400 font-bold">{t('business_plan.pnl_lutech_quota', 'QUOTA LUTECH')} ({(quotaLutech * 100).toFixed(0)}%)</span>
                 <span className="text-xs font-black text-indigo-700">{formatCurrency(baseAmount)}</span>
               </div>
             </div>
@@ -146,18 +148,18 @@ export default function ProfitAndLoss({
           <div className="space-y-3">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="w-4 h-4 text-blue-600" />
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest-plus font-display">Ricavi</span>
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest-plus font-display">{t('business_plan.pnl_revenue', 'Ricavi')}</span>
             </div>
 
             <div className="space-y-2">
-              <Row label={isRti ? 'Base d\'asta Lutech' : 'Base d\'asta'} value={pnl.baseAmount} />
-              <Row label={`Sconto (${discount}%)`} value={-pnl.scontoAmount} negative />
+              <Row label={isRti ? t('business_plan.pnl_lutech_base_price', "Base d'asta Lutech") : t('business_plan.pnl_base_price', "Base d'asta")} value={pnl.baseAmount} />
+              <Row label={`${t('business_plan.pnl_discount', 'Sconto')} (${discount}%)`} value={-pnl.scontoAmount} negative />
               <Divider />
-              <Row label="Revenue" value={pnl.revenue} bold />
+              <Row label={t('business_plan.pnl_revenue_en', "Revenue")} value={pnl.revenue} bold />
             </div>
 
             <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-              <div className="text-xs text-blue-600 font-medium">Revenue Lutech</div>
+              <div className="text-xs text-blue-600 font-medium">{t('business_plan.pnl_lutech_revenue', 'Revenue Lutech')}</div>
               <div className="text-2xl font-bold text-blue-700">{formatCurrency(pnl.revenue)}</div>
             </div>
           </div>
@@ -166,30 +168,30 @@ export default function ProfitAndLoss({
           <div className="space-y-3">
             <div className="flex items-center gap-2 mb-4">
               <TrendingDown className="w-4 h-4 text-indigo-600" />
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest-plus font-display">Costi</span>
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest-plus font-display">{t('business_plan.pnl_costs', 'Costi')}</span>
             </div>
 
             <div className="space-y-2">
               {cleanTeamCost > 0 && cleanTeamCost !== pnl.team && (
                 <div className="flex justify-between items-center text-sm opacity-50">
-                  <span className="text-slate-500 line-through">Team (no ottimiz.)</span>
+                  <span className="text-slate-500 line-through">{t('business_plan.pnl_team_no_opt', 'Team (no ottimiz.)')}</span>
                   <span className="text-slate-400 line-through">{formatCurrency(cleanTeamCost)}</span>
                 </div>
               )}
-              <Row label="Costo Team" value={pnl.team} />
-              <Row label="Governance" value={pnl.governance} />
-              <Row label="Risk Contingency" value={pnl.risk} />
+              <Row label={t('business_plan.pnl_team_cost', 'Costo Team')} value={pnl.team} />
+              <Row label={t('business_plan.pnl_governance', 'Governance')} value={pnl.governance} />
+              <Row label={t('business_plan.pnl_risk_contingency', 'Risk Contingency')} value={pnl.risk} />
               {pnl.subcontract > 0 && (
-                <Row label="Subappalto" value={pnl.subcontract} />
+                <Row label={t('business_plan.pnl_subcontract', 'Subappalto')} value={pnl.subcontract} />
               )}
               <Divider />
-              <Row label="Totale Costi" value={pnl.total} bold />
+              <Row label={t('business_plan.pnl_total_costs', 'Totale Costi')} value={pnl.total} bold />
             </div>
 
             {pnl.savingPct > 0 && (
               <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-200">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-emerald-600">Saving da ottimizzazione</span>
+                  <span className="text-xs text-emerald-600">{t('business_plan.pnl_opt_saving', 'Saving da ottimizzazione')}</span>
                   <span className="text-sm font-bold text-emerald-700">-{pnl.savingPct.toFixed(1)}%</span>
                 </div>
               </div>
@@ -200,14 +202,14 @@ export default function ProfitAndLoss({
           <div className="space-y-3">
             <div className="flex items-center gap-2 mb-4">
               <status.Icon className={`w-4 h-4 ${sc.icon}`} />
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking_widest-plus font-display">Margine</span>
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking_widest-plus font-display">{t('business_plan.pnl_margin', 'Margine')}</span>
             </div>
 
             <div className={`p-4 rounded-2xl border ${sc.border} ${sc.bg} shadow-sm backdrop-blur-sm`}>
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-[10px] font-black uppercase tracking-widest font-display ${sc.text}`}>{status.label}</span>
                 <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${sc.text}`}>
-                  TARGET: {pnl.effectiveTarget.toFixed(0)}%
+                  {t('business_plan.pnl_target', 'TARGET')}: {pnl.effectiveTarget.toFixed(0)}%
                 </span>
               </div>
               <div className={`text-5xl font-black ${sc.textBold} mb-4 font-display tracking-tightest`}>
@@ -215,16 +217,16 @@ export default function ProfitAndLoss({
               </div>
               <div className="space-y-1.5">
                 <div className="flex justify-between text-sm">
-                  <span className={sc.text}>Revenue</span>
+                  <span className={sc.text}>{t('business_plan.pnl_revenue_en', 'Revenue')}</span>
                   <span className={`font-semibold ${sc.textBold}`}>{formatCurrency(pnl.revenue)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className={sc.text}>Costi</span>
+                  <span className={sc.text}>{t('business_plan.pnl_costs', 'Costi')}</span>
                   <span className={`font-semibold ${sc.textBold}`}>{formatCurrency(pnl.total)}</span>
                 </div>
                 <div className={`h-px ${sc.border}`} />
                 <div className="flex justify-between text-sm">
-                  <span className={`font-bold ${sc.text}`}>Margine</span>
+                  <span className={`font-bold ${sc.text}`}>{t('business_plan.pnl_margin', 'Margine')}</span>
                   <span className={`font-bold text-lg ${sc.textBold}`}>{formatCurrency(pnl.margin)}</span>
                 </div>
               </div>
@@ -236,7 +238,7 @@ export default function ProfitAndLoss({
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-slate-500">
                     <span>0%</span>
-                    <span>Target {pnl.effectiveTarget.toFixed(0)}%</span>
+                    <span>{t('business_plan.pnl_target_val', 'Target')} {pnl.effectiveTarget.toFixed(0)}%</span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden relative">
                     <div
@@ -245,7 +247,7 @@ export default function ProfitAndLoss({
                     />
                     <div
                       className={`h-full rounded-full transition-all ${status.color === 'green' ? 'bg-green-500' :
-                          status.color === 'amber' ? 'bg-amber-500' : 'bg-red-500'
+                        status.color === 'amber' ? 'bg-amber-500' : 'bg-red-500'
                         }`}
                       style={{ width: `${Math.max(0, Math.min(pnl.marginPct, barMax)) / barMax * 100}%` }}
                     />

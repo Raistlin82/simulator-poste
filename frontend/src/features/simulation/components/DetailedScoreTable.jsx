@@ -32,16 +32,16 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
                     </div>
                     <div>
                         <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest font-display">{t('dashboard.detail_table')}</h3>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">Ripartizione Puntuale Requisiti Gara</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">{t('dashboard.detailed_score_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex gap-3 flex-wrap">
                     <div className="px-6 py-2.5 bg-indigo-500 text-white rounded-[1.25rem] shadow-lg shadow-indigo-500/20 flex items-center gap-3">
-                        <span className="text-[10px] font-black uppercase tracking-widest font-display opacity-80">PT Pesato:</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest font-display opacity-80">{t('dashboard.weighted_pt_label')}:</span>
                         <span className="text-lg font-black font-display tabular-nums">{formatNumber(results.technical_score, 2)} / {results?.calculated_max_tech_score || lotData?.max_tech_score || 60}</span>
                     </div>
                     <div className="px-6 py-2.5 bg-white/60 border border-white/60 rounded-[1.25rem] shadow-sm flex items-center gap-3">
-                        <span className="text-[10px] font-black uppercase tracking-widest font-display text-slate-400">Raw Ponti:</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest font-display text-slate-400">{t('dashboard.raw_pts_label')}:</span>
                         <span className="text-lg font-black font-display text-slate-800 tabular-nums">{formatNumber(results.raw_technical_score || 0, 1)} / {lotData?.max_raw_score || 0}</span>
                     </div>
                 </div>
@@ -128,7 +128,7 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
                                             </div>
                                             :
                                             <div className="flex items-center justify-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl border border-slate-200">
-                                                <span className="text-[10px] font-black uppercase tracking-widest font-display text-nowrap">{formatNumber(percentage, 0)}% Complete</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest font-display text-nowrap">{formatNumber(percentage, 0)}% {t('tech.cert_complete')}</span>
                                             </div>
                                         }
                                     </td>

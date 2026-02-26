@@ -703,7 +703,7 @@ export default function BusinessPlanPage() {
           });
         }
 
-        // Prezzo catalogo = Σ lutech_revenue (Prezzo Vendita Tot. per voce)
+        // Prezzo catalogo = Σ Pz. Poste Tot. (ricavo Poste già scontato) — ora correttamente dall'engine
         const catalogTotal = towDetail ? towDetail.sell_price : 0;
 
         const itemMap = Object.fromEntries(items.map(it => [it.id, it]));
@@ -722,7 +722,8 @@ export default function BusinessPlanPage() {
             poste_total: detail.poste_total ?? 0,
             sconto_pct: detail.sconto_pct ?? 0,
             effective_margin_pct: detail.effective_margin_pct ?? 0,
-            total: detail.lutech_revenue ?? 0,  // Prezzo Vendita Tot.
+            total: detail.poste_total ?? 0,  // Pz. Poste Tot. (ricavo Poste già scontato)
+            lutech_revenue: detail.lutech_revenue ?? 0,  // Pz. Vend. Tot. (informativo Lutech)
           };
         };
 

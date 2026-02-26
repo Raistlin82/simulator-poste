@@ -49,7 +49,7 @@ export default function CompanyCertsEditor({
             <div key={idx} className="flex gap-4 items-center bg-purple-50 p-3 rounded-lg border border-purple-200 group">
               <div className="flex-1">
                 <label className="block text-xs font-bold text-purple-600 uppercase mb-1 tracking-wider">
-                  Certificazione
+                  {t('config.cert_label')}
                 </label>
                 <select
                   value={cert.label}
@@ -91,7 +91,7 @@ export default function CompanyCertsEditor({
 
               <div>
                 <label className="block text-xs font-bold text-amber-600 uppercase mb-1 tracking-wider">
-                  Peso Gara
+                  {t('config.tender_weight')}
                 </label>
                 <input
                   type="number"
@@ -114,8 +114,8 @@ export default function CompanyCertsEditor({
           ))
         ) : (
           <div className="text-center py-10 border-2 border-dashed border-purple-200 rounded-xl bg-purple-50/50">
-            <div className="text-sm text-purple-700 font-medium">Nessuna certificazione aggiunta</div>
-            <div className="text-xs text-purple-500 mt-1">Clicca su "Aggiungi Certificazione" per iniziare</div>
+            <div className="text-sm text-purple-700 font-medium">{t('config.no_certs_added')}</div>
+            <div className="text-xs text-purple-500 mt-1">{t('config.add_cert_hint')}</div>
           </div>
         )}
       </div>
@@ -123,11 +123,11 @@ export default function CompanyCertsEditor({
       <div className="mt-6 pt-4 border-t border-slate-200">
         <div className="grid grid-cols-2 gap-3">
           <div className="flex justify-between items-center bg-purple-50 px-5 py-3 rounded-lg border border-purple-200">
-            <div className="text-sm font-semibold text-purple-800">Totale Raw</div>
+            <div className="text-sm font-semibold text-purple-800">{t('config.total_raw')}</div>
             <div className="text-2xl font-black text-purple-700">{totalPoints.toFixed(1)}</div>
           </div>
           <div className="flex justify-between items-center bg-amber-50 px-5 py-3 rounded-lg border border-amber-200">
-            <div className="text-sm font-semibold text-amber-800">Totale Pesato</div>
+            <div className="text-sm font-semibold text-amber-800">{t('config.total_weighted')}</div>
             <div className="text-2xl font-black text-amber-700">{totalGaraWeight.toFixed(1)}</div>
           </div>
         </div>

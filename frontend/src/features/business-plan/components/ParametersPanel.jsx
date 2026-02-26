@@ -196,27 +196,27 @@ export default function ParametersPanel({
   const governanceModes = [
     {
       value: 'percentage',
-      label: 'Percentuale',
+      label: t('business_plan.governance_pct'),
       icon: Percent,
-      desc: '% del team',
+      desc: t('business_plan.governance_pct_desc'),
     },
     {
       value: 'fte',
-      label: 'FTE Slices',
+      label: t('business_plan.governance_fte'),
       icon: Calendar,
-      desc: 'Per periodo',
+      desc: t('business_plan.governance_fte_desc'),
     },
     {
       value: 'manual',
-      label: 'Manuale',
+      label: t('business_plan.governance_manual'),
       icon: Edit3,
-      desc: 'Importo fisso',
+      desc: t('business_plan.governance_manual_desc'),
     },
     {
       value: 'team_mix',
-      label: 'Mix Profili',
+      label: t('business_plan.governance_team_mix'),
       icon: Settings2,
-      desc: 'Da tariffa media',
+      desc: t('business_plan.governance_mix_desc'),
     },
   ];
 
@@ -333,7 +333,7 @@ export default function ParametersPanel({
   const getPeriodLabel = (period) => {
     const start = period.month_start || 1;
     const end = period.month_end || durationMonths;
-    return `Mesi ${start}-${end}`;
+    return `${t('business_plan.months_range')} ${start}-${end}`;
   };
 
   const getPeriodMixInfo = (period) => {
@@ -370,7 +370,7 @@ export default function ParametersPanel({
                 {t('business_plan.parameters')}
               </h3>
               <p className="text-xs text-slate-500">
-                Governance, Risk, Fattore Riuso
+                {t('business_plan.parameters_governance')}
               </p>
             </div>
           </div>
@@ -403,7 +403,7 @@ export default function ParametersPanel({
                 </div>
                 {governanceCalc.reuseApplied && (
                   <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight">
-                    -{current.reuse_factor}% riuso
+                    -{current.reuse_factor}% {t('business_plan.governance_reuse_applied')}
                   </div>
                 )}
               </div>
@@ -467,7 +467,7 @@ export default function ParametersPanel({
                     <span className="text-sm text-slate-500">%</span>
                   </div>
                   <div className="text-xs text-slate-500">
-                    = {governanceFteFromPct.toFixed(2)} FTE equivalenti
+                    = {governanceFteFromPct.toFixed(2)} {t('business_plan.governance_fte_equiv')}
                   </div>
                 </div>
               )}
@@ -477,7 +477,7 @@ export default function ParametersPanel({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-slate-600">
-                      Periodi FTE
+                      {t('business_plan.governance_fte_periods')}
                     </span>
                     <button
                       onClick={handleSyncFtePeriods}
@@ -485,13 +485,13 @@ export default function ParametersPanel({
                       className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
                     >
                       <RefreshCw className="w-3 h-3" />
-                      Sincronizza
+                      {t('business_plan.governance_sync')}
                     </button>
                   </div>
 
                   {(current.governance_fte_periods || []).length === 0 && (
                     <div className="text-center py-4 text-slate-400 text-xs bg-slate-50 rounded-lg">
-                      Nessun periodo. Clicca "Aggiungi" o "Sincronizza"
+                      {t('business_plan.governance_no_periods')}
                     </div>
                   )}
 
@@ -542,7 +542,7 @@ export default function ParametersPanel({
                             <div className="grid grid-cols-3 gap-2">
                               <div>
                                 <label className="text-[10px] text-slate-500">
-                                  Mese Inizio
+                                  {t('business_plan.month_start')}
                                 </label>
                                 <input
                                   type="number"
@@ -562,7 +562,7 @@ export default function ParametersPanel({
                               </div>
                               <div>
                                 <label className="text-[10px] text-slate-500">
-                                  Mese Fine
+                                  {t('business_plan.month_end')}
                                 </label>
                                 <input
                                   type="number"
@@ -604,7 +604,7 @@ export default function ParametersPanel({
 
                             <div className="space-y-2">
                               <label className="text-[10px] text-slate-500">
-                                Mix Profili
+                                {t('business_plan.mix_profile')}
                               </label>
                               {(period.team_mix || []).map((item, mixIdx) => (
                                 <div
@@ -624,7 +624,7 @@ export default function ParametersPanel({
                                     disabled={disabled}
                                     className="flex-1 px-2 py-1 border border-slate-200/50 rounded text-[10px] bg-white/40 backdrop-blur-sm shadow-sm"
                                   >
-                                    <option value="">-- Profilo --</option>
+                                    <option value="">{t('business_plan.profile_placeholder')}</option>
                                     {practices.map((p) => (
                                       <optgroup key={p.id} label={p.label}>
                                         {(p.profiles || []).map((prof) => (
@@ -681,7 +681,7 @@ export default function ParametersPanel({
                                 (period.team_mix || []).length > 0 && (
                                   <div className="flex items-center gap-1 text-[10px] text-amber-600">
                                     <AlertTriangle className="w-3 h-3" />
-                                    Totale: {mixInfo.totalPct.toFixed(0)}%
+                                    {t('business_plan.mix_total_warning')} {mixInfo.totalPct.toFixed(0)}%
                                   </div>
                                 )}
                             </div>
@@ -697,7 +697,7 @@ export default function ParametersPanel({
                     className="flex items-center justify-center gap-1 px-3 py-2 w-full text-xs text-blue-600 hover:bg-blue-50 rounded-lg border border-dashed border-blue-200"
                   >
                     <Plus className="w-4 h-4" />
-                    Aggiungi Periodo
+                    {t('business_plan.governance_add_period')}
                   </button>
                 </div>
               )}
@@ -753,7 +753,7 @@ export default function ParametersPanel({
                         className="flex-1 px-2 py-1.5 border border-slate-200/50 rounded-lg text-xs bg-white/40 backdrop-blur-sm shadow-sm
                                    focus:border-blue-500 focus:outline-none"
                       >
-                        <option value="">-- Profilo --</option>
+                        <option value="">{t('business_plan.profile_placeholder')}</option>
                         {practices.map((p) => (
                           <optgroup key={p.id} label={p.label}>
                             {(p.profiles || []).map((prof) => (
@@ -797,7 +797,7 @@ export default function ParametersPanel({
                     className="flex items-center justify-center gap-1 px-3 py-2 w-full text-xs text-blue-600 hover:bg-blue-50 rounded-lg border border-dashed border-blue-200"
                   >
                     <Plus className="w-4 h-4" />
-                    Aggiungi Profilo
+                    {t('business_plan.governance_add_profile')}
                   </button>
 
                   {governanceCalc.details.totalPct > 0 && (

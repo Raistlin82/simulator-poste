@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../../utils/formatters';
 import {
   TrendingUp,
@@ -41,6 +42,7 @@ export default function TowAnalysis({
   onApplyOptimization,
 }) {
   const durationYears = durationMonths / 12;
+  const { t } = useTranslation();
   // Calculate revenue per TOW based on weight
   const totalWeight = useMemo(() => {
     return tows.reduce((sum, t) => sum + (parseFloat(t.weight_pct) || 0), 0) || 100;
@@ -156,15 +158,15 @@ export default function TowAnalysis({
       let statusColor = 'green';
       if (marginPct < 0) {
         status = 'loss';
-        statusLabel = 'PERDITA';
+        statusLabel = t('business_plan.tow_status_loss');
         statusColor = 'red';
       } else if (marginPct < 10) {
         status = 'warning';
-        statusLabel = 'BASSO';
+        statusLabel = t('business_plan.tow_status_low');
         statusColor = 'yellow';
       } else if (marginPct >= 20) {
         status = 'excellent';
-        statusLabel = 'ALTO';
+        statusLabel = t('business_plan.tow_status_high');
         statusColor = 'green';
       }
 
@@ -507,24 +509,24 @@ export default function TowAnalysis({
 
       // Determine proposal type and label
       let proposalType = 'maintain';
-      let proposalLabel = 'Mantenere';
+      let proposalLabel = t('business_plan.tow_proposal_maintain');
       let proposalColor = 'slate';
 
       if (marginPct <= 0) {
         proposalType = 'critical';
-        proposalLabel = 'Critico';
+        proposalLabel = t('business_plan.tow_proposal_critical');
         proposalColor = 'red';
       } else if (costReduction > 20000) {
         proposalType = 'juniorize';
-        proposalLabel = 'Juniorizzare';
+        proposalLabel = t('business_plan.tow_proposal_juniorize');
         proposalColor = 'green';
       } else if (proposalActions.some(a => a.type === 'absorb')) {
         proposalType = 'absorb';
-        proposalLabel = 'Può assorbire';
+        proposalLabel = t('business_plan.tow_proposal_absorb');
         proposalColor = 'blue';
       } else if (hasSignificantChange) {
         proposalType = 'rebalance';
-        proposalLabel = 'Ribilanciare';
+        proposalLabel = t('business_plan.tow_proposal_rebalance');
         proposalColor = 'purple';
       }
 
@@ -588,8 +590,8 @@ export default function TowAnalysis({
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Analisi Margine per TOW</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">Profittabilità di ogni linea di attività</p>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">{t('business_plan.tow_analysis_margin_title')}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">{t('business_plan.tow_analysis_margin_sub')}</p>
             </div>
           </div>
         </div>
@@ -599,13 +601,13 @@ export default function TowAnalysis({
             <thead>
               <tr className="">
                 <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">TOW</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Peso</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Sconto</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Ricavo</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Costo</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Margine</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Margine %</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Status</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_weight')}</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('competition.discount')}</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_revenue')}</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_cost')}</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_margin')}</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_margin_pct')}</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_status')}</th>
               </tr>
             </thead>
             <tbody className="">
@@ -656,7 +658,7 @@ export default function TowAnalysis({
             </tbody>
             <tfoot>
               <tr className="bg-slate-50/80 font-semibold">
-                <td className="px-4 py-3 text-slate-800 rounded-l-xl">TOTALE</td>
+                <td className="px-4 py-3 text-slate-800 rounded-l-xl">{t('business_plan.tow_total')}</td>
                 <td className="px-4 py-3 text-right text-slate-600">100%</td>
                 <td className="px-4 py-3 text-right">
                   <span className={`font-semibold ${discount > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
@@ -684,8 +686,8 @@ export default function TowAnalysis({
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Seniority per TOW</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">Mix di seniority allocato su ogni attività</p>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">{t('business_plan.tow_analysis_seniority_title')}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">{t('business_plan.tow_analysis_seniority_sub')}</p>
             </div>
           </div>
         </div>
@@ -695,12 +697,12 @@ export default function TowAnalysis({
             <thead>
               <tr className="">
                 <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">TOW</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">FTE Totali</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_fte_total')}</th>
                 <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Senior</th>
                 <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Mid</th>
                 <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Junior</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Mix</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Valutazione</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_mix')}</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_valuation')}</th>
               </tr>
             </thead>
             <tbody className="">
@@ -746,17 +748,17 @@ export default function TowAnalysis({
                       {tow.seniorPct > 70 ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">
                           <AlertTriangle className="w-3 h-3" />
-                          Troppi Senior
+                          {t('business_plan.tow_status_too_senior')}
                         </span>
                       ) : tow.juniorPct > 70 ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">
                           <AlertCircle className="w-3 h-3" />
-                          Troppi Junior
+                          {t('business_plan.tow_status_too_junior')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
                           <CheckCircle2 className="w-3 h-3" />
-                          Bilanciato
+                          {t('business_plan.tow_status_balanced')}
                         </span>
                       )}
                     </div>
@@ -777,8 +779,8 @@ export default function TowAnalysis({
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-800">Rischi Identificati</h3>
-                <p className="text-xs text-slate-500">{risks.length} potenziali criticità rilevate</p>
+                <h3 className="font-semibold text-slate-800">{t('business_plan.tow_analysis_risks_title')}</h3>
+                <p className="text-xs text-slate-500">{t('business_plan.tow_analysis_risks_sub', { count: risks.length })}</p>
               </div>
             </div>
           </div>
@@ -819,9 +821,9 @@ export default function TowAnalysis({
                   <Shuffle className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-800">Proposta Mix Risorse per TOW</h3>
+                  <h3 className="font-semibold text-slate-800">{t('business_plan.tow_analysis_mix_title')}</h3>
                   <p className="text-xs text-slate-500">
-                    Ottimizzazione basata su effort, profittabilità e peso TOW
+                    {t('business_plan.tow_analysis_mix_sub')}
                   </p>
                 </div>
               </div>
@@ -829,7 +831,7 @@ export default function TowAnalysis({
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 rounded-lg border border-green-200">
                   <Zap className="w-4 h-4 text-green-600" />
                   <span className="text-sm font-semibold text-green-700">
-                    Risparmio potenziale: {formatCurrency(totalPotentialSavings)}
+                    {t('business_plan.tow_analysis_savings')}: {formatCurrency(totalPotentialSavings)}
                   </span>
                 </div>
               )}
@@ -841,19 +843,19 @@ export default function TowAnalysis({
             <div className="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-100">
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 bg-orange-400 rounded-full"></span> Senior
+                  <span className="w-3 h-3 bg-orange-400 rounded-full"></span> {t('business_plan.tow_legend_senior')}
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 bg-blue-400 rounded-full"></span> Mid
+                  <span className="w-3 h-3 bg-blue-400 rounded-full"></span> {t('business_plan.tow_legend_mid')}
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 bg-green-400 rounded-full"></span> Junior
+                  <span className="w-3 h-3 bg-green-400 rounded-full"></span> {t('business_plan.tow_legend_junior')}
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-medium">Critico</span>
-                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-medium">Juniorizzare</span>
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">Può assorbire</span>
+                <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-medium">{t('business_plan.tow_legend_critical')}</span>
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-medium">{t('business_plan.tow_legend_juniorize')}</span>
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">{t('business_plan.tow_legend_absorb')}</span>
               </div>
             </div>
 
@@ -881,12 +883,12 @@ export default function TowAnalysis({
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs">
-                    <span className="text-slate-500">Peso: <span className="font-medium">{formatPercent(proposal.weight)}</span></span>
+                    <span className="text-slate-500">{t('business_plan.tow_col_weight')}: <span className="font-medium">{formatPercent(proposal.weight)}</span></span>
                     <span className="text-slate-500">FTE: <span className="font-medium">{proposal.totalFte.toFixed(1)}</span></span>
-                    <span className="text-slate-500">Rate medio: <span className="font-medium">{proposal.avgRate}€/gg</span></span>
+                    <span className="text-slate-500">{t('business_plan.tow_mix_avg_rate')}: <span className="font-medium">{proposal.avgRate}€/gg</span></span>
                     {proposal.expensivePct > 30 && (
                       <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[10px] font-medium">
-                        {proposal.expensivePct}% costosi
+                        {proposal.expensivePct}% {t('business_plan.tow_mix_expensive')}
                       </span>
                     )}
                   </div>
@@ -896,7 +898,7 @@ export default function TowAnalysis({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Current Mix */}
                   <div className="space-y-2">
-                    <div className="text-xs font-medium text-slate-500 uppercase">Mix Attuale</div>
+                    <div className="text-xs font-medium text-slate-500 uppercase">{t('business_plan.tow_mix_current')}</div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-6 bg-slate-200 rounded-lg overflow-hidden flex">
                         <div
@@ -924,9 +926,9 @@ export default function TowAnalysis({
                       <span>M: {proposal.currentMix.mid.fte.toFixed(1)}</span>
                       <span>J: {proposal.currentMix.junior.fte.toFixed(1)}</span>
                     </div>
-                    <div className={`text-sm font-medium ${proposal.currentMarginPct <= 0 ? 'text-red-600' : proposal.currentMarginPct < 15 ? 'text-orange-600' : 'text-slate-600'}`}>
-                      Margine: {formatPercent(proposal.currentMarginPct)}
-                      {proposal.currentMarginPct <= 0 && <span className="ml-1 text-xs">(PERDITA)</span>}
+                    <div className="text-sm font-medium {proposal.currentMarginPct <= 0 ? 'text-red-600' : proposal.currentMarginPct < 15 ? 'text-orange-600' : 'text-slate-600'}">
+                      {t('business_plan.tow_margin_label')}: {formatPercent(proposal.currentMarginPct)}
+                      {proposal.currentMarginPct <= 0 && <span className="ml-1 text-xs">({t('business_plan.tow_status_loss')})</span>}
                     </div>
                   </div>
 
@@ -937,7 +939,7 @@ export default function TowAnalysis({
 
                   {/* Proposed Mix */}
                   <div className="space-y-2">
-                    <div className="text-xs font-medium text-slate-500 uppercase">Mix Proposto</div>
+                    <div className="text-xs font-medium text-slate-500 uppercase">{t('business_plan.tow_mix_proposed')}</div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-6 bg-slate-200 rounded-lg overflow-hidden flex">
                         <div
@@ -981,10 +983,10 @@ export default function TowAnalysis({
                       </span>
                     </div>
                     <div className="text-sm font-medium text-green-600">
-                      Margine: {formatPercent(proposal.newMarginPct)}
+                      {t('business_plan.tow_margin_label')}: {formatPercent(proposal.newMarginPct)}
                       {proposal.savings > 1000 && (
                         <span className="ml-2 text-green-500">
-                          (risparmio {formatCurrency(proposal.savings)})
+                          ({t('business_plan.tow_savings_label')} {formatCurrency(proposal.savings)})
                         </span>
                       )}
                     </div>
@@ -994,7 +996,7 @@ export default function TowAnalysis({
                 {/* Expensive Profiles Detail */}
                 {proposal.expensiveProfiles && proposal.expensiveProfiles.length > 0 && proposal.currentMarginPct < 15 && (
                   <div className="mt-3 pt-3 border-t border-slate-200">
-                    <div className="text-xs font-medium text-slate-500 mb-2">Profili costosi su questo TOW:</div>
+                    <div className="text-xs font-medium text-slate-500 mb-2">{t('business_plan.tow_mix_expensive_profiles')}:</div>
                     <div className="flex flex-wrap gap-2">
                       {proposal.expensiveProfiles.slice(0, 4).map((p, i) => (
                         <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
@@ -1011,7 +1013,7 @@ export default function TowAnalysis({
                 {/* Proposal Actions */}
                 {proposal.proposalActions && proposal.proposalActions.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
-                    <div className="text-xs font-medium text-slate-500">Azioni suggerite:</div>
+                    <div className="text-xs font-medium text-slate-500">{t('business_plan.tow_mix_actions')}:</div>
                     {proposal.proposalActions.map((action, i) => (
                       <div key={i} className={`flex items-start gap-2 text-sm p-2 rounded-lg ${action.type === 'replace' ? 'bg-green-50' :
                         action.type === 'reduce' ? 'bg-yellow-50' :
@@ -1030,12 +1032,12 @@ export default function TowAnalysis({
                           )}
                           {action.savings > 0 && (
                             <span className="ml-2 text-green-600 font-medium">
-                              → Risparmio: {formatCurrency(action.savings)}
+                              → {t('business_plan.tow_savings_action')}: {formatCurrency(action.savings)}
                             </span>
                           )}
                           {action.capacity > 0 && (
                             <span className="ml-2 text-blue-600 font-medium">
-                              → Capacità: +{action.capacity.toFixed(1)} FTE
+                              → {t('business_plan.tow_capacity_action')}: +{action.capacity.toFixed(1)} FTE
                             </span>
                           )}
                         </div>
@@ -1052,26 +1054,22 @@ export default function TowAnalysis({
                       <span className="text-slate-600">
                         {proposal.proposalType === 'critical' && (
                           <>
-                            <strong className="text-red-600">Critico:</strong> TOW in perdita. Ridurre urgentemente i profili senior
-                            di {Math.abs(proposal.fteDelta.senior).toFixed(1)} FTE e sostituirli con profili più economici.
+                            <strong className="text-red-600">{t('business_plan.tow_proposal_critical')}:</strong> {t('business_plan.rec_critical', { count: Math.abs(proposal.fteDelta.senior).toFixed(1) })}
                           </>
                         )}
                         {proposal.proposalType === 'juniorize' && (
                           <>
-                            <strong>Juniorizzare:</strong> Ridurre i profili senior di {Math.abs(proposal.fteDelta.senior).toFixed(1)} FTE
-                            e aumentare i junior di {proposal.fteDelta.junior.toFixed(1)} FTE per ottimizzare i costi.
+                            <strong>{t('business_plan.tow_proposal_juniorize')}:</strong> {t('business_plan.rec_juniorize', { senior: Math.abs(proposal.fteDelta.senior).toFixed(1), junior: proposal.fteDelta.junior.toFixed(1) })}
                           </>
                         )}
                         {proposal.proposalType === 'absorb' && (
                           <>
-                            <strong className="text-blue-600">Può assorbire:</strong> Questo TOW ha margine elevato ({formatPercent(proposal.currentMarginPct)})
-                            e può ricevere risorse senior spostate da TOW in difficoltà.
+                            <strong className="text-blue-600">{t('business_plan.tow_proposal_absorb')}:</strong> {t('business_plan.rec_absorb')}
                           </>
                         )}
                         {proposal.proposalType === 'rebalance' && (
                           <>
-                            <strong>Ribilanciare:</strong> Ottimizza il mix spostando risorse tra i livelli
-                            per bilanciare costi e competenze.
+                            <strong>{t('business_plan.tow_proposal_rebalance')}:</strong> {t('business_plan.rec_rebalance')}
                           </>
                         )}
                       </span>
@@ -1093,8 +1091,8 @@ export default function TowAnalysis({
                 <Lightbulb className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-800">Proposte di Ottimizzazione</h3>
-                <p className="text-xs text-slate-500">Suggerimenti per migliorare i margini (Juniorization)</p>
+                <h3 className="font-semibold text-slate-800">{t('business_plan.tow_analysis_opt_title')}</h3>
+                <p className="text-xs text-slate-500">{t('business_plan.tow_analysis_opt_sub')}</p>
               </div>
             </div>
           </div>
@@ -1113,14 +1111,14 @@ export default function TowAnalysis({
                       </span>
                       {proposal.estimatedSavings && (
                         <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
-                          Risparmio: {formatCurrency(proposal.estimatedSavings)}
+                          {t('business_plan.tow_opt_saving')}: {formatCurrency(proposal.estimatedSavings)}
                         </span>
                       )}
                     </div>
                     <p className="text-sm text-slate-700">{proposal.recommendation}</p>
                     {proposal.currentMargin !== undefined && proposal.newMargin !== undefined && (
                       <div className="mt-2 flex items-center gap-2 text-xs">
-                        <span className="text-slate-500">Margine:</span>
+                        <span className="text-slate-500">{t('business_plan.tow_opt_margin')}:</span>
                         <span className={proposal.currentMargin < 15 ? 'text-red-600' : 'text-slate-600'}>
                           {formatPercent(proposal.currentMargin)}
                         </span>
@@ -1138,7 +1136,7 @@ export default function TowAnalysis({
                                  hover:bg-green-700 transition-colors flex items-center gap-1"
                     >
                       <Target className="w-3 h-3" />
-                      Applica
+                      {t('business_plan.tow_apply_btn')}
                     </button>
                   )}
                 </div>
@@ -1147,7 +1145,7 @@ export default function TowAnalysis({
 
             {optimizationProposals.length > 5 && (
               <div className="text-center text-sm text-slate-500">
-                +{optimizationProposals.length - 5} altre proposte disponibili
+                +{optimizationProposals.length - 5} {t('business_plan.tow_more_proposals')}
               </div>
             )}
           </div>
@@ -1158,9 +1156,9 @@ export default function TowAnalysis({
       {risks.length === 0 && optimizationProposals.length === 0 && (
         <div className="bg-green-50 rounded-2xl border border-green-200 p-6 text-center">
           <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
-          <h3 className="font-semibold text-green-800 mb-1">Configurazione Ottimale</h3>
+          <h3 className="font-semibold text-green-800 mb-1">{t('business_plan.tow_analysis_optimal')}</h3>
           <p className="text-sm text-green-600">
-            Non sono stati identificati rischi o opportunità di ottimizzazione significative.
+            {t('business_plan.tow_analysis_optimal_desc')}
           </p>
         </div>
       )}

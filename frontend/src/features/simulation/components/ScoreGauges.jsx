@@ -99,7 +99,7 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             {t('dashboard.performance_score')}
           </h3>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-4.5 font-display">Sintesi Risultati Simulazione</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-4.5 font-display">{t('dashboard.simulation_summary')}</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <button
@@ -155,13 +155,13 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
         results.category_reference !== undefined ||
         results.category_project !== undefined) && (
           <div className="mt-8 pt-6 border-t border-white/60">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus mb-4 font-display text-center">Analisi Punteggi Pesati</h4>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus mb-4 font-display text-center">{t('dashboard.weighted_scores_analysis')}</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: 'Cert. Aziendali', value: results.category_company_certs, color: 'from-purple-500 to-indigo-600', bg: 'bg-purple-50/50' },
-                { label: 'Cert. Professionali', value: results.category_resource, color: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-50/50' },
-                { label: 'Referenze', value: results.category_reference, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50/50' },
-                { label: 'Progetto Tecnico', value: results.category_project, color: 'from-orange-500 to-amber-600', bg: 'bg-orange-50/50' }
+                { label: t('dashboard.category_company_certs'), value: results.category_company_certs, color: 'from-purple-500 to-indigo-600', bg: 'bg-purple-50/50' },
+                { label: t('dashboard.category_resource'), value: results.category_resource, color: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-50/50' },
+                { label: t('dashboard.category_reference'), value: results.category_reference, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50/50' },
+                { label: t('dashboard.category_project'), value: results.category_project, color: 'from-orange-500 to-amber-600', bg: 'bg-orange-50/50' }
               ].map((cat, i) => (
                 <motion.div
                   key={cat.label}
@@ -189,7 +189,7 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
             </div>
             <div>
               <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest-plus font-display">{t('dashboard.rti_contributions')}</h4>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 font-display">Split Punteggio Tecnico per Partner</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 font-display">{t('dashboard.rti_split_subtitle')}</p>
             </div>
           </div>
 
@@ -241,9 +241,9 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
                     {/* Category dots breakdown */}
                     <div className="flex flex-wrap gap-3">
                       {[
-                        { label: 'Cert.Prof', val: contrib.resource, color: 'text-blue-500' },
-                        { label: 'Referenze', val: contrib.reference, color: 'text-emerald-500' },
-                        { label: 'Progetto', val: contrib.project, color: 'text-orange-500' }
+                        { label: t('dashboard.category_resource'), val: contrib.resource, color: 'text-blue-500' },
+                        { label: t('dashboard.category_reference'), val: contrib.reference, color: 'text-emerald-500' },
+                        { label: t('dashboard.category_project'), val: contrib.project, color: 'text-orange-500' }
                       ].map(item => item.val > 0 && (
                         <div key={item.label} className="flex items-center gap-1.5 grayscale hover:grayscale-0 transition-all cursor-default">
                           <span className={`text-[9px] font-black uppercase tracking-tight ${item.color} font-display`}>{item.label}:</span>
@@ -265,7 +265,7 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('dashboard.total_attributable')}</span>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black text-white font-display tabular-nums leading-none">{totalAttributable.toFixed(2)}</span>
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-display leading-none">PT Pesati</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-display leading-none">{t('dashboard.weighted_pts_unit')}</span>
             </div>
           </div>
         </div>

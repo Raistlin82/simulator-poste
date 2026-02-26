@@ -374,6 +374,9 @@ export const calculateCatalogCost = (bp, lutechRates) => {
         if (computed && computed.items && computed.items.length > 0) {
             // ── READ pre-computed values from CatalogEditorModal ──
             const towCost = computed.total_cost || 0;
+            // Pz. Poste Tot. = ricavo di committenza (già scontato del % gara) — ricavo corretto da usare
+            // Pz. Vend. Tot. = prezzo vendita Lutech (cost / (1-margin)) — solo info interna
+            const towPosteTotale = computed.total_poste_total || 0;
             const towSellPrice = computed.total_sell_price || 0;
 
             const itemsDetail = computed.items.map(ci => ({
@@ -397,6 +400,7 @@ export const calculateCatalogCost = (bp, lutechRates) => {
                 target_value: g.target_value || 0,
                 lutech_cost: Math.round(g.cost || 0),
                 lutech_revenue: Math.round(g.sell_price || 0),
+                poste_total: Math.round(g.poste_total || 0),
                 lutech_margin: Math.round(g.margin || 0),
                 fte: 0,
             }));
@@ -444,9 +448,12 @@ export const calculateCatalogCost = (bp, lutechRates) => {
                 tow_id: tow.tow_id || tow.id,
                 label: tow.label || tow.tow_name,
                 cost: towCost,
-                sell_price: towSellPrice,
-                margin: towSellPrice - towCost,
-                margin_pct: towSellPrice > 0 ? (towSellPrice - towCost) / towSellPrice * 100 : 0,
+                // sell_price = Pz. Poste Tot. (ricavo Poste, già scontato) — usato per margine e schema offerta
+                sell_price: towPosteTotale,
+                // lutech_sell_price = Pz. Vend. Tot. (informativo per verifica interna Lutech)
+                lutech_sell_price: towSellPrice,
+                margin: towPosteTotale - towCost,
+                margin_pct: towPosteTotale > 0 ? (towPosteTotale - towCost) / towPosteTotale * 100 : 0,
                 items: itemsDetail,
                 groups: groupsDetail,
                 clusters: clusterDetail,

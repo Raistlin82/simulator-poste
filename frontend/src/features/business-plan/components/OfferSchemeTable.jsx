@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Table, Euro, Calculator, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
+import { useTranslation } from 'react-i18next';
 
 const TYPE_CONFIG = {
   task: { label: 'Task', cls: 'bg-blue-100 text-blue-700' },
@@ -19,6 +20,7 @@ export default function OfferSchemeTable({
   totalOffer = 0,
 }) {
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const { t } = useTranslation();
 
   const toggleRow = (towId) => {
     setExpandedRows(prev => {
@@ -40,9 +42,9 @@ export default function OfferSchemeTable({
             <Table className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Schema di Offerta</h3>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">{t('business_plan.offer_title')}</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">
-              Dettaglio prezzi unitari e totali per Type of Work (PxQ)
+              {t('business_plan.offer_sub')}
             </p>
           </div>
         </div>
@@ -54,11 +56,11 @@ export default function OfferSchemeTable({
           <thead className="">
             <tr>
               <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-24">TOW ID</th>
-              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Descrizione</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-24">Tipo</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-28">Quantità</th>
-              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-32">Pz. Unitario</th>
-              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-32">Pz. Totale</th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('config.label')}</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-24">{t('config.cert_label')}</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-28">{t('competition.quantity', 'Quantità')}</th>
+              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-32">{t('competition.unit_price', 'Pz. Unitario')}</th>
+              <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-32">{t('competition.total_price', 'Pz. Totale')}</th>
               <th className="px-4 py-2 w-8"></th>
             </tr>
           </thead>
@@ -68,7 +70,7 @@ export default function OfferSchemeTable({
                 <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                   <div className="flex flex-col items-center gap-2">
                     <Calculator className="w-8 h-8 text-slate-300" />
-                    <p>Nessun dato disponibile per l'offerta</p>
+                    <p>{t('business_plan.offer_no_data')}</p>
                   </div>
                 </td>
               </tr>
@@ -110,15 +112,15 @@ export default function OfferSchemeTable({
                             <span>
                               {formatNumber(row.quantity)}
                               <span className="block text-[10px] text-slate-400 font-sans">
-                                {row.type === 'task' ? 'task' :
-                                  row.type === 'corpo' ? 'mesi (forfait)' :
-                                    row.type === 'canone' ? 'mesi (canone)' : 'forfait'}
+                                {row.type === 'task' ? t('business_plan.offer_type_task_desc', 'task') :
+                                  row.type === 'corpo' ? t('business_plan.offer_type_corpo_desc', 'mesi (forfait)') :
+                                    row.type === 'canone' ? t('business_plan.offer_type_canone_desc', 'mesi (canone)') : t('business_plan.offer_type_consumo_desc', 'forfait')}
                               </span>
                             </span>
                           )}
                         </td>
                         <td className="px-4 py-2 text-right font-mono text-slate-700">
-                          {row.unit_price != null ? formatCurrency(row.unit_price) : <span className="text-slate-400 text-xs">Per voce</span>}
+                          {row.unit_price != null ? formatCurrency(row.unit_price) : <span className="text-slate-400 text-xs">{t('business_plan.offer_per_item', 'Per voce')}</span>}
                         </td>
                         <td className="px-4 py-2 text-right font-bold text-slate-800">
                           {formatCurrency(row.total_price)}

@@ -694,7 +694,7 @@ export default function CertVerificationPage() {
                                     <Upload className="w-10 h-10 text-slate-300 group-hover:text-indigo-500 transition-colors" />
                                   </div>
                                   <p className="text-[10px] font-black uppercase tracking-widest font-display">{t('cert_verification.click_to_select') || 'Clicca per selezionare un file ZIP'}</p>
-                                  <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider mt-1">Massimo 50MB consigliati</p>
+                                  <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider mt-1">{t('cert_verification.max_file_hint')}</p>
                                 </div>
                               )}
                             </label>

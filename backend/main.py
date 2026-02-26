@@ -489,11 +489,23 @@ api_router = APIRouter(prefix="/api")
 def get_sqlite_db_path():
     """Retrieve the absolute path to the SQLite database file from DATABASE_URL."""
     from database import DATABASE_URL
-    if DATABASE_URL.startswith("sqlite:///"):
+    
+    db_url = DATABASE_URL
+    if not db_url:
+        db_url = "sqlite:///./simulator_poste.db"
+        
+    if db_url.startswith("sqlite:///"):
         # Remove sqlite:/// prefix and handle both absolute and relative paths
-        path = DATABASE_URL.replace("sqlite:///", "")
+        path = db_url.replace("sqlite:///", "")
+        # Resolve path relative to THIS file's directory (backend root)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        if path.startswith("./"):
+            return os.path.abspath(os.path.join(base_dir, path))
         return os.path.abspath(path)
-    return os.path.abspath("./simulator_poste.db")
+    
+    # Fallback to default in same dir
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_dir, "simulator_poste.db")
 
 @api_router.get("/system/export-db")
 def export_database(db: Session = Depends(get_db)):
@@ -3014,7 +3026,7 @@ def delete_practice(practice_id: str, db: Session = Depends(get_db)):
 # Usare PUT /api/practices/{practice_id} per aggiornare i profili
 
 
-# Register all routers
+# Register all routers - included early for priority
 app.include_router(api_router)
 app.include_router(bp_router)
 app.include_router(practice_router)

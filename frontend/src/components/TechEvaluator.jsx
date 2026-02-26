@@ -207,9 +207,9 @@ export default function TechEvaluator({ onNavigate }) {
             {/* Tab Navigation */}
             <div className="flex bg-white/30 backdrop-blur-xl border border-white/40 p-1.5 rounded-2xl shadow-sm">
                 {[
-                    { id: 'valutazione', label: 'Valutazione', icon: ClipboardCheck, desc: 'Input' },
-                    { id: 'configurazione', label: 'Configurazione', icon: Settings, desc: 'Gara' },
-                    { id: 'analisi', label: 'Analisi', icon: BarChart3, desc: 'Score & Chart' },
+                    { id: 'valutazione', label: t('tech.valutazione'), icon: ClipboardCheck, desc: t('tech.input_tab') },
+                    { id: 'configurazione', label: t('tech.configurazione'), icon: Settings, desc: t('tech.gara_tab') },
+                    { id: 'analisi', label: t('tech.analisi'), icon: BarChart3, desc: t('tech.score_chart_tab') },
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -247,10 +247,10 @@ export default function TechEvaluator({ onNavigate }) {
                                         <h3 className="text-sm font-black text-slate-800 font-display tracking-widest uppercase">{t('dashboard.company_certs')}</h3>
                                         <div className="flex items-center gap-4 mt-1">
                                             <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 text-slate-500 rounded-xl border border-slate-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                                <span>Grezzo: {formatNumber(rawCompanyCerts, 2)} / {formatNumber(maxCompanyCerts, 2)}</span>
+                                                <span>{t('common.raw')}: {formatNumber(rawCompanyCerts, 2)} / {formatNumber(maxCompanyCerts, 2)}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                                <span>Pesato: {formatNumber(results?.category_company_certs || 0, 2)} pt</span>
+                                                <span>{t('common.weighted')}: {formatNumber(results?.category_company_certs || 0, 2)} {t('common.pts_unit')}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -313,10 +313,10 @@ export default function TechEvaluator({ onNavigate }) {
                                     <h3 className="text-sm font-black text-slate-800 font-display tracking-widest uppercase">{t('tech.prof_certs')}</h3>
                                     <div className="flex items-center gap-4 mt-1">
                                         <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 text-slate-500 rounded-xl border border-slate-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                            <span>Grezzo: {formatNumber(rawProfCerts, 2)} / {formatNumber(maxProfCerts, 2)}</span>
+                                            <span>{t('common.raw')}: {formatNumber(rawProfCerts, 2)} / {formatNumber(maxProfCerts, 2)}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                            <span>Pesato: {formatNumber(results?.category_resource || 0, 2)} pt</span>
+                                            <span>{t('common.weighted')}: {formatNumber(results?.category_resource || 0, 2)} {t('common.pts_unit')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -633,10 +633,10 @@ export default function TechEvaluator({ onNavigate }) {
                                     <h3 className="text-sm font-black text-slate-800 font-display tracking-widest uppercase">{t('tech.project_refs')}</h3>
                                     <div className="flex items-center gap-4 mt-1">
                                         <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 text-slate-500 rounded-xl border border-slate-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                            <span>Grezzo: {formatNumber(rawProjectRefs, 2)} / {formatNumber(maxProjectRefs, 2)}</span>
+                                            <span>{t('common.raw')}: {formatNumber(rawProjectRefs, 2)} / {formatNumber(maxProjectRefs, 2)}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                            <span>Pesato: {formatNumber(weightedProjectRefs, 2)} pt</span>
+                                            <span>{t('common.weighted')}: {formatNumber(weightedProjectRefs, 2)} {t('common.pts_unit')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -656,20 +656,20 @@ export default function TechEvaluator({ onNavigate }) {
                                         const levels = criterion?.judgement_levels;
                                         if (levels) {
                                             return [
-                                                { value: levels.assente_inadeguato ?? 0, label: "Assente/Inadeguato", color: "bg-red-100 border-red-300 text-red-800" },
-                                                { value: levels.parzialmente_adeguato ?? 2, label: "Parzialmente adeguato", color: "bg-orange-100 border-orange-300 text-orange-800" },
-                                                { value: levels.adeguato ?? 3, label: "Adeguato", color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
-                                                { value: levels.piu_che_adeguato ?? 4, label: "Più che adeguato", color: "bg-lime-100 border-lime-300 text-lime-800" },
-                                                { value: levels.ottimo ?? 5, label: "Ottimo", color: "bg-green-100 border-green-300 text-green-800" }
+                                                { value: levels.assente_inadeguato ?? 0, label: t('tech.judgement.absent'), color: "bg-red-100 border-red-300 text-red-800" },
+                                                { value: levels.parzialmente_adeguato ?? 2, label: t('tech.judgement.partial'), color: "bg-orange-100 border-orange-300 text-orange-800" },
+                                                { value: levels.adeguato ?? 3, label: t('tech.judgement.adequate'), color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
+                                                { value: levels.piu_che_adeguato ?? 4, label: t('tech.judgement.more_than_adequate'), color: "bg-lime-100 border-lime-300 text-lime-800" },
+                                                { value: levels.ottimo ?? 5, label: t('tech.judgement.excellent'), color: "bg-green-100 border-green-300 text-green-800" }
                                             ];
                                         }
                                         // Default values for backwards compatibility
                                         return [
-                                            { value: 0, label: "Assente/Inadeguato", color: "bg-red-100 border-red-300 text-red-800" },
-                                            { value: 2, label: "Parzialmente adeguato", color: "bg-orange-100 border-orange-300 text-orange-800" },
-                                            { value: 3, label: "Adeguato", color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
-                                            { value: 4, label: "Più che adeguato", color: "bg-lime-100 border-lime-300 text-lime-800" },
-                                            { value: 5, label: "Ottimo", color: "bg-green-100 border-green-300 text-green-800" }
+                                            { value: 0, label: t('tech.judgement.absent'), color: "bg-red-100 border-red-300 text-red-800" },
+                                            { value: 2, label: t('tech.judgement.partial'), color: "bg-orange-100 border-orange-300 text-orange-800" },
+                                            { value: 3, label: t('tech.judgement.adequate'), color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
+                                            { value: 4, label: t('tech.judgement.more_than_adequate'), color: "bg-lime-100 border-lime-300 text-lime-800" },
+                                            { value: 5, label: t('tech.judgement.excellent'), color: "bg-green-100 border-green-300 text-green-800" }
                                         ];
                                     };
 
@@ -720,22 +720,22 @@ export default function TechEvaluator({ onNavigate }) {
                                                     </div>
                                                     <div className="flex items-center gap-3 mt-3">
                                                         <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 text-slate-500 rounded-xl border border-slate-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                                            <span>Grezzo: {formatNumber(reqRawScore, 2)} / {formatNumber(req.max_points, 2)}</span>
+                                                            <span>{t('common.raw')}: {formatNumber(reqRawScore, 2)} / {formatNumber(req.max_points, 2)}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                                            <span>Pesato: {formatNumber(reqWeightedScore, 2)} pt</span>
+                                                            <span>{t('common.weighted')}: {formatNumber(reqWeightedScore, 2)} {t('common.pts_unit')}</span>
                                                         </div>
                                                     </div>
                                                     {/* Company assignment for project/reference */}
                                                     {rtiCompanies.length > 1 && (
                                                         <div className="flex items-center gap-3 mt-4">
-                                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display">Assegnato a:</span>
+                                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest-plus font-display">{t('tech.assigned_to')}</span>
                                                             <select
                                                                 value={assignedCompany}
                                                                 onChange={(e) => setAssignedCompany(e.target.value)}
                                                                 className="text-[11px] font-black uppercase tracking-tightest px-4 py-2 border border-slate-200/60 rounded-xl bg-white/60 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-indigo-500/20 active:scale-95 transition-all outline-none text-indigo-600"
                                                             >
-                                                                <option value="">Seleziona Società</option>
+                                                                <option value="">{t('tech.select_company')}</option>
                                                                 {rtiCompanies.map(company => (
                                                                     <option key={company} value={company}>{company}</option>
                                                                 ))}
@@ -744,10 +744,10 @@ export default function TechEvaluator({ onNavigate }) {
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col items-end gap-1 bg-indigo-50/30 p-4 rounded-2xl border border-indigo-100/50 min-w-[120px]">
-                                                    <div className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-display">Punteggio Pesato</div>
+                                                    <div className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-display">{t('common.weighted')} {t('tech_evaluator.points_label')}</div>
                                                     <div className="flex items-baseline gap-1">
                                                         <span className="text-3xl font-black text-indigo-600 font-display tracking-tightest">{formatNumber(reqWeightedScore, 2)}</span>
-                                                        <span className="text-xs font-black text-indigo-300 uppercase font-display">pt</span>
+                                                        <span className="text-xs font-black text-indigo-300 uppercase font-display">{t('common.pts_unit')}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -766,17 +766,17 @@ export default function TechEvaluator({ onNavigate }) {
                                                                     <span className="text-base font-black text-slate-800 font-display uppercase tracking-tight">{sub.label}</span>
                                                                     <div className="flex items-center gap-4">
                                                                         <div className="flex items-center gap-1.5">
-                                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">Grado:</span>
+                                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">{t('tech.degree_label')}:</span>
                                                                             <span className="text-xs font-black text-slate-600 font-display">{subVal}</span>
                                                                         </div>
                                                                         <div className="w-1 h-1 rounded-full bg-slate-300"></div>
                                                                         <div className="flex items-center gap-1.5">
-                                                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-display">Peso:</span>
+                                                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-display">{t('tech.weight_label')}:</span>
                                                                             <span className="text-xs font-black text-indigo-600 font-display">×{weight}</span>
                                                                         </div>
                                                                         <div className="w-1 h-1 rounded-full bg-indigo-200"></div>
                                                                         <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 shadow-sm text-[10px] font-black uppercase tracking-widest font-display">
-                                                                            <span>Contributo: {contribution.toFixed(2)} pt</span>
+                                                                            <span>{t('tech.contribution') || 'Contributo'}: {contribution.toFixed(2)} {t('common.pts_unit')}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -832,7 +832,7 @@ export default function TechEvaluator({ onNavigate }) {
                                                                 </div>
                                                                 <div>
                                                                     <span className="text-sm font-black text-slate-800 uppercase tracking-tight transition-colors group-hover/toggle:text-emerald-600 font-display">{t('tech_evaluator.attestazione_label')}</span>
-                                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display mt-0.5">Bonus Attestazione Finale</div>
+                                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display mt-0.5">{t('tech.attestazione_bonus_hint')}</div>
                                                                 </div>
                                                             </label>
                                                             <div className="flex flex-col items-end bg-emerald-100/30 px-5 py-3 rounded-2xl border border-emerald-200/50">

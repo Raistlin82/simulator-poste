@@ -34,14 +34,14 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
 
   const handleExportLot = async () => {
     if (!selectedLot) return;
-    
+
     try {
       const token = getAccessToken();
       const response = await axios.get(`${API_URL}/lots/${encodeURIComponent(selectedLot)}/export`, {
         responseType: 'blob',
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      
+
       // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -64,7 +64,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
         responseType: 'blob',
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      
+
       // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -76,7 +76,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
       window.URL.revokeObjectURL(url);
     } catch (err) {
       logger.error('Download template error', err);
-      alert(t('config.template_download_error', 'Errore nel download del template'));
+      alert(t('config.template_download_error'));
     }
   };
 
@@ -87,15 +87,15 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     // Reset input
     e.target.value = '';
-    
+
     if (!file.name.toLowerCase().endsWith('.xlsx')) {
-      alert(t('config.invalid_file_type', 'Il file deve essere in formato Excel (.xlsx)'));
+      alert(t('config.invalid_file_type'));
       return;
     }
-    
+
     // Show modal to select target lot
     setPendingFile(file);
     setImportTarget('__new__');
@@ -104,40 +104,40 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
 
   const handleImportConfirm = async () => {
     if (!pendingFile) return;
-    
+
     setShowImportModal(false);
     setImporting(true);
     setImportResult(null);
-    
+
     try {
       const token = getAccessToken();
       const formData = new FormData();
       formData.append('file', pendingFile);
-      
+
       // Add target_lot parameter if overriding existing
       const params = new URLSearchParams();
       if (importTarget !== '__new__') {
         params.append('target_lot', importTarget);
       }
-      
-      const url = params.toString() 
-        ? `${API_URL}/config/import?${params}` 
+
+      const url = params.toString()
+        ? `${API_URL}/config/import?${params}`
         : `${API_URL}/config/import`;
-      
+
       const response = await axios.post(url, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
-      
+
       const result = response.data;
       setImportResult({
         success: true,
         message: `Lotto "${result.lot_key}" ${result.action}. Importati: ${result.imported.cert_aziendali} cert. aziendali, ${result.imported.requisiti} requisiti.`,
         warnings: result.warnings || []
       });
-      
+
       // Notify parent to refresh config
       if (onImportSuccess) {
         onImportSuccess(result.lot_key);
@@ -146,7 +146,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
       logger.error('Import error', err);
       setImportResult({
         success: false,
-        message: err.response?.data?.detail || t('config.import_error', 'Errore durante l\'importazione'),
+        message: err.response?.data?.detail || t('config.import_error'),
         warnings: []
       });
     } finally {
@@ -169,7 +169,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
         {/* Dropdown Selector */}
         <div className="flex-1 relative">
           <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
-            Seleziona Gara/Lotto
+            {t('config.lot_selector_label')}
           </label>
           <div className="relative">
             <select
@@ -197,7 +197,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
             title={t('config.download_template', 'Scarica Template')}
           >
             <Download className="w-4 h-4" />
-            <span className="hidden lg:inline">Template</span>
+            <span className="hidden lg:inline">{t('config.template')}</span>
           </button>
           <button
             onClick={handleUploadClick}
@@ -210,7 +210,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
             ) : (
               <Upload className="w-4 h-4" />
             )}
-            <span className="hidden lg:inline">Importa</span>
+            <span className="hidden lg:inline">{t('config.import_btn')}</span>
           </button>
           <button
             onClick={handleExportLot}
@@ -218,7 +218,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
             title={t('config.export_lot', 'Esporta Lotto')}
           >
             <FileDown className="w-4 h-4" />
-            <span className="hidden lg:inline">Esporta</span>
+            <span className="hidden lg:inline">{t('config.export_btn')}</span>
           </button>
           <input
             ref={fileInputRef}
@@ -233,7 +233,7 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
             title={t('common.add', 'AGGIUNGI')}
           >
             <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Aggiungi</span>
+            <span className="hidden sm:inline">{t('config.add_btn')}</span>
           </button>
           <button
             onClick={() => onDeleteLot(selectedLot)}
@@ -241,18 +241,17 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
             title={t('common.delete', 'ELIMINA')}
           >
             <Trash2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Elimina</span>
+            <span className="hidden sm:inline">{t('config.delete_btn')}</span>
           </button>
         </div>
       </div>
-      
+
       {/* Import Result Feedback */}
       {importResult && (
-        <div className={`mt-4 p-3 rounded-lg text-sm ${
-          importResult.success 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
+        <div className={`mt-4 p-3 rounded-lg text-sm ${importResult.success
+          ? 'bg-green-50 text-green-800 border border-green-200'
+          : 'bg-red-50 text-red-800 border border-red-200'
+          }`}>
           <div className="font-medium">{importResult.message}</div>
           {importResult.warnings && importResult.warnings.length > 0 && (
             <details className="mt-2">
@@ -266,11 +265,11 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
               </ul>
             </details>
           )}
-          <button 
+          <button
             onClick={() => setImportResult(null)}
             className="mt-2 text-xs underline hover:no-underline"
           >
-            Chiudi
+            {t('config.import_close')}
           </button>
         </div>
       )}
@@ -290,11 +289,11 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <p className="text-sm text-slate-600 mb-4">
               {t('config.import_target_desc', 'Seleziona dove importare la configurazione dal file Excel:')}
             </p>
-            
+
             <div className="mb-4">
               <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
                 {t('config.import_target_label', 'Destinazione')}
@@ -304,21 +303,21 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
                 onChange={(e) => setImportTarget(e.target.value)}
                 className="w-full appearance-none px-4 py-3 pr-10 bg-white border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-900 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
               >
-                <option value="__new__">✨ Nuovo Lotto (dal nome nel file)</option>
+                <option value="__new__">{t('config.import_new_lot')}</option>
                 {lotKeys.map(lotKey => (
                   <option key={lotKey} value={lotKey}>
-                    🔄 Sovrascrivi: {lotKey}
+                    {t('config.import_overwrite_prefix')} {lotKey}
                   </option>
                 ))}
               </select>
             </div>
-            
+
             {importTarget !== '__new__' && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                <strong>Attenzione:</strong> La configurazione esistente di "{importTarget}" verrà completamente sostituita.
+                <strong>{t('common.warning')}:</strong> {t('config.import_overwrite_warning', { name: importTarget })}
               </div>
             )}
-            
+
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleImportCancel}

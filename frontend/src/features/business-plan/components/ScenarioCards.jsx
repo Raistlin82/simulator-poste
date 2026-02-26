@@ -94,7 +94,7 @@ export default function ScenarioCards({
         </div>
         <div className="p-8 text-center text-slate-500">
           <Sparkles className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-          <p>Configura team e parametri per generare scenari</p>
+          <p>{t('business_plan.scenario_no_data')}</p>
         </div>
       </div>
     );
@@ -155,7 +155,7 @@ export default function ScenarioCards({
                 {cfg.recommended && (
                   <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-emerald-500 text-white
                                   text-[10px] font-bold rounded-full">
-                    CONSIGLIATO
+                    {t('simulation.suggested').toUpperCase()}
                   </div>
                 )}
 
@@ -182,19 +182,19 @@ export default function ScenarioCards({
                 {/* Metrics */}
                 <div className="space-y-2.5 pt-4 border-t border-slate-100">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Rettifica Vol.</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.volume_adjustments')}</span>
                     <span className="font-black text-slate-700 font-display">
                       {formatPct(scenario.volume_adjustment)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Riuso</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.reuse_factor')}</span>
                     <span className="font-black text-indigo-600 font-display">
                       {formatPct(scenario.reuse_factor)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Costo Totale</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.total_cost')}</span>
                     <span className="font-black text-slate-700 font-display tabular-nums">
                       {formatCurrency(scenario.total_cost)}
                     </span>
@@ -208,7 +208,7 @@ export default function ScenarioCards({
                       <div className="flex justify-between items-center">
                         <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest-plus font-display flex items-center gap-1">
                           <Percent className="w-3 h-3" />
-                          Sconto per {targetMargin}% Margine
+                          {t('competition.discount')} {targetMargin}% {t('business_plan.tow_margin_label')}
                         </span>
                         <span className="text-sm font-black text-indigo-700 font-display">
                           {scenario.suggested_discount.toFixed(1)}%
@@ -219,7 +219,7 @@ export default function ScenarioCards({
 
                   {/* Margine a 0% sconto */}
                   <div className="flex justify-between items-center pt-1">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Margine (0% Sconto)</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_margin_label')} (0% {t('competition.discount')})</span>
                     <div className="flex items-center gap-2">
                       <TrendingUp className={`w-4 h-4 ${scenario.margin_pct >= targetMargin ? 'text-indigo-500' :
                         scenario.margin_pct >= 0 ? 'text-amber-500' : 'text-red-500'

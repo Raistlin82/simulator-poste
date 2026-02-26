@@ -197,13 +197,13 @@ function AppContent() {
       logger.info("Save results", { stateSuccess, configSuccess: configResult.success });
 
       if (stateSuccess && configResult.success) {
-        success(t('app.save_success') || 'Dati salvati con successo');
+        success(t('app.save_success'));
       } else {
-        showError(t('app.save_error') || 'Errore durante il salvataggio');
+        showError(t('app.save_error'));
       }
     } catch (err) {
       logger.error("Unified save failed", err, { component: "App" });
-      showError(t('app.save_error') || 'Errore durante il salvataggio');
+      showError(t('app.save_error'));
     }
   };
 
@@ -350,7 +350,7 @@ function AppContent() {
                   <div className="flex items-center gap-2 mt-0.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">
-                      {view === 'dashboard' ? t('common.home') : view === 'config' ? t('common.gara_lotto') : view === 'certs' ? 'Certificazioni' : view === 'businessPlan' ? t('business_plan.title') : t('common.master_data')}
+                      {view === 'dashboard' ? t('common.home') : view === 'config' ? t('common.gara_lotto') : view === 'certs' ? t('common.certificates') : view === 'businessPlan' ? t('business_plan.title') : t('common.master_data')}
                     </span>
                   </div>
                 </div>
@@ -401,10 +401,10 @@ function AppContent() {
                     await axios.post(`${API_URL}/config/add?lot_key=${encodeURIComponent(lotName)}`);
                     await refetchConfig();
                     setLot(lotName);
-                    success(t('app.add_success', { name: lotName }) || `Lotto "${lotName}" aggiunto con successo`);
+                    success(t('app.add_success', { name: lotName }));
                   } catch (err) {
                     logger.error("Failed to add lot", err, { component: "ConfigPage", lotName });
-                    showError(t('app.add_error') || 'Errore durante l\'aggiunta del lotto');
+                    showError(t('app.add_error'));
                   }
                 }}
                 onDeleteLot={async (lotKey) => {
@@ -420,10 +420,10 @@ function AppContent() {
                     await refetchConfig();
                     // Refresh will trigger auto-select of first available lot
                     setView('dashboard');
-                    success(t('app.delete_success', { name: lotKey }) || `Lotto "${lotKey}" eliminato con successo`);
+                    success(t('app.delete_success', { name: lotKey }));
                   } catch (err) {
                     logger.error("Failed to delete lot", err, { component: "ConfigPage", lotKey });
-                    showError(t('app.delete_error') || 'Errore durante l\'eliminazione del lotto');
+                    showError(t('app.delete_error'));
                   }
                 }}
               />

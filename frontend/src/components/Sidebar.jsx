@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Settings, X, FileSearch, Building2, AlertCircle, Briefcase, Home } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Settings, X, FileSearch, Building2, AlertCircle, Briefcase, Home, Languages, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../utils/formatters';
 import { useConfig } from '../features/config/context/ConfigContext';
@@ -10,7 +10,12 @@ export default function Sidebar({
     onNavigate,
     currentView
 }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+
+    const toggleLanguage = () => {
+        const nextLang = i18n.language === 'it' ? 'en' : 'it';
+        i18n.changeLanguage(nextLang);
+    };
 
     // Track lots where we've already saved default quotas
     const savedDefaultQuotasRef = useRef(new Set());
@@ -29,9 +34,24 @@ export default function Sidebar({
         setDiscount
     } = useSimulation();
 
-    // Local state for RTI quotas editing
+    // Local state
     const [localQuotas, setLocalQuotas] = useState({});
     const [quotaError, setQuotaError] = useState(null);
+    const [showClosedTenders, setShowClosedTenders] = useState(() => {
+        try {
+            return localStorage.getItem('showClosedTenders') === 'true';
+        } catch {
+            return false;
+        }
+    });
+
+    const toggleShowClosed = () => {
+        const newValue = !showClosedTenders;
+        setShowClosedTenders(newValue);
+        try {
+            localStorage.setItem('showClosedTenders', newValue.toString());
+        } catch { /* noop */ }
+    };
 
     // Derived values
     const lotData = config && selectedLot ? config[selectedLot] : null;
@@ -146,7 +166,7 @@ export default function Sidebar({
                         if (window.innerWidth < 768 && onClose) onClose();
                     }}
                     className="hover:scale-105 transition-transform cursor-pointer p-1"
-                    aria-label="Vai alla Home"
+                    aria-label={t('sidebar.home_aria')}
                 >
                     <img src="/logo-lutech.png" alt="Lutech" className="h-10 object-contain drop-shadow-sm" />
                 </button>
@@ -154,7 +174,7 @@ export default function Sidebar({
                 <button
                     onClick={onClose}
                     className="md:hidden p-3 bg-white/60 hover:bg-rose-50 hover:text-rose-600 rounded-2xl transition-all border border-white/60 shadow-sm"
-                    aria-label="Chiudi menu"
+                    aria-label={t('sidebar.close_menu_aria')}
                 >
                     <X className="w-5 h-5" />
                 </button>
@@ -166,13 +186,22 @@ export default function Sidebar({
                         <Settings className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display leading-tight">{t('simulation.title')}</h2>
-                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest font-display">{selectedLot || 'Nessun Lotto'}</p>
+                        <div className="flex items-center justify-between mb-0.5">
+                            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display leading-tight">{t('simulation.title')}</h2>
+                            <button
+                                onClick={toggleShowClosed}
+                                className={`p-1 rounded-md transition-colors ${showClosedTenders ? 'text-indigo-600 bg-indigo-50 shadow-sm' : 'text-slate-300 hover:text-slate-400 hover:bg-slate-50'}`}
+                                title={showClosedTenders ? t('sidebar.hide_closed') : t('sidebar.show_closed')}
+                            >
+                                <Filter className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest font-display">{selectedLot || t('sidebar.no_lots')}</p>
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest-plus ml-1 font-display opacity-60">Seleziona Lotto</label>
+                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest-plus ml-1 font-display opacity-60">{t('sidebar.title')}</label>
                     <div className="relative group/select">
                         <select
                             value={selectedLot || ''}
@@ -183,7 +212,7 @@ export default function Sidebar({
                             className="w-full p-3.5 pl-4 pr-10 border border-white/60 rounded-2xl bg-white/60 backdrop-blur-md focus:ring-4 focus:ring-indigo-500/10 outline-none font-black text-xs transition-all shadow-sm shadow-indigo-500/5 appearance-none cursor-pointer font-display text-slate-800"
                         >
                             {config && Object.keys(config)
-                                .filter(k => config[k]?.is_active !== false)
+                                .filter(k => showClosedTenders || config[k]?.is_active !== false)
                                 .sort((a, b) => a.localeCompare(b, 'it'))
                                 .map(k => (
                                     <option key={k} value={k}>
@@ -434,8 +463,22 @@ export default function Sidebar({
                         }`}
                 >
                     <FileSearch className={`w-4 h-4 ${currentView === 'certs' ? 'text-white' : 'text-indigo-400'}`} />
-                    <span>Verifica Certificazioni</span>
+                    <span>{t('cert_verification.title')}</span>
                 </button>
+
+                <div className="pt-2 border-t border-white/40">
+                    {/* Language Switcher */}
+                    <button
+                        onClick={toggleLanguage}
+                        className="flex-1 flex items-center gap-2 px-3 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest-plus hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all border border-transparent hover:border-indigo-100"
+                        title={t('sidebar.switch_lang')}
+                    >
+                        <div className="w-5 h-5 flex items-center justify-center bg-slate-100 rounded-md">
+                            <Languages className="w-3 h-3" />
+                        </div>
+                        <span className="truncate">{i18n.language === 'it' ? 'English' : 'Italiano'}</span>
+                    </button>
+                </div>
             </div>
 
             {/* Footer - Credits */}

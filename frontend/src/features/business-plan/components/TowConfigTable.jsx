@@ -38,11 +38,11 @@ export default function TowConfigTable({
   });
 
   const towTypes = [
-    { value: 'task', label: 'Task', color: 'blue' },
-    { value: 'corpo', label: 'A Corpo', color: 'purple' },
-    { value: 'consumo', label: 'A Consumo', color: 'amber' },
-    { value: 'canone', label: 'Canone Mensile', color: 'green' },
-    { value: 'catalogo', label: 'Catalogo', color: 'rose' },
+    { value: 'task', label: t('business_plan.tow_type_task', 'Task'), color: 'blue' },
+    { value: 'corpo', label: t('business_plan.tow_type_corpo', 'A Corpo'), color: 'purple' },
+    { value: 'consumo', label: t('business_plan.tow_type_consumo', 'A Consumo'), color: 'amber' },
+    { value: 'canone', label: t('business_plan.tow_type_canone', 'Canone Mensile'), color: 'green' },
+    { value: 'catalogo', label: t('business_plan.tow_type_catalogo', 'Catalogo'), color: 'rose' },
   ];
 
   const toggleCatalogExpand = (idx) => {
@@ -229,7 +229,7 @@ export default function TowConfigTable({
                          disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
-              Aggiungi TOW
+              {t('business_plan.tow_add_btn', 'Aggiungi TOW')}
             </button>
           </div>
         </div>
@@ -241,22 +241,22 @@ export default function TowConfigTable({
           <thead className="">
             <tr>
               <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">ID</th>
-              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrizione</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">Tipo</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">Peso %</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title="Quota % del TOW svolta da Lutech (es. in RTI)">Lutech %</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Quantità</th>
+              <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('business_plan.tow_desc', 'Descrizione')}</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">{t('business_plan.tow_type', 'Tipo')}</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">{t('business_plan.tow_weight', 'Peso %')}</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title={t('business_plan.tow_lutech_quota', "Quota % del TOW svolta da Lutech (es. in RTI)")}>{t('business_plan.tow_lutech_pct', 'Lutech %')}</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">{t('business_plan.tow_qty', 'Quantità')}</th>
               {hasAdjustments && (
                 <>
                   <th className="px-4 py-2 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest w-28 whitespace-nowrap">
-                    Quantità Eff.
+                    {t('business_plan.tow_qty_eff', 'Quantità Eff.')}
                   </th>
                   <th className="px-4 py-2 text-center text-[10px] font-black text-rose-600 uppercase tracking-widest w-16">
                     Δ
                   </th>
                 </>
               )}
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">Practice</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">{t('business_plan.tow_practice', 'Practice')}</th>
               <th className="px-4 py-2 w-12"></th>
             </tr>
           </thead>
@@ -266,13 +266,13 @@ export default function TowConfigTable({
                 <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                   <div className="flex flex-col items-center gap-2">
                     <Layers className="w-8 h-8 text-slate-300" />
-                    <p>Nessun TOW configurato</p>
+                    <p>{t('business_plan.tow_no_tow')}</p>
                     <button
                       onClick={() => setShowAddRow(true)}
                       disabled={disabled}
                       className="text-indigo-600 hover:underline text-sm"
                     >
-                      Aggiungi il primo Type of Work
+                      {t('business_plan.tow_add_first', 'Aggiungi il primo Type of Work')}
                     </button>
                   </div>
                 </td>
@@ -714,7 +714,7 @@ export default function TowConfigTable({
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <div className="text-xs text-amber-800">
-              <strong>Attenzione:</strong> I pesi TOW sommano a <strong>{totalWeight.toFixed(1)}%</strong> invece di 100%.
+              <strong>{t('attention', 'Attenzione')}:</strong> {t('business_plan.tow_weight_warning', { value: totalWeight.toFixed(1) })}
               La ripartizione dei ricavi sarà proporzionale ai pesi configurati.
             </div>
           </div>

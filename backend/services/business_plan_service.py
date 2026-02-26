@@ -691,7 +691,8 @@ class BusinessPlanService:
                     item_group_map[iid] = g
 
             tow_cost = 0.0
-            tow_sell_price = 0.0
+            tow_poste_total = 0.0
+            tow_lutech_sell = 0.0
             items_result = []
             item_fte_list = []
 
@@ -766,7 +767,8 @@ class BusinessPlanService:
                 )
 
                 tow_cost += item_cost
-                tow_sell_price += item_sell
+                tow_poste_total += item_poste_total
+                tow_lutech_sell += item_sell
                 item_fte_list.append(item_fte)
 
                 items_result.append({
@@ -787,8 +789,8 @@ class BusinessPlanService:
 
             # Totali TOW
             total_derived_fte = sum(item_fte_list)
-            tow_margin = tow_sell_price - tow_cost
-            tow_margin_pct = (tow_margin / tow_sell_price * 100.0) if tow_sell_price > 0 else 0.0
+            tow_margin = tow_poste_total - tow_cost
+            tow_margin_pct = (tow_margin / tow_poste_total * 100.0) if tow_poste_total > 0 else 0.0
 
             # Cluster distribution pesata su FTE (non giorni)
             cluster_distribution = BusinessPlanService._compute_cluster_distribution(
@@ -802,7 +804,7 @@ class BusinessPlanService:
                 "total_derived_fte": round(total_derived_fte, 4),
                 "total_catalog_value": round(total_catalog_value, 2),
                 "cost": round(tow_cost, 2),
-                "revenue": round(tow_sell_price, 2),
+                "revenue": round(tow_poste_total, 2),
                 "margin": round(tow_margin, 2),
                 "margin_pct": round(tow_margin_pct, 2),
                 "items": items_result,

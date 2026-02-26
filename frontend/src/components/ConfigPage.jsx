@@ -8,7 +8,7 @@ import { ConfirmDialog } from './ui/confirm-dialog';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
 
-export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {} }) {
+export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => { } }) {
     const { t } = useTranslation();
     const { config, setConfig, masterData, refetch } = useConfig();
     const { selectedLot: globalSelectedLot, setLot: setGlobalLot } = useSimulation();
@@ -195,7 +195,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
         setDeleteModalState({
             isOpen: true,
             actionType: 'requirement',
-            data: { reqId, label: req?.label || 'Requisito' }
+            data: { reqId, label: req?.label || t('config.requirement') }
         });
     };
 
@@ -213,7 +213,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                 counter++;
             }
             clone.id = newId;
-            clone.label = `${src.label} (Copia)`;
+            clone.label = `${src.label} (${t('common.copy')})`;
             lot.reqs.push(clone);
         });
     };
@@ -291,7 +291,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
         setDeleteModalState({
             isOpen: true,
             actionType: 'subReq',
-            data: { reqId, subId, label: sub?.label || 'Criterio' }
+            data: { reqId, subId, label: sub?.label || t('config.criterion') }
         });
     };
 
@@ -301,7 +301,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
             if (req) {
                 if (!req.custom_metrics) req.custom_metrics = [];
                 const newId = `M${req.custom_metrics.length + 1}`;
-                req.custom_metrics.push({ id: newId, label: 'Nuova Voce Tabellare', min_score: 0.0, max_score: 5.0 });
+                req.custom_metrics.push({ id: newId, label: t('config.new_custom_metric'), min_score: 0.0, max_score: 5.0 });
                 req.max_points = calcRequirementMaxPoints(req);
             }
         });
@@ -326,7 +326,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
         setDeleteModalState({
             isOpen: true,
             actionType: 'customMetric',
-            data: { reqId, metricId, label: metric?.label || 'Voce Tabellare' }
+            data: { reqId, metricId, label: metric?.label || t('config.new_custom_metric') }
         });
     };
 
@@ -384,7 +384,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
         setDeleteModalState({
             isOpen: true,
             actionType: 'companyCert',
-            data: { idx, label: cert?.label || 'Certificazione Aziendale' }
+            data: { idx, label: cert?.label || t('config.company_cert_default') }
         });
     };
 
@@ -431,9 +431,9 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                             <Briefcase className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-slate-800 font-display tracking-tightest leading-tight">Configurazione Gara</h1>
+                            <h1 className="text-2xl font-black text-slate-800 font-display tracking-tightest leading-tight">{t('config.config_gara')}</h1>
                             <div className="flex items-center gap-3 mt-1.5">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display">Parametri & Punteggi</span>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display">{t('config.parametri_punteggi')}</span>
                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
                                 <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest font-display">{selectedLot}</span>
                             </div>
@@ -442,7 +442,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
 
                     <div className="flex items-center gap-6 bg-white/40 p-2 pl-6 rounded-3xl border border-white/60 shadow-sm min-w-[340px]">
                         <div className="flex-1">
-                            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 font-display">Lotto Attivo</div>
+                            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 font-display">{t('config.lotto_attivo')}</div>
                             <LotSelector
                                 config={editedConfig}
                                 selectedLot={selectedLot}
@@ -484,7 +484,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                         {/* Active/Closed Toggle */}
                         <div className="flex items-center justify-between gap-2 mt-5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100/50">
                             <span className={`text-[9px] font-black uppercase tracking-widest font-display ${currentLot.is_active !== false ? 'text-green-600' : 'text-slate-400'}`}>
-                                {currentLot.is_active !== false ? 'Gara Attiva' : 'Gara Chiusa'}
+                                {currentLot.is_active !== false ? t('config.lot_active') : t('config.lot_closed')}
                             </span>
                             <button
                                 type="button"
@@ -534,13 +534,13 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                                 <div
                                     className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-64 p-4 bg-slate-900/95 backdrop-blur-md text-white text-[10px] font-medium leading-relaxed rounded-[1.25rem] shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 border border-white/10"
                                 >
-                                    Auto-calcolato dalla somma dei pesi gara (gara_weight) di certificazioni aziendali e requisiti tecnici.
+                                    {t('config.max_tech_score_desc')}
                                 </div>
                             </div>
                         </label>
                         <div className="flex flex-col gap-1">
                             <div className="text-4xl font-black text-emerald-600 font-display tracking-tightest group-hover/kpi:scale-110 transition-transform origin-left duration-500">{calculated_max_tech_score.toFixed(1)}</div>
-                            <span className="text-[9px] font-black text-emerald-500/60 uppercase tracking-widest font-display">Calcolo Automatico</span>
+                            <span className="text-[9px] font-black text-emerald-500/60 uppercase tracking-widest font-display">{t('config.auto_calculation')}</span>
                         </div>
                     </div>
                     <div className="bg-white/40 backdrop-blur-xl p-6 rounded-[2rem] border border-white/60 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all duration-500 group/kpi">
@@ -551,13 +551,13 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                                 <div
                                     className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-64 p-4 bg-slate-900/95 backdrop-blur-md text-white text-[10px] font-medium leading-relaxed rounded-[1.25rem] shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 border border-white/10"
                                 >
-                                    Auto-calcolato come 100 - Punteggio Tecnico Massimo.
+                                    {t('config.max_econ_score_desc')}
                                 </div>
                             </div>
                         </label>
                         <div className="flex flex-col gap-1">
                             <div className="text-4xl font-black text-indigo-600 font-display tracking-tightest group-hover/kpi:scale-110 transition-transform origin-left duration-500">{calculated_max_econ_score.toFixed(1)}</div>
-                            <span className="text-[9px] font-black text-indigo-500/60 uppercase tracking-widest font-display">Calcolo Automatico</span>
+                            <span className="text-[9px] font-black text-indigo-500/60 uppercase tracking-widest font-display">{t('config.auto_calculation')}</span>
                         </div>
                     </div>
                     <div className="bg-white/40 backdrop-blur-xl p-6 rounded-[2rem] border border-white/60 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all duration-500 group/kpi">
@@ -568,13 +568,13 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                                 <div
                                     className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-64 p-4 bg-slate-900/95 backdrop-blur-md text-white text-[10px] font-medium leading-relaxed rounded-[1.25rem] shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 border border-white/10"
                                 >
-                                    Somma dei punteggi grezzi massimi configurati per ogni requisito.
+                                    {t('config.max_raw_score_desc')}
                                 </div>
                             </div>
                         </label>
                         <div className="flex flex-col gap-1">
                             <div className="text-4xl font-black text-purple-600 font-display tracking-tightest group-hover/kpi:scale-110 transition-transform origin-left duration-500">{calculated_max_raw_score.toFixed(1)}</div>
-                            <span className="text-[9px] font-black text-purple-500/60 uppercase tracking-widest font-display">Max Somma Grezza</span>
+                            <span className="text-[9px] font-black text-purple-500/60 uppercase tracking-widest font-display">{t('config.max_raw_sum')}</span>
                         </div>
                     </div>
                 </div>
@@ -666,13 +666,13 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                 <div className="glass-card rounded-xl p-6 mb-6">
                     <div className="flex items-center gap-2 mb-6">
                         <TrendingUp className="w-5 h-5 text-amber-600" />
-                        <h2 className="text-lg font-black text-slate-800 font-display tracking-tightest uppercase">Formula Scoring Economico</h2>
+                        <h2 className="text-lg font-black text-slate-800 font-display tracking-tightest uppercase">{t('config.economic_formula_title')}</h2>
                     </div>
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Alpha */}
                             <div className="bg-green-50/40 backdrop-blur-md p-4 rounded-2xl border border-green-200/50">
-                                <label className="block text-[10px] font-bold text-green-700 uppercase mb-2 tracking-widest font-display">Coefficiente Alpha (α)</label>
+                                <label className="block text-[10px] font-bold text-green-700 uppercase mb-2 tracking-widest font-display">{t('config.alpha_coeff')}</label>
                                 <input
                                     type="number"
                                     step="0.05"
@@ -691,7 +691,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
 
                             {/* Max Economic Score - Auto-calculated */}
                             <div className="bg-amber-50/40 backdrop-blur-md p-4 rounded-2xl border border-amber-200/50">
-                                <label className="block text-[10px] font-bold text-amber-700 uppercase mb-2 tracking-widest font-display">Punteggio Economico</label>
+                                <label className="block text-[10px] font-bold text-amber-700 uppercase mb-2 tracking-widest font-display">{t('config.econ_score_label')}</label>
                                 <div className="w-full p-2 bg-white/50 border border-amber-200 shadow-inner rounded-xl font-black text-xl text-amber-700 font-display text-center">
                                     {calculated_max_econ_score.toFixed(1)}
                                 </div>
@@ -699,7 +699,7 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
 
                             {/* Formula Selection */}
                             <div className="bg-blue-50/40 backdrop-blur-md p-4 rounded-2xl border border-blue-200/50">
-                                <label className="block text-[10px] font-bold text-blue-700 uppercase mb-2 tracking-widest font-display">Tipo Formula</label>
+                                <label className="block text-[10px] font-bold text-blue-700 uppercase mb-2 tracking-widest font-display">{t('config.formula_type')}</label>
                                 <select
                                     className="w-full p-2.5 border border-blue-200 shadow-inner bg-white rounded-xl focus:ring-2 focus:ring-blue-500/50 outline-none font-black text-sm text-blue-700 font-display appearance-none text-center cursor-pointer transition-all"
                                     value={currentLot.economic_formula || 'interp_alpha'}
@@ -717,10 +717,10 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
 
                         {/* Formula Display with Dynamic Values */}
                         <div className="glass-card rounded-2xl p-6 bg-white/30 backdrop-blur-md border border-white/40">
-                            <h3 className="text-[9px] font-black text-slate-500 uppercase mb-4 tracking-widest font-display">📐 Formula Dinamica</h3>
+                            <h3 className="text-[9px] font-black text-slate-500 uppercase mb-4 tracking-widest font-display">{t('config.dynamic_formula')}</h3>
                             <div className="glass-card rounded-lg p-4 border border-slate-200/50 font-mono text-sm text-slate-800 leading-relaxed space-y-3">
                                 {(() => {
-                                    const formula = masterData?.economic_formulas?.find(f => f.id === (currentLot.economic_formula || 'interp_alpha'))?.desc || 'Formula non definita';
+                                    const formula = masterData?.economic_formulas?.find(f => f.id === (currentLot.economic_formula || 'interp_alpha'))?.desc || t('config.no_formula');
                                     const alpha = (currentLot.alpha || 0.3).toFixed(2);
                                     const maxEcon = (currentLot.max_econ_score || 40).toFixed(1);
 
@@ -731,14 +731,14 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                                     return (
                                         <>
                                             <div>
-                                                <div className="text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Formula Base:</div>
+                                                <div className="text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">{t('config.base_formula')}</div>
                                                 <div className="text-slate-600 font-mono text-xs">{formula}</div>
                                             </div>
                                             {formula !== updatedFormula && (
                                                 <>
                                                     <div className="border-t border-slate-200 my-3"></div>
                                                     <div>
-                                                        <div className="text-xs font-bold text-blue-700 uppercase mb-2 tracking-wider">Con i Tuoi Valori:</div>
+                                                        <div className="text-xs font-bold text-blue-700 uppercase mb-2 tracking-wider">{t('config.with_your_values')}</div>
                                                         <div className="text-blue-700 font-bold text-base bg-blue-50 p-3 rounded border border-blue-200">{updatedFormula}</div>
                                                     </div>
                                                 </>
@@ -758,8 +758,8 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                             <Award className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-black text-slate-800 font-display tracking-tightest uppercase">Requisiti di Gara</h2>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Configurazione Dettagliata Punteggi Tecnici</p>
+                            <h2 className="text-xl font-black text-slate-800 font-display tracking-tightest uppercase">{t('config.lot_requirements')}</h2>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t('config.tech_score_config_desc')}</p>
                         </div>
                     </div>
 
@@ -802,15 +802,15 @@ export default function ConfigPage({ onAddLot = () => {}, onDeleteLot = () => {}
                             className="px-6 py-3.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all flex items-center gap-4 text-[11px] font-black uppercase tracking-widest font-display shadow-lg shadow-indigo-500/20 hover:-translate-y-0.5 active:scale-95"
                         >
                             <Plus className="w-5 h-5" />
-                            <span>Aggiungi {activeTab === 'resource' ? 'Certificazione' : activeTab === 'reference' ? 'Referenza' : 'Progetto'}</span>
+                            <span>{activeTab === 'resource' ? t('config.add_cert') : activeTab === 'reference' ? t('config.add_reference') : t('config.add_project')}</span>
                         </button>
                         <div className="flex items-center gap-4">
                             <div className="bg-white/60 backdrop-blur-md border border-indigo-200/50 rounded-2xl px-6 py-3 text-center shadow-lg shadow-indigo-500/5 min-w-[120px]">
-                                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-display mb-1">Totale Raw</div>
+                                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-display mb-1">{t('config.total_raw')}</div>
                                 <div className="text-2xl font-black text-indigo-700 font-display tracking-tightest">{filteredReqs.reduce((s, r) => s + (r.max_points || 0), 0).toFixed(1)}</div>
                             </div>
                             <div className="bg-white/60 backdrop-blur-md border border-amber-200/50 rounded-2xl px-6 py-3 text-center shadow-lg shadow-amber-500/5 min-w-[120px]">
-                                <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest font-display mb-1">Totale Pesato</div>
+                                <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest font-display mb-1">{t('config.total_weighted')}</div>
                                 <div className="text-2xl font-black text-amber-700 font-display tracking-tightest">{filteredReqs.reduce((s, r) => s + (r.gara_weight || 0), 0).toFixed(1)}</div>
                             </div>
                         </div>

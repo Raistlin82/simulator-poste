@@ -313,7 +313,8 @@ export default function MasterDataConfig() {
             showToast('success', 'Backup scaricato con successo');
         } catch (error) {
             logger.error('Error exporting database', error);
-            showToast('error', `Errore durante l'export: ${error.message}`);
+            const errorDetail = error.response?.data?.detail || error.message;
+            showToast('error', `Errore durante l'export: ${errorDetail}`);
         }
     };
 
@@ -371,7 +372,7 @@ export default function MasterDataConfig() {
         { id: 'rti_partners', label: t('master.rti_partners'), icon: Building2, color: 'text-indigo-600', bg: 'bg-indigo-50' },
         { id: 'economic_formulas', label: t('config.economic_formula'), icon: Info, color: 'text-orange-600', bg: 'bg-orange-50' },
         { id: 'ocr_settings', label: t('master.ocr_settings'), icon: Settings, color: 'text-purple-600', bg: 'bg-purple-50' },
-        { id: 'database_tools', label: 'Database Backup', icon: Database, color: 'text-slate-600', bg: 'bg-slate-50' },
+        { id: 'database_tools', label: t('master.database_backup'), icon: Database, color: 'text-slate-600', bg: 'bg-slate-50' },
     ];
 
     return (
@@ -395,7 +396,7 @@ export default function MasterDataConfig() {
                         <div>
                             <h1 className="text-2xl font-black text-slate-800 font-display tracking-tightest leading-tight">Poste Master Data</h1>
                             <div className="flex items-center gap-3 mt-1.5">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">Configurazione Sistema</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('master.system_config')}</span>
                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
                                 <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest-plus font-display">{sections.find(s => s.id === activeSection)?.label}</span>
                             </div>
@@ -407,7 +408,7 @@ export default function MasterDataConfig() {
                     {/* Lateral Navigation (Tabs) */}
                     <div className="lg:col-span-3 space-y-4">
                         <div className="glass-card rounded-[2rem] p-5 sticky top-8 border-white/60 shadow-xl shadow-slate-200/40">
-                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest-plus mb-6 px-3 font-display border-l-2 border-indigo-500 pl-4">Sezioni Master Data</div>
+                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest-plus mb-6 px-3 font-display border-l-2 border-indigo-500 pl-4">{t('master.master_data_sections')}</div>
                             {sections.map(s => (
                                 <button
                                     key={s.id}
@@ -445,7 +446,7 @@ export default function MasterDataConfig() {
                                         className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-2xl hover:brightness-110 transition-all flex items-center gap-4 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-xl shadow-indigo-200 active:scale-95 group"
                                     >
                                         <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-                                        <span>Aggiungi Voce</span>
+                                        <span>{t('master.add_item')}</span>
                                     </button>
                                 )}
                             </div>
@@ -481,10 +482,10 @@ export default function MasterDataConfig() {
                                     {/* Add Vendor Form */}
                                     {showAddVendor && (
                                         <div className="p-6 bg-white/40 backdrop-blur-md border border-purple-200/50 rounded-2xl mb-8 shadow-xl shadow-purple-500/5 border-spacing-y-3">
-                                            <h4 className="text-sm font-black text-purple-800 uppercase tracking-widest font-display mb-6 px-1">Nuovo Vendor</h4>
+                                            <h4 className="text-sm font-black text-purple-800 uppercase tracking-widest font-display mb-6 px-1">{t('master.new_vendor')}</h4>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                                 <div className="bg-white/50 p-4 rounded-xl border border-white/60">
-                                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1 font-display">Chiave Unica</label>
+                                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1 font-display">{t('master.unique_key')}</label>
                                                     <input
                                                         type="text"
                                                         value={newVendor.key}
@@ -494,7 +495,7 @@ export default function MasterDataConfig() {
                                                     />
                                                 </div>
                                                 <div className="bg-white/50 p-4 rounded-xl border border-white/60">
-                                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1 font-display">Nome Visualizzato</label>
+                                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1 font-display">{t('master.display_name')}</label>
                                                     <input
                                                         type="text"
                                                         value={newVendor.name}
@@ -509,13 +510,13 @@ export default function MasterDataConfig() {
                                                     onClick={createVendor}
                                                     className="px-6 py-2.5 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest font-display hover:bg-purple-700 transition-all shadow-lg shadow-purple-200"
                                                 >
-                                                    Crea Vendor
+                                                    {t('master.create_vendor')}
                                                 </button>
                                                 <button
                                                     onClick={() => { setShowAddVendor(false); setNewVendor({ key: '', name: '' }); }}
                                                     className="px-6 py-2.5 bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest font-display hover:bg-slate-300 transition-all"
                                                 >
-                                                    Annulla
+                                                    {t('master.cancel')}
                                                 </button>
                                             </div>
                                         </div>
@@ -548,10 +549,10 @@ export default function MasterDataConfig() {
                                                         <div className="flex items-center gap-5">
                                                             <div className="flex items-center gap-3">
                                                                 <span className="text-[10px] font-black text-indigo-600 bg-indigo-50/50 backdrop-blur-sm border border-indigo-100/50 rounded-xl px-3 py-1.5 uppercase tracking-widest-plus font-display shadow-sm">
-                                                                    {vendor.aliases?.length || 0} Alias
+                                                                    {vendor.aliases?.length || 0} {t('master.aliases')}
                                                                 </span>
                                                                 <span className="text-[10px] font-black text-blue-600 bg-blue-50/50 backdrop-blur-sm border border-blue-100/50 rounded-xl px-3 py-1.5 uppercase tracking-widest-plus font-display shadow-sm">
-                                                                    {vendor.cert_patterns?.length || 0} Pattern
+                                                                    {vendor.cert_patterns?.length || 0} {t('master.cert_patterns')}
                                                                 </span>
                                                             </div>
                                                             <div className="w-10 h-10 rounded-2xl bg-slate-100/50 flex items-center justify-center border border-white group-hover/item:bg-white transition-all">
@@ -565,7 +566,7 @@ export default function MasterDataConfig() {
                                                             {/* Aliases */}
                                                             <div>
                                                                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 font-display">
-                                                                    Alias (nomi alternativi per riconoscimento)
+                                                                    {t('master.aliases_label')}
                                                                 </label>
                                                                 <div className="flex flex-wrap gap-2 mb-3">
                                                                     {vendor.aliases?.map((alias, idx) => (
@@ -581,7 +582,7 @@ export default function MasterDataConfig() {
                                                                     <input
                                                                         ref={el => aliasInputRefs.current[vendor.key] = el}
                                                                         type="text"
-                                                                        placeholder="Nuovo alias..."
+                                                                        placeholder={t('master.new_alias_placeholder')}
                                                                         className="flex-1 p-2.5 bg-white/50 border border-slate-200/50 rounded-lg text-sm font-body outline-none focus:ring-2 focus:ring-purple-500/30"
                                                                         onKeyDown={(e) => {
                                                                             if (e.key === 'Enter' && e.target.value.trim()) {
@@ -608,7 +609,7 @@ export default function MasterDataConfig() {
                                                             {/* Cert Patterns */}
                                                             <div>
                                                                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 font-display">
-                                                                    Pattern Certificazioni (regex per riconoscimento)
+                                                                    {t('master.patterns_label')}
                                                                 </label>
                                                                 <div className="space-y-2 mb-3">
                                                                     {vendor.cert_patterns?.map((pattern, idx) => (
@@ -624,7 +625,7 @@ export default function MasterDataConfig() {
                                                                     <input
                                                                         ref={el => patternInputRefs.current[vendor.key] = el}
                                                                         type="text"
-                                                                        placeholder="Nuovo pattern regex..."
+                                                                        placeholder={t('master.new_pattern_placeholder')}
                                                                         className="flex-1 p-2.5 bg-white/50 border border-slate-200/50 rounded-lg text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500/30"
                                                                         onKeyDown={(e) => {
                                                                             if (e.key === 'Enter' && e.target.value.trim()) {
@@ -654,7 +655,7 @@ export default function MasterDataConfig() {
                                                                     className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest font-display hover:bg-red-100 transition-all flex items-center gap-2"
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
-                                                                    Elimina Vendor
+                                                                    {t('master.delete_vendor')}
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -681,16 +682,20 @@ export default function MasterDataConfig() {
                                                 <Download className="w-7 h-7 text-indigo-600" />
                                             </div>
                                             <div className="flex-1">
-                                                <h3 className="text-lg font-black text-slate-800 font-display mb-2 tracking-tight">Esporta Database</h3>
+                                                <h3 className="text-lg font-black text-slate-800 font-display mb-2 tracking-tight">{t('master.export_db')}</h3>
                                                 <p className="text-sm text-slate-600 font-body mb-6 leading-relaxed">
                                                     Scarica l'intero database locale contenente tutte le configurazioni, i master data, i lotti di gara, i piani economici e i calcoli. Questo export funge da backup completo.
+                                                    <br />
+                                                    <span className="inline-block mt-2 font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md text-[10px]">
+                                                        {t('master.backup_note')}
+                                                    </span>
                                                 </p>
                                                 <button
                                                     onClick={handleExportDb}
                                                     className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest-plus font-display hover:bg-indigo-700 transition-all flex items-center gap-3 shadow-lg shadow-indigo-200 active:scale-95"
                                                 >
                                                     <Download className="w-4 h-4" />
-                                                    Scarica Backup
+                                                    {t('master.download_backup')}
                                                 </button>
                                             </div>
                                         </div>
@@ -702,9 +707,9 @@ export default function MasterDataConfig() {
                                                 <Upload className="w-7 h-7 text-red-600" />
                                             </div>
                                             <div className="flex-1">
-                                                <h3 className="text-lg font-black text-red-800 font-display mb-2 tracking-tight">Importa Database</h3>
+                                                <h3 className="text-lg font-black text-red-800 font-display mb-2 tracking-tight">{t('master.import_db')}</h3>
                                                 <p className="text-sm text-red-600/80 font-body mb-6 leading-relaxed">
-                                                    Attenzione: l'importazione di un database sovrascriverà <b>completamente</b> e <b>irreversibilmente</b> i dati attuali! Assicurati di aver effettuato un export dei dati recenti prima di procedere.
+                                                    {t('master.import_db_warning_full')}
                                                 </p>
 
                                                 <input
@@ -719,7 +724,7 @@ export default function MasterDataConfig() {
                                                     className="px-6 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest-plus font-display hover:bg-red-700 transition-all flex items-center gap-3 shadow-lg shadow-red-200 active:scale-95"
                                                 >
                                                     <Upload className="w-4 h-4" />
-                                                    Ripristina Backup
+                                                    {t('master.restore_backup')}
                                                 </button>
                                             </div>
                                         </div>
@@ -804,13 +809,13 @@ export default function MasterDataConfig() {
                 isOpen={deleteModalState.isOpen}
                 onClose={() => setDeleteModalState({ isOpen: false, actionType: null, data: null })}
                 onConfirm={handleDeleteConfirm}
-                title="Conferma Eliminazione"
+                title={t('common.confirm_deletion')}
                 description={
                     deleteModalState.actionType === 'vendor'
-                        ? `Sei sicuro di voler eliminare il vendor "${deleteModalState.data?.vendorName}"? Questa operazione rimuoverà anche tutte le configurazioni associate.`
+                        ? t('master.delete_vendor_confirm', { name: deleteModalState.data?.vendorName })
                         : deleteModalState.actionType === 'import_db'
-                            ? `ATTENZIONE! Stai per sovrascrivere l'intero database locale con il file "${deleteModalState.data?.file?.name}". Questo eliminerà definitivamente e irreversibilmente tutti i dati correnti. Sei assolutamente sicuro di voler procedere? Consigliamo vivamente di fare un export di sicurezza prima.`
-                            : `Sei sicuro di voler eliminare l'elemento "${deleteModalState.data?.label || ''}"? Questa azione non può essere annullata.`
+                            ? t('master.import_db_warning', { fileName: deleteModalState.data?.file?.name })
+                            : t('master.delete_item_confirm', { label: deleteModalState.data?.label || '' })
                 }
             />
         </div>

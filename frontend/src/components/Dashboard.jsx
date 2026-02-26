@@ -240,13 +240,13 @@ export default function Dashboard({ onNavigate }) {
                             </div>
                             <div>
                                 <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest font-display">{t('dashboard.competitor_to_beat')}</h3>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">Targeting & Scenario Optimization</p>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">{t('dashboard.targeting_optimization')}</p>
                             </div>
                         </div>
                         <div className="flex gap-2">
                             <div className="px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl">
-                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-display block">Precision Iterations</span>
-                                <span className="text-sm font-black text-indigo-600 font-display">500 Simulations</span>
+                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-display block">{t('dashboard.precision_iterations')}</span>
+                                <span className="text-sm font-black text-indigo-600 font-display">{t('dashboard.simulations_count', { count: 500 })}</span>
                             </div>
                         </div>
                     </div>
@@ -315,19 +315,19 @@ export default function Dashboard({ onNavigate }) {
                     {optimizerLoading ? (
                         <div className="mt-4 flex flex-col items-center justify-center py-20 bg-slate-50/30 rounded-3xl border border-dashed border-slate-200">
                             <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display animate-pulse">Calculating Optimal Trajectories</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display animate-pulse">{t('dashboard.calculating_trajectories')}</span>
                         </div>
                     ) : optimizerResults && (
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                 {/* Competitor Summary */}
                                 <div className="p-4 bg-indigo-500/5 backdrop-blur-md rounded-[2rem] border border-indigo-100/50 shadow-xl shadow-indigo-500/5 flex flex-col justify-between group/comp transition-all duration-300 hover:bg-indigo-500/10 hover:border-indigo-200">
-                                    <div className="text-[9px] text-indigo-400 uppercase font-black tracking-widest mb-3 font-display">Target Competitor Score</div>
+                                    <div className="text-[9px] text-indigo-400 uppercase font-black tracking-widest mb-3 font-display">{t('dashboard.target_comp_score')}</div>
                                     <div className="flex flex-col">
                                         <span className="text-3xl font-black text-slate-800 font-display tracking-tightest leading-none group-hover/comp:scale-105 transition-transform origin-left">{formatNumber(optimizerResults.competitor_total_score, 2)}</span>
                                         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-indigo-100/50">
-                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">PT: {formatNumber(optimizerResults.competitor_tech_score, 1)}</div>
-                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">PE: {formatNumber(optimizerResults.competitor_econ_score, 1)}</div>
+                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">{t('dashboard.tech_pt')}: {formatNumber(optimizerResults.competitor_tech_score, 1)}</div>
+                                            <div className="px-2 py-1 bg-white/60 border border-white rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest font-display">{t('dashboard.econ_pt')}: {formatNumber(optimizerResults.competitor_econ_score, 1)}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -342,24 +342,24 @@ export default function Dashboard({ onNavigate }) {
                                                     <span className="text-[9px] text-indigo-600 uppercase font-black tracking-widest font-display">{t('dashboard.current_scenario')}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display">Live Analysis</span>
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-display">{t('dashboard.live_analysis')}</span>
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">Sconto Attuale</div>
+                                                <div className="flex flex-col">
+                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">{t('dashboard.current_discount_label')}</div>
                                                     <div className="text-2xl font-black text-slate-800 font-display">{formatNumber(myDiscount, 2)}%</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">Win Probability</div>
+                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">{t('dashboard.win_probability')}</div>
                                                     <div className="text-2xl font-black text-indigo-600 font-display">{monteCarlo?.win_probability || 0}%</div>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="w-px h-24 bg-slate-200/60 hidden md:block" />
                                         <div className="space-y-2 text-right">
-                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">Controvalore Reale</div>
+                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">{t('dashboard.counter_value')}</div>
                                             <div className="text-xl font-black text-slate-800 font-display">{formatCurrency(lotData?.base_amount * (1 - myDiscount / 100))}</div>
                                             <div className="inline-flex px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest font-display mt-2 shadow-sm">
                                                 Score: {formatNumber(results.total_score, 2)}
@@ -372,7 +372,7 @@ export default function Dashboard({ onNavigate }) {
                             {/* Scenarios Grid */}
                             <div>
                                 <div className="flex items-center justify-between mb-6">
-                                    <h4 className="text-[9px] text-slate-400 uppercase font-black tracking-widest font-display">Strategie di posizionamento suggerite</h4>
+                                    <h4 className="text-[9px] text-slate-400 uppercase font-black tracking-widest font-display">{t('dashboard.suggested_strategies')}</h4>
                                     <div className="h-px bg-slate-200 flex-1 ml-6" />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -404,16 +404,16 @@ export default function Dashboard({ onNavigate }) {
                                                     </div>
                                                     <div className="space-y-4">
                                                         <div>
-                                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">Suggerito</div>
+                                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">{t('dashboard.suggested_label')}</div>
                                                             <div className="text-[22px] font-black text-slate-900 font-display tabular-nums leading-none tracking-tightest">{formatNumber(scenario.suggested_discount, 2)}%</div>
                                                         </div>
                                                         <div className="pt-4 border-t border-slate-100/50 flex flex-col gap-2">
                                                             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500 font-display">
-                                                                <span>Score Tot:</span>
+                                                                <span>{t('dashboard.score_tot_label')}:</span>
                                                                 <span className="text-slate-900 font-bold">{formatNumber(scenario.resulting_total_score, 2)}</span>
                                                             </div>
                                                             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500 font-display">
-                                                                <span>Valore:</span>
+                                                                <span>{t('dashboard.value_label')}:</span>
                                                                 <span className="text-slate-900 font-bold">{formatCurrency(lotData?.base_amount * (1 - scenario.suggested_discount / 100))}</span>
                                                             </div>
                                                         </div>
@@ -449,16 +449,16 @@ export default function Dashboard({ onNavigate }) {
                         </div>
                         <div>
                             <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest font-display">{t('dashboard.detail_table')}</h3>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">Ripartizione Puntuale Requisiti Gara</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 font-display">{t('dashboard.detailed_score_subtitle')}</p>
                         </div>
                     </div>
                     <div className="flex gap-3 flex-wrap">
                         <div className="px-6 py-3 bg-indigo-500 text-white rounded-[1.25rem] shadow-lg shadow-indigo-500/20 flex items-center gap-3">
-                            <span className="text-[10px] font-black uppercase tracking-widest font-display opacity-80">PT Pesato:</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest font-display opacity-80">{t('dashboard.weighted_pt_label')}:</span>
                             <span className="text-lg font-black font-display tabular-nums">{formatNumber(results.technical_score, 2)} / {results?.calculated_max_tech_score || lotData?.max_tech_score || 60}</span>
                         </div>
                         <div className="px-6 py-3 bg-white/60 border border-white/60 rounded-[1.25rem] shadow-sm flex items-center gap-3">
-                            <span className="text-[10px] font-black uppercase tracking-widest font-display text-slate-400">Raw Ponti:</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest font-display text-slate-400">{t('dashboard.raw_pts_label')}:</span>
                             <span className="text-lg font-black font-display text-slate-800 tabular-nums">{formatNumber(results.raw_technical_score || 0, 1)} / {lotData?.max_raw_score || 0}</span>
                         </div>
                     </div>
@@ -545,7 +545,7 @@ export default function Dashboard({ onNavigate }) {
                                                 </div>
                                                 :
                                                 <div className="flex items-center justify-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl border border-slate-200">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest font-display text-nowrap">{formatNumber(percentage, 0)}% Complete</span>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest font-display text-nowrap">{formatNumber(percentage, 0)}% {t('tech.cert_complete')}</span>
                                                 </div>
                                             }
                                         </td>

@@ -2,16 +2,17 @@ import { useState, useMemo, useCallback, useRef, useEffect, Fragment } from 'rea
 import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CheckCircle2, BookOpen, Wand2, Save, Upload, FileDown } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 import { bpSaveTrigger } from '../../../utils/bpSaveTrigger';
+import { useTranslation } from 'react-i18next';
 
 const TIPO_OPTIONS = [
-  { value: 'nuovo_sviluppo', label: 'Nuovo Sviluppo' },
-  { value: 'modifica_evolutiva', label: 'Modifica Evolutiva' },
+  { value: 'nuovo_sviluppo', fallback: 'Nuovo Sviluppo', tKey: 'business_plan.tipo_new_dev' },
+  { value: 'modifica_evolutiva', fallback: 'Modifica Evolutiva', tKey: 'business_plan.tipo_evo' },
 ];
 
 const COMPLESSITA_OPTIONS = [
-  { value: 'bassa', label: 'Bassa' },
-  { value: 'media', label: 'Media' },
-  { value: 'alta', label: 'Alta' },
+  { value: 'bassa', fallback: 'Bassa', tKey: 'business_plan.complexity_low' },
+  { value: 'media', fallback: 'Media', tKey: 'business_plan.complexity_medium' },
+  { value: 'alta', fallback: 'Alta', tKey: 'business_plan.complexity_high' },
 ];
 
 function generateId() {
@@ -74,6 +75,7 @@ function computeItemRate(profileMix, profileMappings, profileRates, durationMont
 }
 
 function ProfileMixEditor({ mix = [], posteProfiles = [], onChange }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
 
   const handleChangePct = (idx, value) => {
@@ -127,7 +129,7 @@ function ProfileMixEditor({ mix = [], posteProfiles = [], onChange }) {
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Aggiungi figura..."
+        placeholder={t('business_plan.catalog_add_figure', "Aggiungi figura...")}
         className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
       />
       {available.length > 0 && (
@@ -144,13 +146,14 @@ function ProfileMixEditor({ mix = [], posteProfiles = [], onChange }) {
         </div>
       )}
       {posteProfiles.length === 0 && (
-        <p className="text-[10px] text-slate-400 italic">Nessuna figura nelle mappature profili.</p>
+        <p className="text-[10px] text-slate-400 italic">{t('business_plan.catalog_no_profiles', "Nessuna figura nelle mappature profili.")}</p>
       )}
     </div>
   );
 }
 
 function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
+  const { t } = useTranslation();
   const handleChange = (idx, field, value) => {
     const updated = clusters.map((c, i) => i === idx ? { ...c, [field]: value } : c);
     onChange(updated);
@@ -184,7 +187,7 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
               type="text"
               value={cluster.label || ''}
               onChange={(e) => handleChange(idx, 'label', e.target.value)}
-              placeholder="Nome cluster..."
+              placeholder={t('business_plan.catalog_cluster_name', "Nome cluster...")}
               className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
             />
             <div className="flex items-center gap-1">
@@ -224,7 +227,7 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
               defaultValue=""
               className="px-1.5 py-0.5 text-xs border border-dashed border-slate-300 rounded focus:outline-none"
             >
-              <option value="">+ figura...</option>
+              <option value="">+ {t('business_plan.catalog_figure', "figura...")}</option>
               {posteProfiles.filter(p => !(cluster.poste_profiles || []).includes(p)).map(p => (
                 <option key={p} value={p}>{p}</option>
               ))}
@@ -237,7 +240,7 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
           onClick={handleAddCluster}
           className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
         >
-          <Plus className="w-4 h-4" /> Aggiungi Cluster
+          <Plus className="w-4 h-4" /> {t('business_plan.catalog_add_cluster', "Aggiungi Cluster")}
         </button>
         {clusters.length > 0 && (
           <span className={`text-xs font-semibold px-2 py-1 rounded ${isValid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -254,7 +257,8 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
  * Per ogni raggruppamento: valore target Poste → FTE previsti proporzionali al totale catalogo.
  * Per ogni voce nel raggruppamento: % sul raggruppamento (INPUT, Σ = 100%) → FTE e Pz. Poste proporzionali.
  */
-function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalogReuseFactor = 0, groupTotals = {}, scontoGaraFactor = 1, onGroupsChange, onToggleGroupItem, onItemPctChange, onEvenDistribute }) {
+function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalogReuseFactor = 0, groupTotals = {}, scontoGaraFactor = 1, onGroupsChange, onToggleGroupItem, onItemPctChange, onEvenDistribute, onMaximizeMargin }) {
+  const { t } = useTranslation();
   const scontoGaraActive = scontoGaraFactor < 0.9999;
 
   // Collapsed state — tutti collassati per default
@@ -298,11 +302,11 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
           >
             {allExpandedGrps
-              ? <><ChevronUp className="w-3.5 h-3.5" />Comprimi tutti</>
-              : <><ChevronDown className="w-3.5 h-3.5" />Espandi tutti</>
+              ? <><ChevronUp className="w-3.5 h-3.5" />{t('business_plan.catalog_collapse_all', "Comprimi tutti")}</>
+              : <><ChevronDown className="w-3.5 h-3.5" />{t('business_plan.catalog_expand_all', "Espandi tutti")}</>
             }
           </button>
-          <span className="text-xs text-slate-400">{groups.length} raggruppament{groups.length === 1 ? 'o' : 'i'}</span>
+          <span className="text-xs text-slate-400">{groups.length} {groups.length === 1 ? t('business_plan.catalog_group_single', 'raggruppamento') : t('business_plan.catalog_group_plural', 'raggruppamenti')}</span>
         </div>
       )}
 
@@ -311,8 +315,8 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
           ${groupTotalOk ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
           {groupTotalOk ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-          Σ Valori target raggruppamenti: {formatCurrency(scontoGaraActive ? effectiveSumGroupTargets : sumGroupTargets, 0)} / {formatCurrency(scontoGaraActive ? effectiveTotalCatalogLocal : totalCatalogValue, 0)} Totale Catalogo
-          {!groupTotalOk && ' — i valori non corrispondono al Totale Catalogo'}
+          Σ {t('business_plan.catalog_target_group_values', "Valori target raggruppamenti")}: {formatCurrency(scontoGaraActive ? effectiveSumGroupTargets : sumGroupTargets, 0)} / {formatCurrency(scontoGaraActive ? effectiveTotalCatalogLocal : totalCatalogValue, 0)} {t('business_plan.catalog_total_catalog', "Totale Catalogo")}
+          {!groupTotalOk && ` — ${t('business_plan.catalog_values_dont_match', "i valori non corrispondono al Totale Catalogo")}`}
         </div>
       )}
 
@@ -348,8 +352,8 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                 ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
               <span className={`w-3 h-3 rounded-full shrink-0 ${dotColor}`} />
-              <span className="font-semibold text-sm text-slate-700 flex-1 truncate">{group.label || 'Senza nome'}</span>
-              <span className="text-xs text-slate-400">{groupItems.length} {groupItems.length === 1 ? 'voce' : 'voci'}</span>
+              <span className="font-semibold text-sm text-slate-700 flex-1 truncate">{group.label || t('business_plan.catalog_unnamed', 'Senza nome')}</span>
+              <span className="text-xs text-slate-400">{groupItems.length} {groupItems.length === 1 ? t('business_plan.catalog_item_single', 'voce') : t('business_plan.catalog_item_plural', 'voci')}</span>
               {/* Aggregati visibili solo in collapsed */}
               {isCollapsedGrp && (
                 <div className="flex items-center gap-3 text-xs ml-2">
@@ -371,11 +375,14 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                   </span>
                   {gt && gt.sell > 0 && (
                     <>
-                      <span className="text-slate-600 tabular-nums">Costo: <strong>{formatCurrency(gt.cost, 0)}</strong></span>
+                      <span className="text-slate-600 tabular-nums">{t('business_plan.catalog_cost', 'Costo')}: <strong>{formatCurrency(gt.cost, 0)}</strong></span>
                       <span className={`font-semibold tabular-nums ${gt.margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                        Marg: {gt.marginPct.toFixed(1)}%
+                        {t('business_plan.catalog_margin_short', 'Marg')}: {gt.marginPct.toFixed(1)}%
                       </span>
-                      <span className="text-slate-600 tabular-nums">Vend.: <strong>{formatCurrency(gt.sell, 0)}</strong></span>
+                      <span className={`tabular-nums ${gt.sell > gt.posteTotal + 1 ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>
+                        {t('business_plan.catalog_sell_short', 'Vend.')}: <strong>{formatCurrency(gt.sell, 0)}</strong>
+                        {gt.sell > gt.posteTotal + 1 && <AlertTriangle className="w-3.5 h-3.5 inline ml-1" title={t('business_plan.catalog_group_margin_warning', 'Prezzo Vendita > Prezzo Poste. Controlla i margini.')} />}
+                      </span>
                     </>
                   )}
                 </div>
@@ -394,19 +401,19 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
               <div className="p-4 space-y-4">
                 {/* Header: nome + valore target (ora senza trash perché già nell'header collassabile) */}
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 font-medium shrink-0">Nome:</span>
+                  <span className="text-xs text-slate-500 font-medium shrink-0">{t('business_plan.catalog_name', "Nome")}:</span>
                   <input
                     type="text"
                     value={group.label || ''}
                     onChange={(e) => handleChange(idx, { label: e.target.value })}
-                    placeholder="Nome raggruppamento..."
+                    placeholder={t('business_plan.catalog_group_name', "Nome raggruppamento...")}
                     className="flex-1 px-2 py-1 text-sm font-medium border border-slate-200 rounded focus:outline-none focus:border-indigo-300"
                   />
                 </div>
 
                 {/* Valore target → FTE previsti */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <label className="text-xs text-slate-500 font-medium">Valore target Poste:</label>
+                  <label className="text-xs text-slate-500 font-medium">{t('business_plan.catalog_poste_target_value', 'Valore target Poste')}:</label>
                   <div className="flex flex-col">
                     {scontoGaraActive && groupTarget > 0 ? (
                       <>
@@ -441,7 +448,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                     <>
                       <span className="text-xs text-slate-400">→</span>
                       <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded font-semibold text-xs">
-                        <span>FTE previsti: </span>
+                        <span>{t('business_plan.catalog_expected_fte', 'FTE previsti')}: </span>
                         {reuseApplied ? (
                           <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}>
                             <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
@@ -453,25 +460,25 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                       </div>
                       {/* NEW: Riuso % override for group */}
                       <label className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400">→ Riuso:</span>
+                        <span className="text-xs text-slate-400">→ {t('business_plan.catalog_reuse', 'Riuso')}:</span>
                         <input
                           type="number"
                           value={group.reuse_factor ? group.reuse_factor * 100 : ''}
                           onChange={(e) => handleChange(idx, { reuse_factor: e.target.value ? parseFloat(e.target.value) / 100 : null })}
                           min="0" max="90" step="1"
-                          placeholder="auto"
-                          title="Fattore di riuso specifico per questo raggruppamento (lascia vuoto per usare il default del TOW)"
+                          placeholder={t('business_plan.catalog_auto', "auto")}
+                          title={t('business_plan.catalog_reuse_title', "Fattore di riuso specifico per questo raggruppamento (lascia vuoto per usare il default del TOW)")}
                           className="w-14 px-1.5 py-0.5 text-xs text-center border border-sky-200 bg-sky-50 text-sky-700 rounded focus:outline-none focus:border-sky-400 font-medium placeholder:font-normal"
                         />
                         <span className="text-xs text-slate-400">%</span>
                       </label>
                       <span className="text-xs text-slate-400">
-                        ({(groupTarget / totalCatalogValue * 100).toFixed(1)}% del catalogo)
+                        ({(groupTarget / totalCatalogValue * 100).toFixed(1)}% {t('business_plan.catalog_of_catalog', 'del catalogo')})
                       </span>
                     </>
                   )}
                   {totalCatalogValue === 0 && (
-                    <span className="text-xs text-amber-500 italic">Imposta Totale Catalogo € nella testata per vedere gli FTE</span>
+                    <span className="text-xs text-amber-500 italic">{t('business_plan.catalog_set_total', "Imposta Totale Catalogo € nella testata per vedere gli FTE")}</span>
                   )}
                 </div>
 
@@ -479,20 +486,33 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                 {gt && gt.sell > 0 && (
                   <div className="flex items-center gap-3 flex-wrap px-1">
                     <span className="text-xs text-slate-500">
-                      Costo Lu.: <strong className="text-slate-700">{formatCurrency(gt.cost, 0)}</strong>
+                      {t('business_plan.catalog_lu_cost', 'Costo Lu.')}: <strong className="text-slate-700">{formatCurrency(gt.cost, 0)}</strong>
                     </span>
                     <span className="text-xs text-slate-400">·</span>
-                    <span className="text-xs text-slate-500">
-                      Pz. Vend.: <strong className="text-slate-700">{formatCurrency(gt.sell, 0)}</strong>
+                    <span className={`text-xs ${gt.sell > gt.posteTotal + 1 ? 'text-rose-600 font-bold bg-rose-50 px-1 rounded' : 'text-slate-500'}`}>
+                      {t('business_plan.catalog_sell_price', 'Pz. Vend.')}: <strong className={gt.sell > gt.posteTotal + 1 ? 'text-rose-700' : 'text-slate-700'}>{formatCurrency(gt.sell, 0)}</strong>
+                      {gt.sell > gt.posteTotal + 1 && <AlertTriangle className="w-3.5 h-3.5 inline ml-1" title={t('business_plan.catalog_group_margin_warning', 'Prezzo Vendita > Prezzo Poste.')} />}
                     </span>
                     <span className="text-xs text-slate-400">·</span>
                     <span className={`text-xs font-semibold ${gt.margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                      Marg.: {formatCurrency(gt.margin, 0)}
+                      {t('business_plan.catalog_margin', 'Marg.')}: {formatCurrency(gt.margin, 0)}
                       {' '}({gt.marginPct.toFixed(1)}%)
                       {gt.margin >= 0
                         ? <CheckCircle2 className="w-3 h-3 inline ml-1" />
                         : <AlertTriangle className="w-3 h-3 inline ml-1" />}
                     </span>
+
+                    {/* Pulsante Massimizza Margine */}
+                    <div className="ml-auto">
+                      <button
+                        onClick={() => onMaximizeMargin(group.id)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors"
+                        title={t('business_plan.catalog_maximize_margin_desc', "Ricalcola il target margin di ogni voce per livellare il Pz. Vendita al Pz. Poste.")}
+                      >
+                        <Wand2 className="w-3 h-3" />
+                        {t('business_plan.catalog_maximize_margin', "Massimizza Margini")}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -501,7 +521,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                   <div className="bg-slate-50 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-slate-600">
-                        Distribuzione voci nel raggruppamento
+                        {t('business_plan.catalog_item_distribution', "Distribuzione voci nel raggruppamento")}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isValid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -512,15 +532,15 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                           className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded transition-colors"
                         >
                           <Wand2 className="w-3 h-3" />
-                          Distribuisci uniformemente
+                          {t('business_plan.catalog_distribute_evenly', "Distribuisci uniformemente")}
                         </button>
                       </div>
                     </div>
                     <table className="w-full border-separate border-spacing-y-2">
                       <thead>
                         <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          <th className="text-left pb-1.5 px-3">Voce</th>
-                          <th className="text-right pb-1.5 px-3 w-28">% Raggruppamento</th>
+                          <th className="text-left pb-1.5 px-3">{t('business_plan.catalog_item', "Voce")}</th>
+                          <th className="text-right pb-1.5 px-3 w-28">% {t('business_plan.catalog_group_single', "Raggruppamento")}</th>
                           <th className="text-right pb-1.5 px-3 w-20">FTE</th>
                           <th className="text-right pb-1.5 px-3 w-28">Pz. Poste Tot.</th>
                         </tr>
@@ -535,7 +555,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                           return (
                             <tr key={it.id} className="bg-white/50 backdrop-blur-sm border border-white/50 rounded-lg hover:bg-white/80 transition-all">
                               <td className="py-1.5 px-3 text-xs text-slate-700 truncate max-w-[180px] rounded-l-lg">
-                                {it.label || <em className="text-slate-400">Senza nome</em>}
+                                {it.label || <em className="text-slate-400">{t('business_plan.catalog_unnamed', "Senza nome")}</em>}
                               </td>
                               <td className="py-1.5 text-right">
                                 <div className="flex items-center justify-end gap-0.5">
@@ -562,7 +582,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                                   ? <div>
                                     <div className="text-xs text-slate-600">{formatCurrency(posteTot * scontoGaraFactor, 0)}</div>
                                     {scontoGaraActive && (
-                                      <div className="text-[10px] text-slate-400">bando: {formatCurrency(posteTot, 0)}</div>
+                                      <div className="text-[10px] text-slate-400">{t('business_plan.catalog_tender', 'bando')}: {formatCurrency(posteTot, 0)}</div>
                                     )}
                                   </div>
                                   : <span className="text-slate-300">—</span>}
@@ -578,11 +598,11 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                 {/* Toggle voci (aggiungi/rimuovi dal raggruppamento) */}
                 <div>
                   <div className="text-xs text-slate-500 mb-1.5 font-medium">
-                    Voci incluse — clic per aggiungere/rimuovere:
+                    {t('business_plan.catalog_included_items', "Voci incluse — clic per aggiungere/rimuovere")}:
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {items.length === 0 && (
-                      <span className="text-xs text-slate-400 italic">Nessuna voce disponibile. Aggiungine nel tab "Voci".</span>
+                      <span className="text-xs text-slate-400 italic">{t('business_plan.catalog_no_items_add_in_tab', 'Nessuna voce disponibile. Aggiungine nel tab "Voci".')}</span>
                     )}
                     {items.map(it => {
                       const included = (group.item_ids || []).includes(it.id);
@@ -595,7 +615,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                               ? `${badgeColor} font-medium`
                               : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}`}
                         >
-                          {it.label || <em>Senza nome</em>}
+                          {it.label || <em>{t('business_plan.catalog_unnamed', "Senza nome")}</em>}
                         </button>
                       );
                     })}
@@ -611,7 +631,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
         onClick={handleAddGroup}
         className="flex items-center gap-1.5 text-sm text-rose-600 hover:text-rose-800 font-medium"
       >
-        <Plus className="w-4 h-4" /> Aggiungi Raggruppamento
+        <Plus className="w-4 h-4" /> {t('business_plan.catalog_add_group', "Aggiungi Raggruppamento")}
       </button>
     </div>
   );
@@ -642,6 +662,7 @@ export default function CatalogEditorModal({
   onClose,
 }) {
   const [activeTab, setActiveTab] = useState('items');
+  const { t } = useTranslation();
   const [expandedMix, setExpandedMix] = useState(new Set());
   const [expandedGroups, setExpandedGroups] = useState(new Set()); // default: tutti collassati
   const [importFeedback, setImportFeedback] = useState(null); // { imported, skipped, errors }
@@ -1048,16 +1069,17 @@ export default function CatalogEditorModal({
   const groupTotals = useMemo(() => {
     const map = {};
     catalogGroups.forEach(g => {
-      let cost = 0, sell = 0;
+      let cost = 0, sell = 0, posteTotal = 0;
       items.forEach((it, i) => {
         if ((g.item_ids || []).includes(it.id)) {
           cost += itemCalcs[i].item_cost;
           sell += itemCalcs[i].item_sell_price;
+          posteTotal += itemCalcs[i].item_poste_total;
         }
       });
       const margin = sell - cost;
       const marginPct = sell > 0 ? margin / sell * 100 : 0;
-      map[g.id] = { cost, sell, margin, marginPct };
+      map[g.id] = { cost, sell, posteTotal, margin, marginPct };
     });
     return map;
   }, [catalogGroups, items, itemCalcs]);
@@ -1084,13 +1106,14 @@ export default function CatalogEditorModal({
     });
     // Build per-group computed data
     const computedGroups = catalogGroups.map(g => {
-      const gt = groupTotals[g.id] || { cost: 0, sell: 0, margin: 0, marginPct: 0 };
+      const gt = groupTotals[g.id] || { cost: 0, sell: 0, posteTotal: 0, margin: 0, marginPct: 0 };
       return {
         id: g.id,
         label: g.label || '',
         target_value: parseFloat(g.target_value) || 0,
         cost: gt.cost,
         sell_price: gt.sell,
+        poste_total: gt.posteTotal,
         margin: gt.margin,
         margin_pct: gt.marginPct,
       };
@@ -1098,6 +1121,7 @@ export default function CatalogEditorModal({
     return {
       total_cost: totals.totalCost,
       total_sell_price: totals.totalSellPrice,
+      total_poste_total: totals.totalPosteTotal,   // Pz. Poste Tot. (ricavo Poste, già scontato)
       total_fte: totals.totalDerivedFte,
       total_margin_pct: totals.totalMarginPct,
       tow_id: tow?.id || '',
@@ -1183,6 +1207,40 @@ export default function CatalogEditorModal({
     return actual;
   }, [clusters, items, itemCalcs, totals.totalDerivedFte]);
 
+  // Ottimizzazione del Margine Target per gruppo per eguagliare il prezzo Poste
+  const handleMaximizeGroupMargin = useCallback((groupId) => {
+    const group = catalogGroups.find(g => g.id === groupId);
+    if (!group || !group.item_ids || group.item_ids.length === 0) return;
+
+    let updatedCount = 0;
+    const updated = items.map((it, i) => {
+      if ((group.item_ids || []).includes(it.id)) {
+        const calc = itemCalcs[i];
+        if (calc.has_valid_data && calc.item_poste_total > 0) {
+          let newMargin;
+          if (calc.item_cost > 0) {
+            newMargin = (1 - calc.item_cost / calc.item_poste_total) * 100;
+          } else {
+            newMargin = 100;
+          }
+          newMargin = Math.max(-999, Math.min(99.9, newMargin));
+          // Arrotonda sempre PER DIFETTO al primo decimale.
+          // In questo modo il Pz. Vendita Tot. (che aumenta all'aumentare del margine)
+          // si fermerà sempre appena un attimo prima o esattamente uguale al Pz. Poste Tot., 
+          // evitando così lo sforamento e l'innesco degli allarmi.
+          newMargin = Math.floor(newMargin * 10) / 10;
+          updatedCount++;
+          return { ...it, target_margin_pct: newMargin };
+        }
+      }
+      return it;
+    });
+
+    if (updatedCount > 0) {
+      updateTow({ catalog_items: updated });
+    }
+  }, [catalogGroups, items, itemCalcs, updateTow]);
+
   // Quadratura FTE
   const fteDiff = totals.totalDerivedFte - refTotalFte;
   const fteOk = refTotalFte === 0 || Math.abs(fteDiff / refTotalFte) < 0.05;
@@ -1203,7 +1261,7 @@ export default function CatalogEditorModal({
 
                 {/* Margine Target */}
                 <label className="flex items-center gap-1 text-xs text-slate-500">
-                  Margine Target:
+                  {t('business_plan.catalog_target_margin', 'Margine Target')}:
                   <input
                     type="number"
                     value={tow?.target_margin_pct ?? 20}
@@ -1218,7 +1276,7 @@ export default function CatalogEditorModal({
 
                 {/* Sconto Gara/Lotto */}
                 <label className="flex items-center gap-1 text-xs text-slate-500">
-                  Sconto Gara/Lotto:
+                  {t('business_plan.catalog_tender_discount', 'Sconto Gara/Lotto')}:
                   <input
                     type="number"
                     value={tow?.sconto_gara_pct ?? 0}
@@ -1237,7 +1295,7 @@ export default function CatalogEditorModal({
                 {/* Totale Catalogo € — flip se sconto gara > 0 */}
                 <div className="flex flex-col">
                   <label className="flex items-center gap-1 text-xs text-slate-500">
-                    Totale Catalogo:
+                    {t('business_plan.catalog_total', 'Totale Catalogo')}:
                     {scontoGaraPct > 0 && totalCatalogValue > 0 ? (
                       <div className="flex flex-col items-end">
                         <span className="text-sm font-semibold text-amber-700 tabular-nums">{formatCurrency(effectiveTotalCatalog, 0)} €</span>
@@ -1249,7 +1307,7 @@ export default function CatalogEditorModal({
                             min="0" step="1000" placeholder="0"
                             className="w-24 px-1.5 py-0.5 text-[10px] text-right border border-slate-100 bg-slate-50 text-slate-400 rounded focus:outline-none focus:border-rose-300"
                           />
-                          <span className="text-[9px] text-slate-400">bando €</span>
+                          <span className="text-[9px] text-slate-400">{t('business_plan.catalog_tender', 'bando')} €</span>
                         </div>
                       </div>
                     ) : (
@@ -1271,7 +1329,7 @@ export default function CatalogEditorModal({
 
                 {/* FTE Contratto — editabile */}
                 <label className="flex items-center gap-1 text-xs text-slate-500">
-                  FTE contratto:
+                  {t('business_plan.catalog_fte_contract', 'FTE contratto')}:
                   <input
                     type="number"
                     value={tow?.total_fte ?? ''}
@@ -1285,7 +1343,7 @@ export default function CatalogEditorModal({
 
                 {/* NEW: Fattore Riuso Catalogo % */}
                 <label className="flex items-center gap-1 text-xs text-slate-500">
-                  Riuso Catalogo:
+                  {t('business_plan.catalog_reuse', 'Riuso Catalogo')}:
                   <input
                     type="number"
                     value={tow?.catalog_reuse_factor ? tow.catalog_reuse_factor * 100 : ''}
@@ -1299,14 +1357,22 @@ export default function CatalogEditorModal({
                 {/* FTE quadratura badge */}
                 <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold text-[11px]
                   ${fteOk ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}
-                  title="FTE derivati dal catalogo">
+                  title={t('business_plan.catalog_fte_derived', "FTE derivati dal catalogo")}>
                   {totals.totalDerivedFte.toFixed(2)}
                   {refTotalFte > 0 && !fteOk && ` FTE (Δ${fteDiff > 0 ? '+' : ''}${fteDiff.toFixed(2)})`}
                 </span>
 
-                <span className="text-xs text-slate-500">Voci: <strong className="text-slate-700">{items.length}</strong></span>
+                <span className="text-xs text-slate-500">{t('business_plan.catalog_items', 'Voci')}: <strong className="text-slate-700">{items.length}</strong></span>
               </div>
             </div>
+
+            {/* ALERT SE PV > PP */}
+            {totals.totalSellPrice > totals.totalPosteTotal + 1 && (
+              <div className="flex bg-rose-50 border border-rose-200 rounded-lg p-2 items-center gap-2 mt-2" title={t('business_plan.catalog_margin_warning_desc', "Il Totale Prezzo Vendita Lutech supera il Totale Poste. Riduci i margini target delle voci per rientrare nello sconto gara.")}>
+                <AlertTriangle className="text-rose-600 w-4 h-4 shrink-0" />
+                <span className="text-[10px] text-rose-700 font-medium leading-tight">{t('business_plan.catalog_margin_warning', "Attenzione: Prezzo di vendita Lu. > Prezzo Poste. Riduci i margini.")}</span>
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -1319,9 +1385,9 @@ export default function CatalogEditorModal({
         {/* ── Tabs ── */}
         <div className="flex items-center justify-start px-6 py-2 border-b border-slate-100 bg-white gap-1">
           {[
-            { key: 'items', label: `Voci (${items.length})` },
-            { key: 'groups', label: `Raggruppamenti (${catalogGroups.length})` },
-            { key: 'clusters', label: `Cluster (${clusters.length})` },
+            { key: 'items', label: `${t('business_plan.catalog_items', 'Voci')} (${items.length})` },
+            { key: 'groups', label: `${t('business_plan.catalog_groups', 'Raggruppamenti')} (${catalogGroups.length})` },
+            { key: 'clusters', label: `${t('business_plan.catalog_clusters', 'Cluster')} (${clusters.length})` },
           ].map(tab => (
             <button
               key={tab.key}
@@ -1348,29 +1414,29 @@ export default function CatalogEditorModal({
                     className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
                   >
                     {allExpanded
-                      ? <><ChevronUp className="w-3.5 h-3.5" />Comprimi tutti</>
-                      : <><ChevronDown className="w-3.5 h-3.5" />Espandi tutti</>
+                      ? <><ChevronUp className="w-3.5 h-3.5" />{t('business_plan.catalog_collapse_all', "Comprimi tutti")}</>
+                      : <><ChevronDown className="w-3.5 h-3.5" />{t('business_plan.catalog_expand_all', "Espandi tutti")}</>
                     }
                   </button>
-                  <span className="text-xs text-slate-400">{catalogGroups.length} raggruppament{catalogGroups.length === 1 ? 'o' : 'i'}</span>
+                  <span className="text-xs text-slate-400">{catalogGroups.length} {catalogGroups.length === 1 ? t('business_plan.catalog_group_single', 'raggruppamento') : t('business_plan.catalog_group_plural', 'raggruppamenti')}</span>
                 </div>
               )}
               <div className="overflow-x-auto min-h-[500px]">
                 <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
                   <thead className="sticky top-0 z-10 bg-white/10 backdrop-blur-md">
                     <tr>
-                      <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-44">Descrizione</th>
-                      <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Tipo / Compl.</th>
-                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title="Prezzo unitario offerta economica Poste">Pz. Unit. Poste</th>
-                      <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Mix Figure Poste / €/gg</th>
-                      <th className="px-4 py-2 text-center text-[10px] font-black text-rose-600 uppercase tracking-widest w-20" title="% della voce sul raggruppamento (INPUT). Σ% per raggruppamento = 100%">% Grp</th>
-                      <th className="px-4 py-2 text-right text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title="FTE = FTE raggruppamento × % voce / 100">FTE</th>
-                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title="Costo Tot. = FTE × €/gg × anni × gg/FTE">Costo Tot.</th>
-                      <th className="px-4 py-2 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest w-20" title="Margine Target per la voce (vuoto = usa margine target TOW)">Marg.%</th>
-                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title="Pz. Vendita Tot. = Costo / (1 − Marg.%)">Pz. Vend. Tot.</th>
-                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest w-28" title="Prezzo Poste totale = % voce × valore target raggruppamento">Pz. Poste Tot.</th>
-                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title="Pz. Unit. Lutech = (Pz.Vend.Tot / Pz.Poste.Tot) × Pz.Unit.Poste">Pz. Unit. Lu.</th>
-                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest w-20" title="Sconto % = (1 − Pz.Unit.Lu / Pz.Unit.Poste) × 100">Sconto %</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-44">{t('business_plan.catalog_description', "Descrizione")}</th>
+                      <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">{t('business_plan.catalog_type_complexity', "Tipo / Compl.")}</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title={t('business_plan.catalog_title_poste_price', "Prezzo unitario offerta economica Poste")}>{t('business_plan.catalog_poste_price_min', "Pz. Unit. Poste")}</th>
+                      <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('business_plan.catalog_mix_price', "Mix Figure Poste / €/gg")}</th>
+                      <th className="px-4 py-2 text-center text-[10px] font-black text-rose-600 uppercase tracking-widest w-20" title={t('business_plan.catalog_title_group_pct', "% della voce sul raggruppamento (INPUT). Σ% per raggruppamento = 100%")}>{t('business_plan.catalog_pct_group', "% Grp")}</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title={t('business_plan.catalog_title_fte', "FTE = FTE raggruppamento × % voce / 100")}>{t('business_plan.catalog_fte', "FTE")}</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title={t('business_plan.catalog_title_total_cost', "Costo Tot. = FTE × €/gg × anni × gg/FTE")}>{t('business_plan.catalog_total_cost', "Costo Tot.")}</th>
+                      <th className="px-4 py-2 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest w-20" title={t('business_plan.catalog_title_target_margin', "Margine Target per la voce (vuoto = usa margine target TOW)")}>{t('business_plan.catalog_margin_pct', "Marg.%")}</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title={t('business_plan.catalog_title_total_sell', "Pz. Vendita Tot. = Costo / (1 − Marg.%)")}>{t('business_plan.catalog_total_sell', "Pz. Vend. Tot.")}</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest w-28" title={t('business_plan.catalog_title_poste_tot', "Prezzo Poste totale = % voce × valore target raggruppamento")}>{t('business_plan.catalog_poste_tot', "Pz. Poste Tot.")}</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-28" title={t('business_plan.catalog_title_lutech_unit', "Pz. Unit. Lutech = (Pz.Vend.Tot / Pz.Poste.Tot) × Pz.Unit.Poste")}>{t('business_plan.catalog_lutech_unit', "Pz. Unit. Lu.")}</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest w-20" title={t('business_plan.catalog_title_discount_pct', "Sconto % = (1 − Pz.Unit.Lu / Pz.Unit.Poste) × 100")}>{t('business_plan.catalog_discount_pct', "Sconto %")}</th>
                       <th className="px-4 py-2 w-12"></th>
                     </tr>
                   </thead>
@@ -1379,7 +1445,7 @@ export default function CatalogEditorModal({
                       <tr>
                         <td colSpan={13} className="py-12 text-center text-slate-400">
                           <BookOpen className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                          <p>Nessuna voce catalogo. Aggiungi la prima voce.</p>
+                          <p>{t('business_plan.catalog_no_items')}</p>
                         </td>
                       </tr>
                     )}
@@ -1507,7 +1573,7 @@ export default function CatalogEditorModal({
                                           ? 'bg-emerald-100 text-emerald-700 focus:ring-emerald-300'
                                           : 'bg-blue-100 text-blue-700 focus:ring-blue-300'}`}
                                     >
-                                      {TIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                      {TIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{t(o.tKey, o.fallback)}</option>)}
                                     </select>
                                     <select
                                       value={item.complessita || 'media'}
@@ -1519,7 +1585,7 @@ export default function CatalogEditorModal({
                                             ? 'bg-green-100 text-green-700 focus:ring-green-300'
                                             : 'bg-amber-100 text-amber-700 focus:ring-amber-300'}`}
                                     >
-                                      {COMPLESSITA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                      {COMPLESSITA_OPTIONS.map(o => <option key={o.value} value={o.value}>{t(o.tKey, o.fallback)}</option>)}
                                     </select>
                                   </div>
                                 </td>
@@ -1639,8 +1705,15 @@ export default function CatalogEditorModal({
                                 </td>
 
                                 {/* Pz. Vendita Tot. (derived) */}
-                                <td className="px-3 py-3 text-right text-xs font-medium text-slate-700 tabular-nums whitespace-nowrap">
-                                  {calc.has_valid_data ? formatCurrency(calc.item_sell_price, 0) : NA}
+                                <td className="px-3 py-3 text-right text-xs whitespace-nowrap">
+                                  {calc.has_valid_data ? (
+                                    <div className={`flex items-center justify-end gap-1.5 ${calc.item_sell_price > calc.item_poste_total + 1 ? 'text-rose-600 font-bold bg-rose-50 px-1 py-0.5 rounded border border-rose-200' : 'text-slate-700 font-medium'}`}>
+                                      {calc.item_sell_price > calc.item_poste_total + 1 && (
+                                        <AlertTriangle className="w-3.5 h-3.5" title={t('business_plan.catalog_item_margin_warning', 'Prezzo di vendita superiore al Prezzo Poste. Si consiglia di ridurre il margine.')} />
+                                      )}
+                                      <span>{formatCurrency(calc.item_sell_price, 0)}</span>
+                                    </div>
+                                  ) : NA}
                                 </td>
 
                                 {/* Pz. Poste Tot. (derived) */}
@@ -1708,7 +1781,7 @@ export default function CatalogEditorModal({
                   {items.length > 0 && (
                     <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                       <tr>
-                        <td colSpan={2} className="px-3 py-2 text-sm font-semibold text-slate-700">TOTALE</td>
+                        <td colSpan={2} className="px-3 py-2 text-sm font-semibold text-slate-700">{t('business_plan.catalog_total_footer', "TOTALE")}</td>
                         <td className="px-3 py-2"></td>{/* Pz. Unit. */}
                         <td className="px-3 py-2"></td>{/* Mix + €/gg */}
                         <td className="px-3 py-2"></td>{/* % Grp */}
@@ -1721,7 +1794,7 @@ export default function CatalogEditorModal({
                         <td className="px-3 py-2"></td>{/* Marg.% */}
                         <td className="px-3 py-2 text-right text-xs whitespace-nowrap">
                           <div className="font-semibold text-slate-700">{formatCurrency(totals.totalSellPrice, 0)}</div>
-                          <div className="text-[10px] text-slate-400">Marg: {totals.totalMarginPct.toFixed(1)}%</div>
+                          <div className="text-[10px] text-slate-400">{t('business_plan.catalog_margin_short', "Marg")}: {totals.totalMarginPct.toFixed(1)}%</div>
                         </td>
                         <td className="px-3 py-2 text-right text-xs font-semibold text-slate-500 tabular-nums whitespace-nowrap">
                           {formatCurrency(totals.totalPosteTotal, 0)}
@@ -1740,7 +1813,7 @@ export default function CatalogEditorModal({
                       className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                     >
                       <Plus className="w-4 h-4" />
-                      Aggiungi voce
+                      {t('business_plan.catalog_add_item', "Aggiungi voce")}
                     </button>
                     <button
                       onClick={handleExportCSV}
@@ -1748,7 +1821,7 @@ export default function CatalogEditorModal({
                       title="Esporta le voci correnti in formato CSV."
                     >
                       <FileDown className="w-4 h-4" />
-                      Export CSV
+                      {t('business_plan.catalog_export_csv', "Export CSV")}
                     </button>
                     <button
                       onClick={() => csvInputRef.current?.click()}
@@ -1756,7 +1829,7 @@ export default function CatalogEditorModal({
                       title="Importa/aggiorna voci da CSV. Le voci con stessa descrizione vengono aggiornate."
                     >
                       <Upload className="w-4 h-4" />
-                      Importa CSV
+                      {t('business_plan.catalog_import_csv', "Importa CSV")}
                     </button>
                     <input
                       ref={csvInputRef}
@@ -1767,7 +1840,7 @@ export default function CatalogEditorModal({
                     />
                     <span className="text-xs text-slate-400 ml-1">
                       <code className="bg-slate-100 px-1 rounded">DescrizioneVoce,Tipo,Complessita,PrezzoUnitario,Ruolo1..10,Perc1..10</code>
-                      &nbsp;—&nbsp;Tipo: <strong>N</strong>/M &nbsp;Compl.: <strong>L</strong>/M/H
+                      &nbsp;—&nbsp;{t('business_plan.catalog_type', 'Tipo')}: <strong>N</strong>/M &nbsp;{t('business_plan.catalog_compl', 'Compl.')}: <strong>L</strong>/M/H
                     </span>
                   </div>
 
@@ -1777,10 +1850,10 @@ export default function CatalogEditorModal({
                       }`}>
                       <div className="flex items-center justify-between">
                         <span className={importFeedback.errors.length > 0 ? 'text-amber-700 font-medium' : 'text-emerald-700 font-medium'}>
-                          {importFeedback.imported > 0 && `✓ ${importFeedback.imported} nuova${importFeedback.imported !== 1 ? 'e' : ''}`}
-                          {importFeedback.updated > 0 && `${importFeedback.imported > 0 ? ' · ' : '✓ '}${importFeedback.updated} aggiornata${importFeedback.updated !== 1 ? 'e' : ''}`}
-                          {importFeedback.imported === 0 && importFeedback.updated === 0 && 'Nessuna voce importata'}
-                          {importFeedback.skipped > 0 && ` · ${importFeedback.skipped} riga${importFeedback.skipped !== 1 ? 'e' : ''} con errori`}
+                          {importFeedback.imported > 0 && `✓ ${importFeedback.imported} ${importFeedback.imported !== 1 ? t('business_plan.catalog_new_plural', 'nuove') : t('business_plan.catalog_new_single', 'nuova')}`}
+                          {importFeedback.updated > 0 && `${importFeedback.imported > 0 ? ' · ' : '✓ '}${importFeedback.updated} ${importFeedback.updated !== 1 ? t('business_plan.catalog_updated_plural', 'aggiornate') : t('business_plan.catalog_updated_single', 'aggiornata')}`}
+                          {importFeedback.imported === 0 && importFeedback.updated === 0 && t('business_plan.catalog_no_items_imported', 'Nessuna voce importata')}
+                          {importFeedback.skipped > 0 && ` · ${importFeedback.skipped} ${importFeedback.skipped !== 1 ? t('business_plan.catalog_rows_plural', 'righe') : t('business_plan.catalog_row_single', 'riga')} ${t('business_plan.catalog_with_errors', 'con errori')}`}
                         </span>
                         <button onClick={() => setImportFeedback(null)} className="text-slate-400 hover:text-slate-600 ml-4">✕</button>
                       </div>
@@ -1800,11 +1873,11 @@ export default function CatalogEditorModal({
           {activeTab === 'clusters' && (
             <div className="p-6 space-y-6">
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-1">Vincoli Cluster Poste</h3>
+                <h3 className="text-sm font-semibold text-slate-700 mb-1">{t('business_plan.catalog_poste_cluster_constraints', "Vincoli Cluster Poste")}</h3>
                 <p className="text-xs text-slate-500 mb-4">
-                  Definisci i cluster di figure professionali richiesti da Poste con le relative percentuali target sul totale FTE.
-                  La distribuzione effettiva è pesata sugli FTE di ciascuna voce.
-                  <br /> Tipo di vincolo: <strong>=</strong> (uguaglianza ±2%), <strong>≥</strong> (minimo), <strong>≤</strong> (massimo)
+                  {t('business_plan.catalog_cluster_desc_1', "Definisci i cluster di figure professionali richiesti da Poste con le relative percentuali target sul totale FTE.")}
+                  {t('business_plan.catalog_cluster_desc_2', "La distribuzione effettiva è pesata sugli FTE di ciascuna voce.")}
+                  <br /> {t('business_plan.catalog_constraint_type', "Tipo di vincolo")}: <strong>=</strong> ({t('business_plan.catalog_equality', "uguaglianza")} ±2%), <strong>≥</strong> ({t('business_plan.catalog_min', "minimo")}), <strong>≤</strong> ({t('business_plan.catalog_max', "massimo")})
                 </p>
                 <ClusterEditor
                   clusters={clusters}
@@ -1815,18 +1888,18 @@ export default function CatalogEditorModal({
 
               {clusters.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Distribuzione Effettiva</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">{t('business_plan.catalog_actual_distribution', "Distribuzione Effettiva")}</h3>
                   <table className="w-full text-sm border-separate border-spacing-y-2">
                     <thead>
                       <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <th className="px-4 py-2 text-left">Cluster</th>
-                        <th className="px-4 py-2 text-center w-8" title="Tipo di vincolo">V.</th>
-                        <th className="px-4 py-2 text-right">% Req.</th>
-                        <th className="px-4 py-2 text-right text-indigo-600" title="FTE target da bando">FTE Target</th>
-                        <th className="px-4 py-2 text-right">% Att.</th>
-                        <th className="px-4 py-2 text-right">FTE Att.</th>
+                        <th className="px-4 py-2 text-left">{t('business_plan.catalog_cluster', "Cluster")}</th>
+                        <th className="px-4 py-2 text-center w-8" title={t('business_plan.catalog_title_constraint_type', "Tipo di vincolo")}>{t('business_plan.catalog_constraint_short', "V.")}</th>
+                        <th className="px-4 py-2 text-right">{t('business_plan.catalog_req_pct', "% Req.")}</th>
+                        <th className="px-4 py-2 text-right text-indigo-600" title={t('business_plan.catalog_title_target_fte', "FTE target da bando")}>{t('business_plan.catalog_target_fte_header', "FTE Target")}</th>
+                        <th className="px-4 py-2 text-right">{t('business_plan.catalog_act_pct', "% Att.")}</th>
+                        <th className="px-4 py-2 text-right">{t('business_plan.catalog_act_fte', "FTE Att.")}</th>
                         <th className="px-4 py-2 text-right">Δ%</th>
-                        <th className="px-4 py-2 text-center">Stato</th>
+                        <th className="px-4 py-2 text-center">{t('business_plan.catalog_status', "Stato")}</th>
                       </tr>
                     </thead>
                     <tbody className="">
@@ -1887,18 +1960,18 @@ export default function CatalogEditorModal({
           {activeTab === 'groups' && (
             <div className="p-6 space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-1">Raggruppamenti di Voci</h3>
+                <h3 className="text-sm font-semibold text-slate-700 mb-1">{t('business_plan.catalog_item_groups', "Raggruppamenti di Voci")}</h3>
                 <p className="text-xs text-slate-500 mb-4">
-                  Ogni raggruppamento ha un <strong>valore target Poste</strong> che, in proporzione al Totale Catalogo, determina
-                  gli <strong>FTE previsti</strong> per il gruppo. Per ogni voce assegnata al gruppo, definisci la
-                  <strong> % sul raggruppamento</strong> (la somma deve essere 100%).
-                  Il sistema calcola FTE e Prezzo Poste per voce di conseguenza.
+                  {t('business_plan.catalog_group_desc_1', "Ogni raggruppamento ha un ")}<strong>{t('business_plan.catalog_poste_target_value', 'Valore target Poste')}</strong>{t('business_plan.catalog_group_desc_2', " che, in proporzione al Totale Catalogo, determina gli ")}<strong>{t('business_plan.catalog_expected_fte', 'FTE previsti')}</strong>{t('business_plan.catalog_group_desc_3', " per il gruppo. Per ogni voce assegnata al gruppo, definisci la")}
+                  <strong> {t('business_plan.catalog_pct_on_group', "% sul raggruppamento")}</strong> {t('business_plan.catalog_group_desc_4', "(la somma deve essere 100%).")}
+                  <br />
+                  {t('business_plan.catalog_group_desc_5', "Il sistema calcola FTE e Prezzo Poste per voce di conseguenza.")}
                 </p>
                 <GroupEditor
                   groups={catalogGroups}
                   items={items}
                   totalCatalogValue={totalCatalogValue}
-                  totalFte={refTotalFte}
+                  totalFte={totals.totalDerivedFte}
                   defaultCatalogReuseFactor={parseFloat(tow?.catalog_reuse_factor ?? 0)}
                   groupTotals={groupTotals}
                   scontoGaraFactor={scontoGaraFactor}
@@ -1906,6 +1979,7 @@ export default function CatalogEditorModal({
                   onToggleGroupItem={handleToggleGroupItem}
                   onItemPctChange={handleItemPctChange}
                   onEvenDistribute={handleEvenDistribute}
+                  onMaximizeMargin={handleMaximizeGroupMargin}
                 />
               </div>
             </div>
@@ -1915,8 +1989,8 @@ export default function CatalogEditorModal({
         {/* ── Footer ── */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
           <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
-            <span>Voci: <strong className="text-slate-700">{items.length}</strong></span>
-            <span>Gruppi: <strong className="text-slate-700">{catalogGroups.length}</strong></span>
+            <span>{t('business_plan.catalog_items', 'Voci')}: <strong className="text-slate-700">{items.length}</strong></span>
+            <span>{t('business_plan.catalog_groups_short', 'Gruppi')}: <strong className="text-slate-700">{catalogGroups.length}</strong></span>
 
             {/* Quadratura FTE */}
             <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold
@@ -1926,29 +2000,29 @@ export default function CatalogEditorModal({
             </span>
 
             <span>
-              Costo Lu.: <strong className="text-slate-700">{formatCurrency(totals.totalCost, 0)}</strong>
+              {t('business_plan.catalog_lu_cost', 'Costo Lu.')}: <strong className="text-slate-700">{formatCurrency(totals.totalCost, 0)}</strong>
             </span>
             <span>
-              Pz. Vend.: <strong className="text-slate-700">{formatCurrency(totals.totalSellPrice, 0)}</strong>
+              {t('business_plan.catalog_sell_price', 'Pz. Vend.')}: <strong className="text-slate-700">{formatCurrency(totals.totalSellPrice, 0)}</strong>
             </span>
             <span className={`font-semibold ${totals.totalMarginEur >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-              Marg.: {formatCurrency(totals.totalMarginEur, 0)} ({totals.totalMarginPct.toFixed(1)}%)
+              {t('business_plan.catalog_margin', 'Marg.')}: {formatCurrency(totals.totalMarginEur, 0)} ({totals.totalMarginPct.toFixed(1)}%)
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => bpSaveTrigger.fn?.()}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
-              title="Salva il business plan"
+              title={t('business_plan.catalog_save_title', "Salva il business plan")}
             >
               <Save className="w-4 h-4" />
-              Salva
+              {t('business_plan.catalog_save', "Salva")}
             </button>
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
-              Chiudi
+              {t('business_plan.catalog_close', "Chiudi")}
             </button>
           </div>
         </div>

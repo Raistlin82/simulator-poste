@@ -110,7 +110,7 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {t('dashboard.bid_to_win')}
           </h3>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-4.5 font-display">Simulazione Sensibilità Sconto-Punteggio</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-4.5 font-display">{t('dashboard.chart_subtitle')}</p>
         </div>
 
         <div className="flex gap-2 md:gap-4 items-center flex-wrap w-full md:w-auto">
@@ -119,18 +119,18 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
             <button
               onClick={() => setShowEconomic(!showEconomic)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest font-display ${showEconomic ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-600'}`}
-              aria-label="Mostra punteggio economico"
+              aria-label={t('dashboard.chart_toggle_economic')}
             >
               <div className={`w-2 h-2 rounded-full ${showEconomic ? 'bg-white' : 'bg-emerald-500'}`}></div>
-              <span className="hidden sm:inline">Economia</span>
+              <span className="hidden sm:inline">{t('dashboard.chart_btn_economic')}</span>
             </button>
             <button
               onClick={() => setShowTotal(!showTotal)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest font-display ${showTotal ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-600'}`}
-              aria-label="Mostra punteggio totale"
+              aria-label={t('dashboard.chart_toggle_total')}
             >
               <div className={`w-2 h-2 rounded-full ${showTotal ? 'bg-white' : 'bg-indigo-500'}`}></div>
-              <span className="hidden sm:inline">Totale</span>
+              <span className="hidden sm:inline">{t('dashboard.chart_btn_total')}</span>
             </button>
           </div>
 
@@ -139,18 +139,18 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
             <button
               onClick={() => setShowCompetitor(!showCompetitor)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest font-display ${showCompetitor ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/20' : 'text-slate-400 hover:text-slate-600'}`}
-              aria-label="Mostra competitor"
+              aria-label={t('dashboard.chart_toggle_competitor')}
             >
               <div className={`w-2 h-2 rounded-full ${showCompetitor ? 'bg-white' : 'bg-black'}`}></div>
-              <span className="hidden sm:inline">Target</span>
+              <span className="hidden sm:inline">{t('dashboard.chart_btn_target')}</span>
             </button>
             <button
               onClick={() => setShowLutech(!showLutech)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest font-display ${showLutech ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-slate-400 hover:text-slate-600'}`}
-              aria-label="Mostra LUTECH"
+              aria-label={t('dashboard.chart_toggle_lutech')}
             >
               <div className={`w-2 h-2 rounded-full ${showLutech ? 'bg-white' : 'bg-rose-500'}`}></div>
-              <span className="hidden sm:inline">Lutech</span>
+              <span className="hidden sm:inline">{t('dashboard.chart_btn_lutech')}</span>
             </button>
           </div>
 
@@ -158,7 +158,7 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
           <button
             onClick={toggleFullscreen}
             className="p-3 bg-white/60 border border-white/60 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-2xl transition-all shadow-sm"
-            title={isFullscreen ? "Esci da fullscreen" : "Fullscreen"}
+            title={isFullscreen ? t('dashboard.chart_fullscreen_exit') : t('dashboard.chart_fullscreen')}
           >
             {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
@@ -186,7 +186,7 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
               tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700, fontFamily: 'Inter' }}
               ticks={chartData.filter((_, i) => i % 5 === 0).map(d => d.discount)}
               label={{
-                value: 'Sconto Gara (%)',
+                value: t('dashboard.chart_x_label'),
                 position: 'insideBottom',
                 offset: -40,
                 fontSize: 10,
@@ -204,7 +204,7 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
               domain={[0, 100]}
               tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700, fontFamily: 'Inter' }}
               label={{
-                value: 'Punteggio Totale',
+                value: t('dashboard.chart_y_label'),
                 angle: -90,
                 position: 'insideLeft',
                 fontSize: 10,
@@ -222,7 +222,7 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
                 if (active && payload && payload.length) {
                   return (
                     <div className="bg-white/90 backdrop-blur-xl border border-white p-4 rounded-2xl shadow-2xl shadow-slate-900/10">
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 font-display">Sconto: {label}%</div>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 font-display">{t('dashboard.chart_tooltip_discount')}: {label}%</div>
                       <div className="space-y-1.5">
                         {payload.map((p, i) => (
                           <div key={i} className="flex items-center justify-between gap-6">

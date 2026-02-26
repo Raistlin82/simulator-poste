@@ -1,6 +1,7 @@
 import { Building2, Percent, Users, Euro, AlertCircle, CheckCircle } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * SubcontractPanel - Configurazione subappalto per TOW
@@ -19,6 +20,7 @@ export default function SubcontractPanel({
 }) {
 
   const towSplit = useMemo(() => config.tow_split || {}, [config.tow_split]);
+  const { t } = useTranslation();
   const partner = config.partner || '';
   const avgDailyRate = config.avg_daily_rate ?? teamMixRate;
 
@@ -59,19 +61,19 @@ export default function SubcontractPanel({
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Subappalto</h3>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">{t('business_plan.subcontract_title')}</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest-plus mt-0.5">
-                Configura la quota di lavoro in subappalto (max {maxSubcontractPct}%)
+                {t('business_plan.subcontract_sub', { max: maxSubcontractPct })}
               </p>
             </div>
           </div>
 
           {/* Badge quota */}
           <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border shadow-sm transition-all font-display uppercase tracking-widest text-[10px] font-black ${isOverLimit
-              ? 'bg-red-50 text-red-700 border-red-100'
-              : hasSubcontract
-                ? 'bg-purple-50 text-purple-700 border-purple-100'
-                : 'bg-slate-50 text-slate-500 border-slate-100'
+            ? 'bg-red-50 text-red-700 border-red-100'
+            : hasSubcontract
+              ? 'bg-purple-50 text-purple-700 border-purple-100'
+              : 'bg-slate-50 text-slate-500 border-slate-100'
             }`}>
             {isOverLimit ? (
               <AlertCircle className="w-3.5 h-3.5" />
@@ -89,7 +91,7 @@ export default function SubcontractPanel({
         {/* Barra di progresso visiva */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-[10px] mb-1.5 uppercase font-black font-display tracking-widest-plus">
-            <span className="text-slate-400">Quota Totale</span>
+            <span className="text-slate-400">{t('quota.total', 'Quota Totale')}</span>
             <span className={`${isOverLimit ? 'text-red-600' : 'text-slate-500'}`}>
               {totalQuotaPct.toFixed(1)}% / {maxSubcontractPct}%
             </span>
@@ -112,7 +114,7 @@ export default function SubcontractPanel({
 
           {tows.length === 0 ? (
             <div className="text-sm text-slate-400 italic p-3 bg-slate-50 rounded-lg text-center">
-              Configura prima i TOW nel tab Poste
+              {t('business_plan.no_lot_selected')}
             </div>
           ) : (
             <div className="bg-slate-50 rounded-xl p-3 space-y-2">
@@ -217,8 +219,8 @@ export default function SubcontractPanel({
         {/* Riepilogo Costo - visibile solo se c'è subappalto */}
         {hasSubcontract && (
           <div className={`p-5 rounded-2xl border transition-all shadow-lg backdrop-blur-md ${isOverLimit
-              ? 'bg-red-500/5 border-red-200'
-              : 'bg-gradient-to-br from-purple-500/5 to-indigo-500/5 border-purple-200'
+            ? 'bg-red-500/5 border-red-200'
+            : 'bg-gradient-to-br from-purple-500/5 to-indigo-500/5 border-purple-200'
             }`}>
             <div className="flex items-center justify-between">
               <div className="space-y-1">
@@ -239,7 +241,7 @@ export default function SubcontractPanel({
             {isOverLimit && (
               <div className="mt-3 flex items-center gap-2 text-xs text-red-600 bg-red-100 px-3 py-2 rounded-lg">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>La quota totale supera il limite massimo del {maxSubcontractPct}%</span>
+                <span>{t('business_plan.subcontract_quota_exceeded', { max: maxSubcontractPct })}</span>
               </div>
             )}
           </div>
