@@ -41,7 +41,7 @@ export default function TechEvaluator({ onNavigate }) {
     const [excelExportLoading, setExcelExportLoading] = useState(false);
 
     const handleExport = useReactToPrint({
-        content: () => reportRef.current,
+        contentRef: reportRef,
         documentTitle: `Report_${selectedLot?.replace(/\s+/g, '_') || 'Simulazione'}`,
         onBeforeGetContent: () => {
             setExportLoading(true);

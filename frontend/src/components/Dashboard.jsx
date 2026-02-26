@@ -133,7 +133,7 @@ export default function Dashboard({ onNavigate }) {
     }, [competitorTechScore, competitorEconDiscount, results?.technical_score, lotKey, competitorDiscount, lotData, results, toast, t]); // Changed showError to toast
 
     const handleExport = useReactToPrint({
-        content: () => reportRef.current,
+        contentRef: reportRef,
         documentTitle: `Report_${selectedLot?.replace(/\s+/g, '_') || 'Simulazione'}`,
         onBeforeGetContent: () => {
             setExportLoading(true);
