@@ -570,7 +570,8 @@ export default function Dashboard({ onNavigate }) {
                             total_score: results.total_score,
                             my_discount: results.my_discount || myDiscount,
                             competitor_discount: results.competitor_discount || competitorDiscount,
-                            alpha: lotData.alpha || 0.3
+                            alpha: lotData.alpha || 0.3,
+                            weighted_scores: results.weighted_scores || {}
                         }}
                         lotConfig={lotData}
                         details={results.details}

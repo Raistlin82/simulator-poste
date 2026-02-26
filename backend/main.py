@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, status, UploadFile, File
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
@@ -2834,6 +2834,120 @@ def export_business_plan_excel_alias(data: schemas.ExportBusinessPlanRequest, db
     Alias for Business Plan Excel export to avoid router issues.
     """
     return export_business_plan_excel(data, db)
+
+
+@bp_router.post("/{lot_key}/import")
+async def import_business_plan_excel(
+    lot_key: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Import Business Plan parameters and team composition from an uploaded Excel file.
+    """
+    from services.excel_bp_import_service import ExcelBpImportService
+    import copy
+
+    # Validate file type
+    if not file.filename or not file.filename.lower().endswith('.xlsx'):
+        raise HTTPException(
+            status_code=400,
+            detail="Il file deve essere in formato Excel (.xlsx)"
+        )
+
+    try:
+        content = await file.read()
+        
+        # Get existing business plan
+        bp = crud.get_business_plan(db, lot_key)
+        if not bp:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Business plan per '{lot_key}' non trovato. Clicca Elabora prima di esportare/importare."
+            )
+            
+        # Convert DB object to dict
+        current_bp_dict = schemas.BusinessPlanResponse.model_validate(bp).model_dump()
+        
+        # Parse Excel
+        updates = ExcelBpImportService.parse_upload(content, current_bp_dict)
+        
+        if not updates:
+            return {
+                "success": False,
+                "message": "Non è stato possibile estrarre i dati dall'Excel o le tabelle necessarie mancano.",
+                "imported": []
+            }
+            
+        # Apply updates securely over existing configuration
+        updated_data = copy.deepcopy(current_bp_dict)
+        updated_data.update(updates)
+        
+        # Validate data with Pydantic
+        update_schema = schemas.BusinessPlanCreate(**updated_data)
+        
+        # Update DB
+        updated_bp = crud.update_business_plan(db, lot_key, update_schema)
+        
+        logger.info(f"Imported business plan updates from Excel for lot '{lot_key}': {list(updates.keys())}")
+        
+        return {
+            "success": True,
+            "message": "Business Plan aggiornato con successo dall'Excel",
+            "imported": list(updates.keys()),
+            "bp": updated_bp
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing business plan from Excel: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Errore nell'importazione dell'Excel")
+
+
+# --- SYSTEM ENDPOINTS ---
+
+@api_router.get("/system/export-db")
+def export_database(db: Session = Depends(get_db)):
+    """Export the entire SQLite database."""
+    try:
+        db.commit()
+    except Exception:
+        pass
+        
+    db_path = "./simulator_poste.db"
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="Database file not found")
+        
+    return FileResponse(
+        path=db_path,
+        filename=f"simulator_poste_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
+        media_type="application/octet-stream"
+    )
+
+@api_router.post("/system/import-db")
+async def import_database(file: UploadFile = File(...), db=Depends(get_db)):
+    """Import and replace the SQLite database."""
+    if not file.filename.endswith('.db'):
+        raise HTTPException(status_code=400, detail="Il file deve avere estensione .db")
+        
+    db_path = "./simulator_poste.db"
+    
+    try:
+        from database import engine
+        engine.dispose()
+    except Exception as e:
+        logger.warning(f"Error disposing engine: {e}")
+    
+    try:
+        with open(db_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        logger.info(f"Database successfully restored from {file.filename}")
+        return {"status": "success", "message": "Database ripristinato con successo"}
+    except Exception as e:
+        logger.error(f"Error restoring database: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Errore durante il ripristino del database")
 
 
 # --- PRACTICE ENDPOINTS ---

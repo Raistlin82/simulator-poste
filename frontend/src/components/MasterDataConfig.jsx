@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2 } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2, Database, Download, Upload } from 'lucide-react';
 import { API_URL } from '../utils/api';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { logger } from '../utils/logger';
@@ -24,6 +24,7 @@ export default function MasterDataConfig() {
     const [toast, setToast] = useState(null); // {type: 'success'|'error', message: string}
     const [showAddVendor, setShowAddVendor] = useState(false);
     const [newVendor, setNewVendor] = useState({ key: '', name: '' });
+    const fileInputRef = useRef(null);
 
     // Modal state for deletions
     const [deleteModalState, setDeleteModalState] = useState({
@@ -255,6 +256,8 @@ export default function MasterDataConfig() {
             executeDeleteVendor(deleteModalState.data.vendorKey, deleteModalState.data.vendorName);
         } else if (deleteModalState.actionType === 'item' && deleteModalState.data) {
             deleteItem(deleteModalState.data.section, deleteModalState.data.idx);
+        } else if (deleteModalState.actionType === 'import_db') {
+            executeImportDb();
         }
         setDeleteModalState({ isOpen: false, actionType: null, data: null });
     };
@@ -276,6 +279,82 @@ export default function MasterDataConfig() {
         }
     };
 
+    const handleExportDb = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/system/export-db`, { responseType: 'blob' });
+
+            // Check if the response is actually JSON (i.e. an error message)
+            if (res.data.type === 'application/json') {
+                const text = await res.data.text();
+                const errorData = JSON.parse(text);
+                throw new Error(errorData.detail || 'Errore durante l\'esportazione');
+            }
+
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+
+            const disposition = res.headers['content-disposition'];
+            let filename = `simulator_poste_backup_${new Date().toISOString().split('T')[0]}.db`;
+
+            if (disposition && disposition.indexOf('attachment') !== -1) {
+                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                const matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            showToast('success', 'Backup scaricato con successo');
+        } catch (error) {
+            logger.error('Error exporting database', error);
+            showToast('error', `Errore durante l'export: ${error.message}`);
+        }
+    };
+
+    const confirmImportDb = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setDeleteModalState({
+            isOpen: true,
+            actionType: 'import_db',
+            data: { file }
+        });
+        // Reset input so the same file can be selected again if cancelled
+        e.target.value = '';
+    };
+
+    const executeImportDb = async () => {
+        const file = deleteModalState.data?.file;
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            setLoading(true);
+            await axios.post(`${API_URL}/system/import-db`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            showToast('success', 'Database ripristinato con successo. La pagina verrà ricaricata a breve.');
+            // Reload the page to fetch the new data from the restored DB
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } catch (error) {
+            logger.error('Error importing database', error);
+            showToast('error', `Errore durante il ripristino: ${error.response?.data?.detail || error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Filter vendors by search (fix #18)
     const filteredVendors = vendors.filter(v =>
         !vendorSearch ||
@@ -292,6 +371,7 @@ export default function MasterDataConfig() {
         { id: 'rti_partners', label: t('master.rti_partners'), icon: Building2, color: 'text-indigo-600', bg: 'bg-indigo-50' },
         { id: 'economic_formulas', label: t('config.economic_formula'), icon: Info, color: 'text-orange-600', bg: 'bg-orange-50' },
         { id: 'ocr_settings', label: t('master.ocr_settings'), icon: Settings, color: 'text-purple-600', bg: 'bg-purple-50' },
+        { id: 'database_tools', label: 'Database Backup', icon: Database, color: 'text-slate-600', bg: 'bg-slate-50' },
     ];
 
     return (
@@ -359,7 +439,7 @@ export default function MasterDataConfig() {
                                         {sections.find(s => s.id === activeSection)?.label}
                                     </h2>
                                 </div>
-                                {activeSection !== 'ocr_settings' && (
+                                {activeSection !== 'ocr_settings' && activeSection !== 'database_tools' && (
                                     <button
                                         onClick={() => addItem(activeSection)}
                                         className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-2xl hover:brightness-110 transition-all flex items-center gap-4 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-xl shadow-indigo-200 active:scale-95 group"
@@ -593,6 +673,58 @@ export default function MasterDataConfig() {
                                         </div>
                                     )}
                                 </div>
+                            ) : activeSection === 'database_tools' ? (
+                                <div className="space-y-8">
+                                    <div className="bg-white/40 backdrop-blur-md border border-white/60 p-8 rounded-[2rem] shadow-xl shadow-slate-200/50">
+                                        <div className="flex items-start gap-6">
+                                            <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center flex-shrink-0 border border-indigo-100/50">
+                                                <Download className="w-7 h-7 text-indigo-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h3 className="text-lg font-black text-slate-800 font-display mb-2 tracking-tight">Esporta Database</h3>
+                                                <p className="text-sm text-slate-600 font-body mb-6 leading-relaxed">
+                                                    Scarica l'intero database locale contenente tutte le configurazioni, i master data, i lotti di gara, i piani economici e i calcoli. Questo export funge da backup completo.
+                                                </p>
+                                                <button
+                                                    onClick={handleExportDb}
+                                                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest-plus font-display hover:bg-indigo-700 transition-all flex items-center gap-3 shadow-lg shadow-indigo-200 active:scale-95"
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                    Scarica Backup
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-red-50/50 backdrop-blur-md border border-red-100 p-8 rounded-[2rem] shadow-xl shadow-red-200/20">
+                                        <div className="flex items-start gap-6">
+                                            <div className="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center flex-shrink-0 border border-red-200/50">
+                                                <Upload className="w-7 h-7 text-red-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h3 className="text-lg font-black text-red-800 font-display mb-2 tracking-tight">Importa Database</h3>
+                                                <p className="text-sm text-red-600/80 font-body mb-6 leading-relaxed">
+                                                    Attenzione: l'importazione di un database sovrascriverà <b>completamente</b> e <b>irreversibilmente</b> i dati attuali! Assicurati di aver effettuato un export dei dati recenti prima di procedere.
+                                                </p>
+
+                                                <input
+                                                    type="file"
+                                                    accept=".db"
+                                                    className="hidden"
+                                                    ref={fileInputRef}
+                                                    onChange={confirmImportDb}
+                                                />
+                                                <button
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="px-6 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest-plus font-display hover:bg-red-700 transition-all flex items-center gap-3 shadow-lg shadow-red-200 active:scale-95"
+                                                >
+                                                    <Upload className="w-4 h-4" />
+                                                    Ripristina Backup
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             ) : (
                                 /* Standard Data Sections */
                                 <div className="space-y-4">
@@ -676,7 +808,9 @@ export default function MasterDataConfig() {
                 description={
                     deleteModalState.actionType === 'vendor'
                         ? `Sei sicuro di voler eliminare il vendor "${deleteModalState.data?.vendorName}"? Questa operazione rimuoverà anche tutte le configurazioni associate.`
-                        : `Sei sicuro di voler eliminare l'elemento "${deleteModalState.data?.label || ''}"? Questa azione non può essere annullata.`
+                        : deleteModalState.actionType === 'import_db'
+                            ? `ATTENZIONE! Stai per sovrascrivere l'intero database locale con il file "${deleteModalState.data?.file?.name}". Questo eliminerà definitivamente e irreversibilmente tutti i dati correnti. Sei assolutamente sicuro di voler procedere? Consigliamo vivamente di fare un export di sicurezza prima.`
+                            : `Sei sicuro di voler eliminare l'elemento "${deleteModalState.data?.label || ''}"? Questa azione non può essere annullata.`
                 }
             />
         </div>

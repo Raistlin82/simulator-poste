@@ -20,6 +20,7 @@ import {
   BarChart3,
   Calendar,
   FileDown,
+  FileUp,
 } from 'lucide-react';
 
 import {
@@ -75,7 +76,10 @@ export default function BusinessPlanPage() {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [excelExportLoading, setExcelExportLoading] = useState(false);
+  const [excelImportLoading, setExcelImportLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('poste');
+
+  const fileInputRef = useRef(null);
 
   // Build Lutech rates lookup from practices
   const buildLutechRates = useCallback(() => {
@@ -365,6 +369,59 @@ export default function BusinessPlanPage() {
       setSaveStatus('error');
     } finally {
       setExcelExportLoading(false);
+    }
+  };
+
+  const handleExcelImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file || !selectedLot) return;
+
+    setExcelImportLoading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await axios.post(`${API_URL}/business-plan/${encodeURIComponent(selectedLot)}/import`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (res.data.success) {
+        toast.success(res.data.message || 'Importazione completata con successo');
+        if (res.data.bp) {
+          // Sync state with imported DB BP
+          setLocalBP({
+            ...res.data.bp,
+            governance_pct: (res.data.bp.governance_pct || 0.04) * 100,
+            risk_contingency_pct: (res.data.bp.risk_contingency_pct || 0.03) * 100,
+            reuse_factor: (res.data.bp.reuse_factor || 0) * 100,
+            days_per_fte: res.data.bp.days_per_fte || DAYS_PER_FTE,
+            default_daily_rate: res.data.bp.default_daily_rate || DEFAULT_DAILY_RATE,
+            governance_mode: res.data.bp.governance_mode || 'percentage',
+            governance_fte_periods: res.data.bp.governance_fte_periods || [],
+            governance_apply_reuse: res.data.bp.governance_apply_reuse || false,
+            governance_profile_mix: res.data.bp.governance_profile_mix || [],
+            governance_cost_manual: res.data.bp.governance_cost_manual ?? null,
+            margin_warning_threshold: res.data.bp.margin_warning_threshold ?? 0.05,
+            margin_success_threshold: res.data.bp.margin_success_threshold ?? 0.15,
+            inflation_pct: res.data.bp.inflation_pct ?? 0,
+            max_subcontract_pct: res.data.bp.max_subcontract_pct ?? 20,
+          });
+        }
+      } else {
+        toast.error(res.data.message || "Errore nell'importazione");
+      }
+    } catch (err) {
+      logger.error('Excel Import Error', err, { lot: selectedLot });
+      const errorMsg = err.response?.data?.detail || err.message || 'Errore sconosciuto';
+      toast.error(`Errore nell'import Excel: ${errorMsg}`);
+    } finally {
+      setExcelImportLoading(false);
+      // Reset input value to allow selecting the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -795,18 +852,36 @@ export default function BusinessPlanPage() {
                 </span>
               )}
               <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={excelImportLoading || !calcResult}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-medium text-sm shadow-sm"
+              >
+                {excelImportLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileUp className="w-4 h-4" />
+                )}
+                Importa Excel
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleExcelImport}
+                className="hidden"
+                accept=".xlsx"
+              />
+              <button
                 onClick={handleExcelExport}
                 disabled={excelExportLoading || !calcResult}
                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl
-                         font-bold text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg
-                         shadow-slate-200/50 disabled:opacity-50 disabled:cursor-not-allowed font-display"
+                  hover:bg-slate-800 transition-all font-medium text-sm shadow-md"
               >
                 {excelExportLoading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
                 ) : (
                   <FileDown className="w-4 h-4" />
                 )}
-                Export Excel
+                Esporta Excel
               </button>
             </div>
           </div>
