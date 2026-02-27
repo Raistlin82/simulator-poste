@@ -408,6 +408,7 @@ function AppContent() {
                   }
                 }}
                 onDeleteLot={async (lotKey) => {
+                  logger.info(`Starting lot deletion for: ${lotKey}`);
                   try {
                     await axios.delete(`${API_URL}/config/${encodeURIComponent(lotKey)}`);
 

@@ -396,13 +396,20 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
         });
     };
 
-    const handleDeleteConfirm = () => {
+    const handleDeleteConfirm = async () => {
         const { actionType, data } = deleteModalState;
         if (!data) return;
 
+        logger.info(`Confirming deletion for ${actionType}`, data);
+
         if (actionType === 'lot') {
-            onDeleteLot(data.lotKey);
-            setDeleteModalState({ isOpen: false, actionType: null, data: null });
+            try {
+                await onDeleteLot(data.lotKey);
+            } catch (err) {
+                logger.error("Failed to delete lot via confirm", err);
+            } finally {
+                setDeleteModalState({ isOpen: false, actionType: null, data: null });
+            }
             return;
         }
 
