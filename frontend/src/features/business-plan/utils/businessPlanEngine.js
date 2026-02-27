@@ -379,7 +379,9 @@ export const calculateCatalogCost = (bp, lutechRates) => {
             const towPosteTotale = computed.total_poste_total || 0;
             const towSellPrice = computed.total_sell_price || 0;
 
-            const itemsDetail = computed.items.map(ci => ({
+            const itemsDetail = computed.items.map(ci => {
+                if (!ci.id) console.warn('[engine] catalog item missing id', ci.label);
+                return {
                 id: ci.id || '',
                 label: ci.label || '',
                 tipo: ci.tipo || '',
@@ -394,7 +396,8 @@ export const calculateCatalogCost = (bp, lutechRates) => {
                 fte: Math.round((ci.fte || 0) * 100) / 100,
                 lutech_unit_price: Math.round((ci.lutech_unit_price || 0) * 100) / 100,
                 sconto_pct: Math.round((ci.sconto_pct || 0) * 100) / 100,
-            }));
+                };
+            });
 
             const groupsDetail = (computed.groups || []).map(g => ({
                 label: g.label || '',
