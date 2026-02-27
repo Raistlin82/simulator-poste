@@ -7,6 +7,7 @@ import CompanyCertsEditor from '../features/config/components/CompanyCertsEditor
 import { ConfirmDialog } from './ui/confirm-dialog';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
+import { logger } from '../utils/logger';
 
 export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => { } }) {
     const { t } = useTranslation();

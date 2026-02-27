@@ -251,15 +251,23 @@ export default function MasterDataConfig() {
         });
     };
 
-    const handleDeleteConfirm = () => {
-        if (deleteModalState.actionType === 'vendor' && deleteModalState.data) {
-            executeDeleteVendor(deleteModalState.data.vendorKey, deleteModalState.data.vendorName);
-        } else if (deleteModalState.actionType === 'item' && deleteModalState.data) {
-            deleteItem(deleteModalState.data.section, deleteModalState.data.idx);
-        } else if (deleteModalState.actionType === 'import_db') {
-            executeImportDb();
+    const handleDeleteConfirm = async () => {
+        try {
+            if (deleteModalState.actionType === 'vendor' && deleteModalState.data) {
+                logger.info(`Confirming deletion for vendor: ${deleteModalState.data.vendorName}`);
+                await executeDeleteVendor(deleteModalState.data.vendorKey, deleteModalState.data.vendorName);
+            } else if (deleteModalState.actionType === 'item' && deleteModalState.data) {
+                logger.info(`Confirming deletion for item: ${deleteModalState.data.label} in ${deleteModalState.data.section}`);
+                deleteItem(deleteModalState.data.section, deleteModalState.data.idx);
+            } else if (deleteModalState.actionType === 'import_db') {
+                logger.info('Confirming database import');
+                await executeImportDb();
+            }
+        } catch (error) {
+            logger.error('Error in handleDeleteConfirm', error);
+        } finally {
+            setDeleteModalState({ isOpen: false, actionType: null, data: null });
         }
-        setDeleteModalState({ isOpen: false, actionType: null, data: null });
     };
 
     const executeDeleteVendor = async (vendorKey, vendorName) => {
