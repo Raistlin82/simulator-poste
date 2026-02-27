@@ -380,6 +380,7 @@ export const calculateCatalogCost = (bp, lutechRates) => {
             const towSellPrice = computed.total_sell_price || 0;
 
             const itemsDetail = computed.items.map(ci => ({
+                id: ci.id || '',
                 label: ci.label || '',
                 tipo: ci.tipo || '',
                 complessita: ci.complessita || '',
@@ -391,8 +392,8 @@ export const calculateCatalogCost = (bp, lutechRates) => {
                 lutech_margin: Math.round((ci.sell_price || 0) - (ci.cost || 0)),
                 effective_margin_pct: ci.margin_pct || 0,
                 fte: Math.round((ci.fte || 0) * 100) / 100,
-                lutech_unit_price: 0,
-                sconto_pct: 0,
+                lutech_unit_price: Math.round((ci.lutech_unit_price || 0) * 100) / 100,
+                sconto_pct: Math.round((ci.sconto_pct || 0) * 100) / 100,
             }));
 
             const groupsDetail = (computed.groups || []).map(g => ({

@@ -1101,6 +1101,8 @@ export default function CatalogEditorModal({
         sell_price: c.item_sell_price,
         margin_pct: c.effective_margin,
         poste_total: c.item_poste_total,
+        lutech_unit_price: c.item_lutech_unit,
+        sconto_pct: c.item_sconto_pct,
         group_label: c.in_group ? (itemToGroup[item.id]?.group?.label || '') : '',
       };
     });
