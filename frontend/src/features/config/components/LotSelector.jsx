@@ -28,8 +28,10 @@ export default function LotSelector({ config, selectedLot, onSelectLot, onAddLot
   const [importTarget, setImportTarget] = useState('__new__');
 
   const handleAddLot = () => {
-    const name = prompt(t('config.prompt_new_lot'));
-    if (name) onAddLot(name);
+    const name = prompt(t('app.add_prompt'));
+    if (name && name.trim()) {
+      onAddLot(name.trim());
+    }
   };
 
   const handleExportLot = async () => {

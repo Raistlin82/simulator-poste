@@ -33,6 +33,7 @@
         "weighted": "Pesato",
         "pts_unit": "pt",
         "confirm_deletion": "Conferma Eliminazione",
+        "confirm_deletion_desc": "Sei sicuro di voler eliminare \"{{item}}\"? Questa azione non può essere annullata.",
         "note": "Nota"
     },
     "sidebar": {

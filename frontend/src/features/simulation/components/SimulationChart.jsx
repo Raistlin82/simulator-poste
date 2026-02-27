@@ -56,7 +56,7 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
   }, []);
 
   // Early return AFTER all hooks
-  if (!simulationData || simulationData.length === 0) {
+  if (!simulationData || simulationData.length === 0 || !results) {
     return null;
   }
 
@@ -165,8 +165,8 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
         </div>
       </div>
 
-      <div className={`w-full ${isFullscreen ? 'flex-1' : ''}`} style={{ height: isFullscreen ? chartHeight : '450px' }}>
-        <ResponsiveContainer width="100%" height="100%">
+      <div className={`w-full ${isFullscreen ? 'flex-1' : ''}`} style={{ height: isFullscreen ? chartHeight : '450px', minHeight: '300px' }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1} debounce={50}>
           <AreaChart data={chartData} margin={{ top: 20, right: 40, left: 10, bottom: 60 }}>
             <defs>
               <linearGradient id="colorEconomic" x1="0" y1="0" x2="0" y2="1">

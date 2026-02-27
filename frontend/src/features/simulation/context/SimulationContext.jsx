@@ -13,8 +13,8 @@ const simulationReducer = (state, action) => {
 
       // Sync: when myDiscount increases past competitorDiscount, drag it up
       if (action.key === 'myDiscount' &&
-          state.myDiscount >= state.competitorDiscount &&
-          action.value > state.myDiscount) {
+        state.myDiscount >= state.competitorDiscount &&
+        action.value > state.myDiscount) {
         const delta = action.value - state.myDiscount;
         next.competitorDiscount = Math.min(state.competitorDiscount + delta, 100);
         if (state.competitorEconDiscount > next.competitorDiscount) {
@@ -82,6 +82,8 @@ export const SimulationProvider = ({ children }) => {
     // Save to localStorage for restoration on next app load
     if (lotKey) {
       localStorage.setItem('lastSelectedLot', lotKey);
+    } else {
+      localStorage.removeItem('lastSelectedLot');
     }
   };
 

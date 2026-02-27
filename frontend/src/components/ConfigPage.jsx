@@ -390,6 +390,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
     };
 
     const deleteLotConfirm = (lotKey) => {
+        logger.info(`Requesting deletion for lot: ${lotKey}`);
         setDeleteModalState({
             isOpen: true,
             actionType: 'lot',
@@ -399,15 +400,19 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
 
     const handleDeleteConfirm = async () => {
         const { actionType, data } = deleteModalState;
-        if (!data) return;
+        if (!data) {
+            return;
+        }
 
         logger.info(`Confirming deletion for ${actionType}`, data);
 
         if (actionType === 'lot') {
+            logger.info(`User confirmed deletion of lot: ${data.lotKey}`);
             try {
                 await onDeleteLot(data.lotKey);
+                logger.info(`Deletion successful for lot: ${data.lotKey}`);
             } catch (err) {
-                logger.error("Failed to delete lot via confirm", err);
+                logger.error(`Failed to delete lot ${data.lotKey}`, err);
             } finally {
                 setDeleteModalState({ isOpen: false, actionType: null, data: null });
             }
@@ -469,7 +474,9 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                 config={editedConfig}
                                 selectedLot={selectedLot}
                                 onSelectLot={setSelectedLot}
-                                onAddLot={onAddLot}
+                                onAddLot={(name) => {
+                                    onAddLot(name);
+                                }}
                                 onDeleteLot={deleteLotConfirm}
                                 onImportSuccess={async (lotKey) => {
                                     await refetch();

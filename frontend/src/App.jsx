@@ -53,6 +53,7 @@ function AppContent() {
   const [view, setView] = useState('dashboard'); // dashboard, config, master, certs, businessPlan
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar state
+  const [isDeleting, setIsDeleting] = useState(false); // Guard for deletion race conditions
   const lastLoadedLot = useRef(null); // Track last loaded lot to prevent loops
   const isLoadingState = useRef(false); // Prevent auto-save during state load
 
@@ -152,7 +153,9 @@ function AppContent() {
 
   // Manual save function for simulation state
   const handleSaveState = useCallback(async () => {
-    if (!config || !selectedLot) return false;
+    // Strict guard: don't save if no lot is selected or if the selected lot no longer exists in config
+    if (!config || !selectedLot || !config[selectedLot]) return false;
+
     try {
       const statePayload = {
         my_discount: myDiscount,
@@ -209,7 +212,7 @@ function AppContent() {
 
   // Debounced auto-save effect for simulation state
   useEffect(() => {
-    if (!config || !selectedLot || loading || authLoading || !isAuthenticated) return;
+    if (isDeleting || !config || !selectedLot || !config[selectedLot] || loading || authLoading || !isAuthenticated) return;
 
     // Skip auto-save during state loading to prevent overwriting loaded data
     if (isLoadingState.current) return;
@@ -227,12 +230,51 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [handleSaveState, config, selectedLot, loading, authLoading, isAuthenticated, myDiscount, competitorDiscount, competitorTechScore, competitorEconDiscount, techInputs, companyCerts]);
 
+  // HANDLERS FOR LOT MANAGEMENT
+  const handleAddNewLot = useCallback(async (lotName) => {
+    try {
+      const response = await axios.post(`${API_URL}/config/add?lot_key=${encodeURIComponent(lotName)}`, {});
+
+      await refetchConfig();
+
+      setLot(lotName);
+      success(t('app.add_success', { name: lotName }));
+    } catch (err) {
+      logger.error("Failed to add lot", err, { component: "App", lotName });
+      showError(t('app.add_error'));
+    }
+  }, [refetchConfig, setLot, success, t, showError]);
+
+  const handleDeleteExistingLot = useCallback(async (lotKey) => {
+    logger.info(`Starting lot deletion for: ${lotKey}`);
+    setIsDeleting(true);
+    try {
+      const response = await axios.delete(`${API_URL}/config/${encodeURIComponent(lotKey)}`);
+      logger.info(`DELETE response for ${lotKey}:`, response.data);
+
+      setLot(null);
+      setResults(null);
+      setSimulationData([]);
+
+      await refetchConfig();
+
+      setView('dashboard');
+      success(t('app.delete_success', { name: lotKey }));
+    } catch (err) {
+      logger.error("Failed to delete lot", err, { component: "ConfigPage", lotKey });
+      const errorMsg = err.response?.data?.detail || err.message;
+      showError(t('app.delete_error', { error: errorMsg }));
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedLot, setLot, refetchConfig, success, t, showError]);
+
   // Main Calculation Effect - with AbortController to prevent race conditions
   useEffect(() => {
-    if (!config || !selectedLot || authLoading || !isAuthenticated) return;
+    if (isDeleting || !config || !selectedLot || !config[selectedLot] || authLoading || !isAuthenticated) return;
 
     // Additional guard: ensure we have valid data from config
-    if (!config[selectedLot] || baseAmount <= 0) return;
+    if (baseAmount <= 0) return;
 
     const controller = new AbortController();
 
@@ -262,10 +304,10 @@ function AppContent() {
 
   // Simulation Effect (runs only when technical or economic results change) - with AbortController
   useEffect(() => {
-    if (!config || !selectedLot || !results || authLoading || !isAuthenticated) return;
+    if (isDeleting || !config || !selectedLot || !config[selectedLot] || !results || authLoading || !isAuthenticated) return;
 
     // Additional guard: ensure we have valid data
-    if (!config[selectedLot] || baseAmount <= 0) return;
+    if (baseAmount <= 0) return;
 
     const controller = new AbortController();
 
@@ -396,36 +438,8 @@ function AppContent() {
           >
             {view === 'config' ? (
               <ConfigPage
-                onAddLot={async (lotName) => {
-                  try {
-                    await axios.post(`${API_URL}/config/add?lot_key=${encodeURIComponent(lotName)}`);
-                    await refetchConfig();
-                    setLot(lotName);
-                    success(t('app.add_success', { name: lotName }));
-                  } catch (err) {
-                    logger.error("Failed to add lot", err, { component: "ConfigPage", lotName });
-                    showError(t('app.add_error'));
-                  }
-                }}
-                onDeleteLot={async (lotKey) => {
-                  logger.info(`Starting lot deletion for: ${lotKey}`);
-                  try {
-                    await axios.delete(`${API_URL}/config/${encodeURIComponent(lotKey)}`);
-
-                    // Reset selected lot to trigger auto-select after refetch
-                    if (selectedLot === lotKey) {
-                      setLot(null);
-                    }
-
-                    await refetchConfig();
-                    // Refresh will trigger auto-select of first available lot
-                    setView('dashboard');
-                    success(t('app.delete_success', { name: lotKey }));
-                  } catch (err) {
-                    logger.error("Failed to delete lot", err, { component: "ConfigPage", lotKey });
-                    showError(t('app.delete_error'));
-                  }
-                }}
+                onAddLot={handleAddNewLot}
+                onDeleteLot={handleDeleteExistingLot}
               />
             ) : view === 'master' ? (
               <MasterDataConfig />
@@ -438,7 +452,11 @@ function AppContent() {
             ) : (
               <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center">
                 <div className="w-full max-w-[1600px]">
-                  <TechEvaluator onNavigate={setView} />
+                  <TechEvaluator
+                    onNavigate={setView}
+                    onAddLot={handleAddNewLot}
+                    onDeleteLot={handleDeleteExistingLot}
+                  />
                 </div>
               </div>
             )}

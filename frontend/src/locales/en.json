@@ -33,6 +33,7 @@
         "weighted": "Weighted",
         "pts_unit": "pt",
         "confirm_deletion": "Confirm Deletion",
+        "confirm_deletion_desc": "Are you sure you want to delete \"{{item}}\"? This action cannot be undone.",
         "note": "Note"
     },
     "sidebar": {

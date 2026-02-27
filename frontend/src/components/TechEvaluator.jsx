@@ -18,7 +18,7 @@ import DetailedScoreTable from '../features/simulation/components/DetailedScoreT
 import CompetitorAnalysis from '../features/simulation/components/CompetitorAnalysis';
 import React, { useRef } from 'react';
 
-export default function TechEvaluator({ onNavigate }) {
+export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
     const { t } = useTranslation();
     const { config } = useConfig();
     const [activeTab, setActiveTab] = useState('valutazione'); // 'valutazione' | 'configurazione' | 'analisi'
@@ -914,7 +914,7 @@ export default function TechEvaluator({ onNavigate }) {
                     </div>
                 </div>
             ) : activeTab === 'configurazione' ? (
-                <ConfigPage />
+                <ConfigPage onAddLot={onAddLot} onDeleteLot={onDeleteLot} />
             ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1600px] mx-auto">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">

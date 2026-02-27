@@ -11,6 +11,9 @@ from pathlib import Path
 
 import models, schemas
 from vendor_defaults import DEFAULT_VENDORS
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def validate_regex_pattern(pattern: str) -> bool:
@@ -254,12 +257,20 @@ def update_lot_config(
 
 
 def delete_lot_config(db: Session, lot_key: str) -> bool:
-    """Delete a lot configuration"""
+    """Delete a lot configuration and all associated data"""
+    logger.info(f"Attempting to delete lot: {lot_key}")
     db_lot = get_lot_config(db, lot_key)
     if db_lot:
-        db.delete(db_lot)
-        db.commit()
-        return True
+        try:
+            db.delete(db_lot)
+            db.commit()
+            logger.info(f"Successfully deleted lot from DB: {lot_key}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting lot {lot_key}: {str(e)}")
+            db.rollback()
+            return False
+    logger.warning(f"Lot not found for deletion: {lot_key}")
     return False
 
 

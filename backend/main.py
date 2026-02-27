@@ -757,9 +757,14 @@ def add_lot(lot_key: str, db: Session = Depends(get_db)):
 
 @api_router.delete("/config/{lot_key}")
 def delete_lot(lot_key: str, db: Session = Depends(get_db)):
-    if not crud.delete_lot_config(db, lot_key):
-        raise HTTPException(status_code=404, detail="Gara/Lotto non trovato")
-    return {"status": "success", "message": f"Gara/Lotto {lot_key} eliminato"}
+    logger.info(f"DELETE request received for lot: {lot_key}")
+    success = crud.delete_lot_config(db, lot_key)
+    if not success:
+        logger.error(f"Failed to delete lot: {lot_key}")
+        raise HTTPException(status_code=404, detail="Lot not found")
+    
+    logger.info(f"Successfully processed deletion for: {lot_key}")
+    return {"status": "success", "message": f"Lot {lot_key} deleted successfully"}
 
 
 @api_router.get("/config/template")

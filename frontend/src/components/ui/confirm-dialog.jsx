@@ -21,9 +21,22 @@ export function ConfirmDialog({
   variant = 'destructive',
 }) {
   const { t } = useTranslation();
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const handleConfirm = async () => {
+    setIsLoading(true);
+    try {
+      await onConfirm();
+      onClose();
+    } catch (err) {
+      console.error('ConfirmDialog action failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isLoading && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{title || t('common.confirm_action')}</DialogTitle>
@@ -32,17 +45,22 @@ export function ConfirmDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
             {cancelText}
           </Button>
           <Button
             variant={variant}
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
+            onClick={handleConfirm}
+            disabled={isLoading}
           >
-            {confirmText}
+            {isLoading ? (
+              <>
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {t('common.processing', 'Eseguendo...')}
+              </>
+            ) : (
+              confirmText
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
