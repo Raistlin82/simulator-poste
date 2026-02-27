@@ -388,9 +388,23 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
         });
     };
 
+    const deleteLotConfirm = (lotKey) => {
+        setDeleteModalState({
+            isOpen: true,
+            actionType: 'lot',
+            data: { lotKey, label: lotKey }
+        });
+    };
+
     const handleDeleteConfirm = () => {
         const { actionType, data } = deleteModalState;
         if (!data) return;
+
+        if (actionType === 'lot') {
+            onDeleteLot(data.lotKey);
+            setDeleteModalState({ isOpen: false, actionType: null, data: null });
+            return;
+        }
 
         updateLot(lot => {
             if (actionType === 'requirement') {
@@ -448,7 +462,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                 selectedLot={selectedLot}
                                 onSelectLot={setSelectedLot}
                                 onAddLot={onAddLot}
-                                onDeleteLot={onDeleteLot}
+                                onDeleteLot={deleteLotConfirm}
                                 onImportSuccess={async (lotKey) => {
                                     await refetch();
                                     setSelectedLot(lotKey);

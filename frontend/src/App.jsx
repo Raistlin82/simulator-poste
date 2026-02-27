@@ -408,7 +408,6 @@ function AppContent() {
                   }
                 }}
                 onDeleteLot={async (lotKey) => {
-                  if (!window.confirm(t('app.delete_confirm', { name: lotKey }))) return;
                   try {
                     await axios.delete(`${API_URL}/config/${encodeURIComponent(lotKey)}`);
 
