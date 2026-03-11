@@ -103,6 +103,7 @@ class ExcelReportGenerator:
         tech_inputs_full: Optional[Dict[str, Any]] = None,
         rti_quotas: Optional[Dict[str, float]] = None,
         prof_certs_resources: Optional[Dict[str, List[str]]] = None,
+        prof_certs_weights: Optional[Dict[str, float]] = None,
     ):
         self.lot_key = lot_key
         self.lot_config = lot_config
@@ -122,6 +123,7 @@ class ExcelReportGenerator:
         self.tech_inputs_full = tech_inputs_full or {}
         self.rti_quotas = rti_quotas or {}
         self.prof_certs_resources = prof_certs_resources or {}
+        self.prof_certs_weights = prof_certs_weights or {}
         
         self.is_rti = lot_config.get('rti_enabled', False)
         self.rti_companies = ['Lutech'] + (lot_config.get('rti_companies', []) or [])
@@ -531,199 +533,176 @@ class ExcelReportGenerator:
         self.tech_cat_total_row = cat_total_row
         row += 3
         
-        # Detailed requirements with expanded certifications
-        ws.merge_cells(f'B{row}:L{row}')
-        ws[f'B{row}'] = 'DETTAGLIO REQUISITI E CERTIFICAZIONI'
-        ws[f'B{row}'].font = SECTION_FONT
-        row += 1
+        # Pass 1: Categorize requirements
+        prof_reqs = [r for r in reqs if r.get('type') == 'resource']
+        other_reqs = [r for r in reqs if r.get('type') != 'resource']
         
-        det_headers = ['ID', 'Requisito', 'Certificazione', 'Azienda', 'Risorsa', 'Tipo', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status']
-        for col, header in enumerate(det_headers, start=2):
-            cell = ws.cell(row=row, column=col, value=header)
-            cell.font = HEADER_FONT
-            cell.fill = HEADER_FILL
-            cell.alignment = CENTER
-            cell.border = THIN_BORDER
-        row += 1
-        
-        # Create data validation for Azienda column
-        from openpyxl.worksheet.datavalidation import DataValidation
-        company_list = ','.join(self.rti_companies)
-        company_dv = DataValidation(type='list', formula1=f'"{company_list}"', allow_blank=False)
-        company_dv.error = 'Selezionare un\'azienda dalla lista'
-        company_dv.errorTitle = 'Azienda non valida'
-        ws.add_data_validation(company_dv)
-        
-        req_start_row = row
-        type_labels = {'resource': 'Cert. Prof.', 'reference': 'Referenza', 'project': 'Progetto'}
-        
-        # Track requirement rows for Analytics references
-        self.tech_req_rows = {}
-        
-        for req in reqs:
-            req_id = req.get('id', '')
-            req_type = req.get('type', 'resource')
-            raw_score = self.details.get(req_id, 0)
-            max_score = req.get('max_points', 0)
-            gara_weight = req.get('gara_weight', 0)
-            tech_input = self.tech_inputs_full.get(req_id, {})
+        # --- TABLE 1: CERTIFICAZIONI PROFESSIONALI ---
+        if prof_reqs:
+            ws.merge_cells(f'B{row}:P{row}')
+            ws[f'B{row}'] = 'DETTAGLIO CERTIFICAZIONI PROFESSIONALI (Score Formula-Driven)'
+            ws[f'B{row}'].font = SECTION_FONT
+            row += 1
             
-            if req_type == 'resource':
-                # Expand by certification and company
+            headers1 = ['ID', 'Requisito', 'Certificazione', 'Azienda', 'Risorsa', 'N Cert', 'Fattore', 'Contributo', 'R Risorse', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status']
+            for col, header in enumerate(headers1, start=2):
+                cell = ws.cell(row=row, column=col, value=header)
+                cell.font = HEADER_FONT
+                cell.fill = HEADER_FILL
+                cell.alignment = CENTER
+                cell.border = THIN_BORDER
+            row += 1
+
+            # Data Validation for Table 1 Azienda
+            from openpyxl.worksheet.datavalidation import DataValidation
+            company_list = ','.join(self.rti_companies)
+            company_dv = DataValidation(type='list', formula1=f'"{company_list}"', allow_blank=False)
+            ws.add_data_validation(company_dv)
+
+            for req in prof_reqs:
+                req_id = req.get('id', '')
+                max_score = req.get('max_points', 0)
+                gara_weight = req.get('gara_weight', 0)
+                tech_input = self.tech_inputs_full.get(req_id, {})
+                r_val = tech_input.get('r_val', 0)
+                
+                # Logic to get cert entries
                 cert_company_counts = tech_input.get('cert_company_counts', {})
                 selected_prof_certs = req.get('selected_prof_certs', [])
-                
-                # Get all certifications with their company assignments
                 cert_entries = []
                 for cert_name, company_counts in cert_company_counts.items():
                     if isinstance(company_counts, dict):
                         for company, count in company_counts.items():
                             if count > 0:
-                                cert_entries.append({
-                                    'cert_name': cert_name,
-                                    'company': company,
-                                    'count': count
-                                })
+                                cert_entries.append({'name': cert_name, 'company': company, 'count': count})
                 
-                # If no cert entries but we have selected_prof_certs, use them
                 if not cert_entries and selected_prof_certs:
                     for cert in selected_prof_certs:
-                        cert_entries.append({
-                            'cert_name': cert,
-                            'company': 'Lutech',
-                            'count': 0
-                        })
-                
-                # If still no entries, create a single row
+                        cert_entries.append({'name': cert, 'company': 'Lutech', 'count': 0})
                 if not cert_entries:
-                    cert_entries = [{'cert_name': '-', 'company': 'Lutech', 'count': 0}]
+                    cert_entries = [{'name': '-', 'company': 'Lutech', 'count': 0}]
                 
-                # Write a row for each certification
-                first_row_for_req = row
+                start_row = row
                 for i, entry in enumerate(cert_entries):
                     is_first = (i == 0)
+                    weight = self.prof_certs_weights.get(entry['name'], 1.0)
                     
-                    # ID (only first row)
-                    id_cell = ws.cell(row=row, column=2, value=req_id if is_first else '')
-                    id_cell.font = Font(size=9, color=COLORS['muted'])
-                    
-                    # Requisito (only first row)
+                    # Columns B:P (2:16)
+                    ws.cell(row=row, column=2, value=req_id if is_first else '').font = Font(size=9, color=COLORS['muted'])
                     ws.cell(row=row, column=3, value=req.get('label', '') if is_first else '').alignment = WRAP
+                    ws.cell(row=row, column=4, value=entry['name'])
                     
-                    # Certificazione
-                    ws.cell(row=row, column=4, value=entry['cert_name'])
+                    comp_cell = ws.cell(row=row, column=5, value=entry['company'])
+                    comp_cell.font = Font(bold=True, color=self.company_colors.get(entry['company'], COLORS['dark']))
+                    comp_cell.fill = INPUT_FILL
+                    company_dv.add(comp_cell)
                     
-                    # Azienda
-                    company = entry['company']
-                    company_cell = ws.cell(row=row, column=5, value=company)
-                    company_cell.font = Font(bold=True, color=self.company_colors.get(company, COLORS['dark']))
-                    company_cell.fill = INPUT_FILL
-                    company_dv.add(company_cell)
+                    resources = self.prof_certs_resources.get(entry['name'], [])
+                    ws.cell(row=row, column=6, value=', '.join(resources) if resources else '-').alignment = WRAP
                     
-                    # Risorsa identificata (from prof_certs_resources master data)
-                    resources = self.prof_certs_resources.get(entry['cert_name'], [])
-                    risorsa_str = ', '.join(resources) if resources else '-'
-                    risorsa_cell = ws.cell(row=row, column=6, value=risorsa_str)
-                    risorsa_cell.alignment = WRAP
+                    # N Cert (G=7), Fattore (H=8), Contributo (I=9)
+                    ws.cell(row=row, column=7, value=entry['count']).fill = INPUT_FILL
+                    ws.cell(row=row, column=8, value=weight).fill = INPUT_FILL
+                    ws.cell(row=row, column=9, value=f'=G{row}*H{row}').fill = FORMULA_FILL
                     
-                    # Tipo
-                    ws.cell(row=row, column=7, value=type_labels.get(req_type, req_type) if is_first else '')
-                    
-                    # Score Raw (only first row, with formula reference)
+                    # R Risorse (J=10) - Score Raw (K=11)
                     if is_first:
-                        ws.cell(row=row, column=8, value=raw_score).number_format = '0.00'
-                        ws.cell(row=row, column=8).fill = INPUT_FILL
+                        ws.cell(row=row, column=10, value=r_val).fill = INPUT_FILL
+                        # Formula: Score = min(max_raw, min(R, max_res) * (2 + min(min(sum(contr), max_certs), min(R, max_res))))
+                        # Using system-defined limits if possible, or common defaults (max_res=5, max_certs=10)
+                        max_res = 5 # Standard Poste requirement usually caps at 5 resources
+                        max_certs = 10 # Standard cap for certs
+                        formula_raw = f'=MIN(L{row}, MIN(J{row},{max_res})*(2+MIN(MIN(SUM(I{start_row}:I{start_row+len(cert_entries)-1}),{max_certs}),MIN(J{row},{max_res}))))'
+                        ws.cell(row=row, column=11, value=formula_raw).number_format = '0.00'
+                        ws.cell(row=row, column=11).fill = FORMULA_FILL
                     
-                    # Max Raw (only first row)
+                    # Max Raw (L=12), % (M=13), Peso Gara (N=14), Score Pesato (O=15), Status (P=16)
                     if is_first:
-                        ws.cell(row=row, column=9, value=max_score).number_format = '0.00'
+                        ws.cell(row=row, column=12, value=max_score).number_format = '0.00'
+                        ws.cell(row=row, column=13, value=f'=IF(L{row}=0,0,K{row}/L{row})').number_format = '0.0%'
+                        ws.cell(row=row, column=13).fill = FORMULA_FILL
+                        ws.cell(row=row, column=14, value=gara_weight).number_format = '0.00'
+                        ws.cell(row=row, column=15, value=f'=M{row}*N{row}').number_format = '0.00' # % * Peso
+                        ws.cell(row=row, column=15).fill = FORMULA_FILL
+                        ws.cell(row=row, column=15).font = Font(bold=True, color=COLORS['primary'])
+                        
+                        # Conditional Status
+                        ws.cell(row=row, column=16, value=f'=IF(M{row}>=0.8,"OK",IF(M{row}>=0.5,"WARN",IF(M{row}>0,"LOW","MISS")))').alignment = CENTER
+                        
+                        # Store for analytics
+                        self.tech_req_rows[req_id] = {'row': row, 'col_score': 'O', 'col_weight': 'N'}
                     
-                    # % (only first row - formula)
-                    if is_first:
-                        ws.cell(row=row, column=10, value=f'=IF(I{row}=0,0,H{row}/I{row})').number_format = '0.0%'
-                        ws.cell(row=row, column=10).fill = FORMULA_FILL
-                    
-                    # Peso Gara (only first row)
-                    if is_first:
-                        ws.cell(row=row, column=11, value=gara_weight).number_format = '0.00'
-                    
-                    # Score Pesato - FORMULA (only first row)
-                    if is_first:
-                        ws.cell(row=row, column=12, value=f'=IF(I{row}=0,0,H{row}*K{row}/I{row})').number_format = '0.00'
-                        ws.cell(row=row, column=12).fill = FORMULA_FILL
-                        ws.cell(row=row, column=12).font = Font(bold=True, color=COLORS['primary'])
-                    
-                    # Status (only first row)
-                    if is_first:
-                        req_pct = raw_score / max_score if max_score > 0 else 0
-                        if req_pct >= 0.8:
-                            ws.cell(row=row, column=13, value='OK')
-                        elif req_pct >= 0.5:
-                            ws.cell(row=row, column=13, value='WARN')
-                        elif req_pct > 0:
-                            ws.cell(row=row, column=13, value='LOW')
-                        else:
-                            ws.cell(row=row, column=13, value='MISS')
-                    
-                    for col in range(2, 14):
+                    for col in range(2, 17):
                         ws.cell(row=row, column=col).border = THIN_BORDER
                     row += 1
+            
+            # Apply Color Scale to column M
+            rule = ColorScaleRule(start_type='num', start_value=0, start_color='F8D7DA', mid_type='num', mid_value=0.5, mid_color='FFF3CD', end_type='num', end_value=1, end_color='D4EDDA')
+            ws.conditional_formatting.add(f'M{start_row}:M{row-1}', rule)
+            row += 2
+
+        # --- TABLE 2: REFERENZE E PROGETTI ---
+        if other_reqs:
+            ws.merge_cells(f'B{row}:K{row}')
+            ws[f'B{row}'] = 'DETTAGLIO REFERENZE E PROGETTI'
+            ws[f'B{row}'].font = SECTION_FONT
+            row += 1
+            
+            headers2 = ['ID', 'Requisito', 'Azienda', 'Tipo', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status']
+            for col, header in enumerate(headers2, start=2):
+                cell = ws.cell(row=row, column=col, value=header)
+                cell.font = HEADER_FONT
+                cell.fill = HEADER_FILL
+                cell.alignment = CENTER
+                cell.border = THIN_BORDER
+            row += 1
+
+            # Table 2 Data Validation
+            company_dv2 = DataValidation(type='list', formula1=f'"{",".join(self.rti_companies)}"', allow_blank=False)
+            ws.add_data_validation(company_dv2)
+
+            type_lbls = {'reference': 'Referenza', 'project': 'Progetto'}
+            start_row_others = row
+            for req in other_reqs:
+                req_id = req.get('id', '')
+                req_type = req.get('type', 'reference')
+                raw_score = self.details.get(req_id, 0)
+                max_score = req.get('max_points', 0)
+                gara_weight = req.get('gara_weight', 0)
+                assigned = self.tech_inputs_full.get(req_id, {}).get('assigned_company', 'Lutech')
                 
-                # Store the first row of this requirement for Analytics reference
-                self.tech_req_rows[req_id] = first_row_for_req
-                    
-            else:
-                # Non-resource types (reference, project) - single row
-                assigned = tech_input.get('assigned_company', '') or 'Lutech'
-                
+                # Cols B:K (2:11)
                 ws.cell(row=row, column=2, value=req_id).font = Font(size=9, color=COLORS['muted'])
                 ws.cell(row=row, column=3, value=req.get('label', '')).alignment = WRAP
-                ws.cell(row=row, column=4, value='-')  # No certification
                 
-                company_cell = ws.cell(row=row, column=5, value=assigned)
-                company_cell.font = Font(bold=True, color=self.company_colors.get(assigned, COLORS['dark']))
-                company_cell.fill = INPUT_FILL
-                company_dv.add(company_cell)
+                comp_cell = ws.cell(row=row, column=4, value=assigned)
+                comp_cell.font = Font(bold=True, color=self.company_colors.get(assigned, COLORS['dark']))
+                comp_cell.fill = INPUT_FILL
+                company_dv2.add(comp_cell)
                 
-                ws.cell(row=row, column=6, value='-')  # Risorsa n/a for non-cert reqs
-                ws.cell(row=row, column=7, value=type_labels.get(req_type, req_type))
-                ws.cell(row=row, column=8, value=raw_score).number_format = '0.00'
-                ws.cell(row=row, column=8).fill = INPUT_FILL
-                ws.cell(row=row, column=9, value=max_score).number_format = '0.00'
-                ws.cell(row=row, column=10, value=f'=IF(I{row}=0,0,H{row}/I{row})').number_format = '0.0%'
+                ws.cell(row=row, column=5, value=type_lbls.get(req_type, req_type))
+                ws.cell(row=row, column=6, value=raw_score).fill = INPUT_FILL # Score Raw (F=6)
+                ws.cell(row=row, column=7, value=max_score) # Max Raw (G=7)
+                ws.cell(row=row, column=8, value=f'=IF(G{row}=0,0,F{row}/G{row})').number_format = '0.0%' # % (H=8)
+                ws.cell(row=row, column=8).fill = FORMULA_FILL
+                ws.cell(row=row, column=9, value=gara_weight) # Peso Gara (I=9)
+                ws.cell(row=row, column=10, value=f'=H{row}*I{row}').number_format = '0.00' # Score Pesato (J=10)
                 ws.cell(row=row, column=10).fill = FORMULA_FILL
-                ws.cell(row=row, column=11, value=gara_weight).number_format = '0.00'
-                # Weighted score formula
-                ws.cell(row=row, column=12, value=f'=IF(I{row}=0,0,H{row}*K{row}/I{row})').number_format = '0.00'
-                ws.cell(row=row, column=12).fill = FORMULA_FILL
-                ws.cell(row=row, column=12).font = Font(bold=True, color=COLORS['primary'])
+                ws.cell(row=row, column=10).font = Font(bold=True, color=COLORS['primary'])
                 
-                req_pct = raw_score / max_score if max_score > 0 else 0
-                if req_pct >= 0.8:
-                    ws.cell(row=row, column=13, value='OK')
-                elif req_pct >= 0.5:
-                    ws.cell(row=row, column=13, value='WARN')
-                elif req_pct > 0:
-                    ws.cell(row=row, column=13, value='LOW')
-                else:
-                    ws.cell(row=row, column=13, value='MISS')
+                ws.cell(row=row, column=11, value=f'=IF(H{row}>=0.8,"OK",IF(H{row}>=0.5,"WARN",IF(H{row}>0,"LOW","MISS")))').alignment = CENTER
                 
-                for col in range(2, 14):
+                # Store for analytics
+                self.tech_req_rows[req_id] = {'row': row, 'col_score': 'J', 'col_weight': 'I'}
+                
+                for col in range(2, 12):
                     ws.cell(row=row, column=col).border = THIN_BORDER
-                
-                # Store this row for Analytics reference
-                self.tech_req_rows[req_id] = row
                 row += 1
-        
-        # Color scale for percentage column (now col K = 11)
-        if row > req_start_row:
-            rule = ColorScaleRule(
-                start_type='num', start_value=0, start_color='F8D7DA',
-                mid_type='num', mid_value=0.5, mid_color='FFF3CD',
-                end_type='num', end_value=1, end_color='D4EDDA'
-            )
-            ws.conditional_formatting.add(f'J{req_start_row}:J{row-1}', rule)
-        
+            
+            # Color scale to column H
+            rule = ColorScaleRule(start_type='num', start_value=0, start_color='F8D7DA', mid_type='num', mid_value=0.5, mid_color='FFF3CD', end_type='num', end_value=1, end_color='D4EDDA')
+            ws.conditional_formatting.add(f'H{start_row_others}:H{row-1}', rule)
+
         ws.freeze_panes = 'C5'
 
     def _create_economic_sheet(self):
@@ -1374,16 +1353,23 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=2, value=req['label']).border = THIN_BORDER
             ws.cell(row=row, column=3, value=req['type']).border = THIN_BORDER
             
-            tech_row = req['tech_row']
-            if tech_row:
+            tech_info = req['tech_row']
+            if tech_info and isinstance(tech_info, dict):
+                r_num = tech_info['row']
+                c_score = tech_info['col_score']
+                c_weight = tech_info['col_weight']
                 # Use formulas referencing Tecnico sheet
-                # L = Score Pesato (shifted +1 after adding Risorsa column), K = Peso Gara
-                ws.cell(row=row, column=4, value=f"=Tecnico!L{tech_row}").number_format = '0.00'
+                ws.cell(row=row, column=4, value=f"=Tecnico!{c_score}{r_num}").number_format = '0.00'
                 ws.cell(row=row, column=4).fill = FORMULA_FILL
-                ws.cell(row=row, column=5, value=f"=Tecnico!K{tech_row}").number_format = '0.00'
+                ws.cell(row=row, column=5, value=f"=Tecnico!{c_weight}{r_num}").number_format = '0.00'
                 ws.cell(row=row, column=5).fill = FORMULA_FILL
-                ws.cell(row=row, column=6, value=f"=IF(Tecnico!K{tech_row}=0,0,Tecnico!L{tech_row}/Tecnico!K{tech_row})")
+                ws.cell(row=row, column=6, value=f"=IF(Tecnico!{c_weight}{r_num}=0,0,Tecnico!{c_score}{r_num}/Tecnico!{c_weight}{r_num})")
                 ws.cell(row=row, column=6).fill = FORMULA_FILL
+            elif tech_info: # Legacy support or fallback
+                # Fallback to old behavior if only row number is present
+                ws.cell(row=row, column=4, value=f"=Tecnico!L{tech_info}").number_format = '0.00'
+                ws.cell(row=row, column=5, value=f"=Tecnico!K{tech_info}").number_format = '0.00'
+                ws.cell(row=row, column=6, value=f"=IF(Tecnico!K{tech_info}=0,0,Tecnico!L{tech_info}/Tecnico!K{tech_info})")
             else:
                 # Fallback to static values if row not found
                 ws.cell(row=row, column=4, value=req['obtained']).number_format = '0.00'
@@ -1733,6 +1719,7 @@ def generate_excel_report(
     tech_inputs_full: Optional[Dict[str, Any]] = None,
     rti_quotas: Optional[Dict[str, float]] = None,
     prof_certs_resources: Optional[Dict[str, List[str]]] = None,
+    prof_certs_weights: Optional[Dict[str, float]] = None,
 ) -> io.BytesIO:
     """Generate Excel report"""
     generator = ExcelReportGenerator(
@@ -1754,6 +1741,7 @@ def generate_excel_report(
         tech_inputs_full=tech_inputs_full,
         rti_quotas=rti_quotas,
         prof_certs_resources=prof_certs_resources,
+        prof_certs_weights=prof_certs_weights,
     )
     
     return generator.generate()

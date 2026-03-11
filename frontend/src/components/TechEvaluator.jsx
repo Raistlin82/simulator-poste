@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { Star, Info, ChevronDown, ChevronUp, Plus, Minus, ClipboardCheck, BarChart3, Settings, Users, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
@@ -480,7 +479,15 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                     return (
                                                                         <div key={cert} className="basis-[calc(50%-2px)] p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex flex-col gap-2">
                                                                             <div className="flex items-start justify-between gap-1.5">
-                                                                                <span className="text-[10px] font-semibold text-slate-700 truncate flex-1 leading-tight" title={cert}>{cert}</span>
+                                                                                <div className="flex flex-col truncate flex-1 min-w-0">
+                                                                                    <span className="text-[10px] font-semibold text-slate-700 truncate leading-tight" title={cert}>{cert}</span>
+                                                                                    {(() => {
+                                                                                        const w = req.prof_certs_weights?.[cert] ?? 1.0;
+                                                                                        return w < 1.0 ? (
+                                                                                            <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-tight">Peso: {w.toFixed(1)}</span>
+                                                                                        ) : null;
+                                                                                    })()}
+                                                                                </div>
                                                                                 <div className="flex items-center gap-0.5 shrink-0">
                                                                                     <button
                                                                                         onClick={() => updateCount(-1)}

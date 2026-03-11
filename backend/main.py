@@ -1717,6 +1717,7 @@ def export_excel(data: schemas.ExportExcelRequest, db: Session = Depends(get_db)
         tech_inputs_full=data.tech_inputs_full,
         rti_quotas=data.rti_quotas,
         prof_certs_resources=prof_certs_resources,
+        prof_certs_weights=data.prof_certs_weights,
     )
 
     logger.info(f"Excel export completed for lot: {data.lot_key}")

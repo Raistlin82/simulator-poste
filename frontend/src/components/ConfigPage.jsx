@@ -68,7 +68,8 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
     // Prefill data for suggestions from Master Data
     const knownCerts = masterData?.company_certs || [];
     const knownLabels = masterData?.requirement_labels || [];
-    const knownProfCerts = masterData?.prof_certs || [];
+    // Filter out any blank or null entries from professional certifications list
+    const knownProfCerts = (masterData?.prof_certs || []).filter(c => typeof c === 'string' && c.trim().length > 0);
 
     // Auto-calculate max scores
     const calculateMaxTechScore = () => {
