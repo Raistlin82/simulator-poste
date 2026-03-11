@@ -131,6 +131,7 @@ def seed_initial_data(db: Session) -> None:
             id="1",
             company_certs=master_data_file.get("company_certs", []),
             prof_certs=master_data_file.get("prof_certs", []),
+            prof_certs_resources=master_data_file.get("prof_certs_resources", {}),
             requirement_labels=master_data_file.get("requirement_labels", []),
             economic_formulas=master_data_file.get("economic_formulas", []),
             rti_partners=master_data_file.get("rti_partners", []),
@@ -293,6 +294,7 @@ def update_master_data(
 
     db_master.company_certs = master_data.company_certs
     db_master.prof_certs = master_data.prof_certs
+    db_master.prof_certs_resources = master_data.prof_certs_resources or {}
     db_master.requirement_labels = master_data.requirement_labels
     if master_data.economic_formulas:
         db_master.economic_formulas = master_data.economic_formulas
@@ -308,6 +310,7 @@ def update_master_data(
         **existing_json,  # Preserve static fields
         "company_certs": db_master.company_certs or [],
         "prof_certs": db_master.prof_certs or [],
+        "prof_certs_resources": db_master.prof_certs_resources or {},
         "requirement_labels": db_master.requirement_labels or [],
         "economic_formulas": db_master.economic_formulas or [],
         "rti_partners": db_master.rti_partners or []

@@ -126,7 +126,11 @@ export const calculateTeamCost = (bp, lutechRates, lutechLabels, overrides = {})
             }
             const finalTowFactor = totalAllocatedPct > 0 ? (towFactorSum / totalAllocatedPct) : 1.0;
 
-            const intervalRawDays = fte * daysPerFte * years;
+            // Per-member effective days: if manual_days_year is set, compute effective daysPerFte for this member
+            const memberEffDaysPerFte = (member.manual_days_year && parseFloat(member.manual_days_year) > 0 && fte > 0)
+              ? parseFloat(member.manual_days_year) / fte
+              : daysPerFte;
+            const intervalRawDays = fte * memberEffDaysPerFte * years;
             const intervalBaseDays = intervalRawDays * factor;
             const intervalDays = intervalBaseDays * (reuseFactor * finalTowFactor);
             const intervalCost = intervalDays * escalatedRate;

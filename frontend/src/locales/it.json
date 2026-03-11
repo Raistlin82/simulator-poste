@@ -409,7 +409,14 @@
         "delete_item_confirm": "Sei sicuro di voler eliminare l'elemento \"{{label}}\"? Questa azione non può essere annullata.",
         "backup_note": "NOTA: Il backup include anche le gare inattive/chiuse. Abilita \"Mostra Gare Chiuse\" nella barra laterale per vederle.",
         "aliases": "Alias",
-        "cert_patterns": "Pattern"
+        "cert_patterns": "Pattern",
+        "resource_modal_title": "Gestisci le risorse Lutech nominate",
+        "resource_modal_empty": "Nessuna risorsa aggiunta. Clicca su \"Aggiungi Risorsa\".",
+        "resource_modal_add": "Aggiungi Risorsa",
+        "resource_modal_save": "Salva Associazione",
+        "resource_modal_cancel": "Annulla",
+        "resource_modal_placeholder": "Nome e Cognome...",
+        "resource_modal_btn_title": "Associa Risorse Nominative"
     },
     "chat": {
         "toggle": "Apri/Chiudi assistente AI",
@@ -491,7 +498,8 @@
         "contribution": "Contributo",
         "degree_label": "Grado",
         "weight_label": "Peso",
-        "attestazione_bonus_hint": "Bonus Attestazione Finale"
+        "attestazione_bonus_hint": "Bonus Attestazione Finale",
+        "delegated_resources": "Risorse Delegate"
     },
     "cert_verification": {
         "title": "Verifica Certificazioni",

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../../utils/formatters';
+import { getEffectiveDaysYear } from '../utils/teamUtils';
 import {
   TrendingUp,
   TrendingDown,
@@ -133,6 +134,11 @@ export default function TowAnalysis({
             avgRate = totalPct > 0 ? weightedRate / totalPct : defaultDailyRate;
           }
 
+          // Use per-member effective daysPerFte (respects manual_days_year)
+          const memberEffDaysPerFte = (parseFloat(member.fte) || 0) > 0
+            ? getEffectiveDaysYear(member, daysPerFte) / (parseFloat(member.fte) || 1)
+            : daysPerFte;
+
           contributions.push({
             profileId,
             label: member.label || profileId,
@@ -140,7 +146,8 @@ export default function TowAnalysis({
             level,
             fte: allocatedFte,
             rate: avgRate,
-            cost: allocatedFte * avgRate * daysPerFte * durationYears,
+            effDaysPerFte: memberEffDaysPerFte,
+            cost: allocatedFte * avgRate * memberEffDaysPerFte * durationYears,
           });
         }
       }
@@ -193,7 +200,7 @@ export default function TowAnalysis({
         contributions,
       };
     });
-  }, [tows, towBreakdown, teamComposition, profileMappings, totalWeight, revenue, lutechRates]);
+  }, [tows, towBreakdown, teamComposition, profileMappings, totalWeight, revenue, lutechRates, daysPerFte, defaultDailyRate, durationYears]);
 
   // Identify risks
   const risks = useMemo(() => {
@@ -269,7 +276,7 @@ export default function TowAnalysis({
           const juniorRate = Math.round(seniorRate * 0.6); // Junior ~ 60% of senior rate
           const savingsPerDay = seniorRate - juniorRate;
           const years = 3;
-          const estimatedSavings = contrib.fte * savingsPerDay * daysPerFte * years * 0.3; // 30% conversion
+          const estimatedSavings = contrib.fte * savingsPerDay * (contrib.effDaysPerFte || daysPerFte) * years * 0.3; // 30% conversion
 
           if (estimatedSavings > 10000) { // Only propose if meaningful savings
             const newMarginPct = tow.revenue > 0
@@ -373,7 +380,7 @@ export default function TowAnalysis({
         // Propose replacing expensive profiles with cheaper alternatives
         for (const contrib of expensiveProfiles) {
           const juniorRate = contrib.rate * 0.6; // Assume junior is 60% of senior rate
-          const potentialSavings = contrib.fte * (contrib.rate - juniorRate) * daysPerFte * years;
+          const potentialSavings = contrib.fte * (contrib.rate - juniorRate) * (contrib.effDaysPerFte || daysPerFte) * years;
 
           if (potentialSavings > 5000) {
             proposalActions.push({
@@ -410,7 +417,7 @@ export default function TowAnalysis({
           for (const contrib of expensiveProfiles.slice(0, 2)) {
             const moveableFte = Math.min(contrib.fte * 0.3, excessExpensive);
             if (moveableFte > 0.2) {
-              const savingsPerFte = (contrib.rate - avgRate * 0.7) * daysPerFte * years;
+              const savingsPerFte = (contrib.rate - avgRate * 0.7) * (contrib.effDaysPerFte || daysPerFte) * years;
 
               proposalActions.push({
                 type: 'reduce',

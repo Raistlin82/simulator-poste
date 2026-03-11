@@ -1043,20 +1043,43 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
 
                                                     {/* Selected Chips */}
                                                     <div className="flex flex-wrap gap-2 mb-6">
-                                                        {req.selected_prof_certs?.map(cert => (
+                                                        {req.selected_prof_certs?.map(cert => {
+                                                            const weight = req.prof_certs_weights?.[cert] ?? 1.0;
+                                                            return (
                                                             <span key={cert} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-purple-200 text-purple-700 text-[10px] font-black rounded-xl shadow-sm hover:shadow-md transition-all group font-display uppercase tracking-tight">
                                                                 {cert}
+                                                                <input
+                                                                    type="number"
+                                                                    min="0.1"
+                                                                    max="1.0"
+                                                                    step="0.1"
+                                                                    value={weight}
+                                                                    title={t('config.cert_weight_title', 'Peso certificazione nella gara')}
+                                                                    onChange={(e) => {
+                                                                        let w = parseFloat(e.target.value);
+                                                                        if (isNaN(w)) w = 1.0;
+                                                                        if (w > 1.0) w = 1.0;
+                                                                        if (w < 0.1) w = 0.1;
+                                                                        const newWeights = { ...(req.prof_certs_weights || {}) };
+                                                                        newWeights[cert] = w;
+                                                                        updateRequirement(req.id, 'prof_certs_weights', newWeights);
+                                                                    }}
+                                                                    className="w-12 bg-purple-50 border border-purple-200 rounded text-center text-[10px] font-bold text-purple-800 focus:ring-1 focus:ring-purple-400 outline-none ml-1 custom-number-input"
+                                                                />
                                                                 <button
                                                                     onClick={() => {
                                                                         const updated = req.selected_prof_certs.filter(c => c !== cert);
                                                                         updateRequirement(req.id, 'selected_prof_certs', updated);
+                                                                        const newWeights = { ...(req.prof_certs_weights || {}) };
+                                                                        delete newWeights[cert];
+                                                                        updateRequirement(req.id, 'prof_certs_weights', newWeights);
                                                                     }}
-                                                                    className="text-purple-300 hover:text-red-500 transition-colors"
+                                                                    className="text-purple-300 hover:text-red-500 transition-colors ml-1"
                                                                 >
                                                                     <X className="w-3.5 h-3.5" />
                                                                 </button>
                                                             </span>
-                                                        ))}
+                                                        )})}
                                                         {(!req.selected_prof_certs || req.selected_prof_certs.length === 0) && (
                                                             <div className="w-full text-center py-4 bg-white/30 rounded-xl border border-dashed border-purple-200/50 text-[10px] font-black text-purple-400 uppercase tracking-widest font-display">
                                                                 {t('config.no_cert_selected', 'Nessuna certificazione selezionata')}

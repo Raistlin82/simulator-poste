@@ -68,11 +68,11 @@ class ScoringService:
 
     @staticmethod
     def calculate_professional_score(
-        resources: int,
-        certifications: int,
-        max_resources: int,
+        resources: float,
+        certifications: float,
+        max_resources: float,
         max_points: float,
-        max_certifications: int = 5
+        max_certifications: float = 5.0
     ) -> float:
         """
         Calculate professional score based on resources and certifications.

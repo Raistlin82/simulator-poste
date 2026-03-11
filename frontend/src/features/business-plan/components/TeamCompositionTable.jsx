@@ -1,6 +1,7 @@
 import { useState, useMemo, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Plus, Trash2, Upload, Calculator, Save, X, GraduationCap, TrendingDown, ChevronDown, ChevronUp, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Users, Plus, Trash2, Upload, Calculator, Save, X, GraduationCap, TrendingDown, ChevronDown, ChevronUp, Calendar, AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { getEffectiveDaysYear } from '../utils/teamUtils';
 
 const SENIORITY_OPTIONS = [
   { value: 'jr', label: 'Junior', color: 'blue', icon: '🌱' },
@@ -90,11 +91,19 @@ export default function TeamCompositionTable({
 
       const updatedProfile = { ...p, [field]: value };
 
-      // Auto-calculate days when FTE changes
+      // Auto-calculate days when FTE changes — also reset manual override
       if (field === 'fte') {
         const clampedFte = Math.max(0, parseFloat(value) || 0);
         updatedProfile.fte = clampedFte;
         updatedProfile.days_year = clampedFte * daysPerFte;
+        updatedProfile.manual_days_year = null; // reset manual override
+      }
+
+      // Manual GG/anno override
+      if (field === 'manual_days_year') {
+        const manualDays = parseFloat(value);
+        updatedProfile.manual_days_year = (manualDays > 0) ? manualDays : null;
+        updatedProfile.days_year = (manualDays > 0) ? manualDays : (parseFloat(updatedProfile.fte) || 0) * daysPerFte;
       }
 
       return updatedProfile;
@@ -207,7 +216,7 @@ export default function TeamCompositionTable({
   const durationYears = durationMonths / 12;
   const totalFte = team.reduce((sum, p) => sum + (parseFloat(p.fte) || 0), 0);
   const totalAdjustedFte = Object.values(adjustedFteMap).reduce((sum, v) => sum + v.adjustedFte, 0);
-  const totalDays = team.reduce((sum, p) => sum + (parseFloat(p.fte) || 0) * daysPerFte, 0);
+  const totalDays = team.reduce((sum, p) => sum + getEffectiveDaysYear(p, daysPerFte), 0);
   const totalDaysOverall = totalDays * durationYears;
   const savingsPct = totalFte > 0 ? ((totalFte - totalAdjustedFte) / totalFte * 100) : 0;
 
@@ -393,14 +402,51 @@ export default function TeamCompositionTable({
                         );
                       })()}
                       <td className="px-4 py-2">
-                        <div className="px-2 py-1 text-center bg-slate-100 rounded text-slate-600">
-                          {Math.round(profile.fte * daysPerFte)}
-                        </div>
+                        {(() => {
+                          const isManual = profile.manual_days_year && parseFloat(profile.manual_days_year) > 0;
+                          const autoDays = Math.round((parseFloat(profile.fte) || 0) * daysPerFte);
+                          return (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={isManual ? profile.manual_days_year : autoDays}
+                                onChange={(e) => handleUpdateProfile(idx, 'manual_days_year', e.target.value)}
+                                disabled={disabled}
+                                step="1"
+                                min="0"
+                                className={`w-full px-2 py-1 text-center border rounded text-sm
+                                           focus:outline-none focus:ring-1
+                                           disabled:bg-slate-50 disabled:cursor-not-allowed
+                                           ${isManual
+                                    ? 'border-amber-300 bg-amber-50 text-amber-800 font-bold focus:border-amber-500 focus:ring-amber-300'
+                                    : 'border-slate-200 bg-slate-50 text-slate-600 focus:border-blue-300 focus:ring-blue-300'
+                                  }`}
+                                title={isManual ? `Manuale (auto: ${autoDays})` : `Auto: FTE × ${daysPerFte}`}
+                              />
+                              {isManual && (
+                                <button
+                                  onClick={() => handleUpdateProfile(idx, 'manual_days_year', 0)}
+                                  className="p-0.5 text-amber-500 hover:text-amber-700 hover:bg-amber-100 rounded transition-colors flex-shrink-0"
+                                  title={`Reset ad auto (${autoDays})`}
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-2">
-                        <div className="px-2 py-1 text-center bg-blue-50 rounded text-blue-700 font-semibold">
-                          {Math.round(profile.fte * daysPerFte * durationYears)}
-                        </div>
+                        {(() => {
+                          const isManual = profile.manual_days_year && parseFloat(profile.manual_days_year) > 0;
+                          return (
+                            <div className={`px-2 py-1 text-center rounded font-semibold ${
+                              isManual ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-blue-50 text-blue-700'
+                            }`}>
+                              {Math.round(getEffectiveDaysYear(profile, daysPerFte) * durationYears)}
+                            </div>
+                          );
+                        })()}
                       </td>
                       {tows.map(tow => (
                         <td key={tow.tow_id} className="px-3 py-2">
@@ -551,12 +597,12 @@ export default function TeamCompositionTable({
                 </td>
                 <td className="px-4 py-2">
                   <div className="px-2 py-1 text-center bg-blue-100 rounded text-blue-700">
-                    {Math.round(newProfile.fte * daysPerFte)}
+                    {Math.round(getEffectiveDaysYear(newProfile, daysPerFte))}
                   </div>
                 </td>
                 <td className="px-4 py-2">
                   <div className="px-2 py-1 text-center bg-blue-100 rounded text-blue-700 font-semibold">
-                    {Math.round(newProfile.fte * daysPerFte * durationYears)}
+                    {Math.round(getEffectiveDaysYear(newProfile, daysPerFte) * durationYears)}
                   </div>
                 </td>
                 {tows.map(tow => (

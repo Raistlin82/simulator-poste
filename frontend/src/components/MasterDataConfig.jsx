@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2, Database, Download, Upload, Bot } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2, Database, Download, Upload, Bot, Users, X } from 'lucide-react';
 import { API_URL } from '../utils/api';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { logger } from '../utils/logger';
@@ -13,6 +13,7 @@ export default function MasterDataConfig() {
     const [data, setData] = useState({
         company_certs: [],
         prof_certs: [],
+        prof_certs_resources: {},
         requirement_labels: [],
         rti_partners: [],
         ai_enabled: false,
@@ -45,6 +46,10 @@ export default function MasterDataConfig() {
     const aliasInputRefs = useRef({});
     const patternInputRefs = useRef({});
 
+    // Cert resources modal state
+    const [resourceModal, setResourceModal] = useState({ isOpen: false, certName: '' });
+    const [tempResources, setTempResources] = useState([]);
+
     const showToast = (type, message) => {
         setToast({ type, message });
         setTimeout(() => setToast(null), 3000);
@@ -53,6 +58,23 @@ export default function MasterDataConfig() {
     // Auto-save master data when it changes (debounced)
     const saveTimeoutRef = useRef(null);
     const saveMasterData = useCallback(async (newData) => {
+        // Pre-save validation: Check for duplicates
+        const sectionsToCheck = ['company_certs', 'prof_certs', 'requirement_labels', 'rti_partners'];
+        for (const sec of sectionsToCheck) {
+            const items = newData[sec] || [];
+            const lowerSet = new Set();
+            for (const item of items) {
+                if (typeof item === 'string') {
+                    const lower = item.toLowerCase().trim();
+                    if (lower !== '' && lowerSet.has(lower)) {
+                        showToast('error', `Salvataggio ritardato: non è possibile salvare, "${item}" è un duplicato in ${sec}. Rimuovilo per salvare le altre modifiche.`);
+                        return; // Abort save
+                    }
+                    lowerSet.add(lower);
+                }
+            }
+        }
+
         try {
             await axios.post(`${API_URL}/master-data`, newData);
             showToast('success', t('master.saved'));
@@ -62,7 +84,7 @@ export default function MasterDataConfig() {
             logger.error('Error saving master data', error);
             showToast('error', `${t('master.error_prefix')}: ${error.response?.data?.detail || error.message}`);
         }
-    }, [refetchConfig]);
+    }, [refetchConfig]); // WARNING: Do not add showToast or t here. showToast causes infinite loops without its own useCallback
 
     useEffect(() => {
         // Skip initial load
@@ -141,6 +163,54 @@ export default function MasterDataConfig() {
             ...prev,
             [section]: newList
         }));
+    };
+
+    const checkDuplicates = () => {
+        if (activeSection !== 'prof_certs' && activeSection !== 'company_certs') return;
+        const items = data[activeSection] || [];
+        const lowerSeen = new Map();
+        const duplicates = [];
+        
+        items.forEach((item, idx) => {
+            if (typeof item !== 'string') return;
+            const lower = item.toLowerCase().trim();
+            if (lowerSeen.has(lower)) {
+                duplicates.push({ keep: lowerSeen.get(lower), remove: item, removeIdx: idx });
+            } else {
+                lowerSeen.set(lower, { val: item, idx });
+            }
+        });
+
+        if (duplicates.length === 0) {
+            showToast('success', 'Nessun duplicato trovato!');
+            return;
+        }
+
+        const newList = items.filter((_, idx) => !duplicates.some(d => d.removeIdx === idx));
+        setData(prev => ({ ...prev, [activeSection]: newList }));
+        showToast('success', `Rimossi ${duplicates.length} duplicati in modo permanente.`);
+    };
+
+    const openResourceModal = (certName) => {
+        if (!certName) {
+            showToast('error', 'Salva la certificazione prima di aggiungere risorse.');
+            return;
+        }
+        setTempResources([...(data.prof_certs_resources?.[certName] || [])]);
+        setResourceModal({ isOpen: true, certName });
+    };
+
+    const saveResourceModal = () => {
+        const validResources = tempResources.map(r => (typeof r === 'string' ? r.trim() : '')).filter(r => r.length > 0);
+        setData(prev => ({
+            ...prev,
+            prof_certs_resources: {
+                ...(prev.prof_certs_resources || {}),
+                [resourceModal.certName]: validResources
+            }
+        }));
+        showToast('success', `Risorse salvate per ${resourceModal.certName}`);
+        setResourceModal({ isOpen: false, certName: '' });
     };
 
     // Vendor management functions
@@ -437,8 +507,8 @@ export default function MasterDataConfig() {
                                         : 'text-slate-500 hover:bg-white/60 hover:translate-x-1'
                                         } mb-3 last:mb-0 group`}
                                 >
-                                    <s.icon className={`w-4 h-4 transition-transform group-hover:scale-110 ${activeSection === s.id ? 'text-white' : s.color}`} />
-                                    <span>{s.label}</span>
+                                    <s.icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${activeSection === s.id ? 'text-white' : s.color}`} />
+                                    <span className="text-left">{s.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -459,15 +529,26 @@ export default function MasterDataConfig() {
                                         {sections.find(s => s.id === activeSection)?.label}
                                     </h2>
                                 </div>
-                                {activeSection !== 'ocr_settings' && activeSection !== 'database_tools' && activeSection !== 'ai_config' && (
-                                    <button
-                                        onClick={() => addItem(activeSection)}
-                                        className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-2xl hover:brightness-110 transition-all flex items-center gap-4 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-xl shadow-indigo-200 active:scale-95 group"
-                                    >
-                                        <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-                                        <span>{t('master.add_item')}</span>
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-3">
+                                    {(activeSection === 'prof_certs' || activeSection === 'company_certs') && (
+                                        <button
+                                            onClick={checkDuplicates}
+                                            className="px-6 py-4 bg-orange-100 text-orange-700 border border-orange-200 rounded-2xl hover:bg-orange-200 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-sm active:scale-95 group"
+                                        >
+                                            <ShieldCheck className="w-4 h-4" />
+                                            <span>Analizza Duplicati</span>
+                                        </button>
+                                    )}
+                                    {activeSection !== 'ocr_settings' && activeSection !== 'database_tools' && activeSection !== 'ai_config' && (
+                                        <button
+                                            onClick={() => addItem(activeSection)}
+                                            className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-2xl hover:brightness-110 transition-all flex items-center gap-4 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-xl shadow-indigo-200 active:scale-95 group"
+                                        >
+                                            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                                            <span>{t('master.add_item')}</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Main Content Area */}
@@ -872,6 +953,18 @@ export default function MasterDataConfig() {
                                                             </div>
                                                         )}
                                                     </div>
+                                                    {activeSection === 'prof_certs' && typeof item === 'string' && item.trim() && (
+                                                        <button
+                                                            onClick={() => openResourceModal(item)}
+                                                            className="relative p-4 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 rounded-2xl transition-all active:scale-95 translate-x-1 group-hover:translate-x-0 group-hover:opacity-100"
+                                                            title={t('master.resource_modal_btn_title')}
+                                                        >
+                                                            <Users className="w-5 h-5" />
+                                                            {data.prof_certs_resources?.[item]?.length > 0 && (
+                                                                <div className="absolute top-3 right-3 w-2 h-2 bg-indigo-500 rounded-full border border-white shadow-sm"></div>
+                                                            )}
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => {
                                                             const sectionDef = sections.find(s => s.id === activeSection);
@@ -919,6 +1012,79 @@ export default function MasterDataConfig() {
                             : t('master.delete_item_confirm', { label: deleteModalState.data?.label || '' })
                 }
             />
+
+            {/* Resource Modal */}
+            {resourceModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setResourceModal({ isOpen: false, certName: '' })}></div>
+                    <div className="relative bg-white/90 backdrop-blur-md border border-white p-8 rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 className="text-[20px] font-black text-slate-800 font-display leading-tight">{resourceModal.certName}</h3>
+                                <p className="text-sm text-slate-500">{t('master.resource_modal_title')}</p>
+                            </div>
+                            <button onClick={() => setResourceModal({ isOpen: false, certName: '' })} className="p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0">
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-3 mb-6 pr-2">
+                            {tempResources.length === 0 ? (
+                                <p className="text-sm text-slate-500 italic p-4 text-center bg-slate-50 rounded-xl">{t('master.resource_modal_empty')}</p>
+                            ) : (
+                                tempResources.map((res, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={res}
+                                            onChange={(e) => {
+                                                const newR = [...tempResources];
+                                                newR[idx] = e.target.value;
+                                                setTempResources(newR);
+                                            }}
+                                            placeholder={t('master.resource_modal_placeholder')}
+                                            className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-sm"
+                                        />
+                                        <button 
+                                            onClick={() => {
+                                                const newR = [...tempResources];
+                                                newR.splice(idx, 1);
+                                                setTempResources(newR);
+                                            }}
+                                            className="p-3 text-red-500 hover:text-red-600 hover:bg-red-50 bg-white border border-slate-200 rounded-xl transition-all shadow-sm active:scale-95"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                            <button 
+                                onClick={() => setTempResources([...tempResources, ''])}
+                                className="w-full py-3 mt-4 border-2 border-dashed border-indigo-200 bg-indigo-50/50 text-indigo-600 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all text-sm font-bold flex items-center justify-center gap-2 active:scale-95"
+                            >
+                                <Plus className="w-4 h-4" />
+                                {t('master.resource_modal_add')}
+                            </button>
+                        </div>
+                        
+                        <div className="pt-5 border-t border-slate-200/60 flex justify-end gap-3 mt-auto">
+                            <button
+                                onClick={() => setResourceModal({ isOpen: false, certName: '' })}
+                                className="px-6 py-3 text-slate-600 font-bold text-[10px] uppercase tracking-widest-plus font-display bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                            >
+                                {t('master.resource_modal_cancel')}
+                            </button>
+                            <button
+                                onClick={saveResourceModal}
+                                className="px-6 py-3 text-white font-bold text-[10px] uppercase tracking-widest-plus font-display bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-200 active:scale-95"
+                            >
+                                <Save className="w-4 h-4" />
+                                {t('master.resource_modal_save')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { formatCurrency } from '../../../utils/formatters';
 import { useTranslation } from 'react-i18next';
+import { getEffectiveDaysYear } from '../utils/teamUtils';
 import {
   ArrowRightLeft,
   Plus,
@@ -638,7 +639,9 @@ export default function ProfileMappingEditor({
         const effectiveFactor = adjDetail ? adjDetail.factor : 1.0;
         const volumeFactor = effectiveFactor / (1 - (reuseFactor / 100)); // Fattore senza riuso
 
-        const daysInMonth = (1 / 12) * daysPerFte;
+        // Per-member effective days/month (respects manual_days_year override)
+        const memberEffDaysYear = getEffectiveDaysYear(member, daysPerFte);
+        const daysInMonth = (1 / 12) * (fte > 0 ? memberEffDaysYear / fte : daysPerFte);
 
         // Nominale (Include Volume/TOW ma NON riuso e NON inflazione per la "Nominale" pura, o forse sì?)
         // Per "Nominale" in Italia di solito si intende la tariffa di listino.
@@ -735,7 +738,7 @@ export default function ProfileMappingEditor({
                     <div className="text-sm text-slate-500 flex items-center gap-2">
                       <span className="font-medium">{posteProfile.fte} FTE</span>
                       <span className="text-slate-300">·</span>
-                      <span>{Math.round(posteProfile.fte * daysPerFte)} GG/anno</span>
+                      <span>{Math.round(getEffectiveDaysYear(posteProfile, daysPerFte))} GG/anno</span>
                       {(() => {
                         const adj = profileAdjustments[profileId];
                         if (adj && adj.delta < 0) {

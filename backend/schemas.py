@@ -36,8 +36,8 @@ class Requirement(BaseModel):
     bonus_label: Optional[str] = None
     bonus_val: Optional[float] = 0.0
     sub_reqs: Optional[List[Dict[str, Any]]] = None
-    criteria: Optional[List[Dict[str, Any]]] = None
     selected_prof_certs: Optional[List[str]] = Field(default_factory=list)
+    prof_certs_weights: Optional[Dict[str, float]] = Field(default_factory=dict)
     attestazione_label: Optional[str] = None
     attestazione_score: Optional[float] = 0.0
     custom_metrics: Optional[List[Dict[str, Any]]] = None  # [{id, label, min, max}]
@@ -96,7 +96,8 @@ class TechInput(BaseModel):
     """Technical input for a requirement"""
     req_id: str
     r_val: Optional[int] = 0
-    c_val: Optional[int] = 0
+    c_val: Optional[float] = 0.0
+    cert_assigned_resources: Optional[Dict[str, List[str]]] = Field(default_factory=dict)
     sub_req_vals: Optional[List[Dict[str, Any]]] = None
     bonus_active: Optional[bool] = False
     attestazione_active: Optional[bool] = False
@@ -223,6 +224,7 @@ class MasterData(BaseModel):
     """Master data shared across all lots"""
     company_certs: List[str] = Field(default_factory=list)
     prof_certs: List[str] = Field(default_factory=list)
+    prof_certs_resources: Optional[Dict[str, List[str]]] = Field(default_factory=dict)
     requirement_labels: List[str] = Field(default_factory=list)
     economic_formulas: Optional[List[Dict[str, Any]]] = None
     rti_partners: List[str] = Field(default_factory=list)  # Available RTI partner companies (excludes Lutech)

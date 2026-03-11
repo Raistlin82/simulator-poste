@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Star, Info, ChevronDown, ChevronUp, Plus, Minus, ClipboardCheck, BarChart3, Settings } from 'lucide-react';
+import { Star, Info, ChevronDown, ChevronUp, Plus, Minus, ClipboardCheck, BarChart3, Settings, Users, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
 import { useReactToPrint } from 'react-to-print';
@@ -20,7 +20,7 @@ import React, { useRef } from 'react';
 
 export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
     const { t } = useTranslation();
-    const { config } = useConfig();
+    const { config, masterData } = useConfig();
     const [activeTab, setActiveTab] = useState('valutazione'); // 'valutazione' | 'configurazione' | 'analisi'
     const reportRef = useRef();
     const {
@@ -424,7 +424,7 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                         const newVal = Math.max(0, count + delta);
                                                                         counts[cert] = newVal;
 
-                                                                        const newTotalC = req.selected_prof_certs.reduce((s, c) => s + (counts[c] || 0), 0);
+                                                                        const newTotalC = req.selected_prof_certs.reduce((s, c) => s + ((counts[c] || 0) * (req.prof_certs_weights?.[c] ?? 1.0)), 0);
                                                                         const currentInput = inputs[req.id] || {};
 
                                                                         // If reducing count, also reduce company counts proportionally
@@ -497,7 +497,7 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                                             const val = Math.min(maxC, Math.max(0, parseInt(e.target.value) || 0));
                                                                                             const counts = { ...(cur.cert_counts || {}) };
                                                                                             counts[cert] = val;
-                                                                                            const newTotalC = req.selected_prof_certs.reduce((s, c) => s + (counts[c] || 0), 0);
+                                                                                            const newTotalC = req.selected_prof_certs.reduce((s, c) => s + ((counts[c] || 0) * (req.prof_certs_weights?.[c] ?? 1.0)), 0);
                                                                                             const currentInput = inputs[req.id] || {};
                                                                                             setTechInput(req.id, {
                                                                                                 ...currentInput,
@@ -556,6 +556,68 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                                     </div>
                                                                                 </div>
                                                                             )}
+
+                                                                            {/* assigned resources picker */}
+                                                                            {(() => {
+                                                                                const effLutechCount = rtiCompanies.length === 1 ? count : ((cur.cert_company_counts?.[cert] || {})['Lutech'] || 0);
+                                                                                const availableResources = masterData?.prof_certs_resources?.[cert] || [];
+                                                                                
+                                                                                if (effLutechCount > 0 && availableResources.length > 0) {
+                                                                                    const selectedResources = cur.cert_assigned_resources?.[cert] || [];
+                                                                                    
+                                                                                    const toggleResource = (res) => {
+                                                                                        const currentInput = inputs[req.id] || {};
+                                                                                        const allAssigned = { ...(currentInput.cert_assigned_resources || {}) };
+                                                                                        const currentSelected = allAssigned[cert] || [];
+                                                                                        
+                                                                                        let newSelected;
+                                                                                        if (currentSelected.includes(res)) {
+                                                                                            newSelected = currentSelected.filter(r => r !== res);
+                                                                                        } else {
+                                                                                            if (currentSelected.length >= effLutechCount) return; // Limit reached
+                                                                                            newSelected = [...currentSelected, res];
+                                                                                        }
+                                                                                        
+                                                                                        allAssigned[cert] = newSelected;
+                                                                                        setTechInput(req.id, {
+                                                                                            ...currentInput,
+                                                                                            cert_assigned_resources: allAssigned
+                                                                                        });
+                                                                                    };
+
+                                                                                    return (
+                                                                                        <div className="pt-2 mt-1 border-t border-indigo-100/50">
+                                                                                            <div className="flex justify-between items-center mb-1.5">
+                                                                                                <span className="text-[8px] font-bold text-indigo-600 uppercase flex items-center gap-1">
+                                                                                                    <Users className="w-2.5 h-2.5" /> {t('tech.delegated_resources')}
+                                                                                                </span>
+                                                                                                <span className="text-[8px] font-bold text-slate-400">
+                                                                                                    {selectedResources.length}/{effLutechCount}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                            <div className="flex flex-wrap gap-1">
+                                                                                                {availableResources.map(res => {
+                                                                                                    const isSelected = selectedResources.includes(res);
+                                                                                                    const isDisabled = !isSelected && selectedResources.length >= effLutechCount;
+                                                                                                    return (
+                                                                                                        <button
+                                                                                                            key={res}
+                                                                                                            onClick={() => toggleResource(res)}
+                                                                                                            disabled={isDisabled}
+                                                                                                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all border flex items-center gap-1 ${isSelected ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm shadow-indigo-200' : isDisabled ? 'bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'}`}
+                                                                                                            title={res}
+                                                                                                        >
+                                                                                                            {isSelected && <Check className="w-2.5 h-2.5" />}
+                                                                                                            {res}
+                                                                                                        </button>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                }
+                                                                                return null;
+                                                                            })()}
                                                                         </div>
                                                                     );
                                                                 })
@@ -573,7 +635,6 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                     <div className="flex items-center gap-1.5">
                                                                         <button
                                                                             onClick={() => {
-                                                                                const maxC = Math.max(10, cur.r_val);
                                                                                 const newVal = Math.max(0, (cur.c_val || 0) - 1);
                                                                                 updateInput(req.id, 'c_val', newVal);
                                                                             }}
@@ -649,7 +710,6 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                             <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50/10">
                                 {lotData.reqs.filter(r => ['reference', 'project'].includes(r.type)).map(req => {
                                     const cur = inputs[req.id] || { qual_val: 'Adeguato', bonus_active: false };
-                                    const pts = results?.details[req.id] || 0;
 
                                     // Function to build judgement options from criterion's levels
                                     const getJudgementOptions = (criterion) => {

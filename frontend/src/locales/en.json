@@ -409,7 +409,14 @@
         "delete_item_confirm": "Are you sure you want to delete the item \"{{label}}\"? This action cannot be undone.",
         "backup_note": "NOTE: The backup also includes inactive/closed tenders. Enable \"Show Closed Tenders\" in the sidebar to see them.",
         "aliases": "Aliases",
-        "cert_patterns": "Patterns"
+        "cert_patterns": "Patterns",
+        "resource_modal_title": "Manage named Lutech resources",
+        "resource_modal_empty": "No resources added. Click \"Add Resource\".",
+        "resource_modal_add": "Add Resource",
+        "resource_modal_save": "Save Association",
+        "resource_modal_cancel": "Cancel",
+        "resource_modal_placeholder": "Full Name...",
+        "resource_modal_btn_title": "Associate Named Resources"
     },
     "chat": {
         "toggle": "Open/Close AI assistant",
@@ -491,7 +498,8 @@
         "contribution": "Contribution",
         "degree_label": "Degree",
         "weight_label": "Weight",
-        "attestazione_bonus_hint": "Final Customer Certification Bonus"
+        "attestazione_bonus_hint": "Final Customer Certification Bonus",
+        "delegated_resources": "Delegated Resources"
     },
     "cert_verification": {
         "title": "Certification Verification",
