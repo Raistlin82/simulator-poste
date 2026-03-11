@@ -168,15 +168,13 @@ jobs:
         run: |
           kubectl apply -f k8s/apirule.yaml
 
-      - name: Wait for deployments
-        run: |
-          kubectl rollout status deployment/simulator-poste-backend -n simulator-poste --timeout=300s
-          kubectl rollout status deployment/simulator-poste-frontend -n simulator-poste --timeout=300s
-
       - name: Force rollout restart to pull latest images
         run: |
           kubectl rollout restart deployment/simulator-poste-backend -n simulator-poste
           kubectl rollout restart deployment/simulator-poste-frontend -n simulator-poste
+
+      - name: Wait for deployments
+        run: |
           kubectl rollout status deployment/simulator-poste-backend -n simulator-poste --timeout=300s
           kubectl rollout status deployment/simulator-poste-frontend -n simulator-poste --timeout=300s
 
@@ -195,10 +193,20 @@ jobs:
       - name: Fetch Backend Logs on Failure
         if: failure()
         run: |
-          echo "=== Backend Pod Logs ==="
-          kubectl logs -l app=simulator-poste-backend -n simulator-poste --all-containers=true --tail=200 || true
+          echo "=== Backend Pod Status ==="
+          kubectl get pods -l app=simulator-poste-backend -n simulator-poste -o wide || true
+          echo ""
           echo "=== Backend Pod Describe ==="
           kubectl describe pods -l app=simulator-poste-backend -n simulator-poste || true
+          echo ""
+          echo "=== Backend Pod Events ==="
+          kubectl get events -n simulator-poste --field-selector involvedObject.kind=Pod --sort-by='.lastTimestamp' | tail -30 || true
+          echo ""
+          echo "=== Backend Pod Logs (current) ==="
+          kubectl logs -l app=simulator-poste-backend -n simulator-poste --all-containers=true --tail=200 || true
+          echo ""
+          echo "=== Backend Pod Logs (previous, if crash-looping) ==="
+          kubectl logs -l app=simulator-poste-backend -n simulator-poste --all-containers=true --previous --tail=100 || true
 
       - name: Deployment summary
         run: |
