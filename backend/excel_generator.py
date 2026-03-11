@@ -537,8 +537,12 @@ class ExcelReportGenerator:
         prof_reqs = [r for r in reqs if r.get('type') == 'resource']
         other_reqs = [r for r in reqs if r.get('type') != 'resource']
         
+        # Track requirement rows for Analytics references
+        self.tech_req_rows = {}
+        
         # --- TABLE 1: CERTIFICAZIONI PROFESSIONALI ---
         if prof_reqs:
+            table1_start_row = row + 1
             ws.merge_cells(f'B{row}:P{row}')
             ws[f'B{row}'] = 'DETTAGLIO CERTIFICAZIONI PROFESSIONALI (Score Formula-Driven)'
             ws[f'B{row}'].font = SECTION_FONT
@@ -582,7 +586,7 @@ class ExcelReportGenerator:
                 if not cert_entries:
                     cert_entries = [{'name': '-', 'company': 'Lutech', 'count': 0}]
                 
-                start_row = row
+                req_start_row = row
                 for i, entry in enumerate(cert_entries):
                     is_first = (i == 0)
                     weight = self.prof_certs_weights.get(entry['name'], 1.0)
@@ -609,10 +613,9 @@ class ExcelReportGenerator:
                     if is_first:
                         ws.cell(row=row, column=10, value=r_val).fill = INPUT_FILL
                         # Formula: Score = min(max_raw, min(R, max_res) * (2 + min(min(sum(contr), max_certs), min(R, max_res))))
-                        # Using system-defined limits if possible, or common defaults (max_res=5, max_certs=10)
-                        max_res = 5 # Standard Poste requirement usually caps at 5 resources
-                        max_certs = 10 # Standard cap for certs
-                        formula_raw = f'=MIN(L{row}, MIN(J{row},{max_res})*(2+MIN(MIN(SUM(I{start_row}:I{start_row+len(cert_entries)-1}),{max_certs}),MIN(J{row},{max_res}))))'
+                        max_res = 5 
+                        max_certs = 10 
+                        formula_raw = f'=MIN(L{row}, MIN(J{row},{max_res})*(2+MIN(MIN(SUM(I{req_start_row}:I{req_start_row+len(cert_entries)-1}),{max_certs}),MIN(J{row},{max_res}))))'
                         ws.cell(row=row, column=11, value=formula_raw).number_format = '0.00'
                         ws.cell(row=row, column=11).fill = FORMULA_FILL
                     
@@ -622,7 +625,7 @@ class ExcelReportGenerator:
                         ws.cell(row=row, column=13, value=f'=IF(L{row}=0,0,K{row}/L{row})').number_format = '0.0%'
                         ws.cell(row=row, column=13).fill = FORMULA_FILL
                         ws.cell(row=row, column=14, value=gara_weight).number_format = '0.00'
-                        ws.cell(row=row, column=15, value=f'=M{row}*N{row}').number_format = '0.00' # % * Peso
+                        ws.cell(row=row, column=15, value=f'=M{row}*N{row}').number_format = '0.00' 
                         ws.cell(row=row, column=15).fill = FORMULA_FILL
                         ws.cell(row=row, column=15).font = Font(bold=True, color=COLORS['primary'])
                         
@@ -638,7 +641,7 @@ class ExcelReportGenerator:
             
             # Apply Color Scale to column M
             rule = ColorScaleRule(start_type='num', start_value=0, start_color='F8D7DA', mid_type='num', mid_value=0.5, mid_color='FFF3CD', end_type='num', end_value=1, end_color='D4EDDA')
-            ws.conditional_formatting.add(f'M{start_row}:M{row-1}', rule)
+            ws.conditional_formatting.add(f'M{table1_start_row}:M{row-1}', rule)
             row += 2
 
         # --- TABLE 2: REFERENZE E PROGETTI ---
