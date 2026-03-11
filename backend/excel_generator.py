@@ -1377,12 +1377,12 @@ class ExcelReportGenerator:
             tech_row = req['tech_row']
             if tech_row:
                 # Use formulas referencing Tecnico sheet
-                # K = Score Pesato, J = Peso Gara
-                ws.cell(row=row, column=4, value=f"=Tecnico!K{tech_row}").number_format = '0.00'
+                # L = Score Pesato (shifted +1 after adding Risorsa column), K = Peso Gara
+                ws.cell(row=row, column=4, value=f"=Tecnico!L{tech_row}").number_format = '0.00'
                 ws.cell(row=row, column=4).fill = FORMULA_FILL
-                ws.cell(row=row, column=5, value=f"=Tecnico!J{tech_row}").number_format = '0.00'
+                ws.cell(row=row, column=5, value=f"=Tecnico!K{tech_row}").number_format = '0.00'
                 ws.cell(row=row, column=5).fill = FORMULA_FILL
-                ws.cell(row=row, column=6, value=f"=IF(Tecnico!J{tech_row}=0,0,Tecnico!K{tech_row}/Tecnico!J{tech_row})")
+                ws.cell(row=row, column=6, value=f"=IF(Tecnico!K{tech_row}=0,0,Tecnico!L{tech_row}/Tecnico!K{tech_row})")
                 ws.cell(row=row, column=6).fill = FORMULA_FILL
             else:
                 # Fallback to static values if row not found
