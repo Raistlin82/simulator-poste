@@ -102,6 +102,7 @@ class ExcelReportGenerator:
         win_probability: float,
         tech_inputs_full: Optional[Dict[str, Any]] = None,
         rti_quotas: Optional[Dict[str, float]] = None,
+        prof_certs_resources: Optional[Dict[str, List[str]]] = None,
     ):
         self.lot_key = lot_key
         self.lot_config = lot_config
@@ -120,6 +121,7 @@ class ExcelReportGenerator:
         self.win_probability = win_probability
         self.tech_inputs_full = tech_inputs_full or {}
         self.rti_quotas = rti_quotas or {}
+        self.prof_certs_resources = prof_certs_resources or {}
         
         self.is_rti = lot_config.get('rti_enabled', False)
         self.rti_companies = ['Lutech'] + (lot_config.get('rti_companies', []) or [])
@@ -343,12 +345,13 @@ class ExcelReportGenerator:
         ws.column_dimensions['D'].width = 25
         ws.column_dimensions['E'].width = 15
         ws.column_dimensions['F'].width = 12
-        ws.column_dimensions['G'].width = 10
-        ws.column_dimensions['H'].width = 10
-        ws.column_dimensions['I'].width = 10
-        ws.column_dimensions['J'].width = 12
-        ws.column_dimensions['K'].width = 14
-        ws.column_dimensions['L'].width = 8
+        ws.column_dimensions['G'].width = 14  # Risorsa
+        ws.column_dimensions['H'].width = 10  # Tipo
+        ws.column_dimensions['I'].width = 10  # Score Raw
+        ws.column_dimensions['J'].width = 10  # Max Raw
+        ws.column_dimensions['K'].width = 10  # %
+        ws.column_dimensions['L'].width = 12  # Peso Gara
+        ws.column_dimensions['M'].width = 14  # Score Pesato
         
         row = 2
         
@@ -534,7 +537,7 @@ class ExcelReportGenerator:
         ws[f'B{row}'].font = SECTION_FONT
         row += 1
         
-        det_headers = ['ID', 'Requisito', 'Certificazione', 'Azienda', 'Tipo', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status']
+        det_headers = ['ID', 'Requisito', 'Certificazione', 'Azienda', 'Risorsa', 'Tipo', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status']
         for col, header in enumerate(det_headers, start=2):
             cell = ws.cell(row=row, column=col, value=header)
             cell.font = HEADER_FONT
@@ -617,46 +620,52 @@ class ExcelReportGenerator:
                     company_cell.fill = INPUT_FILL
                     company_dv.add(company_cell)
                     
+                    # Risorsa identificata (from prof_certs_resources master data)
+                    resources = self.prof_certs_resources.get(entry['cert_name'], [])
+                    risorsa_str = ', '.join(resources) if resources else '-'
+                    risorsa_cell = ws.cell(row=row, column=6, value=risorsa_str)
+                    risorsa_cell.alignment = WRAP
+                    
                     # Tipo
-                    ws.cell(row=row, column=6, value=type_labels.get(req_type, req_type) if is_first else '')
+                    ws.cell(row=row, column=7, value=type_labels.get(req_type, req_type) if is_first else '')
                     
                     # Score Raw (only first row, with formula reference)
                     if is_first:
-                        ws.cell(row=row, column=7, value=raw_score).number_format = '0.00'
-                        ws.cell(row=row, column=7).fill = INPUT_FILL
+                        ws.cell(row=row, column=8, value=raw_score).number_format = '0.00'
+                        ws.cell(row=row, column=8).fill = INPUT_FILL
                     
                     # Max Raw (only first row)
                     if is_first:
-                        ws.cell(row=row, column=8, value=max_score).number_format = '0.00'
+                        ws.cell(row=row, column=9, value=max_score).number_format = '0.00'
                     
                     # % (only first row - formula)
                     if is_first:
-                        ws.cell(row=row, column=9, value=f'=IF(H{row}=0,0,G{row}/H{row})').number_format = '0.0%'
-                        ws.cell(row=row, column=9).fill = FORMULA_FILL
+                        ws.cell(row=row, column=10, value=f'=IF(I{row}=0,0,H{row}/I{row})').number_format = '0.0%'
+                        ws.cell(row=row, column=10).fill = FORMULA_FILL
                     
                     # Peso Gara (only first row)
                     if is_first:
-                        ws.cell(row=row, column=10, value=gara_weight).number_format = '0.00'
+                        ws.cell(row=row, column=11, value=gara_weight).number_format = '0.00'
                     
                     # Score Pesato - FORMULA (only first row)
                     if is_first:
-                        ws.cell(row=row, column=11, value=f'=IF(H{row}=0,0,G{row}*J{row}/H{row})').number_format = '0.00'
-                        ws.cell(row=row, column=11).fill = FORMULA_FILL
-                        ws.cell(row=row, column=11).font = Font(bold=True, color=COLORS['primary'])
+                        ws.cell(row=row, column=12, value=f'=IF(I{row}=0,0,H{row}*K{row}/I{row})').number_format = '0.00'
+                        ws.cell(row=row, column=12).fill = FORMULA_FILL
+                        ws.cell(row=row, column=12).font = Font(bold=True, color=COLORS['primary'])
                     
                     # Status (only first row)
                     if is_first:
                         req_pct = raw_score / max_score if max_score > 0 else 0
                         if req_pct >= 0.8:
-                            ws.cell(row=row, column=12, value='OK')
+                            ws.cell(row=row, column=13, value='OK')
                         elif req_pct >= 0.5:
-                            ws.cell(row=row, column=12, value='WARN')
+                            ws.cell(row=row, column=13, value='WARN')
                         elif req_pct > 0:
-                            ws.cell(row=row, column=12, value='LOW')
+                            ws.cell(row=row, column=13, value='LOW')
                         else:
-                            ws.cell(row=row, column=12, value='MISS')
+                            ws.cell(row=row, column=13, value='MISS')
                     
-                    for col in range(2, 13):
+                    for col in range(2, 14):
                         ws.cell(row=row, column=col).border = THIN_BORDER
                     row += 1
                 
@@ -676,43 +685,44 @@ class ExcelReportGenerator:
                 company_cell.fill = INPUT_FILL
                 company_dv.add(company_cell)
                 
-                ws.cell(row=row, column=6, value=type_labels.get(req_type, req_type))
-                ws.cell(row=row, column=7, value=raw_score).number_format = '0.00'
-                ws.cell(row=row, column=7).fill = INPUT_FILL
-                ws.cell(row=row, column=8, value=max_score).number_format = '0.00'
-                ws.cell(row=row, column=9, value=f'=IF(H{row}=0,0,G{row}/H{row})').number_format = '0.0%'
-                ws.cell(row=row, column=9).fill = FORMULA_FILL
-                ws.cell(row=row, column=10, value=gara_weight).number_format = '0.00'
+                ws.cell(row=row, column=6, value='-')  # Risorsa n/a for non-cert reqs
+                ws.cell(row=row, column=7, value=type_labels.get(req_type, req_type))
+                ws.cell(row=row, column=8, value=raw_score).number_format = '0.00'
+                ws.cell(row=row, column=8).fill = INPUT_FILL
+                ws.cell(row=row, column=9, value=max_score).number_format = '0.00'
+                ws.cell(row=row, column=10, value=f'=IF(I{row}=0,0,H{row}/I{row})').number_format = '0.0%'
+                ws.cell(row=row, column=10).fill = FORMULA_FILL
+                ws.cell(row=row, column=11, value=gara_weight).number_format = '0.00'
                 # Weighted score formula
-                ws.cell(row=row, column=11, value=f'=IF(H{row}=0,0,G{row}*J{row}/H{row})').number_format = '0.00'
-                ws.cell(row=row, column=11).fill = FORMULA_FILL
-                ws.cell(row=row, column=11).font = Font(bold=True, color=COLORS['primary'])
+                ws.cell(row=row, column=12, value=f'=IF(I{row}=0,0,H{row}*K{row}/I{row})').number_format = '0.00'
+                ws.cell(row=row, column=12).fill = FORMULA_FILL
+                ws.cell(row=row, column=12).font = Font(bold=True, color=COLORS['primary'])
                 
                 req_pct = raw_score / max_score if max_score > 0 else 0
                 if req_pct >= 0.8:
-                    ws.cell(row=row, column=12, value='OK')
+                    ws.cell(row=row, column=13, value='OK')
                 elif req_pct >= 0.5:
-                    ws.cell(row=row, column=12, value='WARN')
+                    ws.cell(row=row, column=13, value='WARN')
                 elif req_pct > 0:
-                    ws.cell(row=row, column=12, value='LOW')
+                    ws.cell(row=row, column=13, value='LOW')
                 else:
-                    ws.cell(row=row, column=12, value='MISS')
+                    ws.cell(row=row, column=13, value='MISS')
                 
-                for col in range(2, 13):
+                for col in range(2, 14):
                     ws.cell(row=row, column=col).border = THIN_BORDER
                 
                 # Store this row for Analytics reference
                 self.tech_req_rows[req_id] = row
                 row += 1
         
-        # Color scale for percentage column
+        # Color scale for percentage column (now col K = 11)
         if row > req_start_row:
             rule = ColorScaleRule(
                 start_type='num', start_value=0, start_color='F8D7DA',
                 mid_type='num', mid_value=0.5, mid_color='FFF3CD',
                 end_type='num', end_value=1, end_color='D4EDDA'
             )
-            ws.conditional_formatting.add(f'I{req_start_row}:I{row-1}', rule)
+            ws.conditional_formatting.add(f'J{req_start_row}:J{row-1}', rule)
         
         ws.freeze_panes = 'C5'
 
@@ -1722,6 +1732,7 @@ def generate_excel_report(
     win_probability: float,
     tech_inputs_full: Optional[Dict[str, Any]] = None,
     rti_quotas: Optional[Dict[str, float]] = None,
+    prof_certs_resources: Optional[Dict[str, List[str]]] = None,
 ) -> io.BytesIO:
     """Generate Excel report"""
     generator = ExcelReportGenerator(
@@ -1742,6 +1753,7 @@ def generate_excel_report(
         win_probability=win_probability,
         tech_inputs_full=tech_inputs_full,
         rti_quotas=rti_quotas,
+        prof_certs_resources=prof_certs_resources,
     )
     
     return generator.generate()

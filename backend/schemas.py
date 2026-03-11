@@ -201,6 +201,7 @@ class ExportExcelRequest(BaseModel):
     max_econ_score: float = 40.0
     tech_inputs_full: Dict[str, Any] = Field(default_factory=dict)  # Full tech inputs with cert_company_counts, assigned_company
     rti_quotas: Dict[str, float] = Field(default_factory=dict)  # Company quotas for RTI
+    prof_certs_resources: Dict[str, List[str]] = Field(default_factory=dict)  # cert_label -> [resource names]
 
 
 class ExportBusinessPlanRequest(BaseModel):

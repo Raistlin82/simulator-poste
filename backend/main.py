@@ -1688,6 +1688,15 @@ def export_excel(data: schemas.ExportExcelRequest, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="Lot not found")
     lot_cfg = schemas.LotConfig.model_validate(lot_cfg_db)
 
+    # Get prof_certs_resources from master data
+    prof_certs_resources = {}
+    try:
+        master_data_obj = db.query(models.MasterDataModel).filter_by(id="1").first()
+        if master_data_obj:
+            prof_certs_resources = master_data_obj.prof_certs_resources or {}
+    except Exception:
+        pass
+
     # Generate Excel report
     buffer = generate_excel_report(
         lot_key=data.lot_key,
@@ -1707,6 +1716,7 @@ def export_excel(data: schemas.ExportExcelRequest, db: Session = Depends(get_db)
         win_probability=data.win_probability,
         tech_inputs_full=data.tech_inputs_full,
         rti_quotas=data.rti_quotas,
+        prof_certs_resources=prof_certs_resources,
     )
 
     logger.info(f"Excel export completed for lot: {data.lot_key}")
