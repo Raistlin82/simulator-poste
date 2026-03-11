@@ -612,10 +612,11 @@ class ExcelReportGenerator:
                     # R Risorse (J=10) - Score Raw (K=11)
                     if is_first:
                         ws.cell(row=row, column=10, value=r_val).fill = INPUT_FILL
-                        # Formula: Score = min(max_raw, min(R, max_res) * (2 + min(min(sum(contr), max_certs), min(R, max_res))))
-                        max_res = 5 
-                        max_certs = 10 
-                        formula_raw = f'=MIN(L{row}, MIN(J{row},{max_res})*(2+MIN(MIN(SUM(I{req_start_row}:I{req_start_row+len(cert_entries)-1}),{max_certs}),MIN(J{row},{max_res}))))'
+                        # Formula: Score = min(max_pts, min(R, max_res) * (2 + min(min(C_tot, max_certs), min(R, max_res))))
+                        # Using requirement-specific caps or common defaults (R_max=10, C_max=5 as per backend main.py)
+                        m_res = req.get("max_res", 10) 
+                        m_certs = req.get("max_certs", 5) 
+                        formula_raw = f'=MIN(L{row}, MIN(J{row},{m_res})*(2+MIN(MIN(SUM(I{req_start_row}:I{req_start_row+len(cert_entries)-1}),{m_certs}),MIN(J{row},{m_res}))))'
                         ws.cell(row=row, column=11, value=formula_raw).number_format = '0.00'
                         ws.cell(row=row, column=11).fill = FORMULA_FILL
                     
