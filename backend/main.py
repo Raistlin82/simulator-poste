@@ -126,6 +126,33 @@ models.Base.metadata.create_all(bind=engine)
 matplotlib.use("Agg")
 
 
+def run_auto_migrations(db):
+    """Add missing columns to existing tables (lightweight auto-migration for SQLite)."""
+    import sqlalchemy
+    engine = db.get_bind()
+    inspector = sqlalchemy.inspect(engine)
+
+    # Define migrations: (table_name, column_name, column_type_sql, default_value_sql)
+    migrations = [
+        ("master_data", "prof_certs_resources", "TEXT", "'{}'"),
+    ]
+
+    for table, col, col_type, default_val in migrations:
+        if table in inspector.get_table_names():
+            existing_cols = [c["name"] for c in inspector.get_columns(table)]
+            if col not in existing_cols:
+                logger.info(f"Auto-migration: adding column {table}.{col}")
+                try:
+                    with engine.connect() as conn:
+                        conn.execute(
+                            sqlalchemy.text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type} DEFAULT {default_val}")
+                        )
+                        conn.commit()
+                    logger.info(f"Auto-migration: {table}.{col} added successfully")
+                except Exception as e:
+                    logger.warning(f"Auto-migration: failed to add {table}.{col}: {e}")
+
+
 # Lifespan event handler (replaces deprecated on_event)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -134,6 +161,7 @@ async def lifespan(app: FastAPI):
     logger.info("Application starting up", extra={"event": "startup"})
     db = SessionLocal()
     try:
+        run_auto_migrations(db)
         crud.seed_initial_data(db)
         crud.seed_practices(db)
         logger.info("Database seeded successfully")
