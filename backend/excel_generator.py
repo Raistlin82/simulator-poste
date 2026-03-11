@@ -583,17 +583,32 @@ class ExcelReportGenerator:
                 if not cert_entries and selected_prof_certs:
                     for cert in selected_prof_certs:
                         cert_entries.append({'name': cert, 'company': 'Lutech', 'count': 0})
+                
+                # Add 2 empty slots for user expansion in Excel
+                for _ in range(2):
+                    cert_entries.append({'name': '', 'company': 'Lutech', 'count': 0})
+                
                 if not cert_entries:
                     cert_entries = [{'name': '-', 'company': 'Lutech', 'count': 0}]
                 
-                req_start_row = row
+                num_rows = len(cert_entries)
+                block_start = row
+                block_end = row + num_rows - 1
+
                 for i, entry in enumerate(cert_entries):
                     is_first = (i == 0)
-                    weight = self.prof_certs_weights.get(entry['name'], 1.0)
+                    weight = self.prof_certs_weights.get(entry['name'], 1.0) if entry['name'] else 1.0
                     
                     # Columns B:P (2:16)
-                    ws.cell(row=row, column=2, value=req_id if is_first else '').font = Font(size=9, color=COLORS['muted'])
-                    ws.cell(row=row, column=3, value=req.get('label', '') if is_first else '').alignment = WRAP
+                    # ID (B), Requisito (C)
+                    if is_first:
+                        ws.cell(row=row, column=2, value=req_id).font = Font(size=9, color=COLORS['muted'])
+                        ws.cell(row=row, column=3, value=req.get('label', '')).alignment = WRAP
+                        if num_rows > 1:
+                            ws.merge_cells(start_row=block_start, start_column=2, end_row=block_end, end_column=2)
+                            ws.merge_cells(start_row=block_start, start_column=3, end_row=block_end, end_column=3)
+                    
+                    # Certificazione (D), Azienda (E), Risorsa (F)
                     ws.cell(row=row, column=4, value=entry['name'])
                     
                     comp_cell = ws.cell(row=row, column=5, value=entry['company'])
@@ -612,13 +627,18 @@ class ExcelReportGenerator:
                     # R Risorse (J=10) - Score Raw (K=11)
                     if is_first:
                         ws.cell(row=row, column=10, value=r_val).fill = INPUT_FILL
+                        if num_rows > 1:
+                            ws.merge_cells(start_row=block_start, start_column=10, end_row=block_end, end_column=10)
+                        
                         # Formula: Score = min(max_pts, min(R, max_res) * (2 + min(min(C_tot, max_certs), min(R, max_res))))
-                        # Using requirement-specific caps or common defaults (R_max=10, C_max=5 as per backend main.py)
                         m_res = req.get("max_res", 10) 
                         m_certs = req.get("max_certs", 5) 
-                        formula_raw = f'=MIN(L{row}, MIN(J{row},{m_res})*(2+MIN(MIN(SUM(I{req_start_row}:I{req_start_row+len(cert_entries)-1}),{m_certs}),MIN(J{row},{m_res}))))'
+                        formula_raw = f'=MIN(L{row}, MIN(J{row},{m_res})*(2+MIN(MIN(SUM(I{block_start}:I{block_end}),{m_certs}),MIN(J{row},{m_res}))))'
                         ws.cell(row=row, column=11, value=formula_raw).number_format = '0.00'
                         ws.cell(row=row, column=11).fill = FORMULA_FILL
+                        ws.cell(row=row, column=11).alignment = CENTER
+                        if num_rows > 1:
+                            ws.merge_cells(start_row=block_start, start_column=11, end_row=block_end, end_column=11)
                     
                     # Max Raw (L=12), % (M=13), Peso Gara (N=14), Score Pesato (O=15), Status (P=16)
                     if is_first:
@@ -633,11 +653,16 @@ class ExcelReportGenerator:
                         # Conditional Status
                         ws.cell(row=row, column=16, value=f'=IF(M{row}>=0.8,"OK",IF(M{row}>=0.5,"WARN",IF(M{row}>0,"LOW","MISS")))').alignment = CENTER
                         
+                        if num_rows > 1:
+                            for c in range(12, 17):
+                                ws.merge_cells(start_row=block_start, start_column=c, end_row=block_end, end_column=c)
+                        
                         # Store for analytics
                         self.tech_req_rows[req_id] = {'row': row, 'col_score': 'O', 'col_weight': 'N'}
                     
                     for col in range(2, 17):
                         ws.cell(row=row, column=col).border = THIN_BORDER
+                        ws.cell(row=row, column=col).alignment = Alignment(vertical='center')
                     row += 1
             
             # Apply Color Scale to column M
