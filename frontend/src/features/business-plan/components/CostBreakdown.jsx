@@ -1,4 +1,4 @@
-import { useMemo, useState, Fragment } from 'react';
+import { useMemo, useState, useCallback, Fragment } from 'react';
 import { formatCurrency } from '../../../utils/formatters';
 import { useTranslation } from 'react-i18next';
 import {
@@ -34,17 +34,21 @@ export default function CostBreakdown({
   const [expandedProfiles, setExpandedProfiles] = useState(new Set());
   const [viewMode, setViewMode] = useState('total'); // 'total' | 'yearly'
 
-  const toggleTow = (id) => {
-    const next = new Set(expandedTows);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setExpandedTows(next);
-  };
+  const toggleTow = useCallback((id) => {
+    setExpandedTows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
-  const toggleProfile = (id) => {
-    const next = new Set(expandedProfiles);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setExpandedProfiles(next);
-  };
+  const toggleProfile = useCallback((id) => {
+    setExpandedProfiles(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   const {
     team = 0,

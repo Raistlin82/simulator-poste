@@ -13,6 +13,9 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # === STYLE CONSTANTS ===
 COLORS = {
@@ -98,9 +101,6 @@ class BusinessPlanExcelGenerator:
         if 'Sheet' in self.wb.sheetnames:
             del self.wb['Sheet']
 
-        import logging
-        _log = logging.getLogger(__name__)
-
         # Create sheets in order - PARAMS FIRST so other sheets can reference them
         sheet_steps = [
             ("PARAMETRI", self._create_params_sheet),
@@ -124,7 +124,7 @@ class BusinessPlanExcelGenerator:
             try:
                 create_fn()
             except Exception as e:
-                _log.error(f"Error creating sheet '{sheet_name}': {e}", exc_info=True)
+                logger.error(f"Error creating sheet '{sheet_name}': {e}", exc_info=True)
                 raise RuntimeError(f"Errore nel foglio '{sheet_name}': {e}") from e
 
         buffer = io.BytesIO()

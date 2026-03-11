@@ -51,8 +51,7 @@ def validate_regex_patterns_detailed(patterns: List[str]) -> Tuple[List[str], Li
             valid_patterns.append(pattern)
         except re.error as e:
             invalid_patterns.append({"pattern": pattern, "error": str(e)})
-            import logging
-            logging.getLogger(__name__).warning(f"Invalid regex pattern skipped: {pattern} - {e}")
+            logger.warning(f"Invalid regex pattern skipped: {pattern} - {e}")
     
     return valid_patterns, invalid_patterns
 
@@ -88,8 +87,7 @@ def save_json_file(filename: str, data: Dict[str, Any]) -> bool:
             json.dump(data, f, indent=4, ensure_ascii=False)
         return True
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Failed to save {filename}: {e}")
+        logger.error(f"Failed to save {filename}: {e}")
         return False
 
 
@@ -138,6 +136,11 @@ def seed_initial_data(db: Session) -> None:
             rti_partners=master_data_file.get("rti_partners", []),
         )
         db.add(db_master)
+    elif existing_master and master_data_file:
+        # Backfill rti_partners if the existing record has an empty list (migration path)
+        if not existing_master.rti_partners:
+            existing_master.rti_partners = master_data_file.get("rti_partners", [])
+            logger.info(f"Backfilled rti_partners: {len(existing_master.rti_partners)} partners")
 
     db.commit()
     

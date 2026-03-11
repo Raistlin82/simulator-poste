@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2, Database, Download, Upload } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2, Database, Download, Upload, Bot } from 'lucide-react';
 import { API_URL } from '../utils/api';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { logger } from '../utils/logger';
@@ -14,8 +14,16 @@ export default function MasterDataConfig() {
         company_certs: [],
         prof_certs: [],
         requirement_labels: [],
-        rti_partners: []
+        rti_partners: [],
+        ai_enabled: false,
+        ai_provider: 'gemini',
+        ai_models: {
+            gemini: 'gemini-3.1-flash-lite-preview',
+            groq: 'llama-3.1-70b-versatile',
+            claude: 'claude-sonnet-4-6',
+        },
     });
+    const [aiProviders, setAiProviders] = useState([]);
     const [vendors, setVendors] = useState([]);
     const [expandedVendor, setExpandedVendor] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -78,9 +86,10 @@ export default function MasterDataConfig() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [masterRes, vendorRes] = await Promise.all([
+                const [masterRes, vendorRes, aiStatusRes] = await Promise.all([
                     axios.get(`${API_URL}/master-data`),
-                    axios.get(`${API_URL}/vendor-configs`).catch(() => ({ data: [] }))
+                    axios.get(`${API_URL}/vendor-configs`).catch(() => ({ data: [] })),
+                    axios.get(`${API_URL}/ai-providers-status`).catch(() => ({ data: { providers: [] } })),
                 ]);
                 // De-duplicate arrays on load to clean up any existing duplicates
                 const cleanedData = {
@@ -92,6 +101,7 @@ export default function MasterDataConfig() {
                 };
                 setData(cleanedData);
                 setVendors(vendorRes.data || []);
+                setAiProviders(aiStatusRes.data?.providers || []);
             } catch (error) {
                 logger.error('Error fetching master data', error);
             } finally {
@@ -380,6 +390,7 @@ export default function MasterDataConfig() {
         { id: 'rti_partners', label: t('master.rti_partners'), icon: Building2, color: 'text-indigo-600', bg: 'bg-indigo-50' },
         { id: 'economic_formulas', label: t('config.economic_formula'), icon: Info, color: 'text-orange-600', bg: 'bg-orange-50' },
         { id: 'ocr_settings', label: t('master.ocr_settings'), icon: Settings, color: 'text-purple-600', bg: 'bg-purple-50' },
+        { id: 'ai_config', label: t('master.ai_config'), icon: Bot, color: 'text-teal-600', bg: 'bg-teal-50' },
         { id: 'database_tools', label: t('master.database_backup'), icon: Database, color: 'text-slate-600', bg: 'bg-slate-50' },
     ];
 
@@ -448,7 +459,7 @@ export default function MasterDataConfig() {
                                         {sections.find(s => s.id === activeSection)?.label}
                                     </h2>
                                 </div>
-                                {activeSection !== 'ocr_settings' && activeSection !== 'database_tools' && (
+                                {activeSection !== 'ocr_settings' && activeSection !== 'database_tools' && activeSection !== 'ai_config' && (
                                     <button
                                         onClick={() => addItem(activeSection)}
                                         className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-2xl hover:brightness-110 transition-all flex items-center gap-4 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-xl shadow-indigo-200 active:scale-95 group"
@@ -681,6 +692,88 @@ export default function MasterDataConfig() {
                                             </p>
                                         </div>
                                     )}
+                                </div>
+                            ) : activeSection === 'ai_config' ? (
+                                <div className="space-y-6">
+                                    {/* Enable/disable toggle */}
+                                    <button
+                                        onClick={() => setData(prev => ({ ...prev, ai_enabled: !prev.ai_enabled }))}
+                                        className={`w-full flex items-center justify-between px-6 py-5 rounded-2xl border-2 transition-all duration-300 ${data.ai_enabled
+                                            ? 'border-teal-400 bg-teal-50/60'
+                                            : 'border-slate-200 bg-white/40 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <Bot className={`w-5 h-5 ${data.ai_enabled ? 'text-teal-600' : 'text-slate-400'}`} />
+                                            <div className="text-left">
+                                                <p className={`text-sm font-black font-display uppercase tracking-widest-plus ${data.ai_enabled ? 'text-teal-800' : 'text-slate-600'}`}>
+                                                    {t('master.ai_enabled_label')}
+                                                </p>
+                                                <p className="text-[11px] text-slate-400 font-body mt-0.5">
+                                                    {t('master.ai_config_desc')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {data.ai_enabled
+                                            ? <ToggleRight className="w-9 h-9 text-teal-500 flex-shrink-0" />
+                                            : <ToggleLeft className="w-9 h-9 text-slate-300 flex-shrink-0" />
+                                        }
+                                    </button>
+                                    {/* Provider cards — only shown when enabled */}
+                                    {data.ai_enabled && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        {[
+                                            { id: 'gemini', name: 'Google Gemini', hint: t('master.ai_gemini_hint'), color: 'teal' },
+                                            { id: 'groq', name: 'Groq (Llama 3.1)', hint: t('master.ai_groq_hint'), color: 'orange' },
+                                            { id: 'claude', name: 'Anthropic Claude', hint: t('master.ai_claude_hint'), color: 'indigo' },
+                                        ].map(({ id, name, hint, color }) => {
+                                            const providerStatus = aiProviders.find(p => p.id === id);
+                                            const isReady = providerStatus?.ready ?? false;
+                                            const isSelected = data.ai_provider === id;
+                                            return (
+                                                <button
+                                                    key={id}
+                                                    onClick={() => setData(prev => ({ ...prev, ai_provider: id }))}
+                                                    className={`relative p-6 rounded-[1.5rem] border-2 text-left transition-all duration-300 ${isSelected
+                                                        ? `border-${color}-500 bg-${color}-50/60 shadow-xl shadow-${color}-200/40`
+                                                        : 'border-slate-200 bg-white/40 hover:border-slate-300 hover:bg-white/60'
+                                                    }`}
+                                                >
+                                                    {isSelected && (
+                                                        <div className={`absolute top-3 right-3 w-5 h-5 rounded-full bg-${color}-500 flex items-center justify-center`}>
+                                                            <Check className="w-3 h-3 text-white" />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <Bot className={`w-5 h-5 ${isSelected ? `text-${color}-600` : 'text-slate-400'}`} />
+                                                        <span className={`text-sm font-black font-display uppercase tracking-widest-plus ${isSelected ? `text-${color}-800` : 'text-slate-700'}`}>
+                                                            {name}
+                                                        </span>
+                                                    </div>
+                                                    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold font-display uppercase tracking-wider mb-3 ${isReady ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-green-500' : 'bg-amber-500'}`} />
+                                                        {isReady ? t('master.ai_key_ready') : t('master.ai_key_missing')}
+                                                    </div>
+                                                    <p className="text-[11px] text-slate-500 font-body leading-relaxed mb-3">{hint}</p>
+                                                    {/* Per-provider model input */}
+                                                    <div onClick={e => e.stopPropagation()}>
+                                                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 font-display">
+                                                            {t('master.ai_model_label')}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={(data.ai_models || {})[id] || ''}
+                                                            onChange={e => setData(prev => ({
+                                                                ...prev,
+                                                                ai_models: { ...(prev.ai_models || {}), [id]: e.target.value }
+                                                            }))}
+                                                            placeholder={t('master.ai_model_placeholder')}
+                                                            className="w-full px-3 py-2 bg-white/70 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-800 focus:ring-2 focus:ring-teal-400 outline-none transition-all"
+                                                        />
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>}
                                 </div>
                             ) : activeSection === 'database_tools' ? (
                                 <div className="space-y-8">

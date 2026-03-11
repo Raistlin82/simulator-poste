@@ -57,6 +57,9 @@ class MasterDataModel(Base):
     requirement_labels = Column(SQLiteJSON, default=list)
     economic_formulas = Column(SQLiteJSON, default=list)
     rti_partners = Column(SQLiteJSON, default=list)  # Available RTI partner companies (excludes Lutech)
+    ai_enabled = Column(Boolean, default=False)  # Chat assistant on/off
+    ai_provider = Column(String(20), default="gemini")  # "gemini" | "claude" | "groq"
+    ai_models = Column(SQLiteJSON, default=dict)  # {provider_id: model_name} per-provider model override
 
 
 class VendorConfigModel(Base):

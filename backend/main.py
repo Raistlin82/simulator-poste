@@ -55,14 +55,26 @@ def run_migrations():
     
     inspector = inspect(engine)
     
-    # Migration for master_data table - add rti_partners column
+    # Migration for master_data table - add rti_partners and ai_provider columns
     if "master_data" in inspector.get_table_names():
         columns = [col["name"] for col in inspector.get_columns("master_data")]
-        if "rti_partners" not in columns:
-            logger.info("Migrating: Adding rti_partners column to master_data table")
-            with engine.connect() as conn:
+        with engine.connect() as conn:
+            if "rti_partners" not in columns:
+                logger.info("Migrating: Adding rti_partners column to master_data table")
                 conn.execute(text("ALTER TABLE master_data ADD COLUMN rti_partners TEXT DEFAULT '[]'"))
-                conn.commit()
+            if "ai_provider" not in columns:
+                logger.info("Migrating: Adding ai_provider column to master_data table")
+                conn.execute(text("ALTER TABLE master_data ADD COLUMN ai_provider TEXT DEFAULT 'gemini'"))
+            if "ai_model" not in columns and "ai_models" not in columns:
+                logger.info("Migrating: Adding ai_models column to master_data table")
+                conn.execute(text("ALTER TABLE master_data ADD COLUMN ai_models TEXT DEFAULT '{}'"))
+            elif "ai_model" in columns and "ai_models" not in columns:
+                logger.info("Migrating: Adding ai_models column (replacing ai_model) to master_data table")
+                conn.execute(text("ALTER TABLE master_data ADD COLUMN ai_models TEXT DEFAULT '{}'"))
+            if "ai_enabled" not in columns:
+                logger.info("Migrating: Adding ai_enabled column to master_data table")
+                conn.execute(text("ALTER TABLE master_data ADD COLUMN ai_enabled INTEGER DEFAULT 0"))
+            conn.commit()
     
     # Migration for lot_configs table - add RTI columns
     if "lot_configs" in inspector.get_table_names():
@@ -520,7 +532,7 @@ def export_database(db: Session = Depends(get_db)):
     
     if not os.path.exists(db_path):
         logger.error(f"Database file not found at {db_path}")
-        raise HTTPException(status_code=404, detail=f"Database file not found at {db_path}")
+        raise HTTPException(status_code=404, detail="Database file not found")
         
     return FileResponse(
         path=db_path,
@@ -3029,6 +3041,148 @@ def delete_practice(practice_id: str, db: Session = Depends(get_db)):
 # NOTA: Gli endpoint /{practice_id}/profiles sono stati rimossi
 # I profili sono gestiti come JSON dentro practices.profiles
 # Usare PUT /api/practices/{practice_id} per aggiornare i profili
+
+
+# ============================================================================
+# AI Chat endpoint
+# ============================================================================
+
+_CHAT_SYSTEM_PROMPT = """Sei un assistente specializzato nell'analisi di gare d'appalto Poste Italiane \
+e nella configurazione di piani economici (Business Plan). Aiuta l'utente a:
+- Interpretare punteggi tecnici ed economici
+- Impostare parametri di gara (TOW, profili, certificazioni, RTI)
+- Ottimizzare sconti e margini
+- Capire la logica delle formule di calcolo dell'applicazione
+Rispondi sempre in italiano, in modo conciso e professionale."""
+
+_PROVIDER_KEY_MAP = {
+    "gemini": "GOOGLE_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "claude": "ANTHROPIC_API_KEY",
+}
+
+
+_PROVIDER_DEFAULT_MODELS = {
+    "gemini": "gemini-3.1-flash-lite-preview",
+    "groq": "llama-3.1-70b-versatile",
+    "claude": "claude-sonnet-4-6",
+}
+
+
+async def _call_ai_provider(provider: str, messages: list, system_prompt: str, model_name: Optional[str] = None) -> schemas.ChatResponse:
+    """Route a chat request to the appropriate AI provider."""
+    key_name = _PROVIDER_KEY_MAP.get(provider, "ANTHROPIC_API_KEY")
+    api_key = os.getenv(key_name)
+    if not api_key:
+        raise HTTPException(
+            status_code=402,
+            detail=f"Provider '{provider}' non configurato: imposta {key_name} nel file .env"
+        )
+    resolved_model = model_name or _PROVIDER_DEFAULT_MODELS.get(provider, "")
+
+    if provider == "gemini":
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            genai_model = genai.GenerativeModel(
+                model_name=resolved_model,
+                system_instruction=system_prompt,
+            )
+            # Split history from last user message
+            history = []
+            for m in messages[:-1]:
+                role = "user" if m["role"] == "user" else "model"
+                history.append({"role": role, "parts": [m["content"]]})
+            chat_session = genai_model.start_chat(history=history)
+            resp = chat_session.send_message(messages[-1]["content"])
+            return schemas.ChatResponse(content=resp.text, input_tokens=0, output_tokens=0)
+        except Exception as e:
+            logger.error(f"Gemini chat error: {e}")
+            raise HTTPException(status_code=502, detail=f"Errore Gemini: {str(e)[:200]}")
+
+    elif provider == "groq":
+        try:
+            from groq import Groq
+            client = Groq(api_key=api_key)
+            resp = client.chat.completions.create(
+                model=resolved_model,
+                max_tokens=2048,
+                messages=[{"role": "system", "content": system_prompt}] + messages,
+            )
+            return schemas.ChatResponse(
+                content=resp.choices[0].message.content,
+                input_tokens=resp.usage.prompt_tokens,
+                output_tokens=resp.usage.completion_tokens,
+            )
+        except Exception as e:
+            logger.error(f"Groq chat error: {e}")
+            raise HTTPException(status_code=502, detail=f"Errore Groq: {str(e)[:200]}")
+
+    else:  # "claude"
+        try:
+            from anthropic import Anthropic, BadRequestError, AuthenticationError, APIStatusError
+            client = Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model=resolved_model,
+                max_tokens=2048,
+                system=system_prompt,
+                messages=messages,
+            )
+            return schemas.ChatResponse(
+                content=response.content[0].text,
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+            )
+        except AuthenticationError as e:
+            logger.error(f"Chat auth error: {e}")
+            raise HTTPException(status_code=502, detail="API key Anthropic non valida. Verifica la configurazione.")
+        except BadRequestError as e:
+            msg = str(e)
+            logger.error(f"Chat bad request: {msg}")
+            if "credit balance" in msg.lower() or "too low" in msg.lower():
+                raise HTTPException(status_code=402, detail="Credito Anthropic esaurito. Ricarica il saldo su console.anthropic.com/settings/billing")
+            raise HTTPException(status_code=400, detail=f"Richiesta non valida: {msg[:200]}")
+        except APIStatusError as e:
+            logger.error(f"Chat API status error {e.status_code}: {e}")
+            raise HTTPException(status_code=502, detail=f"Errore servizio AI ({e.status_code})")
+        except Exception as e:
+            logger.error(f"Chat API error: {e}")
+            raise HTTPException(status_code=502, detail="Errore nella comunicazione con il servizio AI")
+
+
+@api_router.get("/ai-providers-status")
+async def get_ai_providers_status(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return AI enabled flag and which providers have their API key configured."""
+    master_data = crud.get_master_data(db)
+    enabled = bool(master_data.ai_enabled) if master_data else False
+    return {
+        "enabled": enabled,
+        "providers": [
+            {"id": "gemini", "name": "Google Gemini", "ready": bool(os.getenv("GOOGLE_API_KEY"))},
+            {"id": "groq", "name": "Groq (Llama 3.1)", "ready": bool(os.getenv("GROQ_API_KEY"))},
+            {"id": "claude", "name": "Anthropic Claude", "ready": bool(os.getenv("ANTHROPIC_API_KEY"))},
+        ]
+    }
+
+
+@api_router.post("/chat", response_model=schemas.ChatResponse)
+async def chat(
+    body: schemas.ChatRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Proxy AI chat requests to the configured AI provider."""
+    master_data = crud.get_master_data(db)
+    if not master_data or not master_data.ai_enabled:
+        raise HTTPException(status_code=503, detail="Assistente AI non abilitato. Abilitalo in Configurazione → Master Data → Configurazione AI.")
+    provider = (master_data.ai_provider if master_data and master_data.ai_provider else "gemini")
+    ai_models = (master_data.ai_models or {}) if master_data else {}
+    model_name = ai_models.get(provider) or None
+    messages = [{"role": m.role, "content": m.content} for m in body.messages]
+    return await _call_ai_provider(provider, messages, _CHAT_SYSTEM_PROMPT, model_name)
 
 
 # Register all routers - included early for priority

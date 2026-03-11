@@ -226,6 +226,9 @@ class MasterData(BaseModel):
     requirement_labels: List[str] = Field(default_factory=list)
     economic_formulas: Optional[List[Dict[str, Any]]] = None
     rti_partners: List[str] = Field(default_factory=list)  # Available RTI partner companies (excludes Lutech)
+    ai_enabled: Optional[bool] = False  # Chat assistant on/off
+    ai_provider: Optional[str] = "gemini"  # "gemini" | "claude" | "groq"
+    ai_models: Optional[Dict[str, str]] = None  # {provider_id: model_name} per-provider model override
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -505,6 +508,24 @@ class BusinessPlanCalculateRequest(BaseModel):
     discount_pct: float = Field(default=0.0, ge=0.0, le=100.0)
     is_rti: bool = False
     quota_lutech: float = Field(default=1.0, ge=0.0, le=1.0)
+
+
+class ChatMessage(BaseModel):
+    """Single message in a chat conversation"""
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    """Request body for the AI chat endpoint"""
+    messages: List[ChatMessage]
+
+
+class ChatResponse(BaseModel):
+    """Response from the AI chat endpoint"""
+    content: str
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class BusinessPlanCalculateResponse(BaseModel):

@@ -17,6 +17,7 @@ import { logger } from './utils/logger';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LogoutButton from './components/LogoutButton';
+import ChatWidget from './components/ChatWidget';
 import { ConfigProvider, useConfig } from './features/config/context/ConfigContext';
 import { SimulationProvider, useSimulation } from './features/simulation/context/SimulationContext';
 import { ToastProvider, useToast } from './shared/components/ui/Toast';
@@ -463,6 +464,7 @@ function AppContent() {
           </motion.div>
         </AnimatePresence>
       </main>
+      <ChatWidget />
     </div>
   );
 }
