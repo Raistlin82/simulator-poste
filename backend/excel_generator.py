@@ -597,7 +597,9 @@ class ExcelReportGenerator:
 
                 for i, entry in enumerate(cert_entries):
                     is_first = (i == 0)
-                    weight = self.prof_certs_weights.get(entry['name'], 1.0) if entry['name'] else 1.0
+                    # Use requirement-specific weights if available, fallback to global or 1.0
+                    req_weights = req.get('prof_certs_weights', {})
+                    weight = req_weights.get(entry['name'], self.prof_certs_weights.get(entry['name'], 1.0)) if entry['name'] else 1.0
                     
                     # Columns B:P (2:16)
                     # ID (B), Requisito (C)
