@@ -630,10 +630,24 @@ class ExcelReportGenerator:
                         if num_rows > 1:
                             ws.merge_cells(start_row=block_start, start_column=10, end_row=block_end, end_column=10)
                         
-                        # Formula: Score = min(max_pts, min(R, max_res) * (2 + min(min(C_tot, max_certs), min(R, max_res))))
+                        # Formula: Score = min(max_pts, raw_actual) OR min(max_pts, (raw_actual/theoretical_max)*max_pts)
                         m_res = req.get("max_res", 10) 
                         m_certs = req.get("max_certs", 5) 
-                        formula_raw = f'=MIN(L{row}, MIN(J{row},{m_res})*(2+MIN(MIN(SUM(I{block_start}:I{block_end}),{m_certs}),MIN(J{row},{m_res}))))'
+                        is_manual = req.get("max_points_manual", False)
+                        prof_R = req.get("prof_R", 0)
+                        prof_C = req.get("prof_C", 0)
+                        
+                        # Actual raw logic: R * (2 + min(C, R))
+                        raw_part = f'MIN(J{row},{m_res})*(2+MIN(MIN(SUM(I{block_start}:I{block_end}),{m_certs}),MIN(J{row},{m_res})))'
+                        
+                        if is_manual:
+                            req_R = prof_R if prof_R > 0 else m_res
+                            req_C = prof_C if prof_C > 0 else m_certs
+                            theoretical_max = req_R * (2 + req_C)
+                            formula_raw = f'=MIN(L{row}, ({raw_part}/{theoretical_max})*L{row})'
+                        else:
+                            formula_raw = f'=MIN(L{row}, {raw_part})'
+                            
                         ws.cell(row=row, column=11, value=formula_raw).number_format = '0.00'
                         ws.cell(row=row, column=11).fill = FORMULA_FILL
                         ws.cell(row=row, column=11).alignment = CENTER
