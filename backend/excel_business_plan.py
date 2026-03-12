@@ -1262,6 +1262,30 @@ class BusinessPlanExcelGenerator:
 
             row += 1
 
+        # Add Governance and Risk Contingency as overhead rows
+        for label, key, desc in [
+            ("Governance", "governance", "Coordinamento e Supporto (Overhead)"),
+            ("Risk Contingency", "risk", "Accantonamento Rischi (Overhead)")
+        ]:
+            val = self.costs.get(key, 0)
+            if val:
+                ws.cell(row=row, column=1, value=label).border = THIN_BORDER
+                ws.cell(row=row, column=2, value=desc).border = THIN_BORDER
+                ws.cell(row=row, column=3, value=0).number_format = '0.0%'
+                ws.cell(row=row, column=4, value=0).number_format = '#,##0'
+                
+                cell_c = ws.cell(row=row, column=5, value=val)
+                cell_c.number_format = '#,##0'
+                self._style_formula_cell(cell_c)
+                
+                cell_m = ws.cell(row=row, column=6, value=f"=D{row}-E{row}")
+                cell_m.number_format = '#,##0'
+                self._style_formula_cell(cell_m)
+                
+                ws.cell(row=row, column=7, value="-").border = THIN_BORDER
+                ws.cell(row=row, column=8, value="OVERHEAD").border = THIN_BORDER
+                row += 1
+
         margin_data_end = row - 1
 
         # Conditional formatting (only if there's data)

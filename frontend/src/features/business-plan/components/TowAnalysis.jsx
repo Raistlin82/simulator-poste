@@ -200,7 +200,7 @@ export default function TowAnalysis({
         contributions,
       };
     });
-  }, [tows, towBreakdown, teamComposition, profileMappings, totalWeight, revenue, lutechRates, daysPerFte, defaultDailyRate, durationYears]);
+  }, [tows, towBreakdown, teamComposition, profileMappings, totalWeight, revenue, lutechRates, daysPerFte, defaultDailyRate, durationYears, t]);
 
   // Identify risks
   const risks = useMemo(() => {
@@ -258,7 +258,7 @@ export default function TowAnalysis({
     }
 
     return identified;
-  }, [towAnalysis]);
+  }, [towAnalysis, t]);
 
   // Generate optimization proposals (juniorization)
   const optimizationProposals = useMemo(() => {
@@ -319,7 +319,7 @@ export default function TowAnalysis({
     proposals.sort((a, b) => (b.estimatedSavings || 0) - (a.estimatedSavings || 0));
 
     return proposals;
-  }, [towAnalysis]);
+  }, [towAnalysis, daysPerFte, t]);
 
   // Generate optimal resource mix proposals per TOW
   // Based on: actual effort distribution, TOW profitability, and TOW weight
@@ -576,7 +576,7 @@ export default function TowAnalysis({
         if (b.proposalType === 'critical' && a.proposalType !== 'critical') return 1;
         return b.savings - a.savings;
       });
-  }, [towAnalysis, practices]);
+  }, [towAnalysis, practices, daysPerFte, defaultDailyRate, t]);
 
   // Calculate total potential savings from all proposals
   const totalPotentialSavings = useMemo(() => {
@@ -609,7 +609,7 @@ export default function TowAnalysis({
               <tr className="">
                 <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">TOW</th>
                 <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_weight')}</th>
-                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('competition.discount')}</th>
+                <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('dashboard.discount')}</th>
                 <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_revenue')}</th>
                 <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_cost')}</th>
                 <th className="px-4 py-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.tow_col_margin')}</th>
@@ -618,7 +618,7 @@ export default function TowAnalysis({
               </tr>
             </thead>
             <tbody className="">
-              {towAnalysis.map((tow, idx) => (
+              {towAnalysis.map((tow) => (
                 <tr key={tow.towId} className="group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50">
                   <td className="px-4 py-3 rounded-l-xl">
                     <div className="font-medium text-slate-800">{tow.label}</div>
@@ -662,6 +662,36 @@ export default function TowAnalysis({
                   </td>
                 </tr>
               ))}
+              
+              {/* Governance Row */}
+              <tr className="group bg-slate-50/50 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] border border-slate-200/50 italic">
+                <td className="px-4 py-3 rounded-l-xl">
+                  <div className="font-medium text-slate-700">{t('business_plan.governance')}</div>
+                  <div className="text-[10px] text-slate-400 uppercase tracking-tighter">Overhead</div>
+                </td>
+                <td className="px-4 py-3 text-right text-slate-400">-</td>
+                <td className="px-4 py-3 text-right text-slate-400">-</td>
+                <td className="px-4 py-3 text-right text-slate-400">-</td>
+                <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(costs.governance || 0)}</td>
+                <td className="px-4 py-3 text-right text-red-600">-{formatCurrency(costs.governance || 0)}</td>
+                <td className="px-4 py-3 text-right text-slate-400">-</td>
+                <td className="px-4 py-3 rounded-r-xl"></td>
+              </tr>
+              
+              {/* Risk Contingency Row */}
+              <tr className="group bg-slate-50/50 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] border border-slate-200/50 italic">
+                <td className="px-4 py-3 rounded-l-xl">
+                  <div className="font-medium text-slate-700">{t('business_plan.risk_contingency')}</div>
+                  <div className="text-[10px] text-slate-400 uppercase tracking-tighter">Overhead</div>
+                </td>
+                <td className="px-4 py-3 text-right text-slate-400">-</td>
+                <td className="px-4 py-3 text-right text-slate-400">-</td>
+                <td className="px-4 py-3 text-right text-slate-400">-</td>
+                <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(costs.risk || 0)}</td>
+                <td className="px-4 py-3 text-right text-red-600">-{formatCurrency(costs.risk || 0)}</td>
+                <td className="px-4 py-3 text-right text-slate-400">-</td>
+                <td className="px-4 py-3 rounded-r-xl"></td>
+              </tr>
             </tbody>
             <tfoot>
               <tr className="bg-slate-50/80 font-semibold">
@@ -713,7 +743,7 @@ export default function TowAnalysis({
               </tr>
             </thead>
             <tbody className="">
-              {towAnalysis.map((tow, idx) => (
+              {towAnalysis.map((tow) => (
                 <tr key={tow.towId} className="group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50">
                   <td className="px-4 py-3 font-medium text-slate-800 rounded-l-xl">{tow.label}</td>
                   <td className="px-4 py-3 text-right text-slate-600">{tow.totalFte.toFixed(1)}</td>
