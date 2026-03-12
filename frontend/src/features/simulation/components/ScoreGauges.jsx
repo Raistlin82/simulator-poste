@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Download, FileSpreadsheet, Loader2, Building2 } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Loader2, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Gauge from '../../../shared/components/ui/Gauge';
 
@@ -116,7 +116,7 @@ export default function ScoreGauges({ results, lotData, techInputs, onExport, on
             disabled={exportLoading}
             className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-slate-800 text-white rounded-2xl hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest-plus font-display shadow-xl shadow-slate-500/20 disabled:opacity-50 group"
           >
-            {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />}
+            {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4 group-hover:scale-110 transition-transform" />}
             {t('dashboard.export_pdf')}
           </button>
         </div>

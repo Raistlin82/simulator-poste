@@ -62,6 +62,7 @@ HEADER_FILL = PatternFill(start_color=COLORS['primary'], end_color=COLORS['prima
 LIGHT_FILL = PatternFill(start_color=COLORS['light'], end_color=COLORS['light'], fill_type='solid')
 INPUT_FILL = PatternFill(start_color=COLORS['input_bg'], end_color=COLORS['input_bg'], fill_type='solid')
 FORMULA_FILL = PatternFill(start_color=COLORS['formula_bg'], end_color=COLORS['formula_bg'], fill_type='solid')
+WHITE_FILL = PatternFill(start_color=COLORS['white'], end_color=COLORS['white'], fill_type='solid')
 
 # Fonts
 TITLE_FONT = Font(name='Calibri', size=20, bold=True, color=COLORS['primary'])
@@ -354,6 +355,8 @@ class ExcelReportGenerator:
         ws.column_dimensions['K'].width = 10  # %
         ws.column_dimensions['L'].width = 12  # Peso Gara
         ws.column_dimensions['M'].width = 14  # Score Pesato
+        ws.column_dimensions['N'].width = 12  # Status
+        ws.column_dimensions['O'].width = 35  # Note
         
         row = 2
         
@@ -563,6 +566,11 @@ class ExcelReportGenerator:
             company_dv = DataValidation(type='list', formula1=f'"{company_list}"', allow_blank=False)
             ws.add_data_validation(company_dv)
 
+            # Data Validation for Resource Status
+            from openpyxl.worksheet.datavalidation import DataValidation
+            status_dv = DataValidation(type='list', formula1='"OK,DA VERIFICARE,MANCANTE"', allow_blank=True)
+            ws.add_data_validation(status_dv)
+
             for req in prof_reqs:
                 req_id = req.get('id', '')
                 max_score = req.get('max_points', 0)
@@ -618,8 +626,21 @@ class ExcelReportGenerator:
                     comp_cell.fill = INPUT_FILL
                     company_dv.add(comp_cell)
                     
-                    resources = self.prof_certs_resources.get(entry['name'], [])
-                    ws.cell(row=row, column=6, value=', '.join(resources) if resources else '-').alignment = WRAP
+                    # Logic for Resource Status (Column F = 6)
+                    # We check if there are available resources for this cert in self.prof_certs_resources
+                    available_list = self.prof_certs_resources.get(entry['name'], [])
+                    num_available = len(available_list)
+                    req_count = entry['count']
+                    
+                    status_text = "OK" if num_available >= req_count and req_count > 0 else "MANCANTE" if num_available == 0 else "DA VERIFICARE"
+                    if req_count == 0 and not entry['name']: # Empty expansion row
+                         status_text = "-"
+                    
+                    res_cell = ws.cell(row=row, column=6, value=status_text)
+                    res_cell.alignment = CENTER
+                    
+                    # Add Data Validation for column F
+                    status_dv.add(res_cell)
                     
                     # N Cert (G=7), Fattore (H=8), Contributo (I=9)
                     ws.cell(row=row, column=7, value=entry['count']).fill = INPUT_FILL
@@ -684,16 +705,35 @@ class ExcelReportGenerator:
             # Apply Color Scale to column M
             rule = ColorScaleRule(start_type='num', start_value=0, start_color='F8D7DA', mid_type='num', mid_value=0.5, mid_color='FFF3CD', end_type='num', end_value=1, end_color='D4EDDA')
             ws.conditional_formatting.add(f'M{table1_start_row}:M{row-1}', rule)
+
+            # --- REAL CONDITIONAL FORMATTING FOR COLUMN F (RESOURCE STATUS) ---
+            from openpyxl.formatting.rule import CellIsRule
+            res_range = f'F{table1_start_row}:F{row-1}'
+            
+            # Green for OK
+            ws.conditional_formatting.add(res_range, 
+                CellIsRule(operator='equal', formula=['"OK"'], 
+                           fill=PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")))
+            
+            # Yellow for DA VERIFICARE
+            ws.conditional_formatting.add(res_range, 
+                CellIsRule(operator='equal', formula=['"DA VERIFICARE"'], 
+                           fill=PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")))
+            
+            # Red for MANCANTE
+            ws.conditional_formatting.add(res_range, 
+                CellIsRule(operator='equal', formula=['"MANCANTE"'], 
+                           fill=PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")))
             row += 2
 
         # --- TABLE 2: REFERENZE E PROGETTI ---
         if other_reqs:
-            ws.merge_cells(f'B{row}:K{row}')
+            ws.merge_cells(f'B{row}:L{row}')
             ws[f'B{row}'] = 'DETTAGLIO REFERENZE E PROGETTI'
             ws[f'B{row}'].font = SECTION_FONT
             row += 1
             
-            headers2 = ['ID', 'Requisito', 'Azienda', 'Tipo', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status']
+            headers2 = ['ID', 'Requisito', 'Azienda', 'Tipo', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status', 'Note']
             for col, header in enumerate(headers2, start=2):
                 cell = ws.cell(row=row, column=col, value=header)
                 cell.font = HEADER_FONT
@@ -737,10 +777,14 @@ class ExcelReportGenerator:
                 
                 ws.cell(row=row, column=11, value=f'=IF(H{row}>=0.8,"OK",IF(H{row}>=0.5,"WARN",IF(H{row}>0,"LOW","MISS")))').alignment = CENTER
                 
+                # Note (L=12)
+                notes = self.tech_inputs_full.get(req_id, {}).get('notes', '')
+                ws.cell(row=row, column=12, value=notes).alignment = WRAP
+                
                 # Store for analytics
                 self.tech_req_rows[req_id] = {'row': row, 'col_score': 'J', 'col_weight': 'I'}
                 
-                for col in range(2, 12):
+                for col in range(2, 13):
                     ws.cell(row=row, column=col).border = THIN_BORDER
                 row += 1
             

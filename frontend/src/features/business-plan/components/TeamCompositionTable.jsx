@@ -48,6 +48,27 @@ export default function TeamCompositionTable({
     tow_allocation: {}
   });
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+
+  const toggleGroup = (type) => {
+    const next = new Set(collapsedGroups);
+    if (next.has(type)) next.delete(type); else next.add(type);
+    setCollapsedGroups(next);
+  };
+
+  const towsByType = useMemo(() => {
+    const groups = {};
+    const towTypes = ['task', 'corpo', 'consumo', 'canone', 'catalogo'];
+    towTypes.forEach(t => groups[t] = []);
+    tows.forEach(tow => {
+      const type = tow.type || 'task';
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(tow);
+    });
+    // Remove empty groups
+    Object.keys(groups).forEach(k => { if (groups[k].length === 0) delete groups[k]; });
+    return groups;
+  }, [tows]);
 
   const toggleRow = (profileId) => {
     const next = new Set(expandedRows);
@@ -220,6 +241,14 @@ export default function TeamCompositionTable({
   const totalDaysOverall = totalDays * durationYears;
   const savingsPct = totalFte > 0 ? ((totalFte - totalAdjustedFte) / totalFte * 100) : 0;
 
+  const towTypesLabels = {
+    task: 'Task',
+    corpo: 'A Corpo',
+    consumo: 'A Consumo',
+    canone: 'Canone',
+    catalogo: 'Catalogo'
+  };
+
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
       {/* Header */}
@@ -255,8 +284,33 @@ export default function TeamCompositionTable({
 
       {/* Tabella */}
       <div className="overflow-x-auto min-h-[400px]">
-        <table className="w-full text-sm border-separate border-spacing-y-3 px-4">
+        <table className="w-full text-sm border-separate border-spacing-y-1 px-4">
           <thead>
+            {/* Riga per Categorie TOW */}
+            <tr className="border-0">
+              <th colSpan={(hasAnyAdjustment ? 7 : 5) + 2} className="p-0"></th>
+              {Object.entries(towsByType).map(([type, groupTows]) => {
+                const isCollapsed = collapsedGroups.has(type);
+                return (
+                  <th 
+                    key={type} 
+                    colSpan={isCollapsed ? 1 : groupTows.length}
+                    className={`px-2 py-1 text-center border-b-2 transition-all ${isCollapsed ? 'bg-slate-50 border-slate-200' : 'bg-indigo-50/30 border-indigo-200'}`}
+                  >
+                    <button 
+                      onClick={() => toggleGroup(type)}
+                      className="flex items-center justify-center gap-1 w-full text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors"
+                      title={isCollapsed ? 'Espandi' : 'Comprimi'}
+                    >
+                      {towTypesLabels[type] || type}
+                      {isCollapsed ? <ChevronUp className="w-3 h-3 rotate-90" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                  </th>
+                );
+              })}
+              <th colSpan={2} className="p-0"></th>
+            </tr>
+            {/* Riga Header Standard */}
             <tr>
               <th className="px-4 py-2 w-8"></th>
               <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display">{t('business_plan.team_profile_role', 'Profilo / Ruolo')}</th>
@@ -275,13 +329,25 @@ export default function TeamCompositionTable({
               )}
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">GG/Anno</th>
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">GG Totale</th>
-              {tows.map(tow => (
-                <th key={tow.tow_id} className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">
-                  <div className="truncate" title={tow.label}>
-                    {tow.tow_id}
-                  </div>
-                </th>
-              ))}
+              
+              {Object.entries(towsByType).map(([type, groupTows]) => {
+                const isCollapsed = collapsedGroups.has(type);
+                if (isCollapsed) {
+                  return (
+                    <th key={type} className="px-1 py-2 text-center text-[10px] font-black text-slate-300 bg-slate-50/50 w-8">
+                      ...
+                    </th>
+                  );
+                }
+                return groupTows.map(tow => (
+                  <th key={tow.tow_id} className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">
+                    <div className="truncate" title={tow.label}>
+                      {tow.tow_id}
+                    </div>
+                  </th>
+                ));
+              })}
+
               <th className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">{t('business_plan.team_total_pct', 'Tot %')}</th>
               <th className="px-4 py-2 w-12"></th>
             </tr>
@@ -306,20 +372,22 @@ export default function TeamCompositionTable({
             ) : (
               team.map((profile, idx) => {
                 const profileId = profile.profile_id || profile.label;
+                const seniority = getSeniorityStyle(profile.seniority);
                 const isExpanded = expandedRows.has(profileId);
                 const adj = adjustedFteMap[profileId];
 
                 return (
                   <Fragment key={idx}>
-                    <tr key={idx} className={`group bg-white/40 backdrop-blur-md rounded-2xl shadow-sm hover:shadow-lg hover:bg-white/70 hover:scale-[1.01] transition-all border border-white/40 ${isExpanded ? 'ring-2 ring-indigo-500/20 bg-white/80' : ''}`}>
-                      <td className="px-2 py-3 text-center text-slate-400 rounded-l-xl">
-                        <button
-                          onClick={() => toggleRow(profileId)}
-                          className={`p-1 rounded-md transition-colors ${isExpanded ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100'}`}
-                          title={isExpanded ? "Comprimi dettagli" : "Espandi dettagli fasi"}
-                        >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </button>
+                    <tr className="group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white transition-all border border-white/50">
+                      <td className="px-4 py-2 rounded-l-xl">
+                        {adj && adj.delta !== 0 ? (
+                          <button
+                            onClick={() => toggleRow(profileId)}
+                            className={`p-1 rounded transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-600' : 'text-slate-300 hover:text-indigo-400'}`}
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                          </button>
+                        ) : null}
                       </td>
                       <td className="px-4 py-2">
                         <input
@@ -327,20 +395,19 @@ export default function TeamCompositionTable({
                           value={profile.label}
                           onChange={(e) => handleUpdateProfile(idx, 'label', e.target.value)}
                           disabled={disabled}
-                          className="w-full px-2 py-1 text-sm font-bold text-slate-700 bg-transparent border-none
-                                     hover:bg-white/50 focus:bg-white focus:outline-none rounded-lg transition-all
-                                     disabled:cursor-not-allowed"
-                          placeholder="Nome profilo..."
+                          className="w-full px-2 py-1 font-semibold text-xs border border-transparent
+                                   hover:border-slate-200 focus:border-blue-300 rounded
+                                   focus:outline-none disabled:bg-transparent text-slate-700"
                         />
                       </td>
                       <td className="px-4 py-2">
                         <select
-                          value={profile.seniority || 'mid'}
+                          value={profile.seniority}
                           onChange={(e) => handleUpdateProfile(idx, 'seniority', e.target.value)}
                           disabled={disabled}
-                          className={`w-full px-2 py-1.5 text-center text-xs font-semibold border rounded-lg
-                                     focus:outline-none focus:ring-2 focus:ring-blue-300
-                                     disabled:cursor-not-allowed ${getSeniorityStyle(profile.seniority || 'mid').className}`}
+                          className={`w-full px-2 py-1.5 text-center text-[10px] font-black uppercase tracking-widest border rounded-lg
+                                   focus:outline-none focus:ring-2 focus:ring-blue-500
+                                   disabled:cursor-not-allowed ${seniority.className}`}
                         >
                           {SENIORITY_OPTIONS.map(s => (
                             <option key={s.value} value={s.value}>{s.icon} {s.label}</option>
@@ -351,85 +418,55 @@ export default function TeamCompositionTable({
                         <input
                           type="number"
                           value={profile.fte}
-                          onChange={(e) => handleUpdateProfile(idx, 'fte', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => handleUpdateProfile(idx, 'fte', e.target.value)}
                           disabled={disabled}
                           step="0.1"
                           min="0"
-                          className="w-full px-2 py-1 text-center border border-slate-200 rounded
-                                     focus:border-blue-300 focus:outline-none
-                                     disabled:bg-slate-50 disabled:cursor-not-allowed"
+                          className="w-full px-2 py-1 text-center font-bold border border-slate-200 rounded-lg
+                                   focus:border-blue-300 focus:outline-none text-xs
+                                   disabled:bg-slate-50 disabled:cursor-not-allowed text-slate-600"
                         />
                       </td>
-                      {hasAnyAdjustment && (() => {
-                        const isReduced = adj && adj.delta < 0;
-                        const fte = parseFloat(profile.fte) || 0;
-                        // Build per-period tooltip
-                        const tooltip = adj?.periodDetails?.map(p => {
-                          const lines = [`Mese ${p.start}-${p.end}: ${fte.toFixed(1)} → ${p.effectiveFte.toFixed(1)} FTE`];
-                          if (p.pFactor < 1.0) lines.push(`  • Rettifica Profilo: ${Math.round(p.pFactor * 100)}%`);
-                          if (p.reuseMultiplier < 1.0) lines.push(`  • Riuso: ${Math.round(p.reuseMultiplier * 100)}%`);
-                          if (p.finalTowFactor < 1.0) {
-                            lines.push(`  • Riduzione TOW: ${Math.round(p.finalTowFactor * 100)}%`);
-                            p.towBreakdown.forEach(tb => {
-                              lines.push(`    - ${tb.towId}: ${Math.round(tb.factor * 100)}% (all. ${tb.pct}%)`);
-                            });
-                          }
-                          return lines.join('\n');
-                        }).join('\n\n');
-                        return (
-                          <>
-                            <td className="px-4 py-2">
-                              <div
-                                title={tooltip}
-                                className={`px-2 py-1.5 text-center rounded-xl font-black font-display text-[10px] cursor-help shadow-sm border ${isReduced
-                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                  : 'bg-slate-50 text-slate-500 border-slate-100'
-                                  }`}
-                              >
-                                {adj ? adj.adjustedFte.toFixed(1) : fte.toFixed(1)}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2">
-                              {isReduced ? (
-                                <div className="px-1.5 py-0.5 text-center text-[10px] font-black rounded-lg bg-red-50 text-red-600 border border-red-200 shadow-sm">
-                                  {adj.delta.toFixed(1)}
-                                </div>
-                              ) : (
-                                <div className="px-1.5 py-0.5 text-center text-xs text-slate-400 font-bold">—</div>
-                              )}
-                            </td>
-                          </>
-                        );
-                      })()}
+                      {hasAnyAdjustment && (
+                        <>
+                          <td className="px-4 py-2">
+                            <div className={`px-2 py-1 text-center rounded-lg font-bold text-xs border
+                                          ${adj && adj.delta < 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                              {adj ? adj.adjustedFte.toFixed(2) : parseFloat(profile.fte).toFixed(2)}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {adj && adj.delta !== 0 ? (
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${adj.delta < 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                {adj.delta > 0 ? `+${adj.delta.toFixed(1)}` : adj.delta.toFixed(1)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
+                        </>
+                      )}
                       <td className="px-4 py-2">
                         {(() => {
                           const isManual = profile.manual_days_year && parseFloat(profile.manual_days_year) > 0;
-                          const autoDays = Math.round((parseFloat(profile.fte) || 0) * daysPerFte);
                           return (
-                            <div className="flex items-center gap-1">
+                            <div className="relative group/ctrl">
                               <input
                                 type="number"
-                                value={isManual ? profile.manual_days_year : autoDays}
+                                value={getEffectiveDaysYear(profile, daysPerFte)}
                                 onChange={(e) => handleUpdateProfile(idx, 'manual_days_year', e.target.value)}
                                 disabled={disabled}
-                                step="1"
-                                min="0"
-                                className={`w-full px-2 py-1 text-center border rounded text-sm
-                                           focus:outline-none focus:ring-1
-                                           disabled:bg-slate-50 disabled:cursor-not-allowed
-                                           ${isManual
-                                    ? 'border-amber-300 bg-amber-50 text-amber-800 font-bold focus:border-amber-500 focus:ring-amber-300'
-                                    : 'border-slate-200 bg-slate-50 text-slate-600 focus:border-blue-300 focus:ring-blue-300'
-                                  }`}
-                                title={isManual ? `Manuale (auto: ${autoDays})` : `Auto: FTE × ${daysPerFte}`}
+                                className={`w-full px-2 py-1 text-center font-semibold text-xs border rounded-lg
+                                         focus:border-blue-300 focus:outline-none disabled:cursor-not-allowed
+                                         ${isManual ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-blue-50/50 text-blue-700 border-transparent hover:border-blue-200'}`}
                               />
                               {isManual && (
                                 <button
-                                  onClick={() => handleUpdateProfile(idx, 'manual_days_year', 0)}
-                                  className="p-0.5 text-amber-500 hover:text-amber-700 hover:bg-amber-100 rounded transition-colors flex-shrink-0"
-                                  title={`Reset ad auto (${autoDays})`}
+                                  onClick={() => handleUpdateProfile(idx, 'manual_days_year', null)}
+                                  className="absolute -top-2 -right-1 p-0.5 bg-amber-200 text-amber-800 rounded-full hover:bg-amber-300 transition-colors shadow-sm"
+                                  title="Ripristina automatico"
                                 >
-                                  <RotateCcw className="w-3 h-3" />
+                                  <RotateCcw className="w-2.5 h-2.5" />
                                 </button>
                               )}
                             </div>
@@ -448,23 +485,35 @@ export default function TeamCompositionTable({
                           );
                         })()}
                       </td>
-                      {tows.map(tow => (
-                        <td key={tow.tow_id} className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={profile.tow_allocation?.[tow.tow_id] || ''}
-                            onChange={(e) => handleTowAllocation(idx, tow.tow_id, e.target.value)}
-                            disabled={disabled}
-                            step="5"
-                            min="0"
-                            max="100"
-                            placeholder="0"
-                            className="w-full px-2 py-1 text-center border border-slate-200 rounded
-                                       focus:border-blue-300 focus:outline-none text-xs
-                                       disabled:bg-slate-50 disabled:cursor-not-allowed"
-                          />
-                        </td>
-                      ))}
+                      
+                      {Object.entries(towsByType).map(([type, groupTows]) => {
+                        const isCollapsed = collapsedGroups.has(type);
+                        if (isCollapsed) {
+                          return (
+                            <td key={type} className="px-1 py-2 text-center text-slate-300 bg-slate-50/50">
+                              -
+                            </td>
+                          );
+                        }
+                        return groupTows.map(tow => (
+                          <td key={tow.tow_id} className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={profile.tow_allocation?.[tow.tow_id] || ''}
+                              onChange={(e) => handleTowAllocation(idx, tow.tow_id, e.target.value)}
+                              disabled={disabled}
+                              step="5"
+                              min="0"
+                              max="100"
+                              placeholder="0"
+                              className="w-full px-2 py-1 text-center border border-slate-200 rounded
+                                         focus:border-blue-300 focus:outline-none text-xs
+                                         disabled:bg-slate-50 disabled:cursor-not-allowed"
+                            />
+                          </td>
+                        ));
+                      })}
+
                       <td className="px-3 py-2">
                         {(() => {
                           const validation = allocationValidation[profileId];
@@ -484,12 +533,12 @@ export default function TeamCompositionTable({
                           );
                         })()}
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 rounded-r-xl">
                         <button
                           onClick={() => handleRemoveProfile(idx)}
                           disabled={disabled}
                           className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors
-                                       disabled:opacity-50 disabled:cursor-not-allowed"
+                                       disabled:opacity-50 disabled:cursor-not-allowed opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -499,7 +548,7 @@ export default function TeamCompositionTable({
                     {/* Dettaglio Espanso (Time Slices) */}
                     {isExpanded && adj && adj.periodDetails && (
                       <tr className="bg-slate-50/80">
-                        <td colSpan={(hasAnyAdjustment ? 9 : 7) + tows.length + 1} className="px-8 py-3 bg-slate-50/50">
+                        <td colSpan={15 + tows.length} className="px-8 py-3 bg-slate-50/50">
                           <div className="border-l-2 border-blue-200 pl-6 space-y-2">
                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                               <Calendar className="w-3 h-3" />

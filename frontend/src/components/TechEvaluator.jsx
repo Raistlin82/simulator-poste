@@ -571,55 +571,14 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                                 const availableResources = masterData?.prof_certs_resources?.[cert] || [];
                                                                                 
                                                                                 if (effLutechCount > 0 && availableResources.length > 0) {
-                                                                                    const selectedResources = cur.cert_assigned_resources?.[cert] || [];
-                                                                                    
-                                                                                    const toggleResource = (res) => {
-                                                                                        const currentInput = inputs[req.id] || {};
-                                                                                        const allAssigned = { ...(currentInput.cert_assigned_resources || {}) };
-                                                                                        const currentSelected = allAssigned[cert] || [];
-                                                                                        
-                                                                                        let newSelected;
-                                                                                        if (currentSelected.includes(res)) {
-                                                                                            newSelected = currentSelected.filter(r => r !== res);
-                                                                                        } else {
-                                                                                            if (currentSelected.length >= effLutechCount) return; // Limit reached
-                                                                                            newSelected = [...currentSelected, res];
-                                                                                        }
-                                                                                        
-                                                                                        allAssigned[cert] = newSelected;
-                                                                                        setTechInput(req.id, {
-                                                                                            ...currentInput,
-                                                                                            cert_assigned_resources: allAssigned
-                                                                                        });
-                                                                                    };
-
                                                                                     return (
-                                                                                        <div className="pt-2 mt-1 border-t border-indigo-100/50">
-                                                                                            <div className="flex justify-between items-center mb-1.5">
-                                                                                                <span className="text-[8px] font-bold text-indigo-600 uppercase flex items-center gap-1">
-                                                                                                    <Users className="w-2.5 h-2.5" /> {t('tech.delegated_resources')}
+                                                                                        <div className="pt-2 mt-1 border-t border-emerald-100/50">
+                                                                                            <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-100">
+                                                                                                <Users className="w-3 h-3 text-emerald-600" />
+                                                                                                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-tight">
+                                                                                                    {t('tech.available_resources')}: {availableResources.length}
                                                                                                 </span>
-                                                                                                <span className="text-[8px] font-bold text-slate-400">
-                                                                                                    {selectedResources.length}/{effLutechCount}
-                                                                                                </span>
-                                                                                            </div>
-                                                                                            <div className="flex flex-wrap gap-1">
-                                                                                                {availableResources.map(res => {
-                                                                                                    const isSelected = selectedResources.includes(res);
-                                                                                                    const isDisabled = !isSelected && selectedResources.length >= effLutechCount;
-                                                                                                    return (
-                                                                                                        <button
-                                                                                                            key={res}
-                                                                                                            onClick={() => toggleResource(res)}
-                                                                                                            disabled={isDisabled}
-                                                                                                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all border flex items-center gap-1 ${isSelected ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm shadow-indigo-200' : isDisabled ? 'bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'}`}
-                                                                                                            title={res}
-                                                                                                        >
-                                                                                                            {isSelected && <Check className="w-2.5 h-2.5" />}
-                                                                                                            {res}
-                                                                                                        </button>
-                                                                                                    );
-                                                                                                })}
+                                                                                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-auto" />
                                                                                             </div>
                                                                                         </div>
                                                                                     );
@@ -973,6 +932,19 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                             <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors font-medium">{req.bonus_label}</span>
                                                         </label>
                                                     )}
+
+                                                {/* 5. Note Requisito */}
+                                                <div className="pt-4 mt-2 border-t border-white/60">
+                                                    <label className="block mb-2">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 font-display">{t('tech_evaluator.notes_label') || 'Note'}</span>
+                                                    </label>
+                                                    <textarea
+                                                        value={cur.notes || ''}
+                                                        onChange={(e) => updateInput(req.id, 'notes', e.target.value)}
+                                                        placeholder={t('tech_evaluator.notes_placeholder') || 'Inserisci note (es. progetto referenziato)...'}
+                                                        className="w-full min-h-[80px] p-3 text-sm bg-indigo-50/20 backdrop-blur-md border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 outline-none transition-all resize-none text-slate-700"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     )

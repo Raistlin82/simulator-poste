@@ -196,7 +196,9 @@
         "points_unit": "Points",
         "custom_formula": "Formula: {{val}}",
         "bonus_points": "+{{val}} Bonus Points",
-        "max_pt": "Max {{val}} pt"
+        "max_pt": "Max {{val}} pt",
+        "notes_label": "Notes",
+        "notes_placeholder": "Enter notes (e.g. referenced project)..."
     },
     "config": {
         "title": "Tender/Lot Parameters",
@@ -498,7 +500,8 @@
         "contribution": "Contribution",
         "degree_label": "Degree",
         "weight_label": "Weight",
-        "attestazione_bonus_hint": "Final Customer Certification Bonus",
+        "attestazione_bonus_hint": "Final Certification Bonus",
+        "available_resources": "Available resources",
         "delegated_resources": "Delegated Resources"
     },
     "cert_verification": {

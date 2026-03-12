@@ -196,7 +196,9 @@
         "points_unit": "Punti",
         "custom_formula": "Formula: {{val}}",
         "bonus_points": "+{{val}} Punti Bonus",
-        "max_pt": "Max {{val}} pt"
+        "max_pt": "Max {{val}} pt",
+        "notes_label": "Note",
+        "notes_placeholder": "Inserisci note (es. progetto referenziato)..."
     },
     "config": {
         "title": "Parametri Gara/Lotto",
@@ -499,7 +501,7 @@
         "degree_label": "Grado",
         "weight_label": "Peso",
         "attestazione_bonus_hint": "Bonus Attestazione Finale",
-        "delegated_resources": "Risorse Delegate"
+        "available_resources": "Risorse disponibili"
     },
     "cert_verification": {
         "title": "Verifica Certificazioni",

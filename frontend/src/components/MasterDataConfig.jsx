@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, Check, Building2, Database, Download, Upload, Bot, Users, X } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, CheckCircle, Building2, Database, FileDown, Upload, Bot, Users, X } from 'lucide-react';
 import { API_URL } from '../utils/api';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { logger } from '../utils/logger';
@@ -470,7 +470,7 @@ export default function MasterDataConfig() {
             {toast && (
                 <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md transition-all border border-white/40 ${toast.type === 'success' ? 'bg-green-500/90 text-white' : 'bg-red-500/90 text-white'
                     }`}>
-                    {toast.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                    {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                     <span className="text-sm font-bold font-display">{toast.message}</span>
                 </div>
             )}
@@ -861,7 +861,7 @@ export default function MasterDataConfig() {
                                     <div className="bg-white/40 backdrop-blur-md border border-white/60 p-8 rounded-[2rem] shadow-xl shadow-slate-200/50">
                                         <div className="flex items-start gap-6">
                                             <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center flex-shrink-0 border border-indigo-100/50">
-                                                <Download className="w-7 h-7 text-indigo-600" />
+                                                <FileDown className="w-7 h-7 text-indigo-600" />
                                             </div>
                                             <div className="flex-1">
                                                 <h3 className="text-lg font-black text-slate-800 font-display mb-2 tracking-tight">{t('master.export_db')}</h3>
@@ -876,7 +876,7 @@ export default function MasterDataConfig() {
                                                     onClick={handleExportDb}
                                                     className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest-plus font-display hover:bg-indigo-700 transition-all flex items-center gap-3 shadow-lg shadow-indigo-200 active:scale-95"
                                                 >
-                                                    <Download className="w-4 h-4" />
+                                                    <FileDown className="w-4 h-4" />
                                                     {t('master.download_backup')}
                                                 </button>
                                             </div>
