@@ -1190,6 +1190,7 @@ export default function BusinessPlanPage() {
                   tows={localBP.tows || []}
                   defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
                   inflationPct={localBP.inflation_pct || 0}
+                  quotaLutech={localBP.quota_lutech || 1.0}
                 />
 
                 {/* Subappalto */}
