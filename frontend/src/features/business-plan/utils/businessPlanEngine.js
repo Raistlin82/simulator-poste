@@ -391,42 +391,40 @@ export const calculateCatalogCost = (bp) => {
 
         if (computed && computed.items && computed.items.length > 0) {
             // ── READ pre-computed values from CatalogEditorModal ──
-            const lutechPct = (tow.lutech_pct ?? 100) / 100;
-            const towCostBase = computed.total_cost || 0;
-            const towPosteTotaleBase = computed.total_poste_total || 0;
-            const towSellPriceBase = computed.total_sell_price || 0;
-
-            const towCost = towCostBase * lutechPct;
-            const towPosteTotale = towPosteTotaleBase * lutechPct;
-            const towSellPrice = towSellPriceBase * lutechPct;
+            // IMPORTANT: These values are ALREADY Lutech-scaled by the CatalogEditorModal.
+            // We must NOT apply lutechPct again here to avoid "double scaling".
+            const towCost = computed.total_cost || 0;
+            const towPosteTotale = computed.total_poste_total || 0;
+            const towSellPrice = computed.total_sell_price || 0;
 
             const itemsDetail = computed.items.map(ci => {
                 if (!ci.id) console.warn('[engine] catalog item missing id', ci.label);
                 return {
-                id: ci.id || '',
-                label: ci.label || '',
-                tipo: ci.tipo || '',
-                complessita: ci.complessita || '',
-                price_base: 0,
-                group_pct: 0,
-                poste_total: Math.round((ci.poste_total || 0) * lutechPct),
-                lutech_cost: Math.round((ci.cost || 0) * lutechPct),
-                lutech_revenue: Math.round((ci.sell_price || 0) * lutechPct),
-                lutech_margin: Math.round(((ci.sell_price || 0) - (ci.cost || 0)) * lutechPct),
-                effective_margin_pct: ci.margin_pct || 0,
-                fte: Math.round((ci.fte || 0) * 100) / 100,
-                lutech_unit_price: Math.round((ci.lutech_unit_price || 0) * 100) / 100,
-                sconto_pct: Math.round((ci.sconto_pct || 0) * 100) / 100,
+                    id: ci.id || '',
+                    label: ci.label || '',
+                    tipo: ci.tipo || '',
+                    complessita: ci.complessita || '',
+                    price_base: 0,
+                    group_pct: 0,
+                    // Values from catalog_computed are already scaled by RTI in the Modal
+                    poste_total: Math.round(ci.poste_total || 0),
+                    lutech_cost: Math.round(ci.cost || 0),
+                    lutech_revenue: Math.round(ci.sell_price || 0),
+                    lutech_margin: Math.round((ci.sell_price || 0) - (ci.cost || 0)),
+                    effective_margin_pct: ci.margin_pct || 0,
+                    fte: Math.round((ci.fte || 0) * 100) / 100,
+                    lutech_unit_price: Math.round((ci.lutech_unit_price || 0) * 100) / 100,
+                    sconto_pct: Math.round((ci.sconto_pct || 0) * 100) / 100,
                 };
             });
 
             const groupsDetail = (computed.groups || []).map(g => ({
                 label: g.label || '',
                 target_value: g.target_value || 0,
-                lutech_cost: Math.round((g.cost || 0) * lutechPct),
-                lutech_revenue: Math.round((g.sell_price || 0) * lutechPct),
-                poste_total: Math.round((g.poste_total || 0) * lutechPct),
-                lutech_margin: Math.round((g.margin || 0) * lutechPct),
+                lutech_cost: Math.round(g.cost || 0),
+                lutech_revenue: Math.round(g.sell_price || 0),
+                poste_total: Math.round(g.poste_total || 0),
+                lutech_margin: Math.round(g.margin || 0),
                 fte: 0,
             }));
 
