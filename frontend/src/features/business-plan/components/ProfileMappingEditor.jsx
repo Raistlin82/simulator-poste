@@ -475,7 +475,26 @@ export default function ProfileMappingEditor({
 
 
 
-  // Compute per-profile adjusted FTE from volume adjustments (Integrated: Profile + Reuse + TOW)
+  // Helper: get the RTI factor for a profile based on its TOW allocation
+  const getProfileRtiFactor = useCallback((member) => {
+    const towAllocation = member.tow_allocation || {};
+    let rtiFactor = 0;
+    let totalAllocatedPct = 0;
+
+    for (const [towId, pct] of Object.entries(towAllocation)) {
+      const tPct = parseFloat(pct) || 0;
+      if (tPct > 0) {
+        const tow = tows.find(t => t.id === towId || t.label === towId);
+        const tRti = (tow?.lutech_pct ?? 100) / 100;
+        rtiFactor += (tPct / 100) * tRti;
+        totalAllocatedPct += (tPct / 100);
+      }
+    }
+
+    return totalAllocatedPct > 0 ? (rtiFactor / totalAllocatedPct) : (lutechPct);
+  }, [tows, lutechPct]);
+
+  // Compute per-profile adjusted FTE from volume adjustments (Integrated: Profile + Reuse + TOW + RTI)
   const profileAdjustments = useMemo(() => {
     const periods = volumeAdjustments?.periods || [{
       month_start: 1,
@@ -490,9 +509,12 @@ export default function ProfileMappingEditor({
       const profileId = member.profile_id || member.label;
       const fte = parseFloat(member.fte) || 0;
       const towAllocation = member.tow_allocation || {};
+      const profileRtiFactor = getProfileRtiFactor(member);
 
       let totalMonths = 0;
       let weightedFte = 0;
+      let weightedFteLutech = 0;
+
       for (const period of periods) {
         const start = period.month_start || 1;
         const end = period.month_end || durationMonths;
@@ -513,21 +535,29 @@ export default function ProfileMappingEditor({
         const finalTowFactor = totalAllocatedPct > 0 ? (towFactor / totalAllocatedPct) : 1.0;
 
         const effectiveFte = fte * pFactor * reuseMultiplier * finalTowFactor;
+        const effectiveFteLutech = effectiveFte * profileRtiFactor;
+
         weightedFte += effectiveFte * months;
+        weightedFteLutech += effectiveFteLutech * months;
         totalMonths += months;
       }
       const avgFte = totalMonths > 0 ? weightedFte / totalMonths : fte;
+      const avgFteLutech = totalMonths > 0 ? weightedFteLutech / totalMonths : (fte * profileRtiFactor);
+
       result[profileId] = {
         adjustedFte: Math.round(avgFte * 100) / 100,
+        adjustedFteLutech: Math.round(avgFteLutech * 100) / 100,
         delta: Math.round((avgFte - fte) * 100) / 100,
+        deltaTotalLutech: Math.round((avgFteLutech - fte) * 100) / 100,
+        profileRtiFactor,
         periods,
       };
     }
     return result;
-  }, [teamComposition, volumeAdjustments, reuseFactor, durationMonths]);
+  }, [teamComposition, volumeAdjustments, reuseFactor, durationMonths, getProfileRtiFactor]);
 
   // Helper: get the integrated factor for a profile in a specific month range
-  const getProfileFteForPeriod = (profileId, monthStart, monthEnd) => {
+  const getProfileFteForPeriod = useCallback((profileId, monthStart, monthEnd) => {
     const adj = profileAdjustments[profileId];
     if (!adj) return null;
     const member = teamComposition.find(m => (m.profile_id || m.label) === profileId);
@@ -535,6 +565,7 @@ export default function ProfileMappingEditor({
     const fte = parseFloat(member.fte) || 0;
     const towAllocation = member.tow_allocation || {};
     const reuseMultiplier = 1 - ((reuseFactor || 0) / 100);
+    const profileRtiFactor = adj.profileRtiFactor;
 
     // Weighted factors across overlapping rettifica periods
     let totalMonths = 0;
@@ -565,9 +596,13 @@ export default function ProfileMappingEditor({
       totalMonths += months;
     }
     const combinedFactor = totalMonths > 0 ? weightedEffort / totalMonths : 1.0;
-    const effectiveFte = fte * combinedFactor * reuseMultiplier;
-    return { effectiveFte: Math.round(effectiveFte * 100) / 100, factor: combinedFactor * reuseMultiplier };
-  };
+    const effectiveFte = fte * combinedFactor * reuseMultiplier * profileRtiFactor;
+    return {
+      effectiveFte: Math.round(effectiveFte * 100) / 100,
+      factor: combinedFactor * reuseMultiplier * profileRtiFactor,
+      baseFactor: combinedFactor * reuseMultiplier // Without RTI scaling
+    };
+  }, [profileAdjustments, teamComposition, reuseFactor, durationMonths]);
 
   // Calcola tariffa media complessiva pesata con analisi temporale (Time-Aware)
   const overallTeamMixRate = useMemo(() => {
@@ -647,15 +682,15 @@ export default function ProfileMappingEditor({
         const memberEffDaysYear = getEffectiveDaysYear(member, daysPerFte);
         const daysInMonth = (1 / 12) * (fte > 0 ? memberEffDaysYear / fte : daysPerFte);
 
-        // Nominale (Include Volume/TOW ma NON riuso e NON inflazione per la "Nominale" pura, o forse sì?)
-        // Per "Nominale" in Italia di solito si intende la tariffa di listino.
-        // Ma per il mix Poste, vogliamo la tariffa media pesata Lutech.
+        // Nominale (Pesa sulla base degli FTE di Poste)
         profileNominalCost += mixRate * fte * daysInMonth;
         profileNominalDays += fte * daysInMonth;
 
-        // Effettiva (Include TUTTO: Volume, TOW, Riuso, Inflazione)
-        profileEffectiveCost += inflatedRate * (fte * effectiveFactor) * daysInMonth;
-        profileEffectiveDays += (fte * effectiveFactor) * daysInMonth;
+        // Effettiva Lutech (Include RTI, Volume, TOW, Riuso, Inflazione)
+        // La tariffa media viene pesata sugli FTE EFFETTIVI Lutech
+        const fteLutech = fte * effectiveFactor;
+        profileEffectiveCost += inflatedRate * fteLutech * daysInMonth;
+        profileEffectiveDays += fteLutech * daysInMonth;
       }
 
       if (hasValidMapping && profileNominalDays > 0) {
@@ -678,7 +713,7 @@ export default function ProfileMappingEditor({
     }
 
     const avgRate = totalNominalDays > 0 ? totalNominalCost / totalNominalDays : 0;
-    const effectiveAvgRate = totalNominalDays > 0 ? totalEffectiveCost / totalNominalDays : avgRate * (1 - (reuseFactor / 100));
+    const effectiveAvgRate = totalEffectiveDays > 0 ? totalEffectiveCost / totalEffectiveDays : avgRate;
 
     return {
       avgRate,
@@ -745,11 +780,13 @@ export default function ProfileMappingEditor({
                       <span>{Math.round(getEffectiveDaysYear(posteProfile, daysPerFte) * lutechPct)} GG/anno {rtiActive && <span className="text-[10px] opacity-60 ml-0.5">Lutech</span>}</span>
                       {(() => {
                         const adj = profileAdjustments[profileId];
-                        if (adj && adj.delta < 0) {
+                        // Il badge scatta se l'FTE finale Lutech è diverso dall'FTE base di Poste
+                        // Questo cattura RTI, Riuso, e Rettifiche volume.
+                        if (adj && Math.abs(adj.adjustedFteLutech - posteProfile.fte) > 0.001) {
                           return (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100/50 text-emerald-700 text-[10px] font-black uppercase rounded border border-emerald-200/50 shadow-sm">
                               <TrendingDown className="w-3 h-3" />
-                              → {(adj.adjustedFte * lutechPct).toFixed(1)} EFF.
+                              → {adj.adjustedFteLutech.toFixed(1)} EFF.
                             </span>
                           );
                         }
