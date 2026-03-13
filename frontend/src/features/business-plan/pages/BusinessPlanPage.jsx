@@ -971,6 +971,8 @@ export default function BusinessPlanPage() {
                   profileRates={buildLutechRates()}
                   defaultDailyRate={localBP.default_daily_rate || DEFAULT_DAILY_RATE}
                   daysPerFte={localBP.days_per_fte || DAYS_PER_FTE}
+                  isRti={isRti}
+                  quotaLutech={quotaLutech}
                 />
 
                 {/* Composizione Team (requisiti Poste) — i TOW tipo catalogo non partecipano all'allocazione FTE */}
@@ -982,6 +984,8 @@ export default function BusinessPlanPage() {
                   onChange={handleTeamChange}
                   volumeAdjustments={localBP.volume_adjustments || {}}
                   reuseFactor={localBP.reuse_factor || 0}
+                  isRti={isRti}
+                  quotaLutech={quotaLutech}
                 />
 
                 {/* Parametri Poste: Durata + Rettifica Volumi */}

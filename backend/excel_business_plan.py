@@ -419,7 +419,7 @@ class BusinessPlanExcelGenerator:
         ws['A1'].font = TITLE_FONT
 
         row = 3
-        headers = ['TOW ID', 'Descrizione', 'Tipo', 'Num Task', 'Peso %']
+        headers = ['TOW ID', 'Descrizione', 'Tipo', 'Num Task', 'Peso %', 'Lutech %']
         self._add_header_row(ws, row, headers)
         row += 1
         data_start = row
@@ -455,7 +455,18 @@ class BusinessPlanExcelGenerator:
             self._style_input_cell(cell_weight)
             cell_weight.alignment = CENTER
 
+            # RTI Lutech %
+            l_pct = tow.get('lutech_pct')
+            if l_pct is None:
+                l_pct = self.quota_lutech * 100
+            
+            cell_lutech = ws.cell(row=row, column=6, value=float(l_pct) / 100)
+            cell_lutech.number_format = '0.0%'
+            self._style_input_cell(cell_lutech)
+            cell_lutech.alignment = CENTER
+
             row += 1
+
 
         # Add validation to type column
         if tows:
@@ -485,38 +496,43 @@ class BusinessPlanExcelGenerator:
             col_letter = get_column_letter(5 + i)
             ws.column_dimensions[col_letter].width = 13
         # Fattore Riduzione (profile_factor) as input column, then FTE Eff, GG Totali
+        # Fattore Riduzione (profile_factor) as input column, then FTE Eff, GG Totali
         factor_col = 5 + num_tows       # Fattore Rid. (editable)
-        fte_eff_col = 6 + num_tows      # FTE Effettivo
-        gg_tot_col = 7 + num_tows       # GG Totali
+        fte_poste_col = 6 + num_tows    # FTE Poste
+        gg_poste_col = 7 + num_tows     # GG Totali Poste
+        fte_lutech_col = 8 + num_tows   # FTE Lutech (RTI adjusted)
+        gg_lutech_col = 9 + num_tows    # GG Totali Lutech (RTI adjusted)
+        
         ws.column_dimensions[get_column_letter(factor_col)].width = 13
-        ws.column_dimensions[get_column_letter(fte_eff_col)].width = 14
-        ws.column_dimensions[get_column_letter(gg_tot_col)].width = 14
+        ws.column_dimensions[get_column_letter(fte_poste_col)].width = 14
+        ws.column_dimensions[get_column_letter(gg_poste_col)].width = 14
+        ws.column_dimensions[get_column_letter(fte_lutech_col)].width = 14
+        ws.column_dimensions[get_column_letter(gg_lutech_col)].width = 14
 
         # Freeze header row and profile column
         ws.freeze_panes = 'B5'
 
         ws['A1'] = "COMPOSIZIONE TEAM POSTE"
         ws['A1'].font = TITLE_FONT
-        ws['A2'] = "FTE, Allocazione TOW e Fattori Riduzione sono INPUT. FTE Eff e GG sono FORMULE."
+        ws['A2'] = "FTE, Allocazione TOW e Fattori Riduzione sono INPUT. FTE Eff e GG sono FORMULE che includono quota Lutech se RTI attivo."
         ws['A2'].font = Font(italic=True, size=10, color='666666')
 
         row = 4
-        # Build headers: Profilo, Seniority, FTE Base, GG/Anno, [TOW1 %, TOW2 %, ...], FTE Eff, GG Totali
+        # Build headers
         headers = ['Profilo', 'Seniority', 'FTE Base', 'GG/Anno']
         for tow in tows:
             headers.append(f"{tow.get('tow_id', tow.get('id', ''))} %")
-        headers.extend(['Fattore Rid.', 'FTE Eff.', 'GG Totali'])
+        
+        headers.extend(['Fattore Rid.', 'FTE Eff. Poste', 'GG Tot. Poste', 'FTE Eff. Lutech', 'GG Tot. Lutech'])
         self._add_header_row(ws, row, headers)
         row += 1
         data_start = row
 
         team = self.bp.get('team_composition', []) or self.bp.get('team', [])
         volume_adj = self.bp.get('volume_adjustments', {})
-        # Get period factors (use first period or default)
         periods = volume_adj.get('periods', [{}])
         first_period = periods[0] if periods else {}
         by_profile = first_period.get('by_profile', {})
-        by_tow = first_period.get('by_tow', {})
 
         # Seniority dropdown
         seniority_validation = DataValidation(
@@ -531,38 +547,36 @@ class BusinessPlanExcelGenerator:
             profile_label = member.get('label', profile_id)
             tow_allocation = member.get('tow_allocation', {})
 
-            # Column A: Profilo
             ws.cell(row=row, column=1, value=profile_label).border = THIN_BORDER
-
-            # Column B: Seniority (input)
+            
             cell_sen = ws.cell(row=row, column=2, value=member.get('seniority', 'mid'))
             self._style_input_cell(cell_sen)
             cell_sen.alignment = CENTER
 
-            # Column C: FTE Base (input)
             cell_fte = ws.cell(row=row, column=3, value=float(member.get('fte', 0)))
             cell_fte.number_format = '0.00'
             self._style_input_cell(cell_fte)
             cell_fte.alignment = CENTER
 
-            # Column D: GG/Anno (calculated from FTE × 220)
             cell_gg_year = ws.cell(row=row, column=4)
             cell_gg_year.value = f"=C{row}*{self.named_ranges['GG_ANNO']}"
             cell_gg_year.number_format = '#,##0'
             self._style_formula_cell(cell_gg_year)
             cell_gg_year.alignment = CENTER
 
-            # Columns E+: TOW allocation % (input)
+            # Columns E+: TOW allocation %
+            alloc_start_col = 5
+            alloc_end_col = 5 + num_tows - 1
             for i, tow in enumerate(tows):
                 tow_id = tow.get('tow_id', tow.get('id', ''))
                 alloc_pct = tow_allocation.get(tow_id, 0) / 100 if tow_allocation.get(tow_id, 0) > 0 else 0
-                col = 5 + i
+                col = alloc_start_col + i
                 cell_alloc = ws.cell(row=row, column=col, value=alloc_pct)
                 cell_alloc.number_format = '0%'
                 self._style_input_cell(cell_alloc)
                 cell_alloc.alignment = CENTER
 
-            # Fattore Riduzione (profile_factor): editable input cell
+            # Fattore Riduzione
             profile_factor = by_profile.get(profile_id, 1.0)
             factor_letter = get_column_letter(factor_col)
             cell_factor = ws.cell(row=row, column=factor_col, value=profile_factor)
@@ -570,21 +584,52 @@ class BusinessPlanExcelGenerator:
             self._style_input_cell(cell_factor)
             cell_factor.alignment = CENTER
 
-            # FTE Effettivo: FORMULA referencing the editable factor cell
-            # Formula: FTE Base × Fattore Rid. × (1 - Reuse)
-            cell_fte_eff = ws.cell(row=row, column=fte_eff_col)
-            cell_fte_eff.value = f"=C{row}*{factor_letter}{row}*(1-{self.named_ranges['REUSE_FACTOR']})"
-            cell_fte_eff.number_format = '0.00'
-            self._style_formula_cell(cell_fte_eff)
-            cell_fte_eff.alignment = CENTER
+            # FTE Eff. Poste (volume/reuse but NO RTI)
+            cell_fte_poste = ws.cell(row=row, column=fte_poste_col)
+            cell_fte_poste.value = f"=C{row}*{factor_letter}{row}*(1-{self.named_ranges['REUSE_FACTOR']})"
+            cell_fte_poste.number_format = '0.00'
+            self._style_formula_cell(cell_fte_poste)
+            cell_fte_poste.alignment = CENTER
 
-            # GG Totali: FORMULA = FTE Eff × GG/Anno × (Durata/12)
-            cell_gg_tot = ws.cell(row=row, column=gg_tot_col)
-            fte_eff_letter = get_column_letter(fte_eff_col)
-            cell_gg_tot.value = f"={fte_eff_letter}{row}*{self.named_ranges['GG_ANNO']}*({self.named_ranges['DURATA_MESI']}/12)"
-            cell_gg_tot.number_format = '#,##0'
-            self._style_formula_cell(cell_gg_tot)
-            cell_gg_tot.alignment = CENTER
+            # GG Tot. Poste
+            cell_gg_poste = ws.cell(row=row, column=gg_poste_col)
+            fte_poste_letter = get_column_letter(fte_poste_col)
+            cell_gg_poste.value = f"={fte_poste_letter}{row}*{self.named_ranges['GG_ANNO']}*({self.named_ranges['DURATA_MESI']}/12)"
+            cell_gg_poste.number_format = '#,##0'
+            self._style_formula_cell(cell_gg_poste)
+            cell_gg_poste.alignment = CENTER
+
+            # Weighted Lutech Quota calculation (RTI)
+            # Formula: (E5*CONFIG_TOW!$F$4 + F5*CONFIG_TOW!$F$5 + ...) / SUM(E5:K5)
+            # If SUM(E5:K5) is 0, fallback to global QUOTA_LUTECH
+            sum_alloc_formula = f"SUM({get_column_letter(alloc_start_col)}{row}:{get_column_letter(alloc_end_col)}{row})"
+            
+            # Construct the weighted sum numerator
+            weighted_parts = []
+            for i in range(num_tows):
+                c_letter = get_column_letter(alloc_start_col + i)
+                tow_row_in_config = self.named_ranges['TOW_START'] + i
+                weighted_parts.append(f"{c_letter}{row}*CONFIG_TOW!$F${tow_row_in_config}")
+            
+            weighted_sum_formula = " + ".join(weighted_parts)
+            
+            lutech_quota_expr = f"IF({sum_alloc_formula}>0, ({weighted_sum_formula})/{sum_alloc_formula}, {self.named_ranges['QUOTA_LUTECH']})"
+            
+            # FTE Eff. Lutech (RTI adjusted)
+            cell_fte_lutech = ws.cell(row=row, column=fte_lutech_col)
+            cell_fte_lutech.value = f"=IF({self.named_ranges['RTI_ATTIVO']}=1, {fte_poste_letter}{row}*({lutech_quota_expr}), {fte_poste_letter}{row})"
+            cell_fte_lutech.number_format = '0.00'
+            self._style_formula_cell(cell_fte_lutech)
+            cell_fte_lutech.alignment = CENTER
+
+            # GG Tot. Lutech
+            cell_gg_lutech = ws.cell(row=row, column=gg_lutech_col)
+            fte_lutech_letter = get_column_letter(fte_lutech_col)
+            cell_gg_lutech.value = f"={fte_lutech_letter}{row}*{self.named_ranges['GG_ANNO']}*({self.named_ranges['DURATA_MESI']}/12)"
+            cell_gg_lutech.number_format = '#,##0'
+            self._style_formula_cell(cell_gg_lutech)
+            cell_gg_lutech.alignment = CENTER
+
 
             row += 1
 
@@ -598,47 +643,56 @@ class BusinessPlanExcelGenerator:
             ws.cell(row=row, column=1, value="TOTALE").font = BOLD_FONT
             ws.cell(row=row, column=1).border = THIN_BORDER
 
-            # Sum FTE Base
-            ws.cell(row=row, column=3, value=f"=SUM(C{data_start}:C{row-1})")
-            ws.cell(row=row, column=3).number_format = '0.00'
-            ws.cell(row=row, column=3).font = BOLD_FONT
-            ws.cell(row=row, column=3).border = THIN_BORDER
+            # Sum FTE Poste
+            fte_poste_letter = get_column_letter(fte_poste_col)
+            ws.cell(row=row, column=fte_poste_col, value=f"=SUM({fte_poste_letter}{data_start}:{fte_poste_letter}{row-1})")
+            ws.cell(row=row, column=fte_poste_col).number_format = '0.00'
+            ws.cell(row=row, column=fte_poste_col).font = BOLD_FONT
+            ws.cell(row=row, column=fte_poste_col).border = THIN_BORDER
 
-            # Sum GG/Anno
-            ws.cell(row=row, column=4, value=f"=SUM(D{data_start}:D{row-1})")
-            ws.cell(row=row, column=4).number_format = '#,##0'
-            ws.cell(row=row, column=4).font = BOLD_FONT
-            ws.cell(row=row, column=4).border = THIN_BORDER
+            # Sum GG Poste
+            gg_poste_letter = get_column_letter(gg_poste_col)
+            ws.cell(row=row, column=gg_poste_col, value=f"=SUM({gg_poste_letter}{data_start}:{gg_poste_letter}{row-1})")
+            ws.cell(row=row, column=gg_poste_col).number_format = '#,##0'
+            ws.cell(row=row, column=gg_poste_col).font = BOLD_FONT
+            ws.cell(row=row, column=gg_poste_col).border = THIN_BORDER
 
-            # Sum FTE Eff
-            fte_eff_letter = get_column_letter(fte_eff_col)
-            ws.cell(row=row, column=fte_eff_col, value=f"=SUM({fte_eff_letter}{data_start}:{fte_eff_letter}{row-1})")
-            ws.cell(row=row, column=fte_eff_col).number_format = '0.00'
-            ws.cell(row=row, column=fte_eff_col).font = BOLD_FONT
-            ws.cell(row=row, column=fte_eff_col).border = THIN_BORDER
-            ws.cell(row=row, column=fte_eff_col).fill = LIGHT_FILL
+            # Sum FTE Lutech
+            fte_lutech_letter = get_column_letter(fte_lutech_col)
+            ws.cell(row=row, column=fte_lutech_col, value=f"=SUM({fte_lutech_letter}{data_start}:{fte_lutech_letter}{row-1})")
+            ws.cell(row=row, column=fte_lutech_col).number_format = '0.00'
+            ws.cell(row=row, column=fte_lutech_col).font = BOLD_FONT
+            ws.cell(row=row, column=fte_lutech_col).border = THIN_BORDER
+            ws.cell(row=row, column=fte_lutech_col).fill = LIGHT_FILL
 
-            # Sum GG Totali
-            gg_tot_letter = get_column_letter(gg_tot_col)
-            ws.cell(row=row, column=gg_tot_col, value=f"=SUM({gg_tot_letter}{data_start}:{gg_tot_letter}{row-1})")
-            ws.cell(row=row, column=gg_tot_col).number_format = '#,##0'
-            ws.cell(row=row, column=gg_tot_col).font = BOLD_FONT
-            ws.cell(row=row, column=gg_tot_col).border = THIN_BORDER
-            ws.cell(row=row, column=gg_tot_col).fill = LIGHT_FILL
+            # Sum GG Lutech
+            gg_lutech_letter = get_column_letter(gg_lutech_col)
+            ws.cell(row=row, column=gg_lutech_col, value=f"=SUM({gg_lutech_letter}{data_start}:{gg_lutech_letter}{row-1})")
+            ws.cell(row=row, column=gg_lutech_col).number_format = '#,##0'
+            ws.cell(row=row, column=gg_lutech_col).font = BOLD_FONT
+            ws.cell(row=row, column=gg_lutech_col).border = THIN_BORDER
+            ws.cell(row=row, column=gg_lutech_col).fill = LIGHT_FILL
 
             self.named_ranges['TEAM_FTE_BASE'] = f"TEAM!$C${row}"
-            self.named_ranges['TEAM_FTE_EFF'] = f"TEAM!${fte_eff_letter}${row}"
-            self.named_ranges['TEAM_GG'] = f"TEAM!${gg_tot_letter}${row}"
+            self.named_ranges['TEAM_FTE_POSTE'] = f"TEAM!${fte_poste_letter}${row}"
+            self.named_ranges['TEAM_GG_POSTE'] = f"TEAM!${gg_poste_letter}${row}"
+            self.named_ranges['TEAM_FTE_LUTECH'] = f"TEAM!${fte_lutech_letter}${row}"
+            self.named_ranges['TEAM_GG_LUTECH'] = f"TEAM!${gg_lutech_letter}${row}"
+            
+            # Backwards compatibility for other sheets if they use TEAM_FTE_EFF or TEAM_GG
+            self.named_ranges['TEAM_FTE_EFF'] = self.named_ranges['TEAM_FTE_LUTECH']
+            self.named_ranges['TEAM_GG'] = self.named_ranges['TEAM_GG_LUTECH']
 
-        # Delta row (risparmio FTE)
+        # Delta row (risparmio FTE Lutech rispetto a base bando)
         row += 1
-        ws.cell(row=row, column=1, value="RISPARMIO FTE").font = Font(italic=True, color='008000')
-        ws.cell(row=row, column=fte_eff_col, value=f"=C{row-1}-{get_column_letter(fte_eff_col)}{row-1}")
-        ws.cell(row=row, column=fte_eff_col).number_format = '0.00'
-        ws.cell(row=row, column=fte_eff_col).font = Font(italic=True, color='008000')
-        ws.cell(row=row, column=fte_eff_col + 1, value=f"=(C{row-1}-{get_column_letter(fte_eff_col)}{row-1})/C{row-1}")
-        ws.cell(row=row, column=fte_eff_col + 1).number_format = '0.0%'
-        ws.cell(row=row, column=fte_eff_col + 1).font = Font(italic=True, color='008000')
+        ws.cell(row=row, column=1, value="RISPARMIO FTE LUTECH").font = Font(italic=True, color='008000')
+        ws.cell(row=row, column=fte_lutech_col, value=f"=C{row-1}-{fte_lutech_letter}{row-1}")
+        ws.cell(row=row, column=fte_lutech_col).number_format = '0.00'
+        ws.cell(row=row, column=fte_lutech_col).font = Font(italic=True, color='008000')
+        ws.cell(row=row, column=fte_lutech_col + 1, value=f"=(C{row-1}-{fte_lutech_letter}{row-1})/C{row-1}")
+        ws.cell(row=row, column=fte_lutech_col + 1).number_format = '0.0%'
+        ws.cell(row=row, column=fte_lutech_col + 1).font = Font(italic=True, color='008000')
+
 
     # ========== SHEET 5: RETTIFICA VOLUMI (Time-phased adjustments) ==========
     def _create_volume_adj_sheet(self):
@@ -1616,10 +1670,22 @@ class BusinessPlanExcelGenerator:
             ws['B' + str(row)].number_format = '0.0%'
             self._style_input_cell(ws['B' + str(row)])
             def_reuse_cell = f"B{row}"
+            row += 1
+
+            ws['A' + str(row)] = "Quota RTI Lutech"
+            # Get actual lutech_pct for this TOW
+            l_pct = tow.get('lutech_pct')
+            if l_pct is None:
+                l_pct = self.quota_lutech * 100
+            
+            ws['B' + str(row)] = float(l_pct) / 100
+            ws['B' + str(row)].number_format = '0.0%'
+            self._style_input_cell(ws['B' + str(row)])
+            rti_quota_cell = f"B{row}"
             row += 2
             
             # Intestazioni voci
-            headers = ['ID Voce', 'Descrizione', 'Target Gruppo', 'Riuso Grp.', 'Peso %', 'Tariffa/gg', 'Margine %', 'FTE Reale', 'Costo Lutech', 'Vendita']
+            headers = ['ID Voce', 'Descrizione', 'Target Gruppo', 'Riuso Grp.', 'Peso %', 'Tariffa/gg', 'Margine %', 'FTE Eff. Lutech', 'Costo Lutech', 'Vendita']
             self._add_header_row(ws, row, headers)
             row += 1
             
@@ -1683,9 +1749,10 @@ class BusinessPlanExcelGenerator:
                 
                 # FTE Reale
                 c_fte = ws.cell(row=row, column=8)
-                c_fte.value = f"=IF({tot_val_cell}>0, (C{row}/{tot_val_cell})*{ref_fte_cell}*(1-D{row})*E{row}, 0)"
+                c_fte.value = f"=IF({tot_val_cell}>0, (C{row}/{tot_val_cell})*{ref_fte_cell}*(1-D{row})*E{row}*{rti_quota_cell}, 0)"
                 self._style_formula_cell(c_fte)
                 c_fte.number_format = '0.0000'
+
                 
                 # Costo (Assenza Inflazione per Catalogo come da specifica)
                 c_cost = ws.cell(row=row, column=9)

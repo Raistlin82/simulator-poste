@@ -22,6 +22,8 @@ export default function TowConfigTable({
   profileRates = {},
   defaultDailyRate = 250,
   daysPerFte = 220,
+  isRti = false,
+  quotaLutech = 1.0,
 }) {
   const { t } = useTranslation();
   const [showAddRow, setShowAddRow] = useState(false);
@@ -104,6 +106,17 @@ export default function TowConfigTable({
   // Calcola totale pesi
   const totalWeight = tows.reduce((sum, t) => sum + (parseFloat(t.weight_pct) || 0), 0);
   const isWeightValid = Math.abs(totalWeight - 100) < 0.1;
+
+  // Calcola somma pesata delle quote Lutech per verifica RTI
+  const weightedRtiQuota = useMemo(() => {
+    return tows.reduce((sum, t) => {
+      const weight = (parseFloat(t.weight_pct) || 0) / 100;
+      const lutechPct = (parseFloat(t.lutech_pct ?? 100)) / 100;
+      return sum + (weight * lutechPct);
+    }, 0);
+  }, [tows]);
+
+  const isRtiQuotaValid = !isRti || Math.abs(weightedRtiQuota - quotaLutech) < 0.001;
 
   const getTypeStyle = (type) => {
     const t = towTypes.find(tt => tt.value === type);
@@ -373,28 +386,22 @@ export default function TowConfigTable({
                                          disabled:bg-slate-50 disabled:cursor-not-allowed"
                               />
                             </td>
-                            {/* Lutech % — editabile per TOW FTE-based, sempre 100% per catalogo */}
+                            {/* Lutech % — editabile per tutti i TOW, inclusi i catalogo */}
                             <td className="px-4 py-2">
-                              {tow.type === 'catalogo' ? (
-                                <div className="text-center">
-                                  <span className="text-xs text-slate-400">100%</span>
-                                </div>
-                              ) : (
-                                <input
-                                  type="number"
-                                  value={tow.lutech_pct ?? 100}
-                                  onChange={(e) => handleUpdateTow(idx, 'lutech_pct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                                  disabled={disabled}
-                                  min="0"
-                                  max="100"
-                                  step="5"
-                                  className={`w-full px-2 py-1 text-center border rounded focus:outline-none text-xs
-                                  ${(tow.lutech_pct ?? 100) < 100
-                                      ? 'border-indigo-300 bg-indigo-50 text-indigo-700 focus:border-indigo-500'
-                                      : 'border-slate-200 focus:border-indigo-300'}
-                                  disabled:bg-slate-50 disabled:cursor-not-allowed`}
-                                />
-                              )}
+                              <input
+                                type="number"
+                                value={tow.lutech_pct ?? 100}
+                                onChange={(e) => handleUpdateTow(idx, 'lutech_pct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                                disabled={disabled}
+                                min="0"
+                                max="100"
+                                step="5"
+                                className={`w-full px-2 py-1 text-center border rounded focus:outline-none text-xs
+                                ${(tow.lutech_pct ?? 100) < 100
+                                    ? 'border-indigo-300 bg-indigo-50 text-indigo-700 focus:border-indigo-500'
+                                    : 'border-slate-200 focus:border-indigo-300'}
+                                disabled:bg-slate-50 disabled:cursor-not-allowed`}
+                              />
                             </td>
                             <td className="px-4 py-2">
                               {tow.type === 'task' ? (
@@ -760,6 +767,20 @@ export default function TowConfigTable({
             <div className="text-xs text-amber-800">
               <strong>{t('attention', 'Attenzione')}:</strong> {t('business_plan.tow_weight_warning', { value: totalWeight.toFixed(1) })}
               La ripartizione dei ricavi sarà proporzionale ai pesi configurati.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warning RTI Quota Mismatch */}
+      {isRti && tows.length > 0 && !isRtiQuotaValid && (
+        <div className="px-4 py-3 bg-indigo-50 border-t border-indigo-100">
+          <div className="flex items-start gap-2">
+            <Info className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-indigo-800">
+              <strong>RTI Quota Warning:</strong> La somma pesata delle partecipazioni Lutech nei TOW ({ (weightedRtiQuota * 100).toFixed(1) }%) 
+              non coincide con la quota RTI globale impostata ({ (quotaLutech * 100).toFixed(1) }%).
+              Il calcolo economico utilizzerà le quote di dettaglio dei singoli TOW.
             </div>
           </div>
         </div>

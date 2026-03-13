@@ -2574,7 +2574,11 @@ def calculate_business_plan(
             default_daily_rate=bp.default_daily_rate or 250.0,
             inflation_pct=bp.inflation_pct or 0.0,
             days_per_fte=bp.days_per_fte or 220,
+            is_rti=calc_request.is_rti,
+            quota_lutech=calc_request.quota_lutech,
+            all_tows=bp.tows or [],
         )
+
         team_cost = team_result["total_cost"]
         tow_breakdown = team_result["by_tow"]
         lutech_breakdown = team_result["by_lutech_profile"]
@@ -2591,7 +2595,10 @@ def calculate_business_plan(
         default_daily_rate=bp.default_daily_rate or 250.0,
         days_per_fte=bp.days_per_fte or 220,
         inflation_pct=bp.inflation_pct or 0.0,
+        is_rti=calc_request.is_rti,
+        quota_lutech=calc_request.quota_lutech,
     )
+
     catalog_cost = catalog_result["total_cost"]
     tow_breakdown.update(catalog_result["by_tow"])
 
@@ -2779,6 +2786,9 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
                     key = f"{practice.id}:{profile_id}"
                     profile_rates[key] = float(profile.get('daily_rate', 0.0))
 
+        is_rti_s = lot.rti_enabled
+        quota_lutech_s = lot.rti_quotas.get("Lutech", 100) / 100 if is_rti_s and lot.rti_quotas else 1.0
+
         team_result = BusinessPlanService.calculate_team_cost(
             team_composition=bp.team_composition,
             volume_adjustments=bp.volume_adjustments or {},
@@ -2789,7 +2799,11 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
             default_daily_rate=bp.default_daily_rate or 250.0,
             inflation_pct=bp.inflation_pct or 0.0,
             days_per_fte=bp.days_per_fte or 220,
+            is_rti=is_rti_s,
+            quota_lutech=quota_lutech_s,
+            all_tows=bp.tows or [],
         )
+
         team_cost = team_result["total_cost"]
 
     # Calculate catalog cost for scenarios baseline
@@ -2801,7 +2815,10 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
         default_daily_rate=bp.default_daily_rate or 250.0,
         days_per_fte=bp.days_per_fte or 220,
         inflation_pct=bp.inflation_pct or 0.0,
+        is_rti=is_rti_s,
+        quota_lutech=quota_lutech_s,
     )
+
     catalog_cost_s = catalog_result_s["total_cost"]
 
     bp_data = {
@@ -2824,7 +2841,11 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
         risk_contingency_pct=bp.risk_contingency_pct or 0.03,
         subcontract_config=bp.subcontract_config or {},
         catalog_cost=catalog_cost_s,
+        is_rti=is_rti_s,
+        quota_lutech=quota_lutech_s,
+        all_tows=bp.tows or [],
     )
+
     return {"scenarios": scenarios}
 
 
@@ -2855,6 +2876,9 @@ def find_discount_for_target(
 
     team_cost = 0.0
     if bp.team_composition:
+        is_rti_d = lot.rti_enabled
+        quota_lutech_d = lot.rti_quotas.get("Lutech", 100) / 100 if is_rti_d and lot.rti_quotas else 1.0
+
         team_result = BusinessPlanService.calculate_team_cost(
             team_composition=bp.team_composition,
             volume_adjustments=bp.volume_adjustments or {},
@@ -2865,7 +2889,11 @@ def find_discount_for_target(
             default_daily_rate=bp.default_daily_rate or 250.0,
             inflation_pct=bp.inflation_pct or 0.0,
             days_per_fte=bp.days_per_fte or 220,
+            is_rti=is_rti_d,
+            quota_lutech=quota_lutech_d,
+            all_tows=bp.tows or [],
         )
+
         team_cost = team_result["total_cost"]
 
     catalog_result_d = BusinessPlanService.calculate_catalog_cost(
@@ -2876,7 +2904,10 @@ def find_discount_for_target(
         default_daily_rate=bp.default_daily_rate or 250.0,
         days_per_fte=bp.days_per_fte or 220,
         inflation_pct=bp.inflation_pct or 0.0,
+        is_rti=is_rti_d,
+        quota_lutech=quota_lutech_d,
     )
+
     catalog_cost_d = catalog_result_d["total_cost"]
 
     bp_data = {

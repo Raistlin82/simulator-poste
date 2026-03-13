@@ -123,16 +123,19 @@ class BusinessPlanService:
         team_composition: List[Dict[str, Any]],
         volume_adjustments: Dict[str, Any],
         reuse_factor: float,
-        profile_mappings: Dict[str, List[Dict[str, Any]]],
+        profile_mappings: Dict[str, Any],
         profile_rates: Dict[str, float],
         duration_months: int,
         default_daily_rate: float = 250.0,
         inflation_pct: float = 0.0,
         days_per_fte: int = 220,
+        is_rti: bool = False,
+        quota_lutech: float = 1.0,
+        all_tows: List[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Calcola il costo del team basato su un motore ad intervalli mensili (alta precisione).
-        Identifica tutti i punti di variazione (rettifica volumi, mix profili) e calcola per ogni intervallo.
+        Supporta RTI applicando lutech_pct a livello di TOW.
         """
         if not duration_months or duration_months <= 0:
             raise ValueError("La durata del contratto (duration_months) deve essere positiva.")
@@ -141,13 +144,26 @@ class BusinessPlanService:
             "total_fte_original": 0.0,
             "total_fte_adjusted": 0.0,
             "total_days": 0.0,
-            "total_days_base": 0.0, # NEW
+            "total_days_base": 0.0,
             "total_cost": 0.0,
             "by_profile": {},
-            "by_tow": {}, # {id: {cost, label, days, days_base, contributions: []}}
-            "by_lutech_profile": {},  # {id: {label, cost, days, days_base, contributions: []}}
-            "intervals": [], # Detailed time-slices for traceability
+            "by_tow": {},
+            "by_lutech_profile": {},
+            "intervals": [],
         }
+
+        # Pre-calcola le percentuali Lutech per ogni TOW
+        tow_lutech_map = {}
+        if is_rti and all_tows:
+            for t in all_tows:
+                tid = t.get("tow_id")
+                if tid:
+                    pct = t.get("lutech_pct")
+                    if pct is not None:
+                        tow_lutech_map[tid] = float(pct) / 100.0
+                    else:
+                        tow_lutech_map[tid] = quota_lutech
+
 
         # 1. Trova tutte le boundary temporali (mesi di inizio)
         boundaries = {1, duration_months + 1}
@@ -227,24 +243,39 @@ class BusinessPlanService:
                 else:
                     inflation_factor = 1.0
 
-                # Calcolo TOW factor per questo membro in questo intervallo
-                tow_factor_sum = 0.0
+                # Calcolo TOW factor (Volume Adjustment) e Lutech factor (RTI Quota)
+                tow_vol_factor_sum = 0.0
+                tow_lutech_factor_sum = 0.0
                 total_alloc = sum([float(v) for v in tow_allocation.values() if float(v) > 0])
+                
                 if total_alloc > 0:
                     for tow_id, pct in tow_allocation.items():
                         tow_pct = float(pct)
                         if tow_pct > 0:
-                            t_factor = float(adj_period.get("by_tow", {}).get(tow_id, 1.0))
-                            tow_factor_sum += (tow_pct / 100.0) * t_factor
-                    final_tow_factor = tow_factor_sum / (total_alloc / 100.0)
+                            t_vol_factor = float(adj_period.get("by_tow", {}).get(tow_id, 1.0))
+                            tow_vol_factor_sum += (tow_pct / 100.0) * t_vol_factor
+                            if is_rti:
+                                l_factor = tow_lutech_map.get(tow_id, quota_lutech)
+                                tow_lutech_factor_sum += (tow_pct / 100.0) * l_factor
+                    
+                    final_tow_vol_factor = tow_vol_factor_sum / (total_alloc / 100.0)
+                    final_tow_lutech_factor = (tow_lutech_factor_sum / (total_alloc / 100.0)) if is_rti else 1.0
                 else:
-                    final_tow_factor = 1.0
+                    final_tow_vol_factor = 1.0
+                    final_tow_lutech_factor = quota_lutech if is_rti else 1.0
+                
+                # final_factor is the combined multiplier for FTE/Days adjustment
+                # We include p_factor here for consistency with total adjustment
+                final_factor = final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier * p_factor
 
                 # Logic Parity: fte * daysPerFte * years
                 interval_raw_days = float(fte_original) * days_per_fte * years_in_interval
                 interval_base_days = interval_raw_days * p_factor
-                interval_days = interval_base_days * (reuse_multiplier * final_tow_factor)
+                # effective_fte and interval_days reflect Lutech's quota for this TOW
+                interval_days = interval_raw_days * final_factor
                 effective_fte = fte_original * final_factor
+
+
                 
                 # We'll use this list to accurately share costs between Lutech profiles AND TOWs
                 triplets = []
@@ -279,7 +310,7 @@ class BusinessPlanService:
                         "cost": l_cost, 
                         "start": start, "end": m_end,
                         "p_factor": p_factor,
-                        "eff_factor": (tow_factor * reuse_multiplier)
+                        "eff_factor": (final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier)
                     })
                     
                     triplets.append({
@@ -290,8 +321,9 @@ class BusinessPlanService:
                         "cost": l_cost,
                         "rate": rate,
                         "p_factor": p_factor,
-                        "eff_factor": (tow_factor * reuse_multiplier)
+                        "eff_factor": (final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier)
                     })
+
 
                     # Store interval for Excel
                     result["intervals"].append({
@@ -330,7 +362,7 @@ class BusinessPlanService:
                             "cost": mix_cost, 
                             "start": start, "end": m_end,
                             "p_factor": p_factor,
-                            "eff_factor": (tow_factor * reuse_multiplier)
+                            "eff_factor": (final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier)
                         })
 
                         triplets.append({
@@ -341,8 +373,9 @@ class BusinessPlanService:
                             "cost": mix_cost,
                             "rate": rate,
                             "p_factor": p_factor,
-                            "eff_factor": (tow_factor * reuse_multiplier)
+                            "eff_factor": (final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier)
                         })
+
 
                         # Store interval part for Excel
                         result["intervals"].append({
@@ -628,7 +661,10 @@ class BusinessPlanService:
         default_daily_rate: float = 250.0,
         days_per_fte: int = 220,
         inflation_pct: float = 0.0,
+        is_rti: bool = False,
+        quota_lutech: float = 1.0,
     ) -> Dict[str, Any]:
+
         """
         Calcola il costo dei TOW tipo 'catalogo' con modello FTE-FROM-GROUP.
 
@@ -683,6 +719,15 @@ class BusinessPlanService:
             # Fattore sconto gara/lotto (proporzionale su valori Poste, non tocca costi Lutech)
             sconto_gara_factor = 1.0 - sconto_gara_pct / 100.0
 
+            # RTI Quota factor per questo TOW
+            lutech_factor = 1.0
+            if is_rti:
+                tow_l_pct = tow.get("lutech_pct") if isinstance(tow, dict) else getattr(tow, "lutech_pct", None)
+                if tow_l_pct is not None:
+                    lutech_factor = float(tow_l_pct) / 100.0
+                else:
+                    lutech_factor = quota_lutech
+
             # Build group lookup: item_id → group
             item_group_map: Dict[str, Any] = {}
             for g in catalog_groups:
@@ -730,7 +775,9 @@ class BusinessPlanService:
                 # Convert from % to decimal if needed (assuming frontend sends 0-100)
                 # For now, assuming 0-1 decimal format from frontend.
                 group_reuse_factor = float(group_reuse_raw if group_reuse_raw is not None else default_catalog_reuse_factor)
-                effective_group_fte = group_fte * (1.0 - group_reuse_factor)
+                
+                # effective_group_fte reflects volume adjustments AND Lutech quota
+                effective_group_fte = group_fte * (1.0 - group_reuse_factor) * lutech_factor
 
                 item_fte = effective_group_fte * item_pct / 100.0
 
@@ -751,8 +798,9 @@ class BusinessPlanService:
                 effective_group_target = group_target * sconto_gara_factor
                 effective_price_base = price_base * sconto_gara_factor
 
-                # Pz. Poste Tot. effettivo (post sconto gara)
-                item_poste_total = effective_group_target * item_pct / 100.0
+                # Pz. Poste Tot. effettivo (post sconto gara E quota RTI)
+                item_poste_total = effective_group_target * (item_pct / 100.0) * lutech_factor
+
 
                 # Pz. Unitario Lutech e Sconto %
                 item_lutech_unit = (
@@ -1057,7 +1105,11 @@ class BusinessPlanService:
         risk_contingency_pct: float = 0.03,
         subcontract_config: Optional[Dict[str, Any]] = None,
         catalog_cost: float = 0.0,
+        is_rti: bool = False,
+        quota_lutech: float = 1.0,
+        all_tows: List[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
+
         """
         Genera 3 scenari: Conservative/Balanced/Aggressive.
         Se team_composition è fornito, ricalcola i costi per ogni scenario.
@@ -1102,7 +1154,11 @@ class BusinessPlanService:
                     profile_rates=profile_rates or {},
                     duration_months=duration_months,
                     default_daily_rate=default_daily_rate,
+                    is_rti=is_rti,
+                    quota_lutech=quota_lutech,
+                    all_tows=all_tows,
                 )
+
                 team_cost = team_result["total_cost"]
 
                 # Il catalog_cost è fisso (FTE dal bando, non variano per scenario)
@@ -1126,8 +1182,10 @@ class BusinessPlanService:
                 estimated_cost = raw_cost_est * new_vol * (1 - new_reuse)
 
             margin_result = BusinessPlanService.calculate_margin(
-                base_amount, estimated_cost, discount_pct=0
+                base_amount, estimated_cost, discount_pct=0,
+                is_rti=is_rti, quota_lutech=quota_lutech
             )
+
             scenarios.append({
                 "name": name,
                 "reuse_factor": round(new_reuse, 2),

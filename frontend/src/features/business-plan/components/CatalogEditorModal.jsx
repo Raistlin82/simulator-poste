@@ -168,8 +168,11 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
     const c = clusters[clusterIdx];
     handleChange(clusterIdx, 'poste_profiles', (c.poste_profiles || []).filter(p => p !== profile));
   };
+  const idCounter = useRef(0);
   const handleAddCluster = () => {
-    onChange([...clusters, { id: `cluster_${Date.now()}`, label: `Cluster ${clusters.length + 1}`, poste_profiles: [], required_pct: 0, constraint_type: 'equality' }]);
+    idCounter.current++;
+    const newId = `cluster_${idCounter.current}`;
+    onChange([...clusters, { id: newId, label: `Cluster ${clusters.length + 1}`, poste_profiles: [], required_pct: 0, constraint_type: 'equality' }]);
   };
   const handleRemoveCluster = (idx) => onChange(clusters.filter((_, i) => i !== idx));
 
@@ -257,12 +260,15 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
  * Per ogni raggruppamento: valore target Poste → FTE previsti proporzionali al totale catalogo.
  * Per ogni voce nel raggruppamento: % sul raggruppamento (INPUT, Σ = 100%) → FTE e Pz. Poste proporzionali.
  */
-function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalogReuseFactor = 0, groupTotals = {}, scontoGaraFactor = 1, onGroupsChange, onToggleGroupItem, onItemPctChange, onEvenDistribute, onMaximizeMargin }) {
+function GroupEditor({ groups, items, totalCatalogValue, totalFte, bandoTotalFte, defaultCatalogReuseFactor = 0, groupTotals = {}, scontoGaraFactor = 1, lutechPct = 1, onGroupsChange, onToggleGroupItem, onItemPctChange, onEvenDistribute, onMaximizeMargin }) {
   const { t } = useTranslation();
   const scontoGaraActive = scontoGaraFactor < 0.9999;
+  const rtiActive = lutechPct < 0.9999;
 
-  // Collapsed state — tutti collassati per default
+  // Collapsed state
   const [collapsedGrps, setCollapsedGrps] = useState(() => new Set(groups.map(g => g.id)));
+
+  // ... (toggle functions remain same)
   const toggleGrp = (id) => setCollapsedGrps(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -272,9 +278,12 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
   const toggleAllGrps = () =>
     allExpandedGrps ? setCollapsedGrps(new Set(groups.map(g => g.id))) : setCollapsedGrps(new Set());
 
+  const idCounter = useRef(0);
   const handleAddGroup = () => {
+    idCounter.current++;
+    const newId = `group_${idCounter.current}`;
     onGroupsChange([...groups, {
-      id: `group_${Date.now()}`,
+      id: newId,
       label: `Raggruppamento ${groups.length + 1}`,
       target_value: 0,
       item_ids: [],
@@ -289,8 +298,8 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
 
   const sumGroupTargets = groups.reduce((s, g) => s + (parseFloat(g.target_value) || 0), 0);
   const groupTotalOk = totalCatalogValue > 0 && Math.abs(sumGroupTargets - totalCatalogValue) / totalCatalogValue < 0.01;
-  const effectiveSumGroupTargets = sumGroupTargets * scontoGaraFactor;
-  const effectiveTotalCatalogLocal = totalCatalogValue * scontoGaraFactor;
+  const effectiveSumGroupTargets = sumGroupTargets * scontoGaraFactor * lutechPct;
+  const effectiveTotalCatalogLocal = totalCatalogValue * scontoGaraFactor * lutechPct;
 
   return (
     <div className="space-y-4">
@@ -315,7 +324,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
           ${groupTotalOk ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
           {groupTotalOk ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-          Σ {t('business_plan.catalog_target_group_values', "Valori target raggruppamenti")}: {formatCurrency(scontoGaraActive ? effectiveSumGroupTargets : sumGroupTargets, 0)} / {formatCurrency(scontoGaraActive ? effectiveTotalCatalogLocal : totalCatalogValue, 0)} {t('business_plan.catalog_total_catalog', "Totale Catalogo")}
+          Σ {t('business_plan.catalog_target_group_values', "Valori target raggruppamenti")}: {formatCurrency(effectiveSumGroupTargets, 0)} / {formatCurrency(effectiveTotalCatalogLocal, 0)} {t('business_plan.catalog_total_catalog', "Totale Lutech")}
           {!groupTotalOk && ` — ${t('business_plan.catalog_values_dont_match', "i valori non corrispondono al Totale Catalogo")}`}
         </div>
       )}
@@ -327,6 +336,9 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
         const groupFte = (totalCatalogValue > 0 && groupTarget > 0)
           ? (groupTarget / totalCatalogValue) * totalFte
           : 0;
+        const bandoGroupFte = (totalCatalogValue > 0 && groupTarget > 0 && bandoTotalFte)
+          ? (groupTarget / totalCatalogValue) * bandoTotalFte
+          : groupFte / (lutechPct || 1);
 
         const group_reuse_raw = group.reuse_factor;
         const group_reuse_factor = (group_reuse_raw !== null && group_reuse_raw !== undefined)
@@ -359,10 +371,10 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                 <div className="flex items-center gap-3 text-xs ml-2">
                   {totalCatalogValue > 0 && groupFte > 0 && (
                     <div className="inline-flex items-center gap-1 text-indigo-600 font-semibold tabular-nums">
-                      {reuseApplied ? (
-                        <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}>
+                      {reuseApplied || lutechPct < 0.999 ? (
+                        <div title={`${reuseApplied ? `- ${(100 * group_reuse_factor).toFixed(1)}% riuso` : ''} ${lutechPct < 0.999 ? `(Quota RTI: ${Math.round(lutechPct * 100)}%)` : ''}`}>
                           <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
-                          <s className="text-indigo-400 ml-1">{groupFte.toFixed(2)}</s>
+                          <s className="text-indigo-400 ml-1">{bandoGroupFte.toFixed(2)}</s>
                         </div>
                       ) : (
                         <span>{groupFte.toFixed(2)}</span>
@@ -399,7 +411,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
             {/* ── Corpo espanso ── */}
             {!isCollapsedGrp && (
               <div className="p-4 space-y-4">
-                {/* Header: nome + valore target (ora senza trash perché già nell'header collassabile) */}
+                {/* Header: nome + valore target */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-500 font-medium shrink-0">{t('business_plan.catalog_name', "Nome")}:</span>
                   <input
@@ -415,10 +427,13 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                 <div className="flex items-center gap-2 flex-wrap">
                   <label className="text-xs text-slate-500 font-medium">{t('business_plan.catalog_poste_target_value', 'Valore target Poste')}:</label>
                   <div className="flex flex-col">
-                    {scontoGaraActive && groupTarget > 0 ? (
+                    {(scontoGaraActive || rtiActive) && groupTarget > 0 ? (
                       <>
-                        <div className="text-sm font-semibold text-amber-700 tabular-nums">
-                          {formatCurrency(groupTarget * scontoGaraFactor, 0)} €
+                        <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 tabular-nums">
+                          <span>{formatCurrency(groupTarget * scontoGaraFactor * lutechPct, 0)} €</span>
+                          {rtiActive && (
+                            <s className="text-[10px] text-slate-400 tabular-nums">{formatCurrency(groupTarget * scontoGaraFactor, 0)} €</s>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
                           <input
@@ -449,16 +464,15 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                       <span className="text-xs text-slate-400">→</span>
                       <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded font-semibold text-xs">
                         <span>{t('business_plan.catalog_expected_fte', 'FTE previsti')}: </span>
-                        {reuseApplied ? (
-                          <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}>
+                        {reuseApplied || rtiActive ? (
+                          <div title={`${reuseApplied ? `- ${(100 * group_reuse_factor).toFixed(1)}% riuso` : ''} ${rtiActive ? `(Quota RTI: ${Math.round(lutechPct * 100)}%)` : ''}`}>
                             <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
-                            <s className="text-indigo-400 ml-1.5">{groupFte.toFixed(2)}</s>
+                            <s className="text-indigo-400 ml-1.5">{bandoGroupFte.toFixed(2)}</s>
                           </div>
                         ) : (
                           <span>{groupFte.toFixed(2)}</span>
                         )}
                       </div>
-                      {/* NEW: Riuso % override for group */}
                       <label className="flex items-center gap-1">
                         <span className="text-xs text-slate-400">→ {t('business_plan.catalog_reuse', 'Riuso')}:</span>
                         <input
@@ -547,11 +561,14 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                       </thead>
                       <tbody className="">
                         {groupItems.map(it => {
-                          const pct = parseFloat(it.group_pct) || 0;
-                          const fte_before_reuse = groupFte * pct / 100;
-                          const fte = effective_group_fte * pct / 100;
-                          const reuseOnItem = fte < fte_before_reuse;
-                          const posteTot = groupTarget * pct / 100;
+                           const pct = parseFloat(it.group_pct) || 0;
+                           const fte_bando = bandoGroupFte * pct / 100;
+                           const fte_eff = effective_group_fte * pct / 100;
+                           const showFteComparison = fte_eff < fte_bando - 0.0001 || rtiActive;
+
+                           const posteTotEff = groupTarget * pct / 100 * lutechPct * scontoGaraFactor;
+                           const posteTotBando = groupTarget * pct / 100 * scontoGaraFactor;
+                           const showPriceComparison = rtiActive;
                           return (
                             <tr key={it.id} className="bg-white/50 backdrop-blur-sm border border-white/50 rounded-lg hover:bg-white/80 transition-all">
                               <td className="py-1.5 px-3 text-xs text-slate-700 truncate max-w-[180px] rounded-l-lg">
@@ -571,20 +588,27 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, defaultCatalo
                               </td>
                               <td className="py-1.5 text-right text-xs text-indigo-700 font-semibold tabular-nums">
                                 {totalCatalogValue > 0
-                                  ? (reuseOnItem
-                                    ? <div title={`- ${(100 * group_reuse_factor).toFixed(1)}% riuso`}><span className="text-sky-700">{fte.toFixed(3)}</span><s className="text-indigo-400 ml-1">{fte_before_reuse.toFixed(3)}</s></div>
-                                    : <span>{fte.toFixed(3)}</span>
+                                  ? (showFteComparison
+                                    ? <div title={`${rtiActive ? `Quota RTI: ${Math.round(lutechPct * 100)}%` : ''}`}><span className="text-sky-700">{fte_eff.toFixed(3)}</span><s className="text-indigo-400 ml-1">{fte_bando.toFixed(3)}</s></div>
+                                    : <span>{fte_eff.toFixed(3)}</span>
                                   )
                                   : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="py-1.5 px-3 text-right tabular-nums rounded-r-lg">
                                 {totalCatalogValue > 0
-                                  ? <div>
-                                    <div className="text-xs text-slate-600">{formatCurrency(posteTot * scontoGaraFactor, 0)}</div>
-                                    {scontoGaraActive && (
-                                      <div className="text-[10px] text-slate-400">{t('business_plan.catalog_tender', 'bando')}: {formatCurrency(posteTot, 0)}</div>
-                                    )}
-                                  </div>
+                                  ? (
+                                    <div className="flex flex-col items-end">
+                                      <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium whitespace-nowrap">
+                                        <span>{formatCurrency(posteTotEff, 0)}</span>
+                                        {showPriceComparison && (
+                                          <s className="text-[10px] text-slate-400 font-normal">{formatCurrency(posteTotBando, 0)}</s>
+                                        )}
+                                      </div>
+                                      {scontoGaraActive && (
+                                        <div className="text-[10px] text-slate-400 whitespace-nowrap">{t('business_plan.catalog_tender_short', 'bando')}: {formatCurrency(posteTotBando / (scontoGaraFactor || 1), 0)}</div>
+                                      )}
+                                    </div>
+                                  )
                                   : <span className="text-slate-300">—</span>}
                               </td>
                             </tr>
@@ -663,14 +687,18 @@ export default function CatalogEditorModal({
 }) {
   const [activeTab, setActiveTab] = useState('items');
   const { t } = useTranslation();
+
+  const lutechPct = (tow?.lutech_pct ?? 100) / 100;
+  const rtiActive = lutechPct < 0.9999;
+  const lutechPctFormatted = Math.round(lutechPct * 100);
   const [expandedMix, setExpandedMix] = useState(new Set());
   const [expandedGroups, setExpandedGroups] = useState(new Set()); // default: tutti collassati
   const [importFeedback, setImportFeedback] = useState(null); // { imported, skipped, errors }
   const csvInputRef = useRef(null);
 
-  const items = tow?.catalog_items || [];
-  const clusters = tow?.catalog_clusters || [];
-  const catalogGroups = tow?.catalog_groups || [];
+  const items = useMemo(() => tow?.catalog_items || [], [tow?.catalog_items]);
+  const clusters = useMemo(() => tow?.catalog_clusters || [], [tow?.catalog_clusters]);
+  const catalogGroups = useMemo(() => tow?.catalog_groups || [], [tow?.catalog_groups]);
   const durationYears = durationMonths / 12;
 
   const refTotalFte = parseFloat(tow?.total_fte ?? 0);
@@ -978,6 +1006,8 @@ export default function CatalogEditorModal({
   //   item_lutech_unit = (item_sell / item_poste) × price_base
   //   item_sconto_pct  = (1 − item_lutech_unit / price_base) × 100
   const itemCalcs = useMemo(() => {
+    const lutechPct = (tow.lutech_pct ?? 100) / 100;
+
     return items.map(item => {
       const groupInfo = itemToGroup[item.id];
       const group = groupInfo?.group;
@@ -1003,8 +1033,13 @@ export default function CatalogEditorModal({
         item.profile_mix || [], profileMappings, profileRates, durationMonths, defaultDailyRate
       );
 
+      // ── APPLY RTI Reduction to Costs and FTE ──
+      const scaled_item_fte = item_fte * lutechPct;
+      const scaled_item_fte_before_reuse = item_fte_before_reuse * lutechPct;
+      const scaled_group_fte = group_fte * lutechPct;
+
       // Costo Tot. = FTE × tariffa × anni × giorni/FTE
-      const item_cost = item_fte * rate * durationYears * daysPerFte;
+      const item_cost = scaled_item_fte * rate * durationYears * daysPerFte;
 
       const is_default_margin = item.target_margin_pct === null || item.target_margin_pct === undefined;
       const effective_margin = is_default_margin
@@ -1018,42 +1053,48 @@ export default function CatalogEditorModal({
       const price_base_orig = parseFloat(item.price_base) || 0;
 
       // Applica sconto gara/lotto ai valori Poste (proporzionale)
-      const effective_group_target = group_target * scontoGaraFactor;
-      const effective_price_base = price_base_orig * scontoGaraFactor;
+      const effective_group_target = group_target * scontoGaraFactor * lutechPct;
+      const effective_price_base = price_base_orig * scontoGaraFactor * lutechPct;
 
       // Pz. Poste Tot. = effective_group_target × item_pct / 100
-      const item_poste_total_orig = group_target * item_pct / 100;
+      const item_poste_total_orig = group_target * item_pct / 100 * lutechPct;
       const item_poste_total = effective_group_target * item_pct / 100;
 
       // Pz. Unitario Lutech = (item_sell / item_poste) × effective_price_base
-      // Nota: i fattori si cancellano → lutech_unit_abs invariato rispetto all'originale
       const item_lutech_unit = (item_poste_total > 0 && effective_price_base > 0)
         ? (item_sell_price / item_poste_total) * effective_price_base
         : 0;
 
       // Sconto % = (1 − lutech_unit / effective_price_base) × 100
+      // Nota: lo sconto si calcola sul bando originale per coerenza
       const item_sconto_pct = (price_base_orig > 0 && item_lutech_unit > 0)
-        ? (1 - item_lutech_unit / price_base_orig) * 100
+        ? (1 - (item_lutech_unit / lutechPct) / price_base_orig) * 100
         : 0;
 
       const has_valid_data = !!group && totalCatalogValue > 0 && group_target > 0;
 
       return {
-        rate, item_fte, item_cost,
+        rate, 
+        item_fte: scaled_item_fte, 
+        item_cost,
         effective_margin, is_default_margin,
         item_sell_price,
-        item_poste_total,         // effettivo (post sconto gara)
-        item_poste_total_orig,    // originale da bando
+        item_poste_total,         // effettivo (post sconto gara E post RTI)
+        item_poste_total_orig,    // originale (post RTI)
         effective_price_base,     // Pz. Unit. Poste effettivo
-        price_base_orig,          // Pz. Unit. Poste originale
+        price_base_orig,          // Pz. Unit. Poste originale (100%)
         item_lutech_unit, item_sconto_pct,
-        group_fte, group_target, effective_group_target, item_pct,
+        group_fte: scaled_group_fte, 
+        group_target, 
+        effective_group_target, 
+        item_pct,
         in_group: !!group,
         has_valid_data,
-        item_fte_before_reuse,
+        item_fte_before_reuse: scaled_item_fte_before_reuse,
+        lutechPct
       };
     });
-  }, [items, itemToGroup, totalCatalogValue, refTotalFte, profileMappings, profileRates, defaultDailyRate, durationMonths, durationYears, defaultTargetMarginPct, scontoGaraFactor, daysPerFte]);
+  }, [items, itemToGroup, totalCatalogValue, refTotalFte, profileMappings, profileRates, defaultDailyRate, durationMonths, durationYears, defaultTargetMarginPct, scontoGaraFactor, daysPerFte, tow.lutech_pct, tow?.catalog_reuse_factor]);
 
   const totals = useMemo(() => {
     const totalDerivedFte = itemCalcs.reduce((s, c) => s + c.item_fte, 0);
@@ -1258,7 +1299,14 @@ export default function CatalogEditorModal({
               <BookOpen className="w-5 h-5 text-rose-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="font-semibold text-slate-800 truncate">{tow?.label || 'Catalogo'}</h2>
+              <h2 className="font-semibold text-slate-800 truncate flex items-center gap-2">
+                {tow?.label || 'Catalogo'}
+                {rtiActive && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase rounded-full border border-blue-200 shadow-sm">
+                    Quota RTI: {lutechPctFormatted}%
+                  </span>
+                )}
+              </h2>
               <div className="flex items-center gap-3 flex-wrap mt-1">
 
                 {/* Margine Target */}
@@ -1297,10 +1345,15 @@ export default function CatalogEditorModal({
                 {/* Totale Catalogo € — flip se sconto gara > 0 */}
                 <div className="flex flex-col">
                   <label className="flex items-center gap-1 text-xs text-slate-500">
-                    {t('business_plan.catalog_total', 'Totale Catalogo')}:
-                    {scontoGaraPct > 0 && totalCatalogValue > 0 ? (
-                      <div className="flex flex-col items-end">
-                        <span className="text-sm font-semibold text-amber-700 tabular-nums">{formatCurrency(effectiveTotalCatalog, 0)} €</span>
+                    {rtiActive ? t('business_plan.catalog_total_lutech', 'Totale Lutech') : t('business_plan.catalog_total', 'Totale Catalogo')}:
+                    {(scontoGaraPct > 0 || rtiActive) && totalCatalogValue > 0 ? (
+                       <div className="flex flex-col items-end">
+                         <div className="flex items-center gap-1.5 justify-end">
+                           <span className="text-sm font-semibold text-amber-700 tabular-nums">{formatCurrency(effectiveTotalCatalog * lutechPct, 0)} €</span>
+                           {rtiActive && (
+                             <s className="text-[10px] text-slate-400 tabular-nums">{formatCurrency(effectiveTotalCatalog, 0)} €</s>
+                           )}
+                         </div>
                         <div className="flex items-center gap-0.5">
                           <input
                             type="number"
@@ -1331,14 +1384,37 @@ export default function CatalogEditorModal({
 
                 {/* FTE Contratto — editabile */}
                 <label className="flex items-center gap-1 text-xs text-slate-500">
-                  {t('business_plan.catalog_fte_contract', 'FTE contratto')}:
-                  <input
-                    type="number"
-                    value={tow?.total_fte ?? ''}
-                    onChange={(e) => updateTow({ total_fte: parseFloat(e.target.value) || 0 })}
-                    min="0" step="0.5" placeholder="0.00"
-                    className="w-16 px-1.5 py-0.5 text-xs text-center border border-indigo-300 bg-indigo-50 text-indigo-700 rounded focus:outline-none focus:border-indigo-400 font-semibold"
-                  />
+                  {rtiActive ? t('business_plan.catalog_fte_lutech', 'FTE Lutech') : t('business_plan.catalog_fte_contract', 'FTE contratto')}:
+                  <div className="flex flex-col items-end">
+                    {rtiActive ? (
+                       <>
+                          <div className="flex items-center gap-1.5 justify-end">
+                            <span className="text-sm font-semibold text-indigo-700 tabular-nums">{(refTotalFte * lutechPct).toFixed(2)}</span>
+                            {rtiActive && (
+                              <s className="text-[10px] text-slate-400 tabular-nums">{refTotalFte.toFixed(2)}</s>
+                            )}
+                          </div>
+                         <div className="flex items-center gap-0.5">
+                            <input
+                              type="number"
+                              value={tow?.total_fte ?? ''}
+                              onChange={(e) => updateTow({ total_fte: parseFloat(e.target.value) || 0 })}
+                              min="0" step="0.5" placeholder="0.00"
+                              className="w-12 px-1 py-0.5 text-[10px] text-center border border-slate-100 bg-slate-50 text-slate-400 rounded focus:outline-none focus:border-indigo-300"
+                            />
+                            <span className="text-[9px] text-slate-400">{t('business_plan.catalog_tender_fte', 'bando')}</span>
+                         </div>
+                      </>
+                    ) : (
+                      <input
+                        type="number"
+                        value={tow?.total_fte ?? ''}
+                        onChange={(e) => updateTow({ total_fte: parseFloat(e.target.value) || 0 })}
+                        min="0" step="0.5" placeholder="0.00"
+                        className="w-16 px-1.5 py-0.5 text-xs text-center border border-indigo-300 bg-indigo-50 text-indigo-700 rounded focus:outline-none focus:border-indigo-400 font-semibold"
+                      />
+                    )}
+                  </div>
                 </label>
 
                 <span className="text-xs text-slate-300">|</span>
@@ -1362,6 +1438,7 @@ export default function CatalogEditorModal({
                   title={t('business_plan.catalog_fte_derived', "FTE derivati dal catalogo")}>
                   {totals.totalDerivedFte.toFixed(2)}
                   {refTotalFte > 0 && !fteOk && ` FTE (Δ${fteDiff > 0 ? '+' : ''}${fteDiff.toFixed(2)})`}
+                  {rtiActive && <span className="text-[9px] opacity-60 ml-1">Lutech</span>}
                 </span>
 
                 <span className="text-xs text-slate-500">{t('business_plan.catalog_items', 'Voci')}: <strong className="text-slate-700">{items.length}</strong></span>
@@ -1897,9 +1974,9 @@ export default function CatalogEditorModal({
                         <th className="px-4 py-2 text-left">{t('business_plan.catalog_cluster', "Cluster")}</th>
                         <th className="px-4 py-2 text-center w-8" title={t('business_plan.catalog_title_constraint_type', "Tipo di vincolo")}>{t('business_plan.catalog_constraint_short', "V.")}</th>
                         <th className="px-4 py-2 text-right">{t('business_plan.catalog_req_pct', "% Req.")}</th>
-                        <th className="px-4 py-2 text-right text-indigo-600" title={t('business_plan.catalog_title_target_fte', "FTE target da bando")}>{t('business_plan.catalog_target_fte_header', "FTE Target")}</th>
+                        <th className="px-4 py-2 text-right text-indigo-600" title={t('business_plan.catalog_title_target_fte', "FTE target da bando (riproporzionato Lutech)")}>{t('business_plan.catalog_target_fte_header', rtiActive ? "FTE Target Lutech" : "FTE Target")}</th>
                         <th className="px-4 py-2 text-right">{t('business_plan.catalog_act_pct', "% Att.")}</th>
-                        <th className="px-4 py-2 text-right">{t('business_plan.catalog_act_fte', "FTE Att.")}</th>
+                        <th className="px-4 py-2 text-right">{t('business_plan.catalog_act_fte', rtiActive ? "FTE Att. Lutech" : "FTE Att.")}</th>
                         <th className="px-4 py-2 text-right">Δ%</th>
                         <th className="px-4 py-2 text-center">{t('business_plan.catalog_status', "Stato")}</th>
                       </tr>
@@ -1921,7 +1998,7 @@ export default function CatalogEditorModal({
                           ok = Math.abs(delta) <= 2;
                         }
 
-                        const fteTgt = refTotalFte * required / 100;
+                        const fteTgt = (refTotalFte * lutechPct) * required / 100;
                         const fteAtt = totals.totalDerivedFte * actual / 100;
 
                         const constraintLabel = constraintType === 'maximum' ? '≤' : constraintType === 'minimum' ? '≥' : '=';
@@ -1934,8 +2011,15 @@ export default function CatalogEditorModal({
                             </td>
                             <td className="px-4 py-2 text-center font-semibold text-slate-600 text-sm">{constraintLabel}</td>
                             <td className="px-4 py-2 text-right font-medium">{required.toFixed(0)}%</td>
-                            <td className="px-4 py-2 text-right text-indigo-700 font-semibold">
-                              {refTotalFte > 0 ? fteTgt.toFixed(2) : <span className="text-slate-300">—</span>}
+                            <td className="px-4 py-2 text-right text-indigo-700 font-semibold tabular-nums">
+                              {refTotalFte > 0 ? (
+                                <div className="flex flex-col items-end">
+                                  <span>{fteTgt.toFixed(2)}</span>
+                                  {rtiActive && (
+                                    <s className="text-[10px] text-slate-400 font-normal">{(refTotalFte * required / 100).toFixed(2)}</s>
+                                  )}
+                                </div>
+                              ) : <span className="text-slate-300">—</span>}
                             </td>
                             <td className="px-4 py-2 text-right">{actual.toFixed(1)}%</td>
                             <td className="px-4 py-2 text-right text-slate-700">{fteAtt.toFixed(2)}</td>
@@ -1973,10 +2057,12 @@ export default function CatalogEditorModal({
                   groups={catalogGroups}
                   items={items}
                   totalCatalogValue={totalCatalogValue}
-                  totalFte={totals.totalDerivedFte}
+                  totalFte={refTotalFte * lutechPct}
+                  bandoTotalFte={refTotalFte}
                   defaultCatalogReuseFactor={parseFloat(tow?.catalog_reuse_factor ?? 0)}
                   groupTotals={groupTotals}
                   scontoGaraFactor={scontoGaraFactor}
+                  lutechPct={lutechPct}
                   onGroupsChange={(newGroups) => updateTow({ catalog_groups: newGroups })}
                   onToggleGroupItem={handleToggleGroupItem}
                   onItemPctChange={handleItemPctChange}

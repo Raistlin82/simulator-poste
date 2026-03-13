@@ -44,6 +44,11 @@ export default function ProfileMappingEditor({
   const [expandedProfile, setExpandedProfile] = useState(null);
   const [splitModal, setSplitModal] = useState(null); // { profileId, periodIndex, value }
 
+  // RTI Scaling constants
+  const catalogTow = tows.find(t => t.type === 'catalogo');
+  const lutechPct = (catalogTow?.lutech_pct ?? 100) / 100;
+  const rtiActive = lutechPct < 0.9999;
+
   const lutechProfiles = useMemo(() => {
     return practices.flatMap(practice =>
       (practice.profiles || []).map(profile => ({
@@ -637,7 +642,6 @@ export default function ProfileMappingEditor({
         // Fattore di rettifica (Volume + TOW + Reuse)
         const adjDetail = getProfileFteForPeriod(profileId, m, m);
         const effectiveFactor = adjDetail ? adjDetail.factor : 1.0;
-        const volumeFactor = effectiveFactor / (1 - (reuseFactor / 100)); // Fattore senza riuso
 
         // Per-member effective days/month (respects manual_days_year override)
         const memberEffDaysYear = getEffectiveDaysYear(member, daysPerFte);
@@ -689,7 +693,7 @@ export default function ProfileMappingEditor({
       totalWeightedRate: Math.round(totalNominalCost),
       totalEffWeightedCost: Math.round(totalEffectiveCost)
     };
-  }, [teamComposition, mappings, calculatePeriodMixCost, daysPerFte, durationMonths, inflationPct, getProfileFteForPeriod, reuseFactor]);
+  }, [teamComposition, mappings, calculatePeriodMixCost, daysPerFte, durationMonths, inflationPct, getProfileFteForPeriod, reuseFactor, lutechProfiles]);
 
   if (teamComposition.length === 0) {
     return (
@@ -736,16 +740,16 @@ export default function ProfileMappingEditor({
                   <div>
                     <div className="font-bold text-slate-800 tracking-tight">{posteProfile.label}</div>
                     <div className="text-sm text-slate-500 flex items-center gap-2">
-                      <span className="font-medium">{posteProfile.fte} FTE</span>
+                      <span className="font-medium">{(posteProfile.fte * lutechPct).toFixed(2)} FTE {rtiActive && <span className="text-[10px] opacity-60 ml-0.5">Lutech</span>}</span>
                       <span className="text-slate-300">·</span>
-                      <span>{Math.round(getEffectiveDaysYear(posteProfile, daysPerFte))} GG/anno</span>
+                      <span>{Math.round(getEffectiveDaysYear(posteProfile, daysPerFte) * lutechPct)} GG/anno {rtiActive && <span className="text-[10px] opacity-60 ml-0.5">Lutech</span>}</span>
                       {(() => {
                         const adj = profileAdjustments[profileId];
                         if (adj && adj.delta < 0) {
                           return (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100/50 text-emerald-700 text-[10px] font-black uppercase rounded border border-emerald-200/50 shadow-sm">
                               <TrendingDown className="w-3 h-3" />
-                              → {adj.adjustedFte.toFixed(1)} EFF.
+                              → {(adj.adjustedFte * lutechPct).toFixed(1)} EFF.
                             </span>
                           );
                         }
@@ -1231,7 +1235,7 @@ export default function ProfileMappingEditor({
                     <div className="text-lg font-bold text-slate-800 tracking-tight">Tariffa Media Team Mix Catalogo</div>
                     <div className="text-sm text-slate-500 flex items-center gap-2">
                       <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
-                        {getCatalogMixStats.totalFte.toFixed(1)} FTE catalogo
+                        {(getCatalogMixStats.totalFte * lutechPct).toFixed(1)} FTE {rtiActive ? 'Lutech' : 'catalogo'}
                       </span>
                       <span>sintesi da {getCatalogMixStats.itemCount} voci</span>
                     </div>

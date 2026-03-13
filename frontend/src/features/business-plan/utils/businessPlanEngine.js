@@ -116,14 +116,28 @@ export const calculateTeamCost = (bp, lutechRates, lutechLabels, overrides = {})
             const towAllocation = member.tow_allocation || {};
             let towFactorSum = 0;
             let totalAllocatedPct = 0;
-            for (const [towId, pct] of Object.entries(towAllocation)) {
-                const towPct = parseFloat(pct) || 0;
-                if (towPct > 0) {
-                    const tFactor = adjustmentPeriod.by_tow?.[towId] ?? 1.0;
-                    towFactorSum += (towPct / 100) * tFactor;
-                    totalAllocatedPct += (towPct / 100);
+            const allocationEntries = Object.entries(towAllocation);
+
+            if (allocationEntries.length > 0) {
+                for (const [towId, pct] of allocationEntries) {
+                    const towPct = parseFloat(pct) || 0;
+                    if (towPct > 0) {
+                        const tFactor = adjustmentPeriod.by_tow?.[towId] ?? 1.0;
+                        const towDef = (bp.tows || []).find(t => (t.id === towId || t.tow_id === towId));
+                        // In caso di RTI, usiamo la quota Lutech specifica del TOW (default 100%)
+                        const lutechPct = (towDef?.lutech_pct ?? 100) / 100;
+                        
+                        towFactorSum += (towPct / 100) * tFactor * lutechPct;
+                        totalAllocatedPct += (towPct / 100);
+                    }
                 }
+            } else {
+                // Caso fallback: se non c'è allocazione TOW, usiamo la quota RTI globale se attiva
+                const globalLutechQuota = (bp.is_rti ? (bp.quota_lutech ?? 100) : 100) / 100;
+                towFactorSum = globalLutechQuota;
+                totalAllocatedPct = 1.0;
             }
+
             const finalTowFactor = totalAllocatedPct > 0 ? (towFactorSum / totalAllocatedPct) : 1.0;
 
             // Per-member effective days: if manual_days_year is set, compute effective daysPerFte for this member
@@ -365,7 +379,7 @@ export const calculateGovernanceCost = (bp, lutechRates, teamCost) => {
 /**
  * Calcola i Costi a Catalogo (Margin-First)
  */
-export const calculateCatalogCost = (bp, lutechRates) => {
+export const calculateCatalogCost = (bp) => {
     const tows = bp.tows || bp.tow_config || [];
     const catalogTows = tows.filter(t => t.type === 'catalogo');
 
@@ -377,11 +391,14 @@ export const calculateCatalogCost = (bp, lutechRates) => {
 
         if (computed && computed.items && computed.items.length > 0) {
             // ── READ pre-computed values from CatalogEditorModal ──
-            const towCost = computed.total_cost || 0;
-            // Pz. Poste Tot. = ricavo di committenza (già scontato del % gara) — ricavo corretto da usare
-            // Pz. Vend. Tot. = prezzo vendita Lutech (cost / (1-margin)) — solo info interna
-            const towPosteTotale = computed.total_poste_total || 0;
-            const towSellPrice = computed.total_sell_price || 0;
+            const lutechPct = (tow.lutech_pct ?? 100) / 100;
+            const towCostBase = computed.total_cost || 0;
+            const towPosteTotaleBase = computed.total_poste_total || 0;
+            const towSellPriceBase = computed.total_sell_price || 0;
+
+            const towCost = towCostBase * lutechPct;
+            const towPosteTotale = towPosteTotaleBase * lutechPct;
+            const towSellPrice = towSellPriceBase * lutechPct;
 
             const itemsDetail = computed.items.map(ci => {
                 if (!ci.id) console.warn('[engine] catalog item missing id', ci.label);
@@ -392,10 +409,10 @@ export const calculateCatalogCost = (bp, lutechRates) => {
                 complessita: ci.complessita || '',
                 price_base: 0,
                 group_pct: 0,
-                poste_total: Math.round(ci.poste_total || 0),
-                lutech_cost: Math.round(ci.cost || 0),
-                lutech_revenue: Math.round(ci.sell_price || 0),
-                lutech_margin: Math.round((ci.sell_price || 0) - (ci.cost || 0)),
+                poste_total: Math.round((ci.poste_total || 0) * lutechPct),
+                lutech_cost: Math.round((ci.cost || 0) * lutechPct),
+                lutech_revenue: Math.round((ci.sell_price || 0) * lutechPct),
+                lutech_margin: Math.round(((ci.sell_price || 0) - (ci.cost || 0)) * lutechPct),
                 effective_margin_pct: ci.margin_pct || 0,
                 fte: Math.round((ci.fte || 0) * 100) / 100,
                 lutech_unit_price: Math.round((ci.lutech_unit_price || 0) * 100) / 100,
@@ -406,10 +423,10 @@ export const calculateCatalogCost = (bp, lutechRates) => {
             const groupsDetail = (computed.groups || []).map(g => ({
                 label: g.label || '',
                 target_value: g.target_value || 0,
-                lutech_cost: Math.round(g.cost || 0),
-                lutech_revenue: Math.round(g.sell_price || 0),
-                poste_total: Math.round(g.poste_total || 0),
-                lutech_margin: Math.round(g.margin || 0),
+                lutech_cost: Math.round((g.cost || 0) * lutechPct),
+                lutech_revenue: Math.round((g.sell_price || 0) * lutechPct),
+                poste_total: Math.round((g.poste_total || 0) * lutechPct),
+                lutech_margin: Math.round((g.margin || 0) * lutechPct),
                 fte: 0,
             }));
 

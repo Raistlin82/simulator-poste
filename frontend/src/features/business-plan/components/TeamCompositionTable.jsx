@@ -36,6 +36,8 @@ export default function TeamCompositionTable({
   disabled = false,
   volumeAdjustments = {},
   reuseFactor = 0,
+  isRti = false,
+  quotaLutech = 1.0,
 }) {
   const { t } = useTranslation();
   const [showAddRow, setShowAddRow] = useState(false);
@@ -164,6 +166,7 @@ export default function TeamCompositionTable({
 
       let totalMonths = 0;
       let weightedFte = 0;
+      let weightedFteLutech = 0;
       const periodDetails = [];
 
       for (const period of periods) {
@@ -175,44 +178,69 @@ export default function TeamCompositionTable({
         const pFactor = period.by_profile?.[profileId] ?? 1.0;
 
         // Member-specific TOW factor
-        let towFactor = 0;
+        let towFactorTotal = 0;
+        let towLutechFactorTotal = 0;
         let totalAllocatedPct = 0;
         const towBreakdown = [];
-        for (const [towId, pct] of Object.entries(towAllocation)) {
-          const tPct = parseFloat(pct) || 0;
-          if (tPct > 0) {
-            const tFactor = period.by_tow?.[towId] ?? 1.0;
-            towFactor += (tPct / 100) * tFactor;
-            totalAllocatedPct += (tPct / 100);
-            if (tFactor < 1.0) {
-              towBreakdown.push({ towId, factor: tFactor, pct: tPct });
+        
+        const allocationEntries = Object.entries(towAllocation);
+        if (allocationEntries.length > 0) {
+          for (const [towId, pct] of allocationEntries) {
+            const tPct = parseFloat(pct) || 0;
+            if (tPct > 0) {
+              const tFactor = period.by_tow?.[towId] ?? 1.0;
+              const towDef = tows.find(t => (t.id === towId || t.tow_id === towId));
+              const lutechPct = (towDef?.lutech_pct ?? 100) / 100;
+
+              towFactorTotal += (tPct / 100) * tFactor;
+              towLutechFactorTotal += (tPct / 100) * tFactor * lutechPct;
+              totalAllocatedPct += (tPct / 100);
+              
+              if (tFactor < 1.0 || (isRti && lutechPct < 1.0)) {
+                towBreakdown.push({ towId, factor: tFactor, lutechPct, pct: tPct });
+              }
             }
           }
+        } else {
+          // No allocation -> fallback
+          towFactorTotal = 1.0;
+          towLutechFactorTotal = (isRti ? quotaLutech : 1.0);
+          totalAllocatedPct = 1.0;
         }
-        const finalTowFactor = totalAllocatedPct > 0 ? (towFactor / totalAllocatedPct) : 1.0;
+
+        const finalTowFactor = totalAllocatedPct > 0 ? (towFactorTotal / totalAllocatedPct) : 1.0;
+        const finalTowLutechFactor = totalAllocatedPct > 0 ? (towLutechFactorTotal / totalAllocatedPct) : 1.0;
 
         const effectiveFte = fte * pFactor * reuseMultiplier * finalTowFactor;
+        const effectiveFteLutech = fte * pFactor * reuseMultiplier * finalTowLutechFactor;
+
         weightedFte += effectiveFte * months;
+        weightedFteLutech += effectiveFteLutech * months;
         totalMonths += months;
 
         periodDetails.push({
-          start, end, pFactor, finalTowFactor, reuseMultiplier,
+          start, end, pFactor, finalTowFactor, finalTowLutechFactor, reuseMultiplier,
           effectiveFte: Math.round(effectiveFte * 100) / 100,
+          effectiveFteLutech: Math.round(effectiveFteLutech * 100) / 100,
           towBreakdown
         });
       }
 
       const avgFte = totalMonths > 0 ? weightedFte / totalMonths : fte;
+      const avgFteLutech = totalMonths > 0 ? weightedFteLutech / totalMonths : (fte * (isRti ? quotaLutech : 1));
+
       result[profileId] = {
         adjustedFte: Math.round(avgFte * 100) / 100,
+        adjustedFteLutech: Math.round(avgFteLutech * 100) / 100,
         delta: Math.round((avgFte - fte) * 100) / 100,
+        deltaLutech: Math.round((avgFteLutech - fte) * 100) / 100,
         periodDetails,
       };
     }
     return result;
-  }, [team, volumeAdjustments, reuseFactor, durationMonths]);
+  }, [team, volumeAdjustments, reuseFactor, durationMonths, isRti, quotaLutech, tows]);
 
-  const hasAnyAdjustment = Object.values(adjustedFteMap).some(v => v.delta !== 0);
+  const hasAnyAdjustment = Object.values(adjustedFteMap).some(v => v.delta !== 0 || v.deltaLutech !== 0);
 
   // Validazione allocazioni TOW per profilo
   const allocationValidation = useMemo(() => {
@@ -237,9 +265,12 @@ export default function TeamCompositionTable({
   const durationYears = durationMonths / 12;
   const totalFte = team.reduce((sum, p) => sum + (parseFloat(p.fte) || 0), 0);
   const totalAdjustedFte = Object.values(adjustedFteMap).reduce((sum, v) => sum + v.adjustedFte, 0);
+  const totalAdjustedFteLutech = Object.values(adjustedFteMap).reduce((sum, v) => sum + v.adjustedFteLutech, 0);
   const totalDays = team.reduce((sum, p) => sum + getEffectiveDaysYear(p, daysPerFte), 0);
-  const totalDaysOverall = totalDays * durationYears;
+  const totalDaysOverallNominal = totalDays * durationYears;
+  const totalDaysOverallLutech = totalAdjustedFteLutech * daysPerFte * durationYears;
   const savingsPct = totalFte > 0 ? ((totalFte - totalAdjustedFte) / totalFte * 100) : 0;
+  const savingsPctLutech = totalFte > 0 ? ((totalFte - totalAdjustedFteLutech) / totalFte * 100) : 0;
 
   const towTypesLabels = {
     task: 'Task',
@@ -248,6 +279,8 @@ export default function TeamCompositionTable({
     canone: 'Canone',
     catalogo: 'Catalogo'
   };
+
+  const preTowColSpan = 6 + (hasAnyAdjustment ? 2 : 0) + (isRti ? 1 : 0);
 
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
@@ -288,7 +321,7 @@ export default function TeamCompositionTable({
           <thead>
             {/* Riga per Categorie TOW */}
             <tr className="border-0">
-              <th colSpan={(hasAnyAdjustment ? 7 : 5) + 2} className="p-0"></th>
+              <th colSpan={preTowColSpan} className="p-0"></th>
               {Object.entries(towsByType).map(([type, groupTows]) => {
                 const isCollapsed = collapsedGroups.has(type);
                 return (
@@ -308,7 +341,7 @@ export default function TeamCompositionTable({
                   </th>
                 );
               })}
-              <th colSpan={2} className="p-0"></th>
+              <th colSpan={2} className="px-2 py-1 bg-slate-50 border-b-2 border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-400">Totale</th>
             </tr>
             {/* Riga Header Standard */}
             <tr>
@@ -318,7 +351,7 @@ export default function TeamCompositionTable({
               <th className="px-4 py-2 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest-plus font-display w-24">FTE Nom.</th>
               {hasAnyAdjustment && (
                 <>
-                  <th className="px-4 py-2 text-center text-[9px] font-black text-indigo-600 uppercase tracking-widest-plus font-display w-24" title="FTE dopo rettifica volumi e riuso">
+                  <th className="px-4 py-2 text-center text-[9px] font-black text-indigo-600 uppercase tracking-widest-plus font-display w-24" title={isRti ? "FTE Effettivi a carico Lutech (include ottimizzazioni e quota RTI)" : "FTE dopo rettifica volumi e riuso"}>
                     <div className="flex items-center justify-center gap-1">
                       <TrendingDown className="w-3.5 h-3.5" />
                       FTE Eff.
@@ -328,7 +361,14 @@ export default function TeamCompositionTable({
                 </>
               )}
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">GG/Anno</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">GG Totale</th>
+              <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">
+                {isRti ? 'GG Tot. Nom.' : 'GG Totale'}
+              </th>
+              {isRti && (
+                <th className="px-4 py-2 text-center text-[10px] font-black text-blue-600 uppercase tracking-widest w-28" title="Giorni totali effettivi a carico Lutech (include RTI)">
+                  GG Tot. Eff.
+                </th>
+              )}
               
               {Object.entries(towsByType).map(([type, groupTows]) => {
                 const isCollapsed = collapsedGroups.has(type);
@@ -349,13 +389,19 @@ export default function TeamCompositionTable({
               })}
 
               <th className="px-3 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">{t('business_plan.team_total_pct', 'Tot %')}</th>
-              <th className="px-4 py-2 w-12"></th>
+              <th className="px-4 py-2 w-12 text-center">
+                {isRti ? (
+                  <div className="flex items-center justify-center gap-1 text-[9px] text-blue-500 font-black">
+                     RTI
+                  </div>
+                ) : null}
+              </th>
             </tr>
           </thead>
           <tbody className="">
             {team.length === 0 && !showAddRow ? (
               <tr>
-                <td colSpan={(hasAnyAdjustment ? 8 : 6) + tows.length + 1} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={preTowColSpan + tows.length + 2} className="px-4 py-8 text-center text-slate-500">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="w-8 h-8 text-slate-300" />
                     <p>{t('business_plan.team_no_profiles')}</p>
@@ -431,14 +477,14 @@ export default function TeamCompositionTable({
                         <>
                           <td className="px-4 py-2">
                             <div className={`px-2 py-1 text-center rounded-lg font-bold text-xs border
-                                          ${adj && adj.delta < 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                              {adj ? adj.adjustedFte.toFixed(2) : parseFloat(profile.fte).toFixed(2)}
+                                          ${adj && (isRti ? adj.deltaLutech : adj.delta) < 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                              {adj ? (isRti ? adj.adjustedFteLutech.toFixed(2) : adj.adjustedFte.toFixed(2)) : parseFloat(profile.fte).toFixed(2)}
                             </div>
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {adj && adj.delta !== 0 ? (
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${adj.delta < 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                                {adj.delta > 0 ? `+${adj.delta.toFixed(1)}` : adj.delta.toFixed(1)}
+                            {adj && (isRti ? Math.abs(adj.deltaLutech) > 0.001 : Math.abs(adj.delta) > 0.001) ? (
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${ (isRti ? adj.deltaLutech : adj.delta) < 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                {isRti ? (adj.deltaLutech > 0 ? `+${adj.deltaLutech.toFixed(1)}` : adj.deltaLutech.toFixed(1)) : (adj.delta > 0 ? `+${adj.delta.toFixed(1)}` : adj.delta.toFixed(1))}
                               </span>
                             ) : (
                               <span className="text-slate-300">-</span>
@@ -485,6 +531,13 @@ export default function TeamCompositionTable({
                           );
                         })()}
                       </td>
+                      {isRti && (
+                        <td className="px-4 py-2">
+                          <div className="px-2 py-1 text-center rounded font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                             {Math.round((adj?.adjustedFteLutech ?? 0) * daysPerFte * durationYears)}
+                          </div>
+                        </td>
+                      )}
                       
                       {Object.entries(towsByType).map(([type, groupTows]) => {
                         const isCollapsed = collapsedGroups.has(type);
@@ -548,7 +601,7 @@ export default function TeamCompositionTable({
                     {/* Dettaglio Espanso (Time Slices) */}
                     {isExpanded && adj && adj.periodDetails && (
                       <tr className="bg-slate-50/80">
-                        <td colSpan={15 + tows.length} className="px-8 py-3 bg-slate-50/50">
+                        <td colSpan={preTowColSpan + tows.length + 2} className="px-8 py-3 bg-slate-50/50">
                           <div className="border-l-2 border-blue-200 pl-6 space-y-2">
                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                               <Calendar className="w-3 h-3" />
@@ -707,11 +760,11 @@ export default function TeamCompositionTable({
                         {totalAdjustedFte.toFixed(1)} FTE eff.
                       </span>
                     </div>
-                    <div className={`px-2 py-1 rounded-lg text-xs font-bold ${savingsPct > 0
+                    <div className={`px-2 py-1 rounded-lg text-xs font-bold ${ (isRti ? savingsPctLutech : savingsPct) > 0
                       ? 'bg-red-50 text-red-600 border border-red-200'
                       : 'bg-slate-100 text-slate-500'
                       }`}>
-                      {savingsPct > 0 ? `−${savingsPct.toFixed(1)}%` : '—'}
+                      { (isRti ? savingsPctLutech : savingsPct) > 0 ? `−${ (isRti ? savingsPctLutech : savingsPct).toFixed(1)}%` : '—'}
                     </div>
                   </>
                 )}
@@ -722,9 +775,16 @@ export default function TeamCompositionTable({
                 </div>
                 <div className="px-3 py-1 bg-blue-200 rounded-lg">
                   <span className="text-sm font-semibold text-blue-800">
-                    {Math.round(totalDaysOverall).toLocaleString()} GG totali
+                    {Math.round(totalDaysOverallNominal).toLocaleString()} GG totali
                   </span>
                 </div>
+                {isRti && (
+                  <div className="px-3 py-1 bg-indigo-200 rounded-lg">
+                     <span className="text-sm font-semibold text-indigo-800">
+                       {Math.round(totalDaysOverallLutech).toLocaleString()} GG eff. Lutech
+                     </span>
+                  </div>
+                )}
               </div>
               <div className="text-xs text-slate-400">
                 1 FTE = {daysPerFte} GG/anno · Durata: {durationMonths} mesi ({durationYears.toFixed(1)} anni)
