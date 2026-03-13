@@ -214,6 +214,12 @@ export default function TeamCompositionTable({
         const effectiveFte = fte * pFactor * reuseMultiplier * finalTowFactor;
         const effectiveFteLutech = fte * pFactor * reuseMultiplier * finalTowLutechFactor;
 
+        // GG Effettivi per questo periodo (Poste vs Lutech)
+        // Usiamo getEffectiveDaysYear per riga che gestisce già manual_days_year
+        const nominalDaysYear = getEffectiveDaysYear(member, daysPerFte);
+        const effectiveDays = nominalDaysYear * (months / 12) * pFactor * reuseMultiplier * finalTowFactor;
+        const effectiveDaysLutech = nominalDaysYear * (months / 12) * pFactor * reuseMultiplier * finalTowLutechFactor;
+
         weightedFte += effectiveFte * months;
         weightedFteLutech += effectiveFteLutech * months;
         totalMonths += months;
@@ -222,6 +228,8 @@ export default function TeamCompositionTable({
           start, end, pFactor, finalTowFactor, finalTowLutechFactor, reuseMultiplier,
           effectiveFte: Math.round(effectiveFte * 100) / 100,
           effectiveFteLutech: Math.round(effectiveFteLutech * 100) / 100,
+          effectiveDays: Math.round(effectiveDays),
+          effectiveDaysLutech: Math.round(effectiveDaysLutech),
           towBreakdown
         });
       }
@@ -229,16 +237,22 @@ export default function TeamCompositionTable({
       const avgFte = totalMonths > 0 ? weightedFte / totalMonths : fte;
       const avgFteLutech = totalMonths > 0 ? weightedFteLutech / totalMonths : (fte * (isRti ? quotaLutech : 1));
 
+      // Totale giorni sull'intera durata
+      const totalDaysEff = periodDetails.reduce((sum, p) => sum + p.effectiveDays, 0);
+      const totalDaysEffLutech = periodDetails.reduce((sum, p) => sum + p.effectiveDaysLutech, 0);
+
       result[profileId] = {
         adjustedFte: Math.round(avgFte * 100) / 100,
         adjustedFteLutech: Math.round(avgFteLutech * 100) / 100,
+        adjustedDays: totalDaysEff,
+        adjustedDaysLutech: totalDaysEffLutech,
         delta: Math.round((avgFte - fte) * 100) / 100,
         deltaLutech: Math.round((avgFteLutech - fte) * 100) / 100,
         periodDetails,
       };
     }
     return result;
-  }, [team, volumeAdjustments, reuseFactor, durationMonths, isRti, quotaLutech, tows]);
+  }, [team, volumeAdjustments, reuseFactor, durationMonths, isRti, quotaLutech, tows, daysPerFte]);
 
   const hasAnyAdjustment = Object.values(adjustedFteMap).some(v => v.delta !== 0 || v.deltaLutech !== 0);
 
@@ -267,8 +281,8 @@ export default function TeamCompositionTable({
   const totalAdjustedFte = Object.values(adjustedFteMap).reduce((sum, v) => sum + v.adjustedFte, 0);
   const totalAdjustedFteLutech = Object.values(adjustedFteMap).reduce((sum, v) => sum + v.adjustedFteLutech, 0);
   const totalDays = team.reduce((sum, p) => sum + getEffectiveDaysYear(p, daysPerFte), 0);
-  const totalDaysOverallNominal = totalDays * durationYears;
-  const totalDaysOverallLutech = totalAdjustedFteLutech * daysPerFte * durationYears;
+  const totalDaysOverallNominal = team.reduce((sum, p) => sum + (getEffectiveDaysYear(p, daysPerFte) * durationYears), 0);
+  const totalDaysOverallLutech = Object.values(adjustedFteMap).reduce((sum, v) => sum + v.adjustedDaysLutech, 0);
   const savingsPct = totalFte > 0 ? ((totalFte - totalAdjustedFte) / totalFte * 100) : 0;
   const savingsPctLutech = totalFte > 0 ? ((totalFte - totalAdjustedFteLutech) / totalFte * 100) : 0;
 
@@ -534,7 +548,7 @@ export default function TeamCompositionTable({
                       {isRti && (
                         <td className="px-4 py-2">
                           <div className="px-2 py-1 text-center rounded font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                             {Math.round((adj?.adjustedFteLutech ?? 0) * daysPerFte * durationYears)}
+                             {adj ? Math.round(adj.adjustedDaysLutech) : Math.round(getEffectiveDaysYear(profile, daysPerFte) * durationYears * (isRti ? quotaLutech : 1))}
                           </div>
                         </td>
                       )}
