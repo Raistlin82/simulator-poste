@@ -757,7 +757,7 @@ export default function TeamCompositionTable({
                     <span className="text-slate-400">→</span>
                     <div className="px-3 py-1 bg-emerald-100 rounded-lg border border-emerald-200">
                       <span className="text-sm font-semibold text-emerald-700">
-                        {totalAdjustedFte.toFixed(1)} FTE eff.
+                        {(isRti ? totalAdjustedFteLutech : totalAdjustedFte).toFixed(1)} FTE eff.
                       </span>
                     </div>
                     <div className={`px-2 py-1 rounded-lg text-xs font-bold ${ (isRti ? savingsPctLutech : savingsPct) > 0
