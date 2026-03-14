@@ -356,7 +356,7 @@ export default function TowConfigTable({
                     </td>
                     {/* Lutech % — editabile per tutti i TOW per gestire RTI */}
                     <td className="px-4 py-2">
-                      <div className="relative group/pct">
+                      <div className="relative group">
                         <input
                           type="number"
                           value={tow.lutech_pct ?? (quotaLutech * 100)}
@@ -366,16 +366,16 @@ export default function TowConfigTable({
                           max="100"
                           step="5"
                           className={`w-full px-2 py-1 text-center border rounded focus:outline-none text-xs
-                          ${(tow.lutech_pct ?? (quotaLutech * 100)) < 100
+                          ${(parseFloat(tow.lutech_pct ?? (quotaLutech * 100))) < 100
                               ? 'border-indigo-300 bg-indigo-50 text-indigo-700 focus:border-indigo-500'
                               : 'border-slate-200 focus:border-indigo-300'}
                           disabled:bg-slate-50 disabled:cursor-not-allowed`}
                         />
-                        {tow.lutech_pct !== undefined && tow.lutech_pct !== (quotaLutech * 100) && (
+                        {tow.lutech_pct !== undefined && tow.lutech_pct !== null && parseFloat(tow.lutech_pct) !== (quotaLutech * 100) && (
                           <button
                             onClick={() => handleUpdateTow(idx, 'lutech_pct', undefined)}
-                            className="absolute -right-2 -top-2 p-1 bg-white border border-indigo-200 rounded-full text-indigo-400 
-                                     hover:text-indigo-600 hover:border-indigo-400 shadow-sm opacity-0 group-hover/pct:opacity-100 transition-opacity"
+                            className="absolute -right-2 -top-2 p-1 bg-white border border-indigo-200 rounded-full text-indigo-500 
+                                     hover:text-indigo-700 hover:border-indigo-400 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
                             title="Ripristina quota default RTI"
                           >
                             <RefreshCw className="w-2.5 h-2.5" />
