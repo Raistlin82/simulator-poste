@@ -799,6 +799,16 @@
         "team_no_profiles": "No profiles configured",
         "team_factor_profile": "Profile Factor",
         "team_factor_reuse": "Reuse Factor",
-        "team_tow_reduction": "TOW Reduction"
+        "team_tow_reduction": "TOW Reduction",
+        "tow_add_btn": "Add TOW",
+        "tow_add_first": "Add first Type of Work",
+        "tow_lutech_quota": "% of TOW performed by Lutech (e.g. in RTI)",
+        "tow_lutech_pct": "Lutech %",
+        "tow_reset_rti_quota": "Reset default RTI quota",
+        "tow_derived_fte": "FTE derived from catalog",
+        "tow_no_clusters": "No clusters configured. Open editor and go to the Cluster tab.",
+        "tow_catalog_edit": "Edit items and clusters →",
+        "tow_rti_quota_warning_title": "RTI Quota Warning",
+        "tow_rti_quota_warning_body": "The weighted sum of Lutech participations in the TOWs ({{weighted}}%) does not match the global RTI quota set ({{global}}%). Economic calculation will use the detail quotas of individual TOWs."
     }
 }
