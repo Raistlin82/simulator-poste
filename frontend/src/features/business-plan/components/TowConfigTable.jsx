@@ -1,6 +1,6 @@
-import { useState, useMemo, Fragment } from 'react';
+import { useState, useMemo, useEffect, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Layers, Plus, Trash2, GripVertical, Percent, Save, X, TrendingDown, Info, AlertTriangle, BookOpen, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { Layers, Plus, Trash2, GripVertical, Percent, Save, X, TrendingDown, Info, AlertTriangle, BookOpen, ChevronDown, ChevronUp, CheckCircle2, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 
 /**
@@ -22,6 +22,8 @@ export default function TowConfigTable({
   profileRates = {},
   defaultDailyRate = 250,
   daysPerFte = 220,
+  isRti = false,
+  quotaLutech = 1.0,
 }) {
   const { t } = useTranslation();
   const [showAddRow, setShowAddRow] = useState(false);
@@ -34,8 +36,14 @@ export default function TowConfigTable({
     num_tasks: 0,
     duration_months: 0,
     activities: '',
-    deliverables: ''
+    deliverables: '',
+    lutech_pct: quotaLutech * 100
   });
+
+  // Re-sync newTow default if quotaLutech changes
+  useEffect(() => {
+    setNewTow(prev => ({ ...prev, lutech_pct: quotaLutech * 100 }));
+  }, [quotaLutech]);
 
   const towTypes = [
     { value: 'task', label: t('business_plan.tow_type_task', 'Task'), color: 'blue' },
@@ -63,7 +71,8 @@ export default function TowConfigTable({
       num_tasks: 0,
       duration_months: 0,
       activities: '',
-      deliverables: ''
+      deliverables: '',
+      lutech_pct: quotaLutech * 100
     });
     setShowAddRow(false);
   };
@@ -95,8 +104,20 @@ export default function TowConfigTable({
   };
 
   // Calcola totale pesi
-  const totalWeight = tows.reduce((sum, t) => sum + (parseFloat(t.weight_pct) || 0), 0);
+  const totalWeight = useMemo(() => tows.reduce((sum, t) => sum + (parseFloat(t.weight_pct) || 0), 0), [tows]);
   const isWeightValid = Math.abs(totalWeight - 100) < 0.1;
+
+  // Calcola quota RTI pesata (per verifica)
+  const weightedRtiQuota = useMemo(() => {
+    if (!isRti || tows.length === 0) return 1.0;
+    return tows.reduce((sum, t) => {
+      const weight = (parseFloat(t.weight_pct) || 0) / 100;
+      const tLutech = (parseFloat(t.lutech_pct ?? (quotaLutech * 100))) / 100;
+      return sum + (weight * tLutech);
+    }, 0);
+  }, [tows, isRti, quotaLutech]);
+
+  const isRtiQuotaValid = Math.abs(weightedRtiQuota - quotaLutech) < 0.005;
 
   const getTypeStyle = (type) => {
     const t = towTypes.find(tt => tt.value === type);
@@ -340,20 +361,32 @@ export default function TowConfigTable({
                           <span className="text-xs text-slate-400">100%</span>
                         </div>
                       ) : (
-                        <input
-                          type="number"
-                          value={tow.lutech_pct ?? 100}
-                          onChange={(e) => handleUpdateTow(idx, 'lutech_pct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                          disabled={disabled}
-                          min="0"
-                          max="100"
-                          step="5"
-                          className={`w-full px-2 py-1 text-center border rounded focus:outline-none text-xs
-                          ${(tow.lutech_pct ?? 100) < 100
-                              ? 'border-indigo-300 bg-indigo-50 text-indigo-700 focus:border-indigo-500'
-                              : 'border-slate-200 focus:border-indigo-300'}
-                          disabled:bg-slate-50 disabled:cursor-not-allowed`}
-                        />
+                        <div className="relative group/pct">
+                          <input
+                            type="number"
+                            value={tow.lutech_pct ?? (quotaLutech * 100)}
+                            onChange={(e) => handleUpdateTow(idx, 'lutech_pct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                            disabled={disabled}
+                            min="0"
+                            max="100"
+                            step="5"
+                            className={`w-full px-2 py-1 text-center border rounded focus:outline-none text-xs
+                            ${(tow.lutech_pct ?? (quotaLutech * 100)) < 100
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-700 focus:border-indigo-500'
+                                : 'border-slate-200 focus:border-indigo-300'}
+                            disabled:bg-slate-50 disabled:cursor-not-allowed`}
+                          />
+                          {tow.lutech_pct !== undefined && tow.lutech_pct !== (quotaLutech * 100) && (
+                            <button
+                              onClick={() => handleUpdateTow(idx, 'lutech_pct', undefined)}
+                              className="absolute -right-2 -top-2 p-1 bg-white border border-indigo-200 rounded-full text-indigo-400 
+                                       hover:text-indigo-600 hover:border-indigo-400 shadow-sm opacity-0 group-hover/pct:opacity-100 transition-opacity"
+                              title="Ripristina quota default RTI"
+                            >
+                              <RefreshCw className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-2">
@@ -708,14 +741,15 @@ export default function TowConfigTable({
         </table>
       </div>
 
-      {/* Warning se pesi != 100% */}
-      {tows.length > 0 && !isWeightValid && (
-        <div className="px-4 py-3 bg-amber-50 border-t border-amber-100">
+      {/* Warning RTI Quota Mismatch */}
+      {isRti && tows.length > 0 && !isRtiQuotaValid && (
+        <div className="px-4 py-3 bg-indigo-50 border-t border-indigo-100">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div className="text-xs text-amber-800">
-              <strong>{t('attention', 'Attenzione')}:</strong> {t('business_plan.tow_weight_warning', { value: totalWeight.toFixed(1) })}
-              La ripartizione dei ricavi sarà proporzionale ai pesi configurati.
+            <Info className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-indigo-800">
+              <strong>RTI Quota Warning:</strong> La somma pesata delle partecipazioni Lutech nei TOW ({ (weightedRtiQuota * 100).toFixed(1) }%) 
+              non coincide con la quota RTI globale impostata ({ (quotaLutech * 100).toFixed(1) }%).
+              Il calcolo economico utilizzerà le quote di dettaglio dei singoli TOW.
             </div>
           </div>
         </div>
