@@ -808,6 +808,8 @@
         "tow_no_clusters": "Nessun cluster configurato. Apri l'editor e vai alla tab Cluster.",
         "tow_catalog_edit": "Modifica voci e cluster →",
         "tow_rti_quota_warning_title": "RTI Quota Warning",
-        "tow_rti_quota_warning_body": "La somma pesata delle partecipazioni Lutech nei TOW ({{weighted}}%) non coincide con la quota RTI globale impostata ({{global}}%). Il calcolo economico utilizzerà le quote di dettaglio dei singoli TOW."
+        "tow_rti_quota_warning_body": "La somma pesata delle partecipazioni Lutech nei TOW ({{weighted}}%) non coincide con la quota RTI globale impostata ({{global}}%). Il calcolo economico utilizzerà le quote di dettaglio dei singoli TOW.",
+        "catalog_rti_quota_badge": "Quota RTI: {{pct}}%",
+        "catalog_reuse_applied": "- {{pct}}% riuso"
     }
 }

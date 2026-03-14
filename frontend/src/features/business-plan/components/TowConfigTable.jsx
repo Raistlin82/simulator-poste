@@ -268,7 +268,9 @@ export default function TowConfigTable({
               <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('business_plan.tow_desc', 'Descrizione')}</th>
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">{t('business_plan.tow_type', 'Tipo')}</th>
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">{t('business_plan.tow_weight', 'Peso %')}</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title={t('business_plan.tow_lutech_quota', "Quota % del TOW svolta da Lutech (es. in RTI)")}>{t('business_plan.tow_lutech_pct', 'Lutech %')}</th>
+              {isRti && (
+                <th className="px-4 py-2 text-center text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title={t('business_plan.tow_lutech_quota', "Quota % del TOW svolta da Lutech (es. in RTI)")}>{t('business_plan.tow_lutech_pct', 'Lutech %')}</th>
+              )}
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">{t('business_plan.tow_qty', 'Quantità')}</th>
               {hasAdjustments && (
                 <>
@@ -287,7 +289,7 @@ export default function TowConfigTable({
           <tbody className="">
             {tows.length === 0 && !showAddRow ? (
               <tr>
-                <td colSpan={hasAdjustments ? 10 : 8} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={(hasAdjustments ? 10 : 8) - (isRti ? 0 : 1)} className="px-4 py-8 text-center text-slate-500">
                   <div className="flex flex-col items-center gap-2">
                     <Layers className="w-8 h-8 text-slate-300" />
                     <p>{t('business_plan.tow_no_tow')}</p>
@@ -357,8 +359,8 @@ export default function TowConfigTable({
                                  disabled:bg-slate-50 disabled:cursor-not-allowed"
                       />
                     </td>
-                    {/* Lutech % — editabile per tutti i TOW per gestire RTI */}
-                    <td className="px-4 py-2">
+                    {/* Lutech % — visibile solo in RTI */}
+                    {isRti && <td className="px-4 py-2">
                       <div className="relative group">
                         <input
                           type="number"
@@ -385,7 +387,7 @@ export default function TowConfigTable({
                           </button>
                         )}
                       </div>
-                    </td>
+                    </td>}
                     <td className="px-4 py-2">
                       {tow.type === 'task' ? (
                         <input
@@ -537,7 +539,7 @@ export default function TowConfigTable({
                     const clusters = tow.catalog_clusters || [];
                     const totalFteInput = parseFloat(tow.total_fte || 0);
                     const durationYears = durationMonths / 12;
-                    const colCount = hasAdjustments ? 10 : 8;
+                    const colCount = (hasAdjustments ? 10 : 8) - (isRti ? 0 : 1);
 
                     // Compute cluster split: FTE, avg rate, cost per cluster
                     const clusterRows = clusters.map(cluster => {
@@ -668,18 +670,20 @@ export default function TowConfigTable({
                                focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </td>
-                <td className="px-4 py-2">
-                  <input
-                    type="number"
-                    value={newTow.lutech_pct ?? 100}
-                    onChange={(e) => setNewTow({ ...newTow, lutech_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })}
-                    min="0"
-                    max="100"
-                    step="5"
-                    className="w-full px-2 py-1 text-center text-xs border border-indigo-300 rounded
-                               focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                </td>
+                {isRti && (
+                  <td className="px-4 py-2">
+                    <input
+                      type="number"
+                      value={newTow.lutech_pct ?? 100}
+                      onChange={(e) => setNewTow({ ...newTow, lutech_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })}
+                      min="0"
+                      max="100"
+                      step="5"
+                      className="w-full px-2 py-1 text-center text-xs border border-indigo-300 rounded
+                                 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-2">
                   {newTow.type === 'task' ? (
                     <input

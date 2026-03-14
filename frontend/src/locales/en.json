@@ -809,6 +809,8 @@
         "tow_no_clusters": "No clusters configured. Open editor and go to the Cluster tab.",
         "tow_catalog_edit": "Edit items and clusters →",
         "tow_rti_quota_warning_title": "RTI Quota Warning",
-        "tow_rti_quota_warning_body": "The weighted sum of Lutech participations in the TOWs ({{weighted}}%) does not match the global RTI quota set ({{global}}%). Economic calculation will use the detail quotas of individual TOWs."
+        "tow_rti_quota_warning_body": "The weighted sum of Lutech participations in the TOWs ({{weighted}}%) does not match the global RTI quota set ({{global}}%). Economic calculation will use the detail quotas of individual TOWs.",
+        "catalog_rti_quota_badge": "RTI Quota: {{pct}}%",
+        "catalog_reuse_applied": "- {{pct}}% reuse"
     }
 }
