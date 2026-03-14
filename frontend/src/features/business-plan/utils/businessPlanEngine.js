@@ -133,7 +133,8 @@ export const calculateTeamCost = (bp, lutechRates, lutechLabels, overrides = {})
                 }
             } else {
                 // Caso fallback: se non c'è allocazione TOW, usiamo la quota RTI globale se attiva
-                const globalLutechQuota = (bp.is_rti ? (bp.quota_lutech ?? 100) : 100) / 100;
+                // NOTA: bp.quota_lutech è già in formato decimale (es. 0.70), non dividere per 100
+                const globalLutechQuota = bp.is_rti ? (bp.quota_lutech ?? 1.0) : 1.0;
                 towFactorSum = globalLutechQuota;
                 totalAllocatedPct = 1.0;
             }

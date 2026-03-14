@@ -678,7 +678,7 @@ class BusinessPlanService:
                       item_lutech_unit = (sell / poste_total) × price_base
                       item_sconto_pct = (1 − lutech_unit / price_base) × 100
 
-        Returns: { total_cost, by_tow: { tow_id: { cost, revenue, margin, items, cluster_distribution } } }
+        Returns: { total_cost, by_tow: { tow_id: { cost, lutech_revenue, margin, items, cluster_distribution } } }
         """
         total_cost = 0.0
         by_tow: Dict[str, Any] = {}
@@ -852,7 +852,7 @@ class BusinessPlanService:
                 "total_derived_fte": round(total_derived_fte, 4),
                 "total_catalog_value": round(total_catalog_value, 2),
                 "cost": round(tow_cost, 2),
-                "revenue": round(tow_poste_total, 2),
+                "lutech_revenue": round(tow_poste_total, 2),  # Valore Poste quota Lutech (già scalato RTI)
                 "margin": round(tow_margin, 2),
                 "margin_pct": round(tow_margin_pct, 2),
                 "items": items_result,

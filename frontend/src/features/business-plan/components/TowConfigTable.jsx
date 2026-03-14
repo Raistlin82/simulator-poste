@@ -107,17 +107,20 @@ export default function TowConfigTable({
   const totalWeight = useMemo(() => tows.reduce((sum, t) => sum + (parseFloat(t.weight_pct) || 0), 0), [tows]);
   const isWeightValid = Math.abs(totalWeight - 100) < 0.1;
 
-  // Calcola quota RTI pesata (per verifica)
+  // Calcola quota RTI pesata (per verifica) — normalizzata sul peso totale effettivo
   const weightedRtiQuota = useMemo(() => {
-    if (!isRti || tows.length === 0) return 1.0;
+    if (!isRti || tows.length === 0) return quotaLutech;
+    const totalW = tows.reduce((s, t) => s + (parseFloat(t.weight_pct) || 0), 0);
+    if (totalW <= 0) return quotaLutech;
     return tows.reduce((sum, t) => {
-      const weight = (parseFloat(t.weight_pct) || 0) / 100;
+      const weight = (parseFloat(t.weight_pct) || 0) / totalW;
       const tLutech = (parseFloat(t.lutech_pct ?? (quotaLutech * 100))) / 100;
       return sum + (weight * tLutech);
     }, 0);
   }, [tows, isRti, quotaLutech]);
 
-  const isRtiQuotaValid = Math.abs(weightedRtiQuota - quotaLutech) < 0.005;
+  // Tolleranza 1% per evitare falsi warning da arrotondamenti floating-point
+  const isRtiQuotaValid = Math.abs(weightedRtiQuota - quotaLutech) < 0.01;
 
   const getTypeStyle = (type) => {
     const t = towTypes.find(tt => tt.value === type);
