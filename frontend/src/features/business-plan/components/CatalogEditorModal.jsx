@@ -372,7 +372,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, bandoTotalFte
                   {totalCatalogValue > 0 && groupFte > 0 && (
                     <div className="inline-flex items-center gap-1 text-indigo-600 font-semibold tabular-nums">
                       {reuseApplied || lutechPct < 0.999 ? (
-                        <div title={`${reuseApplied ? `- ${(100 * group_reuse_factor).toFixed(1)}% riuso` : ''} ${lutechPct < 0.999 ? `(Quota RTI: ${Math.round(lutechPct * 100)}%)` : ''}`}>
+                        <div title={`${reuseApplied ? t('business_plan.catalog_reuse_applied', '- {{pct}}% riuso', { pct: (100 * group_reuse_factor).toFixed(1) }) : ''} ${lutechPct < 0.999 ? `(${t('business_plan.catalog_rti_quota_badge', 'Quota RTI: {{pct}}%', { pct: Math.round(lutechPct * 100) })})` : ''}`}>
                           <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
                           <s className="text-indigo-400 ml-1">{bandoGroupFte.toFixed(2)}</s>
                         </div>
@@ -465,7 +465,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, bandoTotalFte
                       <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded font-semibold text-xs">
                         <span>{t('business_plan.catalog_expected_fte', 'FTE previsti')}: </span>
                         {reuseApplied || rtiActive ? (
-                          <div title={`${reuseApplied ? `- ${(100 * group_reuse_factor).toFixed(1)}% riuso` : ''} ${rtiActive ? `(Quota RTI: ${Math.round(lutechPct * 100)}%)` : ''}`}>
+                          <div title={`${reuseApplied ? t('business_plan.catalog_reuse_applied', '- {{pct}}% riuso', { pct: (100 * group_reuse_factor).toFixed(1) }) : ''} ${rtiActive ? `(${t('business_plan.catalog_rti_quota_badge', 'Quota RTI: {{pct}}%', { pct: Math.round(lutechPct * 100) })})` : ''}`}>
                             <span className="text-sky-700">{effective_group_fte.toFixed(2)}</span>
                             <s className="text-indigo-400 ml-1.5">{bandoGroupFte.toFixed(2)}</s>
                           </div>
@@ -589,7 +589,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, bandoTotalFte
                               <td className="py-1.5 text-right text-xs text-indigo-700 font-semibold tabular-nums">
                                 {totalCatalogValue > 0
                                   ? (showFteComparison
-                                    ? <div title={`${rtiActive ? `Quota RTI: ${Math.round(lutechPct * 100)}%` : ''}`}><span className="text-sky-700">{fte_eff.toFixed(3)}</span><s className="text-indigo-400 ml-1">{fte_bando.toFixed(3)}</s></div>
+                                    ? <div title={rtiActive ? t('business_plan.catalog_rti_quota_badge', 'Quota RTI: {{pct}}%', { pct: Math.round(lutechPct * 100) }) : ''}><span className="text-sky-700">{fte_eff.toFixed(3)}</span><s className="text-indigo-400 ml-1">{fte_bando.toFixed(3)}</s></div>
                                     : <span>{fte_eff.toFixed(3)}</span>
                                   )
                                   : <span className="text-slate-300">—</span>}
@@ -1303,7 +1303,7 @@ export default function CatalogEditorModal({
                 {tow?.label || 'Catalogo'}
                 {rtiActive && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase rounded-full border border-blue-200 shadow-sm">
-                    Quota RTI: {lutechPctFormatted}%
+                    {t('business_plan.catalog_rti_quota_badge', 'Quota RTI: {{pct}}%', { pct: lutechPctFormatted })}
                   </span>
                 )}
               </h2>
@@ -1747,7 +1747,7 @@ export default function CatalogEditorModal({
                                     ? (calc.item_fte < calc.item_fte_before_reuse
                                       ? (
                                         <div className="flex flex-col items-end">
-                                          <span className="font-semibold text-sky-700" title={`- ${(100 * (1 - (calc.item_fte / calc.item_fte_before_reuse))).toFixed(1)}% riuso`}>{calc.item_fte.toFixed(3)}</span>
+                                          <span className="font-semibold text-sky-700" title={t('business_plan.catalog_reuse_applied', '- {{pct}}% riuso', { pct: (100 * (1 - (calc.item_fte / calc.item_fte_before_reuse))).toFixed(1) })}>{calc.item_fte.toFixed(3)}</span>
                                           <s className="text-slate-400 mt-0.5">{calc.item_fte_before_reuse.toFixed(3)}</s>
                                         </div>
                                       )

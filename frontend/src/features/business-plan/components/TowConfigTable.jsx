@@ -268,7 +268,9 @@ export default function TowConfigTable({
               <th className="px-4 py-2 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('business_plan.tow_desc', 'Descrizione')}</th>
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-36">{t('business_plan.tow_type', 'Tipo')}</th>
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">{t('business_plan.tow_weight', 'Peso %')}</th>
-              <th className="px-4 py-2 text-center text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title={t('business_plan.tow_lutech_quota', "Quota % del TOW svolta da Lutech (es. in RTI)")}>{t('business_plan.tow_lutech_pct', 'Lutech %')}</th>
+              {isRti && (
+                <th className="px-4 py-2 text-center text-[10px] font-black text-indigo-600 uppercase tracking-widest w-20" title={t('business_plan.tow_lutech_quota', "Quota % del TOW svolta da Lutech (es. in RTI)")}>{t('business_plan.tow_lutech_pct', 'Lutech %')}</th>
+              )}
               <th className="px-4 py-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">{t('business_plan.tow_qty', 'Quantità')}</th>
               {hasAdjustments && (
                 <>
@@ -287,7 +289,7 @@ export default function TowConfigTable({
           <tbody className="">
             {tows.length === 0 && !showAddRow ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={(hasAdjustments ? 10 : 8) - (isRti ? 0 : 1)} className="px-4 py-8 text-center text-slate-500">
                   <div className="flex flex-col items-center gap-2">
                     <Layers className="w-8 h-8 text-slate-300" />
                     <p>{t('business_plan.tow_no_tow')}</p>
@@ -357,8 +359,8 @@ export default function TowConfigTable({
                                  disabled:bg-slate-50 disabled:cursor-not-allowed"
                       />
                     </td>
-                    {/* Lutech % — editabile per tutti i TOW per gestire RTI */}
-                    <td className="px-4 py-2">
+                    {/* Lutech % — visibile solo in RTI */}
+                    {isRti && <td className="px-4 py-2">
                       <div className="relative group">
                         <input
                           type="number"
@@ -379,13 +381,13 @@ export default function TowConfigTable({
                             onClick={() => handleUpdateTow(idx, 'lutech_pct', undefined)}
                             className="absolute -right-2 -top-2 p-1 bg-white border border-indigo-200 rounded-full text-indigo-500 
                                      hover:text-indigo-700 hover:border-indigo-400 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                            title="Ripristina quota default RTI"
+                            title={t('business_plan.tow_reset_rti_quota', 'Ripristina quota default RTI')}
                           >
                             <RefreshCw className="w-2.5 h-2.5" />
                           </button>
                         )}
                       </div>
-                    </td>
+                    </td>}
                     <td className="px-4 py-2">
                       {tow.type === 'task' ? (
                         <input
@@ -456,7 +458,7 @@ export default function TowConfigTable({
                             return (
                               <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1
                               ${ok ? 'text-green-700 bg-green-50' : 'text-amber-700 bg-amber-50'}`}
-                                title="FTE derivati dal catalogo">
+                                title={t('business_plan.tow_derived_fte', 'FTE derivati dal catalogo')}>
                                 {ok ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                                 {derivedFte.toFixed(2)}
                               </div>
@@ -537,7 +539,7 @@ export default function TowConfigTable({
                     const clusters = tow.catalog_clusters || [];
                     const totalFteInput = parseFloat(tow.total_fte || 0);
                     const durationYears = durationMonths / 12;
-                    const colCount = hasAdjustments ? 10 : 8;
+                    const colCount = (hasAdjustments ? 10 : 8) - (isRti ? 0 : 1);
 
                     // Compute cluster split: FTE, avg rate, cost per cluster
                     const clusterRows = clusters.map(cluster => {
@@ -562,7 +564,7 @@ export default function TowConfigTable({
                         <td colSpan={colCount} className="px-6 py-3">
                           {clusters.length === 0 ? (
                             <p className="text-xs text-slate-400 italic">
-                              Nessun cluster configurato. Apri l'editor e vai alla tab Cluster.
+                              {t('business_plan.tow_no_clusters', "Nessun cluster configurato. Apri l'editor e vai alla tab Cluster.")}
                             </p>
                           ) : (
                             <table className="w-full text-xs">
@@ -610,7 +612,7 @@ export default function TowConfigTable({
                             disabled={disabled}
                             className="mt-2 text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1"
                           >
-                            <BookOpen className="w-3 h-3" /> Modifica voci e cluster →
+                            <BookOpen className="w-3 h-3" /> {t('business_plan.tow_catalog_edit', 'Modifica voci e cluster →')}
                           </button>
                         </td>
                       </tr>
@@ -668,18 +670,20 @@ export default function TowConfigTable({
                                focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </td>
-                <td className="px-4 py-2">
-                  <input
-                    type="number"
-                    value={newTow.lutech_pct ?? 100}
-                    onChange={(e) => setNewTow({ ...newTow, lutech_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })}
-                    min="0"
-                    max="100"
-                    step="5"
-                    className="w-full px-2 py-1 text-center text-xs border border-indigo-300 rounded
-                               focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                </td>
+                {isRti && (
+                  <td className="px-4 py-2">
+                    <input
+                      type="number"
+                      value={newTow.lutech_pct ?? 100}
+                      onChange={(e) => setNewTow({ ...newTow, lutech_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })}
+                      min="0"
+                      max="100"
+                      step="5"
+                      className="w-full px-2 py-1 text-center text-xs border border-indigo-300 rounded
+                                 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-2">
                   {newTow.type === 'task' ? (
                     <input
@@ -744,9 +748,11 @@ export default function TowConfigTable({
           <div className="flex items-start gap-2">
             <Info className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
             <div className="text-xs text-indigo-800">
-              <strong>RTI Quota Warning:</strong> La somma pesata delle partecipazioni Lutech nei TOW ({ (weightedRtiQuota * 100).toFixed(1) }%) 
-              non coincide con la quota RTI globale impostata ({ (quotaLutech * 100).toFixed(1) }%).
-              Il calcolo economico utilizzerà le quote di dettaglio dei singoli TOW.
+              <strong>{t('business_plan.tow_rti_quota_warning_title', 'RTI Quota Warning')}:</strong>{' '}
+              {t('business_plan.tow_rti_quota_warning_body', 'La somma pesata delle partecipazioni Lutech nei TOW ({{weighted}}%) non coincide con la quota RTI globale impostata ({{global}}%). Il calcolo economico utilizzerà le quote di dettaglio dei singoli TOW.', {
+                weighted: (weightedRtiQuota * 100).toFixed(1),
+                global: (quotaLutech * 100).toFixed(1)
+              })}
             </div>
           </div>
         </div>
