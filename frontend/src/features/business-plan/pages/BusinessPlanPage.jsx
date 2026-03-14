@@ -46,7 +46,7 @@ import { DEFAULT_DAILY_RATE, DAYS_PER_FTE, SCENARIO_PARAMS } from '../constants'
 
 export default function BusinessPlanPage() {
   const { t } = useTranslation();
-  const { selectedLot, myDiscount } = useSimulation();
+  const { selectedLot, myDiscount, setDiscount: setSimulationDiscount } = useSimulation();
   const { config } = useConfig();
   const toast = useToast();
   const {
@@ -71,7 +71,11 @@ export default function BusinessPlanPage() {
   const [lutechProfileBreakdown, setLutechProfileBreakdown] = useState({});
   const [intervals, setIntervals] = useState([]);
   const [teamMixRate, setTeamMixRate] = useState(0);
-  const [discount, setDiscount] = useState(() => myDiscount ?? 0);
+  const [discount, setLocalDiscount] = useState(() => myDiscount ?? 0);
+  const setDiscount = useCallback((val) => {
+    setLocalDiscount(val);
+    setSimulationDiscount('myDiscount', val);
+  }, [setSimulationDiscount]);
   const [targetMargin, setTargetMargin] = useState(15);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -109,7 +113,7 @@ export default function BusinessPlanPage() {
   // Sync discount with sidebar myDiscount whenever the selected lot or the
   // sidebar discount changes so the Margin box stays aligned with the sidebar.
   useEffect(() => {
-    setDiscount(myDiscount ?? 0);
+    setLocalDiscount(myDiscount ?? 0);
   }, [selectedLot, myDiscount]);
 
   // Initialize local state from fetched BP
