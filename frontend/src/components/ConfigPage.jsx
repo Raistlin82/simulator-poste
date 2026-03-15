@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
 import { Plus, Trash2, Copy, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X, Building2, PauseCircle } from 'lucide-react';
@@ -1103,32 +1103,56 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                                                     </div>
 
                                                     <div className="max-h-48 overflow-y-auto bg-white/40 backdrop-blur-md border border-purple-200/30 rounded-xl shadow-inner scrollbar-thin scrollbar-thumb-purple-200 scrollbar-track-transparent">
-                                                        {knownProfCerts
-                                                            .filter(cert => !req.selected_prof_certs?.includes(cert))
-                                                            .filter(cert => cert.toLowerCase().includes(certSearch.toLowerCase()))
-                                                            .map(cert => (
-                                                                <button
-                                                                    key={cert}
-                                                                    onClick={() => {
-                                                                        const current = req.selected_prof_certs || [];
-                                                                        updateRequirement(req.id, 'selected_prof_certs', [...current, cert]);
-                                                                        setCertSearch(''); // Clear search after selection
-                                                                    }}
-                                                                    className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-tight border-b border-purple-100/30 last:border-0 transition-all hover:bg-purple-600 hover:text-white text-slate-700 font-display"
-                                                                >
-                                                                    {cert}
-                                                                </button>
-                                                            ))}
-                                                        {knownProfCerts.length === 0 && (
-                                                            <div className="py-8 text-center">
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">{t('config.no_certs_master_data', 'Nessuna certificazione in Master Data')}</p>
-                                                            </div>
-                                                        )}
-                                                        {knownProfCerts.length > 0 && knownProfCerts.filter(cert => !req.selected_prof_certs?.includes(cert)).filter(cert => cert.toLowerCase().includes(certSearch.toLowerCase())).length === 0 && (
-                                                            <div className="py-8 text-center">
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">{t('config.no_results', 'Nessun risultato trovato')}</p>
-                                                            </div>
-                                                        )}
+                                                        {(() => {
+                                                            const profVendors = masterData?.prof_certs_vendors || {};
+                                                            const filteredCerts = knownProfCerts
+                                                                .filter(cert => !req.selected_prof_certs?.includes(cert))
+                                                                .filter(cert => cert.toLowerCase().includes(certSearch.toLowerCase()));
+                                                            if (filteredCerts.length === 0) {
+                                                                return (
+                                                                    <div className="py-8 text-center">
+                                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">
+                                                                            {knownProfCerts.length === 0
+                                                                                ? t('config.no_certs_master_data', 'Nessuna certificazione in Master Data')
+                                                                                : t('config.no_results', 'Nessun risultato trovato')}
+                                                                        </p>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            // Group by vendor
+                                                            const groups = {};
+                                                            filteredCerts.forEach(cert => {
+                                                                const vk = profVendors[cert] || '__other__';
+                                                                if (!groups[vk]) groups[vk] = [];
+                                                                groups[vk].push(cert);
+                                                            });
+                                                            const getVName = (vk) => {
+                                                                if (!vk || vk === '__other__') return t('master.vendor_other', 'Non categorizzato');
+                                                                return vk.toUpperCase();
+                                                            };
+                                                            return Object.entries(groups)
+                                                                .sort(([a], [b]) => a === '__other__' ? 1 : b === '__other__' ? -1 : getVName(a).localeCompare(getVName(b)))
+                                                                .map(([vk, certs]) => (
+                                                                    <div key={vk}>
+                                                                        <div className="px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/60 border-b border-purple-100/20 sticky top-0">
+                                                                            {getVName(vk)}
+                                                                        </div>
+                                                                        {certs.map(cert => (
+                                                                            <button
+                                                                                key={cert}
+                                                                                onClick={() => {
+                                                                                    const current = req.selected_prof_certs || [];
+                                                                                    updateRequirement(req.id, 'selected_prof_certs', [...current, cert]);
+                                                                                    setCertSearch('');
+                                                                                }}
+                                                                                className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-tight border-b border-purple-100/30 last:border-0 transition-all hover:bg-purple-600 hover:text-white text-slate-700 font-display"
+                                                                            >
+                                                                                {cert}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                ));
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>

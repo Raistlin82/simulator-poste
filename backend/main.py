@@ -135,6 +135,7 @@ def run_auto_migrations():
     # Define migrations: (table_name, column_name, column_type_sql, default_value_sql)
     migrations = [
         ("master_data", "prof_certs_resources", "TEXT", "'{}'"),
+        ("master_data", "prof_certs_vendors", "TEXT", "'{}'"),
     ]
 
     for table, col, col_type, default_val in migrations:
@@ -745,6 +746,348 @@ def get_master_data(db: Session = Depends(get_db)):
 @api_router.post("/master-data", response_model=schemas.MasterData)
 def update_master_data(data: schemas.MasterData, db: Session = Depends(get_db)):
     return crud.update_master_data(db, data)
+
+
+def _resolve_vendor_key(raw_vendor: str, vendor_configs: list) -> str:
+    """Map a raw vendor string (from CSV) to an existing VendorConfig key without DB writes.
+    Checks key, display name, and aliases (all case-insensitive).
+    Returns the matched key, or lowercase of raw_vendor if no match found."""
+    if not raw_vendor or not raw_vendor.strip():
+        return ""
+    key = raw_vendor.strip().lower()
+    for vc in vendor_configs:
+        if vc.key == key:
+            return vc.key
+        if vc.name.lower() == key:
+            return vc.key
+        if key in [a.lower() for a in (vc.aliases or [])]:
+            return vc.key
+    return key  # unresolved but normalised; will be created on confirm
+
+
+def _get_or_create_vendor(db, raw_vendor: str, vendor_configs: list) -> str:
+    """Resolve raw vendor name to a VendorConfig key, creating the config if not found."""
+    if not raw_vendor or not raw_vendor.strip():
+        return ""
+    resolved = _resolve_vendor_key(raw_vendor, vendor_configs)
+    # Always do a fresh DB lookup (in-memory list may be stale across requests)
+    existing = crud.get_vendor_config(db, resolved)
+    if existing:
+        return existing.key
+    # Not found in DB — create it
+    logger.info(f"Auto-creating VendorConfig: key='{resolved}', name='{raw_vendor.strip().title()}'")
+    try:
+        new_vendor = schemas.VendorConfig(
+            key=resolved,
+            name=raw_vendor.strip().title(),
+            aliases=[],
+            cert_patterns=[],
+            enabled=True,
+        )
+        created = crud.create_vendor_config(db, new_vendor)
+        # Update in-memory list so subsequent iterations skip the DB lookup
+        vendor_configs.append(created)
+        return created.key
+    except Exception as exc:
+        logger.warning(f"Failed to create vendor '{resolved}': {exc} — rolling back and retrying lookup")
+        db.rollback()
+        fallback = crud.get_vendor_config(db, resolved)
+        return fallback.key if fallback else resolved
+
+
+@api_router.post("/master-data/import-certs/preview")
+async def preview_cert_list(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Fuzzy-match CSV cert names against existing master data certs. Returns exact/partial/presumed/unmatched."""
+    import csv, io as _io, unicodedata
+    from difflib import SequenceMatcher
+
+    def _normalize(s: str) -> str:
+        s = unicodedata.normalize("NFD", s.lower())
+        return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+    content = await file.read()
+    text = content.decode("utf-8-sig", errors="replace")
+    sep = ";" if text.count(";") > text.count(",") else ","
+    lines = [l for l in text.splitlines() if l.strip()]
+    if not lines:
+        return {"exact": [], "partial": [], "presumed": [], "unmatched": []}
+
+    first_cols = [c.strip().lower() for c in lines[0].split(sep)]
+    _header_kw = {"vendor", "vendor_key", "cert_name", "nome_certificazione"}
+    has_header = any(c in _header_kw for c in first_cols)
+    reader = csv.DictReader(
+        _io.StringIO(text), delimiter=sep,
+        fieldnames=None if has_header else ["vendor", "cert_name"]
+    )
+    master = crud.get_master_data(db)
+    if not master:
+        raise HTTPException(status_code=404, detail="Master data not found")
+    existing_certs = list(master.prof_certs or [])
+    vendor_configs = crud.get_vendor_configs(db, enabled_only=False)
+    # Parse CSV: collect unique cert_name -> raw_vendor
+    csv_certs: dict = {}
+    for row in reader:
+        cert_name = (row.get("cert_name") or row.get("nome_certificazione") or "").strip()
+        raw_vendor = (row.get("vendor") or row.get("vendor_key") or "").strip()
+        if cert_name and cert_name not in csv_certs:
+            csv_certs[cert_name] = raw_vendor
+    # Fuzzy match each CSV cert against existing master certs
+    exact, partial, presumed, unmatched = [], [], [], []
+    normalized_existing = {_normalize(c): c for c in existing_certs}
+    for cert_name, raw_vendor in csv_certs.items():
+        norm = _normalize(cert_name)
+        if norm in normalized_existing:
+            exact.append({"file_cert": cert_name, "matched_cert": normalized_existing[norm], "similarity": 1.0, "csv_vendor": raw_vendor})
+            continue
+        best_ratio, best_match = 0.0, None
+        for ex_cert in existing_certs:
+            ratio = SequenceMatcher(None, norm, _normalize(ex_cert)).ratio()
+            if ratio > best_ratio:
+                best_ratio, best_match = ratio, ex_cert
+        if best_ratio >= 0.6:
+            partial.append({"file_cert": cert_name, "matched_cert": best_match, "similarity": best_ratio, "csv_vendor": raw_vendor})
+        elif best_ratio >= 0.3:
+            presumed.append({"file_cert": cert_name, "matched_cert": best_match, "similarity": best_ratio, "csv_vendor": raw_vendor})
+        else:
+            unmatched.append({"file_cert": cert_name, "csv_vendor": raw_vendor, "suggested_vendor": _resolve_vendor_key(raw_vendor, vendor_configs) if raw_vendor else ""})
+    return {"exact": exact, "partial": partial, "presumed": presumed, "unmatched": unmatched}
+
+
+@api_router.post("/master-data/import-certs/confirm")
+async def confirm_cert_list(body: dict, db: Session = Depends(get_db)):
+    """Commit cert list import: accepted matches update vendor; to_create adds new certs.
+    mode='delta': add to existing list. mode='overwrite': replace list with accepted+created only.
+    Counters are NEVER reset in either mode."""
+    accepted = body.get("accepted", [])   # [{file_cert, matched_cert, csv_vendor}]
+    to_create = body.get("to_create", []) # [{file_cert, vendor_key}]
+    mode = body.get("mode", "delta")
+    master = crud.get_master_data(db)
+    if not master:
+        raise HTTPException(status_code=404, detail="Master data not found")
+    existing = list(master.prof_certs or [])
+    existing_set = set(existing)
+    vendors_dict = dict(master.prof_certs_vendors or {})
+    resources_dict = {
+        k: (len(v) if isinstance(v, list) else int(v or 0))
+        for k, v in (master.prof_certs_resources or {}).items()
+    }
+    vendor_configs = crud.get_vendor_configs(db, enabled_only=False)
+    vendor_updated, added, removed = [], [], []
+    # Accepted matches: update vendor only if CSV has one and cert has none
+    accepted_certs: set = set()
+    for match in accepted:
+        matched_cert = match.get("matched_cert")
+        csv_vendor = (match.get("csv_vendor") or "").strip()
+        if matched_cert:
+            accepted_certs.add(matched_cert)
+            if csv_vendor and not vendors_dict.get(matched_cert):
+                vendors_dict[matched_cert] = _get_or_create_vendor(db, csv_vendor, vendor_configs)
+                vendor_updated.append(matched_cert)
+    # To create: add new certs (never reset existing counters)
+    created_certs: set = set()
+    seen_create: set = set()
+    for item in to_create:
+        cert_name = (item.get("file_cert") or "").strip()
+        raw_vendor = (item.get("vendor_key") or "").strip()
+        if not cert_name or cert_name in seen_create:
+            continue
+        seen_create.add(cert_name)
+        vendor_key = _get_or_create_vendor(db, raw_vendor, vendor_configs) if raw_vendor else ""
+        created_certs.add(cert_name)
+        if cert_name not in existing_set:
+            existing.append(cert_name)
+            existing_set.add(cert_name)
+            vendors_dict.setdefault(cert_name, vendor_key)
+            resources_dict.setdefault(cert_name, 0)  # never reset existing counter
+            added.append(cert_name)
+        elif not vendors_dict.get(cert_name) and vendor_key:
+            vendors_dict[cert_name] = vendor_key
+    # Overwrite mode: keep only certs from accepted_certs + created_certs
+    if mode == "overwrite":
+        keep = accepted_certs | created_certs
+        if not keep:
+            raise HTTPException(status_code=400, detail="Overwrite con zero cert selezionate annullato per evitare la cancellazione dell'intera lista.")
+        removed = [c for c in existing if c not in keep]
+        existing = [c for c in existing if c in keep]
+    master_schema = schemas.MasterData.model_validate(master)
+    master_schema.prof_certs = existing
+    master_schema.prof_certs_vendors = vendors_dict
+    master_schema.prof_certs_resources = resources_dict  # counters untouched
+    crud.update_master_data(db, master_schema)
+    return {"added": added, "vendor_updated": vendor_updated, "removed": removed}
+
+
+@api_router.post("/master-data/import-lutech-resources/preview")
+async def preview_lutech_resources(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Parse a CSV of Lutech certified resources and return fuzzy match results."""
+    import csv, io as _io, unicodedata
+    from difflib import SequenceMatcher
+
+    def _normalize(s: str) -> str:
+        s = unicodedata.normalize("NFD", s.lower())
+        return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+    content = await file.read()
+    text = content.decode("utf-8-sig", errors="replace")
+    sep = ";" if text.count(";") > text.count(",") else ","
+    first_line = text.splitlines()[0][:80] if text.strip() else "(empty)"
+    logger.info(f"[preview] sep='{sep}' first_line={first_line!r}")
+
+    # Parse CSV — support both header and headerless (positional) formats
+    # Expected columns: resource_id/name, cert_name, vendor (vendor optional)
+    lines = [l for l in text.splitlines() if l.strip()]
+    cert_counts: dict = {}
+    cert_vendors: dict = {}
+    vendor_configs = crud.get_vendor_configs(db, enabled_only=False)
+    if lines:
+        first_cols = [c.strip() for c in lines[0].split(sep)]
+        # Detect header: if first row values look like known column names
+        _header_keywords = {"cert_name", "nome_certificazione", "certification", "resource_name", "resource_id", "vendor"}
+        has_header = any(c.lower() in _header_keywords for c in first_cols)
+
+        reader = csv.DictReader(_io.StringIO(text), delimiter=sep)
+        if not has_header:
+            # Positional: col0=resource, col1=cert_name, col2=vendor (optional)
+            reader = csv.DictReader(
+                _io.StringIO(text), delimiter=sep,
+                fieldnames=["resource_id", "cert_name", "vendor"]
+            )
+
+        logger.info(f"[preview] has_header={has_header} fieldnames={getattr(reader, 'fieldnames', None)}")
+        for row in reader:
+            cert_name = (row.get("cert_name") or row.get("nome_certificazione") or row.get("certification") or "").strip()
+            if not cert_name:
+                continue
+            cert_counts[cert_name] = cert_counts.get(cert_name, 0) + 1
+            # Resolve vendor from CSV against existing VendorConfigs (read-only)
+            raw_vendor = (row.get("vendor") or "").strip()
+            if raw_vendor and not cert_vendors.get(cert_name):
+                cert_vendors[cert_name] = _resolve_vendor_key(raw_vendor, vendor_configs)
+        logger.info(f"[preview] parsed {len(cert_counts)} unique certs, {len(cert_vendors)} with vendor. sample: {dict(list(cert_vendors.items())[:3])}")
+
+    master = crud.get_master_data(db)
+    known_certs = list(master.prof_certs or []) if master else []
+    known_norm = {_normalize(c): c for c in known_certs}
+
+    exact, partial, presumed, unmatched = [], [], [], []
+    for file_cert, count in cert_counts.items():
+        norm = _normalize(file_cert)
+        cv = cert_vendors.get(file_cert, "")
+        # Check exact match first (case-insensitive)
+        if norm in known_norm:
+            exact.append({"file_cert": file_cert, "matched_cert": known_norm[norm], "count": count, "similarity": 1.0, "csv_vendor": cv})
+            continue
+        # Find best fuzzy match
+        best_ratio, best_cert = 0.0, None
+        for kn, kc in known_norm.items():
+            r = SequenceMatcher(None, norm, kn).ratio()
+            if r > best_ratio:
+                best_ratio, best_cert = r, kc
+        if best_ratio >= 0.60:
+            partial.append({"file_cert": file_cert, "matched_cert": best_cert, "count": count, "similarity": round(best_ratio, 3), "csv_vendor": cv})
+        elif best_ratio >= 0.30:
+            presumed.append({"file_cert": file_cert, "matched_cert": best_cert, "count": count, "similarity": round(best_ratio, 3), "csv_vendor": cv})
+        else:
+            unmatched.append({"file_cert": file_cert, "count": count, "csv_vendor": cv})
+
+    # Auto-detect vendor for items without explicit CSV vendor (fallback)
+    import re as _re
+
+    def _detect_vendor(cert_name: str) -> str:
+        cert_lower = cert_name.lower()
+        for vc in vendor_configs:
+            for alias in (vc.aliases or []):
+                if alias.lower() in cert_lower:
+                    return vc.key
+            for pattern in (vc.cert_patterns or []):
+                try:
+                    if _re.search(pattern, cert_lower, _re.IGNORECASE):
+                        return vc.key
+                except Exception:
+                    pass
+        return ""
+
+    for item in unmatched:
+        # CSV vendor takes priority; fall back to pattern-based detection
+        item["suggested_vendor"] = item["csv_vendor"] or _detect_vendor(item["file_cert"])
+
+    return {"exact": exact, "partial": partial, "presumed": presumed, "unmatched": unmatched}
+
+
+@api_router.post("/master-data/import-lutech-resources/confirm")
+async def confirm_lutech_resources(
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    """Apply accepted fuzzy matches with delta/overwrite mode + optional cert creation."""
+    accepted = payload.get("accepted", [])
+    to_create = payload.get("to_create", [])       # [{file_cert, vendor_key, count}]
+    mode = payload.get("mode", "delta")             # "delta" | "overwrite"
+    logger.info(f"[confirm] mode={mode} accepted={len(accepted)} to_create={len(to_create)}")
+    if to_create:
+        logger.info(f"[confirm] to_create sample: {to_create[:3]}")
+
+    master = crud.get_master_data(db)
+    if not master:
+        raise HTTPException(status_code=404, detail="Master data not found")
+
+    resources_dict = {
+        k: (len(v) if isinstance(v, list) else int(v or 0))
+        for k, v in (master.prof_certs_resources or {}).items()
+    }
+    vendors_dict = dict(master.prof_certs_vendors or {})
+    certs_list = list(master.prof_certs or [])
+
+    # If overwrite mode, reset ALL counters first (full replacement, not incremental)
+    if mode == "overwrite":
+        resources_dict = {k: 0 for k in resources_dict}
+
+    # Load vendor configs once — used for both accepted vendor backfill and to_create
+    vendor_configs = crud.get_vendor_configs(db, enabled_only=False)
+
+    # Apply accepted matches — update counter AND backfill vendor if currently empty
+    updated = []
+    for match in accepted:
+        matched_cert = match.get("matched_cert")
+        count = int(match.get("count", 0))
+        csv_vendor = (match.get("csv_vendor") or "").strip()
+        if matched_cert:
+            if count > 0:
+                resources_dict[matched_cert] = resources_dict.get(matched_cert, 0) + count
+                updated.append(matched_cert)
+            # Backfill vendor if the cert currently has no vendor assigned
+            if csv_vendor and not vendors_dict.get(matched_cert):
+                vendors_dict[matched_cert] = _get_or_create_vendor(db, csv_vendor, vendor_configs)
+
+    # Create new certifications from unmatched/rejected items
+    created = []
+
+    seen_create = set()
+    for item in to_create:
+        file_cert = (item.get("file_cert") or "").strip()
+        if not file_cert or file_cert in seen_create:
+            continue
+        seen_create.add(file_cert)
+        count = int(item.get("count", 0))
+        # vendor_key from CSV (via frontend) takes priority; resolve/create VendorConfig
+        raw_vendor = (item.get("vendor_key") or "").strip()
+        vendor_key = _get_or_create_vendor(db, raw_vendor, vendor_configs) if raw_vendor else ""
+        if file_cert not in certs_list:
+            certs_list.append(file_cert)
+        if vendor_key:
+            vendors_dict.setdefault(file_cert, vendor_key)
+        resources_dict[file_cert] = resources_dict.get(file_cert, 0) + count
+        created.append(file_cert)
+
+    if mode == "overwrite":
+        keep_certs = set(updated) | set(created)
+        certs_list = [c for c in certs_list if c in keep_certs]
+    master_schema = schemas.MasterData.model_validate(master)
+    master_schema.prof_certs = certs_list
+    master_schema.prof_certs_vendors = vendors_dict
+    master_schema.prof_certs_resources = resources_dict
+    crud.update_master_data(db, master_schema)
+    return {"updated": updated, "created": created}
 
 
 @api_router.post("/config/state")
@@ -1688,12 +2031,16 @@ def export_excel(data: schemas.ExportExcelRequest, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="Lot not found")
     lot_cfg = schemas.LotConfig.model_validate(lot_cfg_db)
 
-    # Get prof_certs_resources from master data
+    # Get prof_certs_resources from master data (coerce any legacy List values to int)
     prof_certs_resources = {}
     try:
         master_data_obj = db.query(models.MasterDataModel).filter_by(id="1").first()
         if master_data_obj:
-            prof_certs_resources = master_data_obj.prof_certs_resources or {}
+            raw = master_data_obj.prof_certs_resources or {}
+            prof_certs_resources = {
+                k: (len(v) if isinstance(v, list) else int(v or 0))
+                for k, v in raw.items()
+            }
     except Exception:
         pass
 

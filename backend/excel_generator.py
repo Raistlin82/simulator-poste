@@ -103,7 +103,7 @@ class ExcelReportGenerator:
         win_probability: float,
         tech_inputs_full: Optional[Dict[str, Any]] = None,
         rti_quotas: Optional[Dict[str, float]] = None,
-        prof_certs_resources: Optional[Dict[str, List[str]]] = None,
+        prof_certs_resources: Optional[Dict[str, int]] = None,
         prof_certs_weights: Optional[Dict[str, float]] = None,
     ):
         self.lot_key = lot_key
@@ -628,8 +628,8 @@ class ExcelReportGenerator:
                     
                     # Logic for Resource Status (Column F = 6)
                     # We check if there are available resources for this cert in self.prof_certs_resources
-                    available_list = self.prof_certs_resources.get(entry['name'], [])
-                    num_available = len(available_list)
+                    _raw = self.prof_certs_resources.get(entry['name'], 0)
+                    num_available = len(_raw) if isinstance(_raw, list) else int(_raw or 0)
                     req_count = entry['count']
                     
                     status_text = "OK" if num_available >= req_count and req_count > 0 else "MANCANTE" if num_available == 0 else "DA VERIFICARE"
@@ -1807,7 +1807,7 @@ def generate_excel_report(
     win_probability: float,
     tech_inputs_full: Optional[Dict[str, Any]] = None,
     rti_quotas: Optional[Dict[str, float]] = None,
-    prof_certs_resources: Optional[Dict[str, List[str]]] = None,
+    prof_certs_resources: Optional[Dict[str, int]] = None,
     prof_certs_weights: Optional[Dict[str, float]] = None,
 ) -> io.BytesIO:
     """Generate Excel report"""

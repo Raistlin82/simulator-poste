@@ -201,7 +201,7 @@ class ExportExcelRequest(BaseModel):
     max_econ_score: float = 40.0
     tech_inputs_full: Dict[str, Any] = Field(default_factory=dict)  # Full tech inputs with cert_company_counts, assigned_company
     rti_quotas: Dict[str, float] = Field(default_factory=dict)  # Company quotas for RTI
-    prof_certs_resources: Dict[str, List[str]] = Field(default_factory=dict)  # cert_label -> [resource names]
+    prof_certs_resources: Dict[str, int] = Field(default_factory=dict)  # cert_label -> Lutech resource count
     prof_certs_weights: Dict[str, float] = Field(default_factory=dict)  # cert_label -> weight (0.1-1.0)
 
 
@@ -226,7 +226,8 @@ class MasterData(BaseModel):
     """Master data shared across all lots"""
     company_certs: List[str] = Field(default_factory=list)
     prof_certs: List[str] = Field(default_factory=list)
-    prof_certs_resources: Optional[Dict[str, List[str]]] = Field(default_factory=dict)
+    prof_certs_resources: Optional[Dict[str, int]] = Field(default_factory=dict)
+    prof_certs_vendors: Optional[Dict[str, str]] = Field(default_factory=dict)
     requirement_labels: List[str] = Field(default_factory=list)
     economic_formulas: Optional[List[Dict[str, Any]]] = None
     rti_partners: List[str] = Field(default_factory=list)  # Available RTI partner companies (excludes Lutech)

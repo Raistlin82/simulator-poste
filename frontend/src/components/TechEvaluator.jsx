@@ -565,25 +565,18 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                                 </div>
                                                                             )}
 
-                                                                            {/* assigned resources picker */}
+                                                                            {/* Lutech master data availability dot */}
                                                                             {(() => {
-                                                                                const effLutechCount = rtiCompanies.length === 1 ? count : ((cur.cert_company_counts?.[cert] || {})['Lutech'] || 0);
-                                                                                const availableResources = masterData?.prof_certs_resources?.[cert] || [];
-                                                                                
-                                                                                if (effLutechCount > 0 && availableResources.length > 0) {
-                                                                                    return (
-                                                                                        <div className="pt-2 mt-1 border-t border-emerald-100/50">
-                                                                                            <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-100">
-                                                                                                <Users className="w-3 h-3 text-emerald-600" />
-                                                                                                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-tight">
-                                                                                                    {t('tech.available_resources')}: {availableResources.length}
-                                                                                                </span>
-                                                                                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-auto" />
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    );
-                                                                                }
-                                                                                return null;
+                                                                                const raw = masterData?.prof_certs_resources?.[cert];
+                                                                                const lutechCount = Array.isArray(raw) ? raw.length : (typeof raw === 'number' ? raw : 0);
+                                                                                return (
+                                                                                    <div className="pt-2 mt-1 border-t border-slate-100/60 flex items-center gap-1.5">
+                                                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${lutechCount > 0 ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                                                                                        <span className={`text-[10px] font-bold uppercase tracking-tight ${lutechCount > 0 ? 'text-emerald-700' : 'text-red-500'}`}>
+                                                                                            {lutechCount > 0 ? t('tech.lutech_has_cert', { count: lutechCount }) : t('tech.lutech_no_cert')}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                );
                                                                             })()}
                                                                         </div>
                                                                     );

@@ -132,6 +132,7 @@ def seed_initial_data(db: Session) -> None:
             company_certs=master_data_file.get("company_certs", []),
             prof_certs=master_data_file.get("prof_certs", []),
             prof_certs_resources=master_data_file.get("prof_certs_resources", {}),
+            prof_certs_vendors=master_data_file.get("prof_certs_vendors", {}),
             requirement_labels=master_data_file.get("requirement_labels", []),
             economic_formulas=master_data_file.get("economic_formulas", []),
             rti_partners=master_data_file.get("rti_partners", []),
@@ -142,6 +143,15 @@ def seed_initial_data(db: Session) -> None:
         if not existing_master.rti_partners:
             existing_master.rti_partners = master_data_file.get("rti_partners", [])
             logger.info(f"Backfilled rti_partners: {len(existing_master.rti_partners)} partners")
+        # Migrate prof_certs_resources from List[str] -> int if needed
+        resources = existing_master.prof_certs_resources or {}
+        if resources and isinstance(next(iter(resources.values()), None), list):
+            existing_master.prof_certs_resources = {k: len(v) for k, v in resources.items()}
+            logger.info("Migrated prof_certs_resources from list to count")
+        # Backfill prof_certs_vendors if missing
+        if not existing_master.prof_certs_vendors:
+            existing_master.prof_certs_vendors = master_data_file.get("prof_certs_vendors", {})
+            logger.info("Backfilled prof_certs_vendors")
 
     db.commit()
     
@@ -295,6 +305,7 @@ def update_master_data(
     db_master.company_certs = master_data.company_certs
     db_master.prof_certs = master_data.prof_certs
     db_master.prof_certs_resources = master_data.prof_certs_resources or {}
+    db_master.prof_certs_vendors = master_data.prof_certs_vendors or {}
     db_master.requirement_labels = master_data.requirement_labels
     if master_data.economic_formulas:
         db_master.economic_formulas = master_data.economic_formulas
@@ -311,6 +322,7 @@ def update_master_data(
         "company_certs": db_master.company_certs or [],
         "prof_certs": db_master.prof_certs or [],
         "prof_certs_resources": db_master.prof_certs_resources or {},
+        "prof_certs_vendors": db_master.prof_certs_vendors or {},
         "requirement_labels": db_master.requirement_labels or [],
         "economic_formulas": db_master.economic_formulas or [],
         "rti_partners": db_master.rti_partners or []

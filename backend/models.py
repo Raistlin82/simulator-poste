@@ -54,7 +54,8 @@ class MasterDataModel(Base):
     id = Column(String(1), primary_key=True, default="1")
     company_certs = Column(SQLiteJSON, default=list)
     prof_certs = Column(SQLiteJSON, default=list)
-    prof_certs_resources = Column(SQLiteJSON, default=dict)  # label -> [Resource Name]
+    prof_certs_resources = Column(SQLiteJSON, default=dict)  # label -> int (count of Lutech resources)
+    prof_certs_vendors = Column(SQLiteJSON, default=dict)    # label -> vendor_key (string)
     requirement_labels = Column(SQLiteJSON, default=list)
     economic_formulas = Column(SQLiteJSON, default=list)
     rti_partners = Column(SQLiteJSON, default=list)  # Available RTI partner companies (excludes Lutech)

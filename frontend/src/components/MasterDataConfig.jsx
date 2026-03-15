@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, CheckCircle, Building2, Database, FileDown, Upload, Bot, Users, X } from 'lucide-react';
@@ -14,6 +14,7 @@ export default function MasterDataConfig() {
         company_certs: [],
         prof_certs: [],
         prof_certs_resources: {},
+        prof_certs_vendors: {},
         requirement_labels: [],
         rti_partners: [],
         ai_enabled: false,
@@ -34,6 +35,8 @@ export default function MasterDataConfig() {
     const [showAddVendor, setShowAddVendor] = useState(false);
     const [newVendor, setNewVendor] = useState({ key: '', name: '' });
     const fileInputRef = useRef(null);
+    const certListInputRef = useRef(null);
+    const resourcesInputRef = useRef(null);
 
     // Modal state for deletions
     const [deleteModalState, setDeleteModalState] = useState({
@@ -46,9 +49,9 @@ export default function MasterDataConfig() {
     const aliasInputRefs = useRef({});
     const patternInputRefs = useRef({});
 
-    // Cert resources modal state
-    const [resourceModal, setResourceModal] = useState({ isOpen: false, certName: '' });
-    const [tempResources, setTempResources] = useState([]);
+    // Fuzzy match import modal state (type: 'resources' | 'certs')
+    const [fuzzyModal, setFuzzyModal] = useState({ isOpen: false, preview: null, accepted: {}, toCreate: {}, mode: 'delta', type: 'resources' });
+    const [expandedCertVendor, setExpandedCertVendor] = useState(null);
 
     const showToast = (type, message) => {
         setToast({ type, message });
@@ -58,25 +61,23 @@ export default function MasterDataConfig() {
     // Auto-save master data when it changes (debounced)
     const saveTimeoutRef = useRef(null);
     const saveMasterData = useCallback(async (newData) => {
-        // Pre-save validation: Check for duplicates
+        // Pre-save deduplication: silently remove duplicates (case-insensitive) instead of blocking
         const sectionsToCheck = ['company_certs', 'prof_certs', 'requirement_labels', 'rti_partners'];
+        let dedupedData = { ...newData };
         for (const sec of sectionsToCheck) {
-            const items = newData[sec] || [];
-            const lowerSet = new Set();
-            for (const item of items) {
-                if (typeof item === 'string') {
-                    const lower = item.toLowerCase().trim();
-                    if (lower !== '' && lowerSet.has(lower)) {
-                        showToast('error', `Salvataggio ritardato: non è possibile salvare, "${item}" è un duplicato in ${sec}. Rimuovilo per salvare le altre modifiche.`);
-                        return; // Abort save
-                    }
-                    lowerSet.add(lower);
-                }
-            }
+            const items = dedupedData[sec] || [];
+            const lowerSeen = new Set();
+            const deduped = items.filter(item => {
+                if (typeof item !== 'string') return true;
+                const lower = item.toLowerCase().trim();
+                if (lower === '' || !lowerSeen.has(lower)) { lowerSeen.add(lower); return true; }
+                return false;
+            });
+            if (deduped.length !== items.length) dedupedData = { ...dedupedData, [sec]: deduped };
         }
 
         try {
-            await axios.post(`${API_URL}/master-data`, newData);
+            await axios.post(`${API_URL}/master-data`, dedupedData);
             showToast('success', t('master.saved'));
             // Refresh ConfigContext so other components (TechEvaluator) get updated masterData
             if (refetchConfig) refetchConfig();
@@ -191,26 +192,151 @@ export default function MasterDataConfig() {
         showToast('success', `Rimossi ${duplicates.length} duplicati in modo permanente.`);
     };
 
-    const openResourceModal = (certName) => {
-        if (!certName) {
-            showToast('error', 'Salva la certificazione prima di aggiungere risorse.');
-            return;
-        }
-        setTempResources([...(data.prof_certs_resources?.[certName] || [])]);
-        setResourceModal({ isOpen: true, certName });
+    // Prof certs helpers
+    const groupedCerts = useMemo(() => {
+        const groups = {};
+        (data.prof_certs || []).forEach(cert => {
+            const key = data.prof_certs_vendors?.[cert] || '__other__';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(cert);
+        });
+        return groups;
+    }, [data.prof_certs, data.prof_certs_vendors]);
+
+    const getVendorName = (key) => {
+        if (!key || key === '__other__') return t('master.vendor_other', 'Non categorizzato');
+        return vendors.find(v => v.key === key)?.name || key;
     };
 
-    const saveResourceModal = () => {
-        const validResources = tempResources.map(r => (typeof r === 'string' ? r.trim() : '')).filter(r => r.length > 0);
+    const addProfCert = (label, vendorKey = '') => {
+        const trimmed = label.trim();
+        if (!trimmed) return;
         setData(prev => ({
             ...prev,
-            prof_certs_resources: {
-                ...(prev.prof_certs_resources || {}),
-                [resourceModal.certName]: validResources
-            }
+            prof_certs: [...prev.prof_certs, trimmed],
+            prof_certs_vendors: { ...prev.prof_certs_vendors, [trimmed]: vendorKey },
+            prof_certs_resources: { ...prev.prof_certs_resources, [trimmed]: 0 },
         }));
-        showToast('success', `Risorse salvate per ${resourceModal.certName}`);
-        setResourceModal({ isOpen: false, certName: '' });
+    };
+
+    const removeProfCert = (cert) => {
+        setData(prev => {
+            const vendors = { ...(prev.prof_certs_vendors || {}) };
+            const resources = { ...(prev.prof_certs_resources || {}) };
+            delete vendors[cert];
+            delete resources[cert];
+            return {
+                ...prev,
+                prof_certs: prev.prof_certs.filter(c => c !== cert),
+                prof_certs_vendors: vendors,
+                prof_certs_resources: resources,
+            };
+        });
+    };
+
+    const updateProfCertCount = (cert, count) => {
+        setData(prev => ({
+            ...prev,
+            prof_certs_resources: { ...(prev.prof_certs_resources || {}), [cert]: Math.max(0, count) }
+        }));
+    };
+
+    const updateProfCertVendor = (cert, vendorKey) => {
+        setData(prev => ({
+            ...prev,
+            prof_certs_vendors: { ...(prev.prof_certs_vendors || {}), [cert]: vendorKey }
+        }));
+    };
+
+    const handleImportCertList = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const res = await axios.post(`${API_URL}/master-data/import-certs/preview`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            const preview = res.data;
+            const accepted = {};
+            (preview.exact || []).forEach(m => { accepted[m.file_cert] = true; });
+            (preview.partial || []).forEach(m => { accepted[m.file_cert] = true; });
+            (preview.presumed || []).forEach(m => { accepted[m.file_cert] = false; });
+            const toCreate = {};
+            (preview.exact || []).forEach(m => { toCreate[m.file_cert] = false; });
+            (preview.unmatched || []).forEach(m => { toCreate[m.file_cert] = true; }); // default: add all new
+            setFuzzyModal({ isOpen: true, preview, accepted, toCreate, mode: 'delta', type: 'certs' });
+        } catch (err) {
+            showToast('error', `${t('master.error_prefix')}: ${err.response?.data?.detail || err.message}`);
+        }
+    };
+
+    const handleImportResourcesPreview = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const res = await axios.post(`${API_URL}/master-data/import-lutech-resources/preview`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            const preview = res.data;
+            // Pre-accept all exact matches, pre-check partial, uncheck presumed
+            const accepted = {};
+            (preview.exact || []).forEach(m => { accepted[m.file_cert] = true; });
+            (preview.partial || []).forEach(m => { accepted[m.file_cert] = true; });
+            (preview.presumed || []).forEach(m => { accepted[m.file_cert] = false; });
+            const toCreate = {};
+            (preview.exact || []).forEach(m => { toCreate[m.file_cert] = false; });
+            (preview.unmatched || []).forEach(m => { toCreate[m.file_cert] = false; });
+            setFuzzyModal({ isOpen: true, preview, accepted, toCreate, mode: 'delta', type: 'resources' });
+        } catch (err) {
+            showToast('error', `${t('master.error_prefix')}: ${err.response?.data?.detail || err.message}`);
+        }
+    };
+
+    const confirmFuzzyImport = async () => {
+        const { preview, accepted, toCreate, mode, type } = fuzzyModal;
+        const allMatches = [...(preview.exact || []), ...(preview.partial || []), ...(preview.presumed || [])];
+        const acceptedList = allMatches.filter(m => accepted[m.file_cert]);
+        const toCreateList = [
+            ...(preview.unmatched || [])
+                .filter(m => toCreate[m.file_cert])
+                .map(m => ({ file_cert: m.file_cert, vendor_key: m.suggested_vendor || '', count: m.count ?? 0 })),
+            ...[...(preview.partial || []), ...(preview.presumed || []), ...(type === 'certs' ? (preview.exact || []) : [])]
+                .filter(m => toCreate[m.file_cert])
+                .map(m => ({ file_cert: m.file_cert, vendor_key: m.csv_vendor || '', count: m.count ?? 0 })),
+        ];
+        const closeFuzzy = () => setFuzzyModal({ isOpen: false, preview: null, accepted: {}, toCreate: {}, mode: 'delta', type: 'resources' });
+        try {
+            if (type === 'certs') {
+                const res = await axios.post(`${API_URL}/master-data/import-certs/confirm`, {
+                    accepted: acceptedList.map(m => ({ file_cert: m.file_cert, matched_cert: m.matched_cert, csv_vendor: m.csv_vendor || '' })),
+                    to_create: toCreateList.map(m => ({ file_cert: m.file_cert, vendor_key: m.vendor_key || '' })),
+                    mode,
+                });
+                const masterRes = await axios.get(`${API_URL}/master-data`);
+                setData(prev => ({ ...prev, ...masterRes.data }));
+                const { added = [], vendor_updated = [] } = res.data;
+                showToast('success', t('master.import_certs_success', { added: added.length, skipped: acceptedList.length }));
+                closeFuzzy();
+            } else {
+                const res = await axios.post(`${API_URL}/master-data/import-lutech-resources/confirm`, {
+                    accepted: acceptedList,
+                    to_create: toCreateList,
+                    mode,
+                });
+                const masterRes = await axios.get(`${API_URL}/master-data`);
+                setData(prev => ({ ...prev, ...masterRes.data }));
+                const { updated = [], created = [] } = res.data;
+                showToast('success', t('master.import_resources_success', { count: updated.length + created.length }));
+                closeFuzzy();
+            }
+        } catch (err) {
+            showToast('error', `${t('master.error_prefix')}: ${err.response?.data?.detail || err.message}`);
+        }
     };
 
     // Vendor management functions
@@ -338,7 +464,11 @@ export default function MasterDataConfig() {
                 await executeDeleteVendor(deleteModalState.data.vendorKey, deleteModalState.data.vendorName);
             } else if (deleteModalState.actionType === 'item' && deleteModalState.data) {
                 logger.info(`Confirming deletion for item: ${deleteModalState.data.label} in ${deleteModalState.data.section}`);
-                deleteItem(deleteModalState.data.section, deleteModalState.data.idx);
+                if (deleteModalState.data.isProfCert) {
+                    removeProfCert(deleteModalState.data.certLabel);
+                } else {
+                    deleteItem(deleteModalState.data.section, deleteModalState.data.idx);
+                }
             } else if (deleteModalState.actionType === 'import_db') {
                 logger.info('Confirming database import');
                 await executeImportDb();
@@ -529,7 +659,7 @@ export default function MasterDataConfig() {
                                         {sections.find(s => s.id === activeSection)?.label}
                                     </h2>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 flex-wrap">
                                     {(activeSection === 'prof_certs' || activeSection === 'company_certs') && (
                                         <button
                                             onClick={checkDuplicates}
@@ -539,7 +669,27 @@ export default function MasterDataConfig() {
                                             <span>Analizza Duplicati</span>
                                         </button>
                                     )}
-                                    {activeSection !== 'ocr_settings' && activeSection !== 'database_tools' && activeSection !== 'ai_config' && (
+                                    {activeSection === 'prof_certs' && (
+                                        <>
+                                            <input type="file" accept=".csv" ref={certListInputRef} className="hidden" onChange={handleImportCertList} />
+                                            <input type="file" accept=".csv" ref={resourcesInputRef} className="hidden" onChange={handleImportResourcesPreview} />
+                                            <button
+                                                onClick={() => certListInputRef.current?.click()}
+                                                className="px-6 py-4 bg-blue-50 text-blue-700 border border-blue-200 rounded-2xl hover:bg-blue-100 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-sm active:scale-95"
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                <span>{t('master.import_certs_btn', 'Import Lista Cert')}</span>
+                                            </button>
+                                            <button
+                                                onClick={() => resourcesInputRef.current?.click()}
+                                                className="px-6 py-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl hover:bg-emerald-100 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-sm active:scale-95"
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                <span>{t('master.import_resources_btn', 'Import Risorse Lutech')}</span>
+                                            </button>
+                                        </>
+                                    )}
+                                    {activeSection !== 'ocr_settings' && activeSection !== 'database_tools' && activeSection !== 'ai_config' && activeSection !== 'prof_certs' && (
                                         <button
                                             onClick={() => addItem(activeSection)}
                                             className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-2xl hover:brightness-110 transition-all flex items-center gap-4 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-xl shadow-indigo-200 active:scale-95 group"
@@ -912,6 +1062,123 @@ export default function MasterDataConfig() {
                                         </div>
                                     </div>
                                 </div>
+                            ) : activeSection === 'prof_certs' ? (
+                                /* Prof Certs — vendor-grouped accordion */
+                                <div className="space-y-4">
+                                    {/* Add cert form */}
+                                    <div className="flex gap-3 mb-2">
+                                        <input
+                                            id="new-prof-cert-input"
+                                            type="text"
+                                            placeholder={t('master.item_placeholder')}
+                                            className="flex-1 p-3 bg-white/60 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/30"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const vendorSel = document.getElementById('new-prof-cert-vendor');
+                                                    addProfCert(e.target.value, vendorSel?.value || '');
+                                                    e.target.value = '';
+                                                }
+                                            }}
+                                        />
+                                        <select
+                                            id="new-prof-cert-vendor"
+                                            className="p-3 bg-white/60 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/30"
+                                        >
+                                            <option value="">{t('master.no_vendor', '-- Nessun Vendor --')}</option>
+                                            {vendors.map(v => <option key={v.key} value={v.key}>{v.name}</option>)}
+                                        </select>
+                                        <button
+                                            onClick={() => {
+                                                const inp = document.getElementById('new-prof-cert-input');
+                                                const sel = document.getElementById('new-prof-cert-vendor');
+                                                addProfCert(inp?.value || '', sel?.value || '');
+                                                if (inp) inp.value = '';
+                                            }}
+                                            className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest font-display shadow-lg shadow-indigo-200 active:scale-95 flex items-center gap-2"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    {Object.keys(groupedCerts).length === 0 ? (
+                                        <div className="text-center py-16 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/20">
+                                            <div className="w-16 h-16 bg-white/60 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-white">
+                                                <Info className="w-8 h-8 text-slate-400" />
+                                            </div>
+                                            <p className="text-slate-500 font-display text-sm font-bold uppercase tracking-widest text-[10px]">{t('master.no_items')}</p>
+                                        </div>
+                                    ) : (
+                                        // Sort: named vendors first, __other__ last
+                                        [...Object.entries(groupedCerts)].sort(([a], [b]) => {
+                                            if (a === '__other__') return 1;
+                                            if (b === '__other__') return -1;
+                                            return getVendorName(a).localeCompare(getVendorName(b));
+                                        }).map(([vendorKey, certs]) => (
+                                            <div key={vendorKey} className="glass-card rounded-2xl border border-white/40 overflow-hidden shadow-sm">
+                                                <button
+                                                    className="w-full flex items-center justify-between p-5 hover:bg-white/60 transition-all"
+                                                    onClick={() => setExpandedCertVendor(expandedCertVendor === vendorKey ? null : vendorKey)}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest font-display text-slate-600">
+                                                            {getVendorName(vendorKey)}
+                                                        </span>
+                                                        <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                                                            {certs.length}
+                                                        </span>
+                                                    </div>
+                                                    {expandedCertVendor === vendorKey ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                                                </button>
+                                                {expandedCertVendor === vendorKey && (
+                                                    <div className="border-t border-white/60 divide-y divide-slate-100/60">
+                                                        {certs.map(cert => {
+                                                            const count = (() => {
+                                                                const v = data.prof_certs_resources?.[cert];
+                                                                return Array.isArray(v) ? v.length : (typeof v === 'number' ? v : 0);
+                                                            })();
+                                                            return (
+                                                                <div key={cert} className="flex items-center gap-3 px-5 py-3 bg-white/30 hover:bg-white/60 transition-all group">
+                                                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${count > 0 ? 'bg-emerald-500' : 'bg-red-300'}`} />
+                                                                    <span className="flex-1 text-sm font-semibold text-slate-800 truncate" title={cert}>{cert}</span>
+                                                                    {/* Vendor selector */}
+                                                                    <select
+                                                                        value={data.prof_certs_vendors?.[cert] || ''}
+                                                                        onChange={(e) => updateProfCertVendor(cert, e.target.value)}
+                                                                        className="text-[10px] font-bold text-slate-500 bg-white/60 border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-400"
+                                                                    >
+                                                                        <option value="">{t('master.no_vendor', '-- Vendor --')}</option>
+                                                                        {vendors.map(v => <option key={v.key} value={v.key}>{v.name}</option>)}
+                                                                    </select>
+                                                                    {/* Count input */}
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            value={count}
+                                                                            onChange={(e) => updateProfCertCount(cert, parseInt(e.target.value, 10) || 0)}
+                                                                            className="w-16 text-center text-sm font-bold text-slate-700 bg-white/60 border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-emerald-400"
+                                                                        />
+                                                                    </div>
+                                                                    {/* Delete */}
+                                                                    <button
+                                                                        onClick={() => setDeleteModalState({
+                                                                            isOpen: true,
+                                                                            actionType: 'item',
+                                                                            data: { section: 'prof_certs', idx: data.prof_certs.indexOf(cert), label: cert, isProfCert: true, certLabel: cert }
+                                                                        })}
+                                                                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50/50 rounded-xl transition-all active:scale-95 opacity-0 group-hover:opacity-100"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             ) : (
                                 /* Standard Data Sections */
                                 <div className="space-y-4">
@@ -953,18 +1220,6 @@ export default function MasterDataConfig() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    {activeSection === 'prof_certs' && typeof item === 'string' && item.trim() && (
-                                                        <button
-                                                            onClick={() => openResourceModal(item)}
-                                                            className="relative p-4 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 rounded-2xl transition-all active:scale-95 translate-x-1 group-hover:translate-x-0 group-hover:opacity-100"
-                                                            title={t('master.resource_modal_btn_title')}
-                                                        >
-                                                            <Users className="w-5 h-5" />
-                                                            {data.prof_certs_resources?.[item]?.length > 0 && (
-                                                                <div className="absolute top-3 right-3 w-2 h-2 bg-indigo-500 rounded-full border border-white shadow-sm"></div>
-                                                            )}
-                                                        </button>
-                                                    )}
                                                     <button
                                                         onClick={() => {
                                                             const sectionDef = sections.find(s => s.id === activeSection);
@@ -1013,73 +1268,278 @@ export default function MasterDataConfig() {
                 }
             />
 
-            {/* Resource Modal */}
-            {resourceModal.isOpen && (
+            {fuzzyModal.isOpen && fuzzyModal.preview && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setResourceModal({ isOpen: false, certName: '' })}></div>
-                    <div className="relative bg-white/90 backdrop-blur-md border border-white p-8 rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="flex justify-between items-center mb-6">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setFuzzyModal({ isOpen: false, preview: null, accepted: {}, toCreate: {}, mode: 'delta', type: 'resources' })}></div>
+                    <div className="relative bg-white/95 backdrop-blur-md border border-white p-8 rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="flex justify-between items-start mb-4 gap-4">
                             <div>
-                                <h3 className="text-[20px] font-black text-slate-800 font-display leading-tight">{resourceModal.certName}</h3>
-                                <p className="text-sm text-slate-500">{t('master.resource_modal_title')}</p>
+                                <h3 className="text-[20px] font-black text-slate-800 font-display leading-tight">
+                                    {fuzzyModal.type === 'certs' ? t('master.import_certs_preview_title', 'Import Lista Certificazioni') : t('master.import_review_title', 'Import Risorse Lutech Certificate')}
+                                </h3>
+                                <p className="text-sm text-slate-500">{t('master.import_review_subtitle', 'Verifica e conferma i match trovati')}</p>
                             </div>
-                            <button onClick={() => setResourceModal({ isOpen: false, certName: '' })} className="p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0">
+                            <button onClick={() => setFuzzyModal({ isOpen: false, preview: null, accepted: {}, toCreate: {}, mode: 'delta', type: 'resources' })} className="p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0">
                                 <X className="w-5 h-5 text-slate-500" />
                             </button>
                         </div>
-                        
-                        <div className="flex-1 overflow-y-auto space-y-3 mb-6 pr-2">
-                            {tempResources.length === 0 ? (
-                                <p className="text-sm text-slate-500 italic p-4 text-center bg-slate-50 rounded-xl">{t('master.resource_modal_empty')}</p>
-                            ) : (
-                                tempResources.map((res, idx) => (
-                                    <div key={idx} className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={res}
-                                            onChange={(e) => {
-                                                const newR = [...tempResources];
-                                                newR[idx] = e.target.value;
-                                                setTempResources(newR);
-                                            }}
-                                            placeholder={t('master.resource_modal_placeholder')}
-                                            className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-sm"
-                                        />
-                                        <button 
-                                            onClick={() => {
-                                                const newR = [...tempResources];
-                                                newR.splice(idx, 1);
-                                                setTempResources(newR);
-                                            }}
-                                            className="p-3 text-red-500 hover:text-red-600 hover:bg-red-50 bg-white border border-slate-200 rounded-xl transition-all shadow-sm active:scale-95"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                ))
-                            )}
-                            <button 
-                                onClick={() => setTempResources([...tempResources, ''])}
-                                className="w-full py-3 mt-4 border-2 border-dashed border-indigo-200 bg-indigo-50/50 text-indigo-600 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all text-sm font-bold flex items-center justify-center gap-2 active:scale-95"
-                            >
-                                <Plus className="w-4 h-4" />
-                                {t('master.resource_modal_add')}
-                            </button>
-                        </div>
-                        
-                        <div className="pt-5 border-t border-slate-200/60 flex justify-end gap-3 mt-auto">
+                        {/* Delta / Overwrite toggle */}
+                        <div className="flex items-center gap-3 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-display">{t('master.import_mode', 'Modalità Import')}:</span>
                             <button
-                                onClick={() => setResourceModal({ isOpen: false, certName: '' })}
+                                onClick={() => setFuzzyModal(prev => ({ ...prev, mode: 'delta' }))}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest font-display transition-all ${fuzzyModal.mode === 'delta' ? 'bg-indigo-600 text-white shadow' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}`}
+                            >
+                                {t('master.import_mode_delta', 'Aggiungi (Delta)')}
+                            </button>
+                            <button
+                                onClick={() => setFuzzyModal(prev => ({ ...prev, mode: 'overwrite' }))}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest font-display transition-all ${fuzzyModal.mode === 'overwrite' ? 'bg-red-600 text-white shadow' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}`}
+                            >
+                                {t('master.import_mode_overwrite', 'Sovrascrivi')}
+                            </button>
+                            {fuzzyModal.mode === 'overwrite' && (
+                                <span className="text-[9px] text-red-500 font-bold">⚠ {fuzzyModal.type === 'certs' ? t('master.import_certs_overwrite_warn', 'Le cert non nel file verranno rimosse') : t('master.import_overwrite_warn', 'I contatori esistenti verranno azzerati')}</span>
+                            )}
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+                            {/* Exact matches */}
+                            {(fuzzyModal.preview.exact || []).length > 0 && (
+                                <div>
+                                    <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-2 flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-emerald-500 rounded-full inline-block" />
+                                        {t('master.match_exact', 'Match Esatti')} ({fuzzyModal.preview.exact.length})
+                                        <div className="ml-auto flex gap-2">
+                                            {fuzzyModal.type === 'certs' ? (
+                                                <>
+                                                    <button onClick={() => setFuzzyModal(prev => {
+                                                        const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                        (prev.preview.exact || []).forEach(m => { accepted[m.file_cert] = true; toCreate[m.file_cert] = false; });
+                                                        return { ...prev, accepted, toCreate };
+                                                    })} className="text-[9px] font-bold text-emerald-600 hover:text-emerald-800 normal-case underline underline-offset-2">tutti match</button>
+                                                    <span className="text-slate-300">|</span>
+                                                    <button onClick={() => setFuzzyModal(prev => {
+                                                        const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                        (prev.preview.exact || []).forEach(m => { accepted[m.file_cert] = false; toCreate[m.file_cert] = true; });
+                                                        return { ...prev, accepted, toCreate };
+                                                    })} className="text-[9px] font-bold text-rose-500 hover:text-rose-700 normal-case underline underline-offset-2">tutti crea</button>
+                                                    <span className="text-slate-300">|</span>
+                                                    <button onClick={() => setFuzzyModal(prev => {
+                                                        const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                        (prev.preview.exact || []).forEach(m => { accepted[m.file_cert] = false; toCreate[m.file_cert] = false; });
+                                                        return { ...prev, accepted, toCreate };
+                                                    })} className="text-[9px] font-bold text-slate-400 hover:text-slate-600 normal-case underline underline-offset-2">nessuno</button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button onClick={() => setFuzzyModal(prev => {
+                                                        const accepted = { ...prev.accepted };
+                                                        (prev.preview.exact || []).forEach(m => { accepted[m.file_cert] = true; });
+                                                        return { ...prev, accepted };
+                                                    })} className="text-[9px] font-bold text-emerald-600 hover:text-emerald-800 normal-case underline underline-offset-2">tutti</button>
+                                                    <span className="text-slate-300">|</span>
+                                                    <button onClick={() => setFuzzyModal(prev => {
+                                                        const accepted = { ...prev.accepted };
+                                                        (prev.preview.exact || []).forEach(m => { accepted[m.file_cert] = false; });
+                                                        return { ...prev, accepted };
+                                                    })} className="text-[9px] font-bold text-slate-400 hover:text-slate-600 normal-case underline underline-offset-2">nessuno</button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {fuzzyModal.preview.exact.map(m => {
+                                            const isAccepted = !!fuzzyModal.accepted[m.file_cert];
+                                            const isCreate = !!fuzzyModal.toCreate[m.file_cert];
+                                            return (
+                                                <div key={m.file_cert} className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm ${isCreate ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                                                    <>
+                                                        <button onClick={() => setFuzzyModal(prev => {
+                                                            const next = !prev.accepted[m.file_cert];
+                                                            return { ...prev, accepted: { ...prev.accepted, [m.file_cert]: next }, toCreate: { ...prev.toCreate, [m.file_cert]: next ? false : prev.toCreate[m.file_cert] } };
+                                                        })} className={`text-[9px] font-black px-2 py-0.5 rounded-lg border transition-all flex-shrink-0 ${isAccepted ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-400 border-slate-200 hover:border-emerald-300 hover:text-emerald-500'}`}>Match</button>
+                                                        <button onClick={() => setFuzzyModal(prev => {
+                                                            const next = !prev.toCreate[m.file_cert];
+                                                            return { ...prev, toCreate: { ...prev.toCreate, [m.file_cert]: next }, accepted: { ...prev.accepted, [m.file_cert]: next ? false : prev.accepted[m.file_cert] } };
+                                                        })} className={`text-[9px] font-black px-2 py-0.5 rounded-lg border transition-all flex-shrink-0 ${isCreate ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400 border-slate-200 hover:border-rose-300 hover:text-rose-500'}`}>+ Crea</button>
+                                                    </>
+                                                    <span className="font-semibold text-slate-700 truncate flex-1">{m.file_cert}</span>
+                                                    {isCreate && m.csv_vendor && <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase flex-shrink-0">{m.csv_vendor}</span>}
+                                                    {!isCreate && <><span className="text-slate-400 flex-shrink-0">→</span><span className="font-bold text-emerald-700 truncate flex-1">{m.matched_cert}</span></>}
+                                                    {m.count !== undefined && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{m.count}</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            {/* Partial matches */}
+                            {(fuzzyModal.preview.partial || []).length > 0 && (
+                                <div>
+                                    <div className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-2 flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-amber-400 rounded-full inline-block" />
+                                        {t('master.match_partial', 'Match Parziali')} ({fuzzyModal.preview.partial.length})
+                                        <div className="ml-auto flex gap-2">
+                                            <button onClick={() => setFuzzyModal(prev => {
+                                                const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                (prev.preview.partial || []).forEach(m => { accepted[m.file_cert] = true; toCreate[m.file_cert] = false; });
+                                                return { ...prev, accepted, toCreate };
+                                            })} className="text-[9px] font-bold text-amber-600 hover:text-amber-800 normal-case underline underline-offset-2">tutti match</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button onClick={() => setFuzzyModal(prev => {
+                                                const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                (prev.preview.partial || []).forEach(m => { accepted[m.file_cert] = false; toCreate[m.file_cert] = true; });
+                                                return { ...prev, accepted, toCreate };
+                                            })} className="text-[9px] font-bold text-rose-500 hover:text-rose-700 normal-case underline underline-offset-2">tutti crea</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button onClick={() => setFuzzyModal(prev => {
+                                                const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                (prev.preview.partial || []).forEach(m => { accepted[m.file_cert] = false; toCreate[m.file_cert] = false; });
+                                                return { ...prev, accepted, toCreate };
+                                            })} className="text-[9px] font-bold text-slate-400 hover:text-slate-600 normal-case underline underline-offset-2">nessuno</button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {fuzzyModal.preview.partial.map(m => {
+                                            const isAccepted = !!fuzzyModal.accepted[m.file_cert];
+                                            const isCreate = !!fuzzyModal.toCreate[m.file_cert];
+                                            return (
+                                                <div key={m.file_cert} className="flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-xl border border-amber-100 text-sm">
+                                                    <button
+                                                        onClick={() => setFuzzyModal(prev => {
+                                                            const next = !prev.accepted[m.file_cert];
+                                                            return { ...prev, accepted: { ...prev.accepted, [m.file_cert]: next }, toCreate: { ...prev.toCreate, [m.file_cert]: next ? false : prev.toCreate[m.file_cert] } };
+                                                        })}
+                                                        className={`text-[9px] font-black px-2 py-0.5 rounded-lg border transition-all flex-shrink-0 ${isAccepted ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-400 border-slate-200 hover:border-amber-300 hover:text-amber-500'}`}
+                                                    >Match</button>
+                                                    <button
+                                                        onClick={() => setFuzzyModal(prev => {
+                                                            const next = !prev.toCreate[m.file_cert];
+                                                            return { ...prev, toCreate: { ...prev.toCreate, [m.file_cert]: next }, accepted: { ...prev.accepted, [m.file_cert]: next ? false : prev.accepted[m.file_cert] } };
+                                                        })}
+                                                        className={`text-[9px] font-black px-2 py-0.5 rounded-lg border transition-all flex-shrink-0 ${isCreate ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400 border-slate-200 hover:border-rose-300 hover:text-rose-500'}`}
+                                                    >+ Crea</button>
+                                                    <span className="font-semibold text-slate-700 truncate flex-1">{m.file_cert}</span>
+                                                    {isCreate && m.csv_vendor && <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase flex-shrink-0">{m.csv_vendor}</span>}
+                                                    {!isCreate && <><span className="text-slate-400 flex-shrink-0">→</span><span className="font-bold text-amber-700 truncate flex-1">{m.matched_cert}</span></>}
+                                                    <span className="text-[9px] text-slate-400 flex-shrink-0">{Math.round(m.similarity * 100)}%</span>
+                                                    {m.count !== undefined && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex-shrink-0">{m.count}</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            {/* Presumed matches */}
+                            {(fuzzyModal.preview.presumed || []).length > 0 && (
+                                <div>
+                                    <div className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-2 flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-orange-400 rounded-full inline-block" />
+                                        {t('master.match_presumed', 'Match Presunti')} ({fuzzyModal.preview.presumed.length})
+                                        <div className="ml-auto flex gap-2">
+                                            <button onClick={() => setFuzzyModal(prev => {
+                                                const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                (prev.preview.presumed || []).forEach(m => { accepted[m.file_cert] = true; toCreate[m.file_cert] = false; });
+                                                return { ...prev, accepted, toCreate };
+                                            })} className="text-[9px] font-bold text-orange-600 hover:text-orange-800 normal-case underline underline-offset-2">tutti match</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button onClick={() => setFuzzyModal(prev => {
+                                                const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                (prev.preview.presumed || []).forEach(m => { accepted[m.file_cert] = false; toCreate[m.file_cert] = true; });
+                                                return { ...prev, accepted, toCreate };
+                                            })} className="text-[9px] font-bold text-rose-500 hover:text-rose-700 normal-case underline underline-offset-2">tutti crea</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button onClick={() => setFuzzyModal(prev => {
+                                                const accepted = { ...prev.accepted }; const toCreate = { ...prev.toCreate };
+                                                (prev.preview.presumed || []).forEach(m => { accepted[m.file_cert] = false; toCreate[m.file_cert] = false; });
+                                                return { ...prev, accepted, toCreate };
+                                            })} className="text-[9px] font-bold text-slate-400 hover:text-slate-600 normal-case underline underline-offset-2">nessuno</button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {fuzzyModal.preview.presumed.map(m => {
+                                            const isAccepted = !!fuzzyModal.accepted[m.file_cert];
+                                            const isCreate = !!fuzzyModal.toCreate[m.file_cert];
+                                            return (
+                                                <div key={m.file_cert} className="flex items-center gap-2 px-4 py-2 bg-orange-50 rounded-xl border border-orange-100 text-sm">
+                                                    <button
+                                                        onClick={() => setFuzzyModal(prev => {
+                                                            const next = !prev.accepted[m.file_cert];
+                                                            return { ...prev, accepted: { ...prev.accepted, [m.file_cert]: next }, toCreate: { ...prev.toCreate, [m.file_cert]: next ? false : prev.toCreate[m.file_cert] } };
+                                                        })}
+                                                        className={`text-[9px] font-black px-2 py-0.5 rounded-lg border transition-all flex-shrink-0 ${isAccepted ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-400 border-slate-200 hover:border-orange-300 hover:text-orange-500'}`}
+                                                    >Match</button>
+                                                    <button
+                                                        onClick={() => setFuzzyModal(prev => {
+                                                            const next = !prev.toCreate[m.file_cert];
+                                                            return { ...prev, toCreate: { ...prev.toCreate, [m.file_cert]: next }, accepted: { ...prev.accepted, [m.file_cert]: next ? false : prev.accepted[m.file_cert] } };
+                                                        })}
+                                                        className={`text-[9px] font-black px-2 py-0.5 rounded-lg border transition-all flex-shrink-0 ${isCreate ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400 border-slate-200 hover:border-rose-300 hover:text-rose-500'}`}
+                                                    >+ Crea</button>
+                                                    <span className="font-semibold text-slate-700 truncate flex-1">{m.file_cert}</span>
+                                                    {isCreate && m.csv_vendor && <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase flex-shrink-0">{m.csv_vendor}</span>}
+                                                    {!isCreate && <><span className="text-slate-400 flex-shrink-0">→</span><span className="font-bold text-orange-700 truncate flex-1">{m.matched_cert}</span></>}
+                                                    <span className="text-[9px] text-slate-400 flex-shrink-0">{Math.round(m.similarity * 100)}%</span>
+                                                    {m.count !== undefined && <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full flex-shrink-0">{m.count}</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            {/* Unmatched — with option to create */}
+                            {(fuzzyModal.preview.unmatched || []).length > 0 && (
+                                <div>
+                                    <div className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-2 flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-red-400 rounded-full inline-block" />
+                                        {t('master.match_unmatched', 'Non Trovati')} ({fuzzyModal.preview.unmatched.length})
+                                        <div className="ml-auto flex gap-2">
+                                            <button onClick={() => setFuzzyModal(prev => {
+                                                const toCreate = { ...prev.toCreate };
+                                                (prev.preview.unmatched || []).forEach(m => { toCreate[m.file_cert] = true; });
+                                                return { ...prev, toCreate };
+                                            })} className="text-[9px] font-bold text-rose-500 hover:text-rose-700 normal-case underline underline-offset-2">tutti crea</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button onClick={() => setFuzzyModal(prev => {
+                                                const toCreate = { ...prev.toCreate };
+                                                (prev.preview.unmatched || []).forEach(m => { toCreate[m.file_cert] = false; });
+                                                return { ...prev, toCreate };
+                                            })} className="text-[9px] font-bold text-slate-400 hover:text-slate-600 normal-case underline underline-offset-2">nessuno</button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {fuzzyModal.preview.unmatched.map(m => (
+                                            <label key={m.file_cert} className="flex items-center gap-3 px-4 py-2 bg-red-50 rounded-xl border border-red-100 text-sm cursor-pointer hover:bg-red-100 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!fuzzyModal.toCreate[m.file_cert]}
+                                                    onChange={(e) => setFuzzyModal(prev => ({ ...prev, toCreate: { ...prev.toCreate, [m.file_cert]: e.target.checked } }))}
+                                                    style={{ appearance: 'auto', WebkitAppearance: 'auto', width: '16px', height: '16px', flexShrink: 0, accentColor: '#ef4444', cursor: 'pointer' }}
+                                                />
+                                                <span className="font-semibold text-slate-700 truncate flex-1">{m.file_cert}</span>
+                                                {m.suggested_vendor && (
+                                                    <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase">{m.suggested_vendor}</span>
+                                                )}
+                                                {m.count !== undefined && <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{m.count}</span>}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="pt-5 border-t border-slate-200/60 flex justify-end gap-3 mt-4">
+                            <button
+                                onClick={() => setFuzzyModal({ isOpen: false, preview: null, accepted: {}, toCreate: {}, mode: 'delta', type: 'resources' })}
                                 className="px-6 py-3 text-slate-600 font-bold text-[10px] uppercase tracking-widest-plus font-display bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                             >
-                                {t('master.resource_modal_cancel')}
+                                {t('common.cancel', 'Annulla')}
                             </button>
                             <button
-                                onClick={saveResourceModal}
-                                className="px-6 py-3 text-white font-bold text-[10px] uppercase tracking-widest-plus font-display bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-200 active:scale-95"
+                                onClick={confirmFuzzyImport}
+                                className="px-6 py-3 text-white font-bold text-[10px] uppercase tracking-widest-plus font-display bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-emerald-200 active:scale-95"
                             >
-                                <Save className="w-4 h-4" />
-                                {t('master.resource_modal_save')}
+                                <CheckCircle className="w-4 h-4" />
+                                {t('master.confirm_import', 'Conferma Import')}
                             </button>
                         </div>
                     </div>

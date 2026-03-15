@@ -20,6 +20,32 @@
         "Delivery DC",
         "Specialista Rete (Cisco)"
     ],
+    "prof_certs_vendors": {
+        "Technical PM (PMP/PgMP)": "pmi",
+        "Cloud Lead (AWS/Azure/DevOps)": "aws",
+        "Architect Project Lead": "",
+        "Specialist Tech Lead": "",
+        "Project Tech Mgr (ITIL/PMP)": "itil",
+        "Service Trans. Expert": "itil",
+        "Tech Delivery Mgr": "",
+        "Transition Mgr": "",
+        "Operatore DC": "",
+        "Delivery DC": "",
+        "Specialista Rete (Cisco)": "cisco"
+    },
+    "prof_certs_resources": {
+        "Technical PM (PMP/PgMP)": 0,
+        "Cloud Lead (AWS/Azure/DevOps)": 0,
+        "Architect Project Lead": 0,
+        "Specialist Tech Lead": 0,
+        "Project Tech Mgr (ITIL/PMP)": 0,
+        "Service Trans. Expert": 0,
+        "Tech Delivery Mgr": 0,
+        "Transition Mgr": 0,
+        "Operatore DC": 0,
+        "Delivery DC": 0,
+        "Specialista Rete (Cisco)": 0
+    },
     "requirement_labels": [
         "Ref. IaC / Cloud Platforms",
         "Ref. Container & Microservizi",
