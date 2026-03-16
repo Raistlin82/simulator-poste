@@ -52,6 +52,7 @@ export default function MasterDataConfig() {
     // Fuzzy match import modal state (type: 'resources' | 'certs')
     const [fuzzyModal, setFuzzyModal] = useState({ isOpen: false, preview: null, accepted: {}, toCreate: {}, mode: 'delta', type: 'resources' });
     const [expandedCertVendor, setExpandedCertVendor] = useState(null);
+    const [certSearch, setCertSearch] = useState('');
 
     const showToast = (type, message) => {
         setToast({ type, message });
@@ -183,13 +184,13 @@ export default function MasterDataConfig() {
         });
 
         if (duplicates.length === 0) {
-            showToast('success', 'Nessun duplicato trovato!');
+            showToast('success', t('master.no_duplicates'));
             return;
         }
 
         const newList = items.filter((_, idx) => !duplicates.some(d => d.removeIdx === idx));
         setData(prev => ({ ...prev, [activeSection]: newList }));
-        showToast('success', `Rimossi ${duplicates.length} duplicati in modo permanente.`);
+        showToast('success', t('master.duplicates_removed', { count: duplicates.length }));
     };
 
     // Prof certs helpers
@@ -345,7 +346,7 @@ export default function MasterDataConfig() {
         if (!vendor) return;
 
         try {
-            await axios.put(`${API_URL}/vendor-configs/${vendorKey}`, {
+            await axios.put(`${API_URL}/vendor-configs/${encodeURIComponent(vendorKey)}`, {
                 enabled: !vendor.enabled
             });
             setVendors(prev => prev.map(v =>
@@ -360,7 +361,7 @@ export default function MasterDataConfig() {
 
     const updateVendorField = async (vendorKey, field, value) => {
         try {
-            await axios.put(`${API_URL}/vendor-configs/${vendorKey}`, {
+            await axios.put(`${API_URL}/vendor-configs/${encodeURIComponent(vendorKey)}`, {
                 [field]: value
             });
             setVendors(prev => prev.map(v =>
@@ -482,7 +483,7 @@ export default function MasterDataConfig() {
 
     const executeDeleteVendor = async (vendorKey, vendorName) => {
         try {
-            await axios.delete(`${API_URL}/vendor-configs/${vendorKey}`);
+            await axios.delete(`${API_URL}/vendor-configs/${encodeURIComponent(vendorKey)}`);
             setVendors(prev => prev.filter(v => v.key !== vendorKey));
             setExpandedVendor(null);
 
@@ -666,7 +667,7 @@ export default function MasterDataConfig() {
                                             className="px-6 py-4 bg-orange-100 text-orange-700 border border-orange-200 rounded-2xl hover:bg-orange-200 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest-plus font-display shadow-sm active:scale-95 group"
                                         >
                                             <ShieldCheck className="w-4 h-4" />
-                                            <span>Analizza Duplicati</span>
+                                            <span>{t('master.check_duplicates')}</span>
                                         </button>
                                     )}
                                     {activeSection === 'prof_certs' && (
@@ -1065,6 +1066,17 @@ export default function MasterDataConfig() {
                             ) : activeSection === 'prof_certs' ? (
                                 /* Prof Certs — vendor-grouped accordion */
                                 <div className="space-y-4">
+                                    {/* Search filter */}
+                                    <div className="relative mb-2">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <input
+                                            type="text"
+                                            placeholder={t('master.cert_search_placeholder', 'Cerca per nome o vendor...')}
+                                            value={certSearch}
+                                            onChange={(e) => setCertSearch(e.target.value)}
+                                            className="w-full pl-9 pr-4 py-2.5 bg-white/60 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/30"
+                                        />
+                                    </div>
                                     {/* Add cert form */}
                                     <div className="flex gap-3 mb-2">
                                         <input
@@ -1107,11 +1119,17 @@ export default function MasterDataConfig() {
                                             <p className="text-slate-500 font-display text-sm font-bold uppercase tracking-widest text-[10px]">{t('master.no_items')}</p>
                                         </div>
                                     ) : (
-                                        // Sort: named vendors first, __other__ last
+                                        // Sort: named vendors first, __other__ last; then filter by search
                                         [...Object.entries(groupedCerts)].sort(([a], [b]) => {
                                             if (a === '__other__') return 1;
                                             if (b === '__other__') return -1;
                                             return getVendorName(a).localeCompare(getVendorName(b));
+                                        }).flatMap(([vendorKey, certs]) => {
+                                            if (!certSearch.trim()) return [[vendorKey, certs]];
+                                            const q = certSearch.trim().toLowerCase();
+                                            const vendorName = getVendorName(vendorKey).toLowerCase();
+                                            const filtered = certs.filter(c => c.toLowerCase().includes(q) || vendorName.includes(q));
+                                            return filtered.length ? [[vendorKey, filtered]] : [];
                                         }).map(([vendorKey, certs]) => (
                                             <div key={vendorKey} className="glass-card rounded-2xl border border-white/40 overflow-hidden shadow-sm">
                                                 <button
