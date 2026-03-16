@@ -176,6 +176,7 @@ export default function ParametersPanel({
       reuseApplied: current.governance_apply_reuse && current.reuse_factor > 0,
       reuseSavings: baseCost - finalCost,
     };
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   }, [
     current.governance_mode,
     current.governance_pct,

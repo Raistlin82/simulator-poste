@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Target, Loader2, FileSearch, Info } from 'lucide-react';
 import axios from 'axios';
@@ -42,7 +41,6 @@ export default function Dashboard({ onNavigate }) {
         results,
         simulationData,
         setCompetitorParam,
-        fetchEvaluationResults, // Added from instruction
         monteCarlo, // Added from instruction
         businessPlanData // Added from instruction
     } = useSimulation();
@@ -72,7 +70,7 @@ export default function Dashboard({ onNavigate }) {
 
         const runMC = async () => {
             try {
-                const res = await axios.post(`${API_URL}/monte-carlo`, {
+                await axios.post(`${API_URL}/monte-carlo`, {
                     lot_key: lotKey,
                     base_amount: lotData.base_amount,
                     my_discount: myDiscount,

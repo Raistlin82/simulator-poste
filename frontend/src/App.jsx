@@ -11,7 +11,7 @@ import MasterDataConfig from './components/MasterDataConfig';
 import CertVerificationPage from './components/CertVerificationPage';
 import BusinessPlanPage from './features/business-plan/pages/BusinessPlanPage';
 import { BusinessPlanProvider } from './features/business-plan/context/BusinessPlanContext';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { Settings, Menu, Save } from 'lucide-react';
 import { logger } from './utils/logger';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -234,7 +234,7 @@ function AppContent() {
   // HANDLERS FOR LOT MANAGEMENT
   const handleAddNewLot = useCallback(async (lotName) => {
     try {
-      const response = await axios.post(`${API_URL}/config/add?lot_key=${encodeURIComponent(lotName)}`, {});
+      await axios.post(`${API_URL}/config/add?lot_key=${encodeURIComponent(lotName)}`, {});
 
       await refetchConfig();
 

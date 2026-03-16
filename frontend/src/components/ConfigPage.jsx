@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
 import { Plus, Trash2, Copy, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X, Building2, PauseCircle } from 'lucide-react';

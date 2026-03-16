@@ -320,7 +320,7 @@ export default function MasterDataConfig() {
                 });
                 const masterRes = await axios.get(`${API_URL}/master-data`);
                 setData(prev => ({ ...prev, ...masterRes.data }));
-                const { added = [], vendor_updated = [] } = res.data;
+                const { added = [] } = res.data;
                 showToast('success', t('master.import_certs_success', { added: added.length, skipped: acceptedList.length }));
                 closeFuzzy();
             } else {

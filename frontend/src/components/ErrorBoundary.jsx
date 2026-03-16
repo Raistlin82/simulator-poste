@@ -41,7 +41,7 @@ class ErrorBoundary extends Component {
             <p className="text-slate-600 mb-6">
               Qualcosa è andato storto. Prova a ricaricare la pagina.
             </p>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="text-left mb-4 p-3 bg-slate-100 rounded-lg text-xs overflow-auto max-h-40">
                 <summary className="cursor-pointer font-medium text-slate-700 mb-2">
                   Dettagli errore
