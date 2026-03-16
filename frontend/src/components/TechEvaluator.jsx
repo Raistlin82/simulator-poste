@@ -631,6 +631,19 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                 </p>
                                                             </div>
                                                         )}
+
+                                                        {/* Note certificazione */}
+                                                        <div className="pt-4 mt-2 border-t border-white/60">
+                                                            <label className="block mb-2">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 font-display">{t('tech_evaluator.notes_label') || 'Note'}</span>
+                                                            </label>
+                                                            <textarea
+                                                                value={cur.notes || ''}
+                                                                onChange={(e) => updateInput(req.id, 'notes', e.target.value)}
+                                                                placeholder={t('tech_evaluator.notes_placeholder') || 'Inserisci note (es. progetto referenziato)...'}
+                                                                className="w-full min-h-[80px] p-3 text-sm bg-indigo-50/20 backdrop-blur-md border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 outline-none transition-all resize-none text-slate-700"
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

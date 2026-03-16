@@ -357,6 +357,8 @@ class ExcelReportGenerator:
         ws.column_dimensions['M'].width = 14  # Score Pesato
         ws.column_dimensions['N'].width = 12  # Status
         ws.column_dimensions['O'].width = 35  # Note
+        ws.column_dimensions['P'].width = 10  # Status
+        ws.column_dimensions['Q'].width = 35  # Note (Certificazioni)
         
         row = 2
         
@@ -546,12 +548,12 @@ class ExcelReportGenerator:
         # --- TABLE 1: CERTIFICAZIONI PROFESSIONALI ---
         if prof_reqs:
             table1_start_row = row + 1
-            ws.merge_cells(f'B{row}:P{row}')
+            ws.merge_cells(f'B{row}:Q{row}')
             ws[f'B{row}'] = 'DETTAGLIO CERTIFICAZIONI PROFESSIONALI (Score Formula-Driven)'
             ws[f'B{row}'].font = SECTION_FONT
             row += 1
             
-            headers1 = ['ID', 'Requisito', 'Certificazione', 'Azienda', 'Risorsa', 'N Cert', 'Fattore', 'Contributo', 'R Risorse', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status']
+            headers1 = ['ID', 'Requisito', 'Certificazione', 'Azienda', 'Risorsa', 'N Cert', 'Fattore', 'Contributo', 'R Risorse', 'Score Raw', 'Max Raw', '%', 'Peso Gara', 'Score Pesato', 'Status', 'Note']
             for col, header in enumerate(headers1, start=2):
                 cell = ws.cell(row=row, column=col, value=header)
                 cell.font = HEADER_FONT
@@ -690,14 +692,18 @@ class ExcelReportGenerator:
                         # Conditional Status
                         ws.cell(row=row, column=16, value=f'=IF(M{row}>=0.8,"OK",IF(M{row}>=0.5,"WARN",IF(M{row}>0,"LOW","MISS")))').alignment = CENTER
                         
+                        # Note (Q=17)
+                        note_text = tech_input.get('notes', '')
+                        ws.cell(row=row, column=17, value=note_text).alignment = WRAP
+
                         if num_rows > 1:
-                            for c in range(12, 17):
+                            for c in range(12, 18):
                                 ws.merge_cells(start_row=block_start, start_column=c, end_row=block_end, end_column=c)
-                        
+
                         # Store for analytics
                         self.tech_req_rows[req_id] = {'row': row, 'col_score': 'O', 'col_weight': 'N'}
-                    
-                    for col in range(2, 17):
+
+                    for col in range(2, 18):
                         ws.cell(row=row, column=col).border = THIN_BORDER
                         ws.cell(row=row, column=col).alignment = Alignment(vertical='center')
                     row += 1
