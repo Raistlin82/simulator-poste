@@ -444,8 +444,11 @@ export const calculateCatalogCost = (bp) => {
                 const totalFteItems = itemsDetail.reduce((s, it) => s + it.fte, 0);
 
                 if (totalFteItems > 0) {
-                    (tow.catalog_items || []).forEach((item, i) => {
-                        const weight = (itemsDetail[i]?.fte || 0) / totalFteItems;
+                    const fteById = Object.fromEntries(
+                        itemsDetail.filter(d => d.id).map(d => [d.id, d.fte || 0])
+                    );
+                    (tow.catalog_items || []).forEach((item) => {
+                        const weight = (fteById[item.id] || 0) / totalFteItems;
                         for (const entry of (item.profile_mix || [])) {
                             const cid = profileToCluster[entry.poste_profile];
                             if (cid !== undefined) {
@@ -483,8 +486,13 @@ export const calculateCatalogCost = (bp) => {
                 clusters: clusterDetail,
                 cluster_distribution: distribution
             });
+        } else {
+            // If no catalog_computed, this TOW contributes 0 (user hasn't opened the editor yet)
+            console.warn(
+                `[CatalogEngine] TOW "${tow.tow_id || tow.id || '?'}" tipo catalogo: catalog_computed assente o vuoto.`,
+                'Aprire il CatalogEditorModal per abilitare il calcolo.'
+            );
         }
-        // If no catalog_computed, this TOW contributes 0 (user hasn't opened the editor yet)
     }
 
     return { total: Math.round(total * 100) / 100, detail: { byTow } };

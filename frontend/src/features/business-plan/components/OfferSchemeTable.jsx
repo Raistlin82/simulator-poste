@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Table, Euro, Calculator, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 import { useTranslation } from 'react-i18next';
@@ -82,9 +82,8 @@ export default function OfferSchemeTable({
                   const isExpanded = expandedRows.has(row.tow_id);
 
                   return (
-                    <>
+                    <Fragment key={row.tow_id ?? `row-${idx}`}>
                       <tr
-                        key={`row-${idx}`}
                         onClick={() => isCatalog && toggleRow(row.tow_id)}
                         className={`group bg-white/70 backdrop-blur-md rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:bg-white/90 hover:-translate-y-0.5 transition-all border border-white/50 ${isCatalog ? 'cursor-pointer' : ''}`}
                       >
@@ -136,7 +135,7 @@ export default function OfferSchemeTable({
 
                       {/* Dettaglio catalogo espanso */}
                       {isCatalog && isExpanded && (
-                        <tr key={`detail-${idx}`} className="bg-rose-50/20">
+                        <tr className="bg-rose-50/20">
                           <td colSpan={7} className="px-6 py-4">
                             <div className="space-y-5">
                               {/* Raggruppamenti */}
@@ -165,7 +164,7 @@ export default function OfferSchemeTable({
                                       {group.items.length === 0 ? (
                                         <tr>
                                           <td colSpan={4} className="px-3 py-2 text-center text-slate-400 italic text-[10px]">
-                                            Nessuna voce in questo raggruppamento
+                                            {t('business_plan.offer_no_items_in_group', 'Nessuna voce in questo raggruppamento')}
                                           </td>
                                         </tr>
                                       ) : group.items.map((item, iIdx) => (
@@ -181,7 +180,7 @@ export default function OfferSchemeTable({
                                       <tfoot className="bg-rose-50 border-t border-rose-200">
                                         <tr>
                                           <td colSpan={3} className="px-3 py-1.5 text-right text-xs font-semibold text-rose-700">
-                                            Totale {group.label}
+                                            {t('business_plan.offer_group_total', 'Totale')} {group.label}
                                           </td>
                                           <td className="px-3 py-1.5 text-right font-bold text-rose-800">
                                             {formatCurrency(group.items.reduce((s, it) => s + it.total, 0), 0)}
@@ -196,7 +195,7 @@ export default function OfferSchemeTable({
                               {/* Voci senza raggruppamento */}
                               {(row.catalog_detail.ungrouped || []).length > 0 && (
                                 <div>
-                                  <div className="text-xs font-semibold text-slate-500 mb-2">Voci senza raggruppamento</div>
+                                  <div className="text-xs font-semibold text-slate-500 mb-2">{t('business_plan.offer_ungrouped', 'Voci senza raggruppamento')}</div>
                                   <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
                                     <thead className="bg-slate-50">
                                       <tr>
@@ -223,14 +222,14 @@ export default function OfferSchemeTable({
                               {/* Summary totale catalogo */}
                               <div className="flex justify-end">
                                 <div className="px-4 py-2 bg-rose-100 rounded-lg text-xs font-semibold text-rose-800">
-                                  Totale Catalogo (quota Lutech): {formatCurrency(row.total_price, 0)}
+                                  {t('business_plan.offer_catalog_total_lutech', 'Totale Catalogo (quota Lutech):')} {formatCurrency(row.total_price, 0)}
                                 </div>
                               </div>
                             </div>
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
 

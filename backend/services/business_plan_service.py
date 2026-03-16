@@ -33,7 +33,6 @@ class BusinessPlanService:
             Team composition con FTE rettificati
         """
         global_factor = volume_adjustments.get("global", 1.0)
-        by_tow = volume_adjustments.get("by_tow", {})
         by_profile = volume_adjustments.get("by_profile", {})
 
         adjusted = []
@@ -68,55 +67,6 @@ class BusinessPlanService:
             Effort effettivo dopo riuso
         """
         return effort * (1 - reuse_factor)
-
-    @staticmethod
-    def _get_mix_for_year(profile_mapping: List[Dict[str, Any]], year: int) -> Optional[List[Dict[str, Any]]]:
-        """
-        Trova il mix di profili corretto per un dato anno da una mappatura time-varying.
-        Supporta due formati:
-        - Nuovo (TimeVaryingMix): [{"month_start": 1, "month_end": 12, "mix": [...]}]
-        - Vecchio (label): [{"period": "Anno 1", "mix": [...]}]
-        - Semplice (lista diretta): [{"lutech_profile": "...", "pct": ...}]
-        """
-        if not profile_mapping:
-            return None
-
-        first = profile_mapping[0]
-
-        # Caso 1: Mapping semplice, non time-varying (lista diretta di profili)
-        if "lutech_profile" in first:
-            return profile_mapping
-
-        # Caso 2: Formato nuovo con month_start/month_end (schema TimeVaryingMix)
-        if "month_start" in first:
-            year_start_month = (year - 1) * 12 + 1
-            year_end_month = year * 12
-            last_valid = None
-            for item in profile_mapping:
-                ms = item.get("month_start", 1)
-                me = item.get("month_end", year_end_month)
-                if ms <= year_end_month and me >= year_start_month:
-                    return item.get("mix")
-                if ms <= year_start_month:
-                    last_valid = item.get("mix")
-            return last_valid
-
-        # Caso 3: Formato vecchio con label "Anno X" / "Anno X+"
-        best_match = None
-        for item in profile_mapping:
-            period_label = item.get("period", "").strip()
-            if period_label == f"Anno {year}":
-                return item.get("mix")
-            if period_label.endswith("+"):
-                try:
-                    start_year = int(period_label.replace("Anno", "").replace("+", "").strip())
-                    if year >= start_year:
-                        best_match = item.get("mix")
-                except ValueError:
-                    continue
-
-        return best_match
-
 
     @staticmethod
     def calculate_team_cost(
@@ -771,7 +721,10 @@ class BusinessPlanService:
                 )
 
                 # NEW: Apply reuse factor (group-level override or TOW-level default)
-                group_reuse_raw = group.get("reuse_factor") if group is not None else None
+                group_reuse_raw = (
+                    group.get("reuse_factor") if isinstance(group, dict)
+                    else getattr(group, "reuse_factor", None)
+                ) if group is not None else None
                 # Convert from % to decimal if needed (assuming frontend sends 0-100)
                 # For now, assuming 0-1 decimal format from frontend.
                 group_reuse_factor = float(group_reuse_raw if group_reuse_raw is not None else default_catalog_reuse_factor)

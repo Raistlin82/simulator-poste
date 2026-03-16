@@ -123,8 +123,8 @@ export default function TowConfigTable({
   const isRtiQuotaValid = Math.abs(weightedRtiQuota - quotaLutech) < 0.01;
 
   const getTypeStyle = (type) => {
-    const t = towTypes.find(tt => tt.value === type);
-    if (!t) return 'bg-slate-100 text-slate-600';
+    const typeConfig = towTypes.find(tt => tt.value === type);
+    if (!typeConfig) return 'bg-slate-100 text-slate-600';
     const colors = {
       blue: 'bg-blue-100 text-blue-700',
       purple: 'bg-purple-100 text-purple-700',
@@ -132,7 +132,7 @@ export default function TowConfigTable({
       green: 'bg-green-100 text-green-700',
       rose: 'bg-rose-100 text-rose-700',
     };
-    return colors[t.color] || 'bg-slate-100 text-slate-600';
+    return colors[typeConfig.color] || 'bg-slate-100 text-slate-600';
   };
 
   // Compute catalog item rate — duration-weighted average across all mapping periods (full version)

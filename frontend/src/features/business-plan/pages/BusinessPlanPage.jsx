@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { bpSaveTrigger } from '../../../utils/bpSaveTrigger';
 import { useSimulation } from '../../simulation/context/SimulationContext';
@@ -40,7 +40,7 @@ import {
 import CatalogEditorModal from '../components/CatalogEditorModal';
 
 import { calculateTeamCost, calculateGovernanceCost, calculateCatalogCost } from '../utils/businessPlanEngine';
-
+import { normalizeBPForUI, normalizeBPForAPI } from '../utils/businessPlanNormalizers';
 
 import { DEFAULT_DAILY_RATE, DAYS_PER_FTE, SCENARIO_PARAMS } from '../constants';
 
@@ -120,23 +120,7 @@ export default function BusinessPlanPage() {
   useEffect(() => {
     if (businessPlan) {
       // Convert decimals from API to percentages for UI display
-      setLocalBP({
-        ...businessPlan,
-        governance_pct: (businessPlan.governance_pct || 0.04) * 100,
-        risk_contingency_pct: (businessPlan.risk_contingency_pct || 0.03) * 100,
-        reuse_factor: (businessPlan.reuse_factor || 0) * 100,
-        days_per_fte: businessPlan.days_per_fte || DAYS_PER_FTE,
-        default_daily_rate: businessPlan.default_daily_rate || DEFAULT_DAILY_RATE,
-        governance_mode: businessPlan.governance_mode || 'percentage',
-        governance_fte_periods: businessPlan.governance_fte_periods || [],
-        governance_apply_reuse: businessPlan.governance_apply_reuse || false,
-        governance_profile_mix: businessPlan.governance_profile_mix || [],
-        governance_cost_manual: businessPlan.governance_cost_manual ?? null,
-        margin_warning_threshold: businessPlan.margin_warning_threshold ?? 0.05,
-        margin_success_threshold: businessPlan.margin_success_threshold ?? 0.15,
-        inflation_pct: businessPlan.inflation_pct ?? 0,
-        max_subcontract_pct: businessPlan.max_subcontract_pct ?? 20,
-      });
+      setLocalBP(normalizeBPForUI(businessPlan));
     } else if (selectedLot) {
       // Initialize empty BP (values already in percentage form)
       const defaultDuration = 36;
@@ -193,7 +177,7 @@ export default function BusinessPlanPage() {
       });
 
       // Catalog cost (margine-first, fisso dal bando — entra nella base overhead)
-      const { total: catalogCost, detail: catalogDetail } = calculateCatalogCost(localBP, buildLutechRates());
+      const { total: catalogCost, detail: catalogDetail } = calculateCatalogCost(localBP);
 
       // Base overhead = team cost + catalog cost
       const baseCost = teamCost + catalogCost;
@@ -210,7 +194,7 @@ export default function BusinessPlanPage() {
       const towSplit = localBP.subcontract_config?.tow_split || {};
       const subQuotaPct = Object.values(towSplit).reduce((sum, pct) => sum + (parseFloat(pct) || 0), 0);
       const subcontractCost = Math.round(baseCost * (subQuotaPct / 100) * 100) / 100;
-      const subAvgRate = localBP.subcontract_config?.avg_daily_rate ?? teamMixRate;
+      const subAvgRate = localBP.subcontract_config?.avg_daily_rate ?? teamResult.teamMixRate;
       const subPartner = localBP.subcontract_config?.partner || 'Non specificato';
 
       const totalCostRaw = baseCost + governanceCost + riskCost + subcontractCost;
@@ -260,7 +244,7 @@ export default function BusinessPlanPage() {
       logger.error('Calculation error', err, { lot: selectedLot });
       toast.error(`Errore nel calcolo: ${err.message || 'Errore sconosciuto'}`);
     }
-  }, [localBP, lotData, calculateTeamCost, calculateGovernanceCost, teamMixRate, toast, buildLutechRates, buildLutechLabels]);
+  }, [localBP, lotData, toast, buildLutechRates, buildLutechLabels]);
 
   useEffect(() => {
     runCalculation();
@@ -278,18 +262,7 @@ export default function BusinessPlanPage() {
 
     try {
       // Convert percentages to decimals for API
-      const dataToSave = {
-        ...localBP,
-        governance_pct: localBP.governance_pct / 100,
-        risk_contingency_pct: localBP.risk_contingency_pct / 100,
-        reuse_factor: localBP.reuse_factor / 100,
-        days_per_fte: localBP.days_per_fte,
-        default_daily_rate: localBP.default_daily_rate,
-        // Ensure these fields are explicitly included
-        margin_warning_threshold: localBP.margin_warning_threshold ?? 0.05,
-        margin_success_threshold: localBP.margin_success_threshold ?? 0.15,
-        inflation_pct: localBP.inflation_pct ?? 0,
-      };
+      const dataToSave = normalizeBPForAPI(localBP);
 
       await saveBusinessPlan(dataToSave);
       setSaveStatus('success');
@@ -395,23 +368,7 @@ export default function BusinessPlanPage() {
         toast.success(res.data.message || 'Importazione completata con successo');
         if (res.data.bp) {
           // Sync state with imported DB BP
-          setLocalBP({
-            ...res.data.bp,
-            governance_pct: (res.data.bp.governance_pct || 0.04) * 100,
-            risk_contingency_pct: (res.data.bp.risk_contingency_pct || 0.03) * 100,
-            reuse_factor: (res.data.bp.reuse_factor || 0) * 100,
-            days_per_fte: res.data.bp.days_per_fte || DAYS_PER_FTE,
-            default_daily_rate: res.data.bp.default_daily_rate || DEFAULT_DAILY_RATE,
-            governance_mode: res.data.bp.governance_mode || 'percentage',
-            governance_fte_periods: res.data.bp.governance_fte_periods || [],
-            governance_apply_reuse: res.data.bp.governance_apply_reuse || false,
-            governance_profile_mix: res.data.bp.governance_profile_mix || [],
-            governance_cost_manual: res.data.bp.governance_cost_manual ?? null,
-            margin_warning_threshold: res.data.bp.margin_warning_threshold ?? 0.05,
-            margin_success_threshold: res.data.bp.margin_success_threshold ?? 0.15,
-            inflation_pct: res.data.bp.inflation_pct ?? 0,
-            max_subcontract_pct: res.data.bp.max_subcontract_pct ?? 20,
-          });
+          setLocalBP(normalizeBPForUI(res.data.bp));
         }
       } else {
         toast.error(res.data.message || "Errore nell'importazione");
@@ -529,7 +486,7 @@ export default function BusinessPlanPage() {
   };
 
   // Calcola data fine e anni interessati
-  const getContractPeriodInfo = () => {
+  const contractPeriodInfo = useMemo(() => {
     if (!localBP?.start_year || !localBP?.start_month || !localBP?.duration_months) {
       return null;
     }
@@ -557,7 +514,7 @@ export default function BusinessPlanPage() {
       years,
       yearsCount: years.length
     };
-  };
+  }, [localBP?.start_year, localBP?.start_month, localBP?.duration_months]);
 
   const handleSubcontractChange = (subConfig) => {
     setLocalBP(prev => ({ ...prev, subcontract_config: subConfig }));
@@ -702,8 +659,11 @@ export default function BusinessPlanPage() {
         );
         const itemDetailMap = {};
         if (towDetail) {
-          items.forEach((it, i) => {
-            if (towDetail.items[i]) itemDetailMap[it.id] = towDetail.items[i];
+          const detailById = Object.fromEntries(
+            (towDetail.items || []).filter(d => d.id).map(d => [d.id, d])
+          );
+          items.forEach(it => {
+            if (detailById[it.id]) itemDetailMap[it.id] = detailById[it.id];
           });
         }
 
@@ -784,7 +744,7 @@ export default function BusinessPlanPage() {
 
     return { data: offerData, total: checkTotal };
 
-  }, [calcResult, localBP, lotData, discount, towBreakdown, isRti]);
+  }, [calcResult, localBP, lotData, discount, isRti]);
 
   // Loading state
   if (!selectedLot || !lotData) {
@@ -1053,7 +1013,7 @@ export default function BusinessPlanPage() {
 
                         {/* Info calcolate */}
                         {(() => {
-                          const periodInfo = getContractPeriodInfo();
+                          const periodInfo = contractPeriodInfo;
                           if (!periodInfo) return null;
 
                           const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
