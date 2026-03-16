@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Target, Loader2, FileSearch, Info } from 'lucide-react';
 import axios from 'axios';

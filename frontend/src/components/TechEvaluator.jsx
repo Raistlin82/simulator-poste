@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Star, Info, ChevronDown, ChevronUp, Plus, Minus, ClipboardCheck, BarChart3, Settings, Users, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
