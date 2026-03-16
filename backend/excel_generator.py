@@ -579,6 +579,7 @@ class ExcelReportGenerator:
                 gara_weight = req.get('gara_weight', 0)
                 tech_input = self.tech_inputs_full.get(req_id, {})
                 r_val = tech_input.get('r_val', 0)
+                cert_notes = tech_input.get('cert_notes', {})
                 
                 # Logic to get cert entries
                 cert_company_counts = tech_input.get('cert_company_counts', {})
@@ -692,16 +693,16 @@ class ExcelReportGenerator:
                         # Conditional Status
                         ws.cell(row=row, column=16, value=f'=IF(M{row}>=0.8,"OK",IF(M{row}>=0.5,"WARN",IF(M{row}>0,"LOW","MISS")))').alignment = CENTER
                         
-                        # Note (Q=17)
-                        note_text = tech_input.get('notes', '')
-                        ws.cell(row=row, column=17, value=note_text).alignment = WRAP
-
                         if num_rows > 1:
-                            for c in range(12, 18):
+                            for c in range(12, 17):
                                 ws.merge_cells(start_row=block_start, start_column=c, end_row=block_end, end_column=c)
 
                         # Store for analytics
                         self.tech_req_rows[req_id] = {'row': row, 'col_score': 'O', 'col_weight': 'N'}
+
+                    # Note per singola certificazione (Q=17) — non merged
+                    cert_note = cert_notes.get(entry['name'], '') if entry['name'] else ''
+                    ws.cell(row=row, column=17, value=cert_note).alignment = WRAP
 
                     for col in range(2, 18):
                         ws.cell(row=row, column=col).border = THIN_BORDER

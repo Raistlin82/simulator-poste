@@ -578,6 +578,23 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                                                                                     </div>
                                                                                 );
                                                                             })()}
+
+                                                                            {/* Nota per singola certificazione */}
+                                                                            <div className="pt-1.5 mt-1 border-t border-slate-100/60">
+                                                                                <textarea
+                                                                                    value={cur.cert_notes?.[cert] || ''}
+                                                                                    onChange={(e) => {
+                                                                                        const currentInput = inputs[req.id] || {};
+                                                                                        setTechInput(req.id, {
+                                                                                            ...currentInput,
+                                                                                            cert_notes: { ...(currentInput.cert_notes || {}), [cert]: e.target.value }
+                                                                                        });
+                                                                                    }}
+                                                                                    placeholder={t('tech_evaluator.notes_placeholder') || 'Nota...'}
+                                                                                    rows={2}
+                                                                                    className="w-full p-1.5 text-[10px] bg-white/70 border border-slate-200/60 rounded-lg focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-400/50 outline-none transition-all resize-none text-slate-600"
+                                                                                />
+                                                                            </div>
                                                                         </div>
                                                                     );
                                                                 })
