@@ -698,7 +698,15 @@ export default function CatalogEditorModal({
 
   const items = useMemo(() => tow?.catalog_items || [], [tow?.catalog_items]);
   const clusters = useMemo(() => tow?.catalog_clusters || [], [tow?.catalog_clusters]);
-  const catalogGroups = useMemo(() => tow?.catalog_groups || [], [tow?.catalog_groups]);
+  // Guarantee every group has a stable id — groups saved before the id field was
+  // introduced arrive from the DB without it; without ids g.id===undefined matches
+  // ALL groups causing toggle/distribute to affect every group at once.
+  const catalogGroups = useMemo(() => {
+    const groups = tow?.catalog_groups || [];
+    const needsFix = groups.some(g => !g.id);
+    if (!needsFix) return groups;
+    return groups.map((g, idx) => g.id ? g : { ...g, id: `grp_auto_${idx}` });
+  }, [tow?.catalog_groups]);
   const durationYears = durationMonths / 12;
 
   const refTotalFte = parseFloat(tow?.total_fte ?? 0);
