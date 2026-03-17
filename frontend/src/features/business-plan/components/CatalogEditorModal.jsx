@@ -694,14 +694,24 @@ export default function CatalogEditorModal({
 
   const items = useMemo(() => tow?.catalog_items || [], [tow?.catalog_items]);
   const clusters = useMemo(() => tow?.catalog_clusters || [], [tow?.catalog_clusters]);
-  // Guarantee every group has a stable id. Groups saved before the id field was
-  // introduced arrive from the DB without it; without ids g.id===undefined matched
-  // ALL groups, causing toggle/distribute to affect every group simultaneously.
+  // Guarantee every group has a UNIQUE, stable id.
+  // Two bugs in old data: (a) groups saved without id, (b) idCounter reset on
+  // component remount caused duplicate ids (e.g. two groups both with 'group_1').
+  // Both cases make g.id===groupId match multiple groups simultaneously.
   const catalogGroups = useMemo(() => {
     const groups = tow?.catalog_groups || [];
-    const needsFix = groups.some(g => !g.id);
+    const seenIds = new Set();
+    const needsFix = groups.some(g => !g.id || seenIds.has(g.id) || !seenIds.add(g.id));
     if (!needsFix) return groups;
-    return groups.map((g, idx) => g.id ? g : { ...g, id: `grp_auto_${idx}` });
+    const usedIds = new Set();
+    return groups.map((g, idx) => {
+      if (g.id && !usedIds.has(g.id)) { usedIds.add(g.id); return g; }
+      let newId = `grp_fix_${idx}`;
+      let n = 0;
+      while (usedIds.has(newId)) newId = `grp_fix_${idx}_${++n}`;
+      usedIds.add(newId);
+      return { ...g, id: newId };
+    });
   }, [tow?.catalog_groups]);
   const durationYears = durationMonths / 12;
 
