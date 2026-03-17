@@ -698,14 +698,22 @@ export default function CatalogEditorModal({
 
   const items = useMemo(() => tow?.catalog_items || [], [tow?.catalog_items]);
   const clusters = useMemo(() => tow?.catalog_clusters || [], [tow?.catalog_clusters]);
-  // Guarantee every group has a stable id — groups saved before the id field was
-  // introduced arrive from the DB without it; without ids g.id===undefined matches
-  // ALL groups causing toggle/distribute to affect every group at once.
+  // Guarantee every group has a stable id and that each item_id belongs to
+  // at most one group.  Groups saved before the id field was introduced arrive
+  // from the DB without it; without ids g.id===undefined matched ALL groups,
+  // causing toggle/distribute to affect every group simultaneously.
+  // The dedup pass repairs historical corruption (same item in multiple groups).
   const catalogGroups = useMemo(() => {
     const groups = tow?.catalog_groups || [];
-    const needsFix = groups.some(g => !g.id);
-    if (!needsFix) return groups;
-    return groups.map((g, idx) => g.id ? g : { ...g, id: `grp_auto_${idx}` });
+    // 1. Assign ids where missing
+    const withIds = groups.map((g, idx) => g.id ? g : { ...g, id: `grp_auto_${idx}` });
+    // 2. Deduplicate item_ids across groups — first group wins
+    const seen = new Set();
+    return withIds.map(g => {
+      const deduped = (g.item_ids || []).filter(id => !seen.has(id));
+      deduped.forEach(id => seen.add(id));
+      return deduped.length === (g.item_ids || []).length ? g : { ...g, item_ids: deduped };
+    });
   }, [tow?.catalog_groups]);
   const durationYears = durationMonths / 12;
 
