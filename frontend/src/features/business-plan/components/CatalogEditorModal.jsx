@@ -168,10 +168,8 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
     const c = clusters[clusterIdx];
     handleChange(clusterIdx, 'poste_profiles', (c.poste_profiles || []).filter(p => p !== profile));
   };
-  const idCounter = useRef(0);
   const handleAddCluster = () => {
-    idCounter.current++;
-    const newId = `cluster_${idCounter.current}`;
+    const newId = `clust_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     onChange([...clusters, { id: newId, label: `Cluster ${clusters.length + 1}`, poste_profiles: [], required_pct: 0, constraint_type: 'equality' }]);
   };
   const handleRemoveCluster = (idx) => onChange(clusters.filter((_, i) => i !== idx));
@@ -278,10 +276,8 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, bandoTotalFte
   const toggleAllGrps = () =>
     allExpandedGrps ? setCollapsedGrps(new Set(groups.map(g => g.id))) : setCollapsedGrps(new Set());
 
-  const idCounter = useRef(0);
   const handleAddGroup = () => {
-    idCounter.current++;
-    const newId = `group_${idCounter.current}`;
+    const newId = `grp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     onGroupsChange([...groups, {
       id: newId,
       label: `Raggruppamento ${groups.length + 1}`,
