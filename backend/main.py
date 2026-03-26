@@ -1620,8 +1620,7 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
                     float(c.get("weight", 1.0)) * float(c.get("max_value", 5.0))
                     for c in criteria_list
                 )
-                max_bonus = float(req.get("bonus_val", 0.0))
-                max_weighted_raw_i = max_weighted_sub + float(req.get("attestazione_score", 0.0)) + max_bonus
+                max_weighted_raw_i = max_weighted_sub + float(req.get("attestazione_score", 0.0)) + bonus
 
                 # Add custom metrics max
                 if "custom_metrics" in req:

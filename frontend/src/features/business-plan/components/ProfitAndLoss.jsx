@@ -148,16 +148,14 @@ export default function ProfitAndLoss({
           <div className="space-y-3">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="w-4 h-4 text-blue-600" />
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest-plus font-display">
-                {isRti ? `${t('business_plan.pnl_revenue', 'Ricavi')} (Pro-quota Lutech)` : t('business_plan.pnl_revenue', 'Ricavi')}
-              </span>
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest-plus font-display">{t('business_plan.pnl_revenue', 'Ricavi')}</span>
             </div>
 
             <div className="space-y-2">
               <Row label={isRti ? t('business_plan.pnl_lutech_base_price', "Base d'asta Lutech") : t('business_plan.pnl_base_price', "Base d'asta")} value={pnl.baseAmount} />
               <Row label={`${t('business_plan.pnl_discount', 'Sconto')} (${discount}%)`} value={-pnl.scontoAmount} negative />
               <Divider />
-              <Row label={isRti ? `${t('business_plan.pnl_revenue_en', "Revenue")} Lutech` : t('business_plan.pnl_revenue_en', "Revenue")} value={pnl.revenue} bold />
+              <Row label={t('business_plan.pnl_revenue_en', "Revenue")} value={pnl.revenue} bold />
             </div>
 
             <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">

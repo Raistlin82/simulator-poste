@@ -107,7 +107,7 @@ export default function Sidebar({
     }, [selectedLot, isRti, rtiCompaniesKey]);
 
     // Validate that quotas sum to 100
-    const totalQuota = allRtiCompanies.reduce((sum, company) => sum + (parseFloat(localQuotas[company]) || 0), 0);
+    const totalQuota = Object.values(localQuotas).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
     const isQuotaValid = Math.abs(totalQuota - 100) < 0.01;
 
     // Debounced save of quotas to backend
