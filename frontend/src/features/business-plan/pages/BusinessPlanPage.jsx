@@ -57,7 +57,6 @@ export default function BusinessPlanPage() {
     saveBusinessPlan,
     savePractice,
     deletePractice,
-    registerSaveTrigger,
   } = useBusinessPlan();
 
   const lotData = config && selectedLot ? config[selectedLot] : null;
@@ -77,7 +76,7 @@ export default function BusinessPlanPage() {
     setSimulationDiscount('myDiscount', val);
   }, [setSimulationDiscount]);
   const [targetMargin, setTargetMargin] = useState(15);
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [excelExportLoading, setExcelExportLoading] = useState(false);
   const [excelImportLoading, setExcelImportLoading] = useState(false);
@@ -244,7 +243,7 @@ export default function BusinessPlanPage() {
       logger.error('Calculation error', err, { lot: selectedLot });
       toast.error(`Errore nel calcolo: ${err.message || 'Errore sconosciuto'}`);
     }
-  }, [localBP, lotData, toast, buildLutechRates, buildLutechLabels]);
+  }, [localBP, lotData, toast, buildLutechRates, buildLutechLabels, selectedLot]);
 
   useEffect(() => {
     runCalculation();
@@ -747,7 +746,7 @@ export default function BusinessPlanPage() {
 
     return { data: offerData, total: checkTotal };
 
-  }, [calcResult, localBP, lotData, discount, isRti, quotaLutech]);
+  }, [calcResult, localBP, lotData, discount, quotaLutech]);
 
   // Loading state
   if (!selectedLot || !lotData) {
