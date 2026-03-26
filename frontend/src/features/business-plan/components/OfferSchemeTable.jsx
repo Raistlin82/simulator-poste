@@ -18,6 +18,7 @@ const TYPE_CONFIG = {
 export default function OfferSchemeTable({
   offerData = [],
   totalOffer = 0,
+  isRti = false,
 }) {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const { t } = useTranslation();
@@ -222,7 +223,7 @@ export default function OfferSchemeTable({
                               {/* Summary totale catalogo */}
                               <div className="flex justify-end">
                                 <div className="px-4 py-2 bg-rose-100 rounded-lg text-xs font-semibold text-rose-800">
-                                  {t('business_plan.offer_catalog_total_lutech', 'Totale Catalogo (quota Lutech):')} {formatCurrency(row.total_price, 0)}
+                                  {isRti ? t('business_plan.offer_catalog_total_full', 'Totale Catalogo (100% Poste):') : t('business_plan.offer_catalog_total_lutech', 'Totale Catalogo (quota Lutech):')} {formatCurrency(row.total_price, 0)}
                                 </div>
                               </div>
                             </div>
@@ -250,6 +251,16 @@ export default function OfferSchemeTable({
           </tbody>
         </table>
       </div>
+
+      {/* Footer Disclaimer per RTI */}
+      {isRti && (
+        <div className="px-6 py-3 bg-indigo-50 border-t border-indigo-100 flex items-center justify-center gap-3">
+          <Euro className="w-4 h-4 text-indigo-400" />
+          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+            {t('business_plan.offer_rti_disclaimer', "Nota: I prezzi sopra esposti rappresentano il 100% dell'offerta da presentare al Cliente (Poste).")}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

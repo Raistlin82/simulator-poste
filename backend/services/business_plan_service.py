@@ -729,8 +729,9 @@ class BusinessPlanService:
                 # For now, assuming 0-1 decimal format from frontend.
                 group_reuse_factor = float(group_reuse_raw if group_reuse_raw is not None else default_catalog_reuse_factor)
                 
-                # effective_group_fte reflects volume adjustments AND Lutech quota
-                effective_group_fte = group_fte * (1.0 - group_reuse_factor) * lutech_factor
+                # effective_group_fte reflects volume adjustments
+                # NOTE: lutech_factor is NOT applied here because values from DB/Frontend are already Lutech-scaled
+                effective_group_fte = group_fte * (1.0 - group_reuse_factor)
 
                 item_fte = effective_group_fte * item_pct / 100.0
 
@@ -751,8 +752,9 @@ class BusinessPlanService:
                 effective_group_target = group_target * sconto_gara_factor
                 effective_price_base = price_base * sconto_gara_factor
 
-                # Pz. Poste Tot. effettivo (post sconto gara E quota RTI)
-                item_poste_total = effective_group_target * (item_pct / 100.0) * lutech_factor
+                # Pz. Poste Tot. effettivo (post sconto gara)
+                # NOTE: lutech_factor is NOT applied here to avoid double scaling
+                item_poste_total = effective_group_target * (item_pct / 100.0)
 
 
                 # Pz. Unitario Lutech e Sconto %

@@ -297,8 +297,8 @@ export default function BusinessPlanPage() {
   }, []);
 
   const isRti = lotData?.rti_enabled || false;
-  const quotaLutech = isRti && lotData?.rti_quotas?.Lutech
-    ? lotData.rti_quotas.Lutech / 100
+  const quotaLutech = isRti 
+    ? (lotData?.rti_quotas?.Lutech ? lotData.rti_quotas.Lutech / 100 : 0.7)
     : 1.0;
 
   const handleExcelExport = async () => {
@@ -631,8 +631,9 @@ export default function BusinessPlanPage() {
 
     // Revenue Target (Base d'asta effettiva - Sconto)
     // Use the same quotaLutech already computed at component level (avoids duplication)
-    const effectiveBase = (lotData.base_amount || 0) * quotaLutech;
-    const revenue = effectiveBase * (1 - discount / 100);
+    // Revenue Target (Base d'asta totale - Sconto) para la vista Poste (sempre 100%)
+    const fullBase = (lotData.base_amount || 0);
+    const revenue = fullBase * (1 - discount / 100);
 
     const tows = localBP.tows || [];
 
@@ -668,7 +669,9 @@ export default function BusinessPlanPage() {
         }
 
         // Prezzo catalogo = Σ Pz. Poste Tot. (ricavo Poste già scontato) — ora correttamente dall'engine
-        const catalogTotal = towDetail ? towDetail.sell_price : 0;
+        // Prezzo catalogo = Σ Pz. Poste Tot. (ricavo Poste già scontato)
+        // Se RTI, un-scaliamo per mostrare il 100% (Vista Poste)
+        const catalogTotal = (towDetail && quotaLutech > 0) ? towDetail.sell_price / quotaLutech : (towDetail?.sell_price || 0);
 
         const itemMap = Object.fromEntries(items.map(it => [it.id, it]));
         const groupedIds = new Set(groups.flatMap(g => g.item_ids || []));
@@ -744,7 +747,7 @@ export default function BusinessPlanPage() {
 
     return { data: offerData, total: checkTotal };
 
-  }, [calcResult, localBP, lotData, discount, isRti]);
+  }, [calcResult, localBP, lotData, discount, isRti, quotaLutech]);
 
   // Loading state
   if (!selectedLot || !lotData) {
@@ -1261,6 +1264,7 @@ export default function BusinessPlanPage() {
                 <OfferSchemeTable
                   offerData={offerScheme.data}
                   totalOffer={offerScheme.total}
+                  isRti={isRti}
                 />
 
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
