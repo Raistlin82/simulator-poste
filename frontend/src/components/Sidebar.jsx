@@ -81,7 +81,13 @@ export default function Sidebar({
     useEffect(() => {
         const currentLotData = lotDataRef.current;
         if (currentLotData?.rti_quotas && Object.keys(currentLotData.rti_quotas).length > 0) {
-            setLocalQuotas(currentLotData.rti_quotas);
+            // Filter out companies no longer in the RTI (ghost entries from removed partners)
+            const validCompanies = new Set(['Lutech', ...(rtiCompaniesKey ? rtiCompaniesKey.split(',') : [])]);
+            const cleaned = {};
+            for (const [k, v] of Object.entries(currentLotData.rti_quotas)) {
+                if (validCompanies.has(k)) cleaned[k] = v;
+            }
+            setLocalQuotas(cleaned);
         } else if (isRti && rtiCompaniesKey) {
             // Initialize default quotas: Lutech 70%, rest split among partners
             const companies = rtiCompaniesKey.split(',');
@@ -106,15 +112,17 @@ export default function Sidebar({
         }
     }, [selectedLot, isRti, rtiCompaniesKey]);
 
-    // Validate that quotas sum to 100
-    const totalQuota = Object.values(localQuotas).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
+    // Validate that quotas sum to 100 — only count ACTIVE RTI companies
+    const totalQuota = allRtiCompanies.reduce((sum, c) => sum + (parseFloat(localQuotas[c]) || 0), 0);
     const isQuotaValid = Math.abs(totalQuota - 100) < 0.01;
 
     // Debounced save of quotas to backend
     const saveQuotas = useCallback(async (quotas) => {
         if (!lotData || !selectedLot) return;
 
-        const total = Object.values(quotas).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
+        // Only validate active RTI companies (ignore ghost entries)
+        const activeCompanies = ['Lutech', ...(lotData.rti_companies || [])];
+        const total = activeCompanies.reduce((sum, c) => sum + (parseFloat(quotas[c]) || 0), 0);
         if (Math.abs(total - 100) > 0.01) {
             setQuotaError(t('simulation.rti_total_must_100'));
             return;
