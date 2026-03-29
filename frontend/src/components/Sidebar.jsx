@@ -130,13 +130,21 @@ export default function Sidebar({
         await updateConfig({ [selectedLot]: updatedLot });
     }, [lotData, selectedLot, config, setConfig, updateConfig, t]);
 
-    // Handle quota change with debounce
+    // Handle quota change — update config context immediately, debounce backend save
     const handleQuotaChange = (company, value) => {
         const numValue = parseFloat(value) || 0;
         const newQuotas = { ...localQuotas, [company]: numValue };
         setLocalQuotas(newQuotas);
 
-        // Debounce the save using ref instead of global
+        // Sync config context immediately so BusinessPlanPage sees the change
+        if (lotData && selectedLot) {
+            setConfig(prev => ({
+                ...prev,
+                [selectedLot]: { ...prev[selectedLot], rti_quotas: newQuotas }
+            }));
+        }
+
+        // Debounce the backend save (validates total=100%)
         if (quotaSaveTimeoutRef.current) {
             clearTimeout(quotaSaveTimeoutRef.current);
         }
