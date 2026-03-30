@@ -112,6 +112,9 @@ export default function Sidebar({
         }
     }, [selectedLot, isRti, rtiCompaniesKey]);
 
+    // Get all RTI companies including Lutech (must be declared before totalQuota uses it)
+    const allRtiCompanies = isRti ? ['Lutech', ...rtiCompanies] : [];
+
     // Validate that quotas sum to 100 — only count ACTIVE RTI companies
     const totalQuota = allRtiCompanies.reduce((sum, c) => sum + (parseFloat(localQuotas[c]) || 0), 0);
     const isQuotaValid = Math.abs(totalQuota - 100) < 0.01;
@@ -169,9 +172,6 @@ export default function Sidebar({
             }
         };
     }, []);
-
-    // Get all RTI companies including Lutech
-    const allRtiCompanies = isRti ? ['Lutech', ...rtiCompanies] : [];
 
     return (
         <div className="w-[85vw] max-w-80 md:w-80 bg-white/40 backdrop-blur-2xl border-r border-white/60 flex flex-col h-full shadow-2xl z-20 overflow-hidden">
