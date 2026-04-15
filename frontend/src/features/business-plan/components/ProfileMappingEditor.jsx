@@ -616,7 +616,6 @@ export default function ProfileMappingEditor({
     let totalNominalCost = 0;
     let totalEffectiveCost = 0;
     let totalNominalDays = 0;
-    let totalEffectiveDays = 0;
     let mappedFte = 0;
     const breakdown = [];
 
@@ -633,7 +632,6 @@ export default function ProfileMappingEditor({
       let profileNominalCost = 0;
       let profileEffectiveCost = 0;
       let profileNominalDays = 0;
-      let profileEffectiveDays = 0;
       let hasValidMapping = false;
       const periodDetails = [];
       let validPeriods = 0;
@@ -664,6 +662,7 @@ export default function ProfileMappingEditor({
       }
 
       const displayedAvgRate = validPeriods > 0 ? avgRateForUI / validPeriods : 0;
+      const reuseMultiplier = 1 - ((reuseFactor || 0) / 100);
 
       // Iteriamo mese per mese per precisione assoluta (inflazione + rettifiche)
       for (let m = 1; m <= durationMonths; m++) {
@@ -679,23 +678,18 @@ export default function ProfileMappingEditor({
         const inflationFactor = Math.pow(1 + inflationPct / 100, yearIdx);
         const inflatedRate = mixRate * inflationFactor;
 
-        // Fattore di rettifica (Volume + TOW + Reuse)
-        const adjDetail = getProfileFteForPeriod(profileId, m, m);
-        const effectiveFactor = adjDetail ? adjDetail.factor : 1.0;
-
         // Per-member effective days/month (respects manual_days_year override)
         const memberEffDaysYear = getEffectiveDaysYear(member, daysPerFte);
         const daysInMonth = (1 / 12) * (fte > 0 ? memberEffDaysYear / fte : daysPerFte);
+        const nominalDays = fte * daysInMonth;
 
         // Nominale (Pesa sulla base degli FTE di Poste)
-        profileNominalCost += mixRate * fte * daysInMonth;
-        profileNominalDays += fte * daysInMonth;
+        profileNominalCost += mixRate * nominalDays;
+        profileNominalDays += nominalDays;
 
-        // Effettiva Lutech (Include RTI, Volume, TOW, Riuso, Inflazione)
-        // La tariffa media viene pesata sugli FTE EFFETTIVI Lutech
-        const fteLutech = fte * effectiveFactor;
-        profileEffectiveCost += inflatedRate * fteLutech * daysInMonth;
-        profileEffectiveDays += fteLutech * daysInMonth;
+        // Effettiva: Inflazione + Riuso sul costo, diviso per GG Nominali
+        // RTI e Volume NON influenzano la tariffa media (influenzano lo scope, non il rate)
+        profileEffectiveCost += inflatedRate * reuseMultiplier * nominalDays;
       }
 
       if (hasValidMapping && profileNominalDays > 0) {
@@ -703,7 +697,6 @@ export default function ProfileMappingEditor({
         totalNominalCost += profileNominalCost;
         totalNominalDays += profileNominalDays;
         totalEffectiveCost += profileEffectiveCost;
-        totalEffectiveDays += profileEffectiveDays;
 
         breakdown.push({
           profileId,
@@ -718,7 +711,7 @@ export default function ProfileMappingEditor({
     }
 
     const avgRate = totalNominalDays > 0 ? totalNominalCost / totalNominalDays : 0;
-    const effectiveAvgRate = totalEffectiveDays > 0 ? totalEffectiveCost / totalEffectiveDays : avgRate;
+    const effectiveAvgRate = totalNominalDays > 0 ? totalEffectiveCost / totalNominalDays : avgRate;
 
     return {
       avgRate,
@@ -727,13 +720,12 @@ export default function ProfileMappingEditor({
       totalFte: teamComposition.reduce((sum, m) => sum + (parseFloat(m.fte) || 0), 0),
       mappedFte,
       totalNominalDays,
-      totalEffectiveDays,
       hasMappings: mappedFte > 0,
       breakdown,
       totalWeightedRate: Math.round(totalNominalCost),
       totalEffWeightedCost: Math.round(totalEffectiveCost)
     };
-  }, [teamComposition, mappings, calculatePeriodMixCost, daysPerFte, durationMonths, inflationPct, getProfileFteForPeriod, reuseFactor, lutechProfiles]);
+  }, [teamComposition, mappings, calculatePeriodMixCost, daysPerFte, durationMonths, inflationPct, reuseFactor, lutechProfiles]);
 
   if (teamComposition.length === 0) {
     return (
