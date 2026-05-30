@@ -921,7 +921,14 @@ class ExcelReportGenerator:
         ws[f'B{row}'] = 'Rapporto (R)'
         ws[f'B{row}'].font = LABEL_FONT
         ws[f'B{row}'].border = THIN_BORDER
-        ws[f'C{row}'] = f'=IF(C{base_row}-C{prezzo_best_row}=0,0,(C{base_row}-C{prezzo_mio_row})/(C{base_row}-C{prezzo_best_row}))'
+        # Match Python ScoringService.calculate_economic_score exactly:
+        # actual_best = MIN(mio, best); ratio = (base-mio)/(base-actual_best),
+        # clamped to [0,1]. The clamp makes the score cell (max_econ*ratio^alpha)
+        # never exceed max_econ when our offer beats the market best.
+        ws[f'C{row}'] = (
+            f'=IF((C{base_row}-MIN(C{prezzo_mio_row},C{prezzo_best_row}))<=0,0,'
+            f'MAX(0,MIN(1,(C{base_row}-C{prezzo_mio_row})/(C{base_row}-MIN(C{prezzo_mio_row},C{prezzo_best_row})))))'
+        )
         ws[f'C{row}'].fill = FORMULA_FILL
         ws[f'C{row}'].border = THIN_BORDER
         ws[f'C{row}'].number_format = '0.0000'
