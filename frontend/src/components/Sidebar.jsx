@@ -77,7 +77,11 @@ export default function Sidebar({
     // Serialize rtiCompanies to a string for stable dependency comparison
     const rtiCompaniesKey = rtiCompanies.join(',');
 
-    // Initialize local quotas from config when lot changes
+    // Initialize editable RTI quotas from config when the lot changes, and sync
+    // default quotas to the backend. This is a legitimate "derive local state on
+    // identity change + external sync" effect, so the set-state-in-effect
+    // heuristic is intentionally disabled for it.
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         const currentLotData = lotDataRef.current;
         if (currentLotData?.rti_quotas && Object.keys(currentLotData.rti_quotas).length > 0) {
@@ -89,15 +93,24 @@ export default function Sidebar({
             }
             setLocalQuotas(cleaned);
         } else if (isRti && rtiCompaniesKey) {
-            // Initialize default quotas: Lutech 70%, rest split among partners
+            // Initialize default quotas: Lutech 70%, rest split among partners.
             const companies = rtiCompaniesKey.split(',');
             const partnerCount = companies.length;
             const remaining = 30.0;
-            const perPartner = partnerCount > 0 ? Math.round((remaining / partnerCount) * 100) / 100 : 0;
+            // Floor each partner share, then give the rounding remainder to the
+            // last partner so the quotas sum to EXACTLY 100 (otherwise rounding
+            // drift made the total 100.03% and blocked saving — the "130%"/
+            // ghost-quota bug class).
+            const perPartner = partnerCount > 0 ? Math.floor((remaining / partnerCount) * 100) / 100 : 0;
             const defaultQuotas = { Lutech: 70.0 };
             companies.forEach(company => {
                 defaultQuotas[company] = perPartner;
             });
+            if (partnerCount > 0) {
+                const assigned = 70.0 + perPartner * partnerCount;
+                const lastCompany = companies[partnerCount - 1];
+                defaultQuotas[lastCompany] = Math.round((defaultQuotas[lastCompany] + (100 - assigned)) * 100) / 100;
+            }
             setLocalQuotas(defaultQuotas);
 
             // Auto-save default quotas to backend so they're available for export
@@ -111,6 +124,7 @@ export default function Sidebar({
             setLocalQuotas({});
         }
     }, [selectedLot, isRti, rtiCompaniesKey]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Get all RTI companies including Lutech (must be declared before totalQuota uses it)
     const allRtiCompanies = isRti ? ['Lutech', ...rtiCompanies] : [];

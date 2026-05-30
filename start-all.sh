@@ -43,10 +43,13 @@ if [ ! -f .env ]; then
 # Environment
 ENVIRONMENT=development
 
-# OIDC Configuration
-OIDC_ISSUER=https://asojzafbi.accounts.ondemand.com
-OIDC_CLIENT_ID=c763a5f1-287c-4115-93bc-61e06b1bd7a3
-OIDC_AUDIENCE=c763a5f1-287c-4115-93bc-61e06b1bd7a3
+# OIDC Configuration — fill in with your own SAP IAS values.
+# Leave OIDC_CLIENT_ID empty and set AUTH_DEV_BYPASS=1 to run WITHOUT auth
+# (local development only — never in staging/production).
+OIDC_ISSUER=
+OIDC_CLIENT_ID=
+OIDC_AUDIENCE=
+AUTH_DEV_BYPASS=1
 
 # Frontend URL (for CORS)
 FRONTEND_URL=http://localhost:5173

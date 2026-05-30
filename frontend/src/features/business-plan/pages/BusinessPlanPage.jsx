@@ -57,7 +57,6 @@ export default function BusinessPlanPage() {
     saveBusinessPlan,
     savePractice,
     deletePractice,
-    registerSaveTrigger,
   } = useBusinessPlan();
 
   const lotData = config && selectedLot ? config[selectedLot] : null;
@@ -77,7 +76,9 @@ export default function BusinessPlanPage() {
     setSimulationDiscount('myDiscount', val);
   }, [setSimulationDiscount]);
   const [targetMargin, setTargetMargin] = useState(15);
-  const [saving, setSaving] = useState(false);
+  // `saving` flag is currently only written (drives no UI yet); keep the setter
+  // so the existing save flow is unchanged.
+  const [, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [excelExportLoading, setExcelExportLoading] = useState(false);
   const [excelImportLoading, setExcelImportLoading] = useState(false);

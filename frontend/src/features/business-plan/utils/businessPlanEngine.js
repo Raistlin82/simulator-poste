@@ -1,3 +1,5 @@
+import { logger } from '../../../utils/logger';
+
 export const DAYS_PER_FTE = 220;
 export const DEFAULT_DAILY_RATE = 250;
 
@@ -399,7 +401,7 @@ export const calculateCatalogCost = (bp) => {
             const towSellPrice = computed.total_sell_price || 0;
 
             const itemsDetail = computed.items.map(ci => {
-                if (!ci.id) console.warn('[engine] catalog item missing id', ci.label);
+                if (!ci.id) logger.warn('[engine] catalog item missing id', { label: ci.label });
                 return {
                     id: ci.id || '',
                     label: ci.label || '',
@@ -488,9 +490,9 @@ export const calculateCatalogCost = (bp) => {
             });
         } else {
             // If no catalog_computed, this TOW contributes 0 (user hasn't opened the editor yet)
-            console.warn(
+            logger.warn(
                 `[CatalogEngine] TOW "${tow.tow_id || tow.id || '?'}" tipo catalogo: catalog_computed assente o vuoto.`,
-                'Aprire il CatalogEditorModal per abilitare il calcolo.'
+                { hint: 'Aprire il CatalogEditorModal per abilitare il calcolo.' }
             );
         }
     }

@@ -6,7 +6,10 @@ Handles creation, retrieval, and updating of lot configurations and master data
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any, Tuple
 import json
+import os
 import re
+import tempfile
+import threading
 from pathlib import Path
 
 import models, schemas
@@ -14,6 +17,11 @@ from vendor_defaults import DEFAULT_VENDORS
 from logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# Serializes the read-modify-write of JSON config files so concurrent requests
+# (FastAPI runs sync handlers in a threadpool; SQLite uses check_same_thread=False)
+# cannot interleave and lose updates.
+_json_write_lock = threading.Lock()
 
 
 def validate_regex_pattern(pattern: str) -> bool:
@@ -80,11 +88,25 @@ def load_json_file(filename: str) -> Dict[str, Any]:
 
 
 def save_json_file(filename: str, data: Dict[str, Any]) -> bool:
-    """Save data to JSON configuration file in backend directory"""
+    """Atomically save data to a JSON config file in the backend directory.
+
+    Writes to a temp file in the same directory and os.replace()s it into place
+    so a crash mid-write can never leave a truncated/corrupt file (which would
+    break seeding on the next startup).
+    """
     file_path = Path(__file__).parent / filename
     try:
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+        fd, tmp_path = tempfile.mkstemp(dir=str(file_path.parent), prefix=f".{filename}.", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, file_path)
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            raise
         return True
     except Exception as e:
         logger.error(f"Failed to save {filename}: {e}")
@@ -314,20 +336,23 @@ def update_master_data(
     db.commit()
     db.refresh(db_master)
     
-    # Auto-sync to JSON file for backup/seed purposes
-    # Preserve static fields (criteria_judgement_levels, scoring_formulas) by reading existing file first
-    existing_json = load_json_file("master_data.json")
-    json_data = {
-        **existing_json,  # Preserve static fields
-        "company_certs": db_master.company_certs or [],
-        "prof_certs": db_master.prof_certs or [],
-        "prof_certs_resources": db_master.prof_certs_resources or {},
-        "prof_certs_vendors": db_master.prof_certs_vendors or {},
-        "requirement_labels": db_master.requirement_labels or [],
-        "economic_formulas": db_master.economic_formulas or [],
-        "rti_partners": db_master.rti_partners or []
-    }
-    save_json_file("master_data.json", json_data)
+    # Auto-sync to JSON file for backup/seed purposes. The DB is the source of
+    # truth; this snapshot keeps master_data.json usable as a seed/backup.
+    # Guarded by a lock so concurrent updates can't interleave the
+    # read-merge-write and lose each other's changes.
+    with _json_write_lock:
+        existing_json = load_json_file("master_data.json")
+        json_data = {
+            **existing_json,  # Preserve static fields (e.g. scoring_formulas)
+            "company_certs": db_master.company_certs or [],
+            "prof_certs": db_master.prof_certs or [],
+            "prof_certs_resources": db_master.prof_certs_resources or {},
+            "prof_certs_vendors": db_master.prof_certs_vendors or {},
+            "requirement_labels": db_master.requirement_labels or [],
+            "economic_formulas": db_master.economic_formulas or [],
+            "rti_partners": db_master.rti_partners or []
+        }
+        save_json_file("master_data.json", json_data)
     
     return db_master
 
@@ -640,6 +665,19 @@ def delete_business_plan(db: Session, lot_key: str) -> bool:
 def get_practices(db: Session) -> List[models.PracticeModel]:
     """Retrieve all practices"""
     return db.query(models.PracticeModel).order_by(models.PracticeModel.label).all()
+
+
+def build_profile_rates(db: Session) -> Dict[str, float]:
+    """Build the {``practice_id:profile_id`` -> daily_rate} map from the practices
+    catalog. Used by every Business Plan endpoint to resolve Lutech profile rates.
+    """
+    rates: Dict[str, float] = {}
+    for practice in get_practices(db):
+        for profile in (practice.profiles or []):
+            profile_id = profile.get("id", "")
+            if profile_id:
+                rates[f"{practice.id}:{profile_id}"] = float(profile.get("daily_rate", 0.0))
+    return rates
 
 
 def get_practice(db: Session, practice_id: str) -> Optional[models.PracticeModel]:

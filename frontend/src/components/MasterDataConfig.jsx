@@ -137,7 +137,7 @@ export default function MasterDataConfig() {
 
     const addItem = (section) => {
         const newItem = section === 'economic_formulas'
-            ? { id: `formula_${Date.now()}`, label: t('master.new_formula'), desc: "P = $P_{max} \\times ..." }
+            ? { id: `formula_${crypto?.randomUUID?.() ?? Date.now()}`, label: t('master.new_formula'), desc: "P = $P_{max} \\times ..." }
             : "";
         setData(prev => ({
             ...prev,

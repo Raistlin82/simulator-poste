@@ -2,11 +2,12 @@ from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, status,
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 import uvicorn
 import numpy as np
@@ -219,10 +220,10 @@ def get_allowed_origins():
         return [normalized_url]
 
     elif env == "staging":
-        # Staging: Allow staging domain + localhost for testing
+        # Staging: only the staging domain (no localhost — staging may be exposed).
         staging_url = os.getenv("FRONTEND_URL", "https://staging.simulator-poste.example.com")
         normalized_url = normalize_origin_url(staging_url)
-        origins = [normalized_url, "http://localhost:5173"]
+        origins = [normalized_url]
         logger.info(f"Staging CORS: {origins}")
         return origins
 
@@ -331,6 +332,20 @@ async def limit_upload_size(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Apply baseline security headers to every response."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    if os.getenv("ENVIRONMENT") == "production":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
 # --- DB Dependency ---
 def get_db():
     db = SessionLocal()
@@ -338,6 +353,23 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def require_admin(request: Request, user: dict = Depends(get_current_user)) -> dict:
+    """Authorization gate for destructive/admin endpoints.
+
+    - Local dev bypass (AUTH_DEV_BYPASS) counts as admin for convenience.
+    - Otherwise the caller's email/sub must be in the ADMIN_EMAILS allowlist.
+    - Fails closed: if no allowlist is configured, access is denied.
+    """
+    if getattr(request.state, "auth_dev_bypass", False):
+        return user
+    allow = [e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()]
+    email = (user.get("email") or "").lower()
+    sub = (user.get("sub") or "").lower()
+    if allow and (email in allow or sub in allow):
+        return user
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
 
 
 # --- HEALTH CHECK & MONITORING ENDPOINTS ---
@@ -350,7 +382,7 @@ def health_check(db: Session = Depends(get_db)):
     """
     health_status = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "1.0.0",
         "checks": {}
     }
@@ -393,9 +425,10 @@ def health_check(db: Session = Depends(get_db)):
             "message": "OK" if master_data else "Master data not initialized"
         }
     except Exception as e:
+        logger.warning(f"Health check master_data error: {e}")
         health_status["checks"]["master_data"] = {
             "status": "warning",
-            "message": str(e)
+            "message": "master_data check failed"
         }
 
     # Response with appropriate status code
@@ -412,7 +445,7 @@ def readiness_check(db: Session = Depends(get_db)):
     try:
         # Quick database check - just verify connection works
         db.execute(text("SELECT 1"))
-        return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
+        return {"status": "ready", "timestamp": datetime.now(timezone.utc).isoformat()}
     except Exception as e:
         logger.warning("Readiness check failed", extra={"error": str(e)})
         return JSONResponse(
@@ -429,7 +462,7 @@ def liveness_check():
     """
     return {
         "status": "alive",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -446,7 +479,7 @@ def metrics_endpoint():
         process = psutil.Process(os.getpid())
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "process": {
                 "memory_mb": round(process.memory_info().rss / 1024 / 1024, 2),
                 "memory_percent": round(process.memory_percent(), 2),
@@ -464,7 +497,7 @@ def metrics_endpoint():
     except ImportError:
         logger.warning("psutil not installed, metrics limited")
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "message": "Install psutil for detailed metrics"
         }
     except Exception as e:
@@ -481,6 +514,28 @@ def metrics_endpoint():
 def calculate_economic_score(p_base, p_offered, p_best_competitor, alpha=0.3, max_econ=40.0):
     """Legacy wrapper - delegates to ScoringService"""
     return ScoringService.calculate_economic_score(p_base, p_offered, p_best_competitor, alpha, max_econ)
+
+
+def _economic_score_vec(p_base, p_offered, p_best_competitor, alpha=0.3, max_econ=40.0):
+    """Vectorized economic score (numpy). Numerically equivalent to
+    ScoringService.calculate_economic_score, element-wise over arrays.
+
+    Used by the Monte Carlo simulations so the per-iteration scoring runs as a
+    single numpy operation instead of a Python loop.
+    """
+    p_offered = np.asarray(p_offered, dtype=float)
+    p_best = np.asarray(p_best_competitor, dtype=float)
+    actual_best = np.minimum(p_offered, p_best)
+    denom = p_base - actual_best
+    num = p_base - p_offered
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(denom > 0, num / denom, 0.0)
+    ratio = np.clip(ratio, 0.0, 1.0)
+    score = max_econ * np.power(ratio, alpha)
+    # Edge cases mirroring the scalar implementation:
+    # offer above base, or no discount spread => score 0.
+    score = np.where((p_offered > p_base) | (denom <= 0), 0.0, score)
+    return score
 
 
 def calculate_prof_score(R, C, max_res, max_points, max_certs=5, max_points_manual=False, prof_R=None, prof_C=None):
@@ -548,21 +603,22 @@ def get_sqlite_db_path():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_dir, "simulator_poste.db")
 
+# SQLite file magic header — used to validate uploaded database files.
+_SQLITE_MAGIC = b"SQLite format 3\x00"
+
+
 @api_router.get("/system/export-db")
-def export_database(db: Session = Depends(get_db)):
-    """Export the entire SQLite database."""
-    try:
-        db.commit()
-    except Exception:
-        pass
-        
+def export_database(db: Session = Depends(get_db), _: dict = Depends(require_admin)):
+    """Export the entire SQLite database. Admin only."""
+    db.commit()
+
     db_path = get_sqlite_db_path()
     logger.info(f"Exporting database from path: {db_path}")
-    
+
     if not os.path.exists(db_path):
         logger.error(f"Database file not found at {db_path}")
         raise HTTPException(status_code=404, detail="Database file not found")
-        
+
     return FileResponse(
         path=db_path,
         filename=f"simulator_poste_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
@@ -570,31 +626,51 @@ def export_database(db: Session = Depends(get_db)):
     )
 
 @api_router.post("/system/import-db")
-async def import_database(file: UploadFile = File(...), db=Depends(get_db)):
-    """Import and replace the SQLite database."""
+async def import_database(file: UploadFile = File(...), db=Depends(get_db), _: dict = Depends(require_admin)):
+    """Import and replace the SQLite database. Admin only.
+
+    Validates the upload is a real SQLite file and backs up the current DB
+    before overwriting so a bad import can be rolled back.
+    """
     if not file.filename.endswith('.db'):
         raise HTTPException(status_code=400, detail="Il file deve avere estensione .db")
-        
-    db_path = get_sqlite_db_path()
-    
+
+    # Read into a temp file and validate the SQLite magic header before touching
+    # the live database.
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".db", prefix="import_")
     try:
+        with os.fdopen(tmp_fd, "wb") as tmp:
+            shutil.copyfileobj(file.file, tmp)
+        with open(tmp_path, "rb") as fh:
+            header = fh.read(16)
+        if header != _SQLITE_MAGIC:
+            raise HTTPException(status_code=400, detail="Il file non è un database SQLite valido")
+
+        db_path = get_sqlite_db_path()
+
         from database import engine
         engine.dispose()
-    except Exception as e:
-        logger.warning(f"Error disposing engine: {e}")
-    
-    try:
-        # Create directory if it doesn't exist
+
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        
-        with open(db_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
+
+        # Timestamped backup of the current DB before replacing it.
+        if os.path.exists(db_path):
+            backup_path = f"{db_path}.bak_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            shutil.copy2(db_path, backup_path)
+            logger.info(f"Backed up current database to {backup_path}")
+
+        shutil.move(tmp_path, db_path)
+        tmp_path = None  # moved
         logger.info(f"Database successfully restored from {file.filename} to {db_path}")
         return {"status": "success", "message": "Database ripristinato con successo"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error restoring database: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Errore durante il ripristino del database")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 
@@ -1003,8 +1079,8 @@ async def preview_lutech_resources(file: UploadFile = File(...), db: Session = D
                 try:
                     if _re.search(pattern, cert_lower, _re.IGNORECASE):
                         return vc.key
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Skipping invalid cert pattern '{pattern}' for vendor {vc.key}: {e}")
         return ""
 
     for item in unmatched:
@@ -1745,14 +1821,6 @@ def monte_carlo_simulation(
         raise HTTPException(status_code=404, detail="Lot not found")
     lot_cfg = schemas.LotConfig.model_validate(lot_cfg_db)
 
-    comp_discounts = np.random.normal(
-        data.competitor_discount_mean, data.competitor_discount_std, data.iterations
-    )
-    wins = 0
-
-    my_scores = []
-    competitor_scores = []
-
     max_tech = lot_cfg.max_tech_score
     max_econ = lot_cfg.max_econ_score
 
@@ -1760,36 +1828,27 @@ def monte_carlo_simulation(
     comp_tech_mean = data.competitor_tech_score_mean if data.competitor_tech_score_mean is not None else max_tech * 0.9
     comp_tech_std = data.competitor_tech_score_std
 
-    for c_disc in comp_discounts:
-        c_disc = max(0, min(100, c_disc))
-        p_comp = data.base_amount * (1 - (c_disc / 100))
-        p_off = data.base_amount * (1 - (data.my_discount / 100))
+    # Vectorized Monte Carlo (equivalent to the previous per-iteration loop).
+    comp_discounts = np.clip(
+        np.random.normal(data.competitor_discount_mean, data.competitor_discount_std, data.iterations),
+        0, 100,
+    )
+    comp_tech_scores = np.clip(
+        np.random.normal(comp_tech_mean, comp_tech_std, data.iterations),
+        0, max_tech,
+    )
 
-        # Competitor tech score with variance around user-specified mean
-        comp_tech_score = np.random.normal(loc=comp_tech_mean, scale=comp_tech_std)
-        comp_tech_score = max(0, min(max_tech, comp_tech_score))
+    p_comp = data.base_amount * (1 - comp_discounts / 100)
+    p_off = data.base_amount * (1 - data.my_discount / 100)
+    p_best_actual = np.minimum(p_comp, p_off)
 
-        # Determine actual best price
-        p_best_actual = min(p_comp, p_off)
+    my_econ = _economic_score_vec(data.base_amount, p_off, p_best_actual, lot_cfg.alpha, max_econ)
+    comp_econ = _economic_score_vec(data.base_amount, p_comp, p_best_actual, lot_cfg.alpha, max_econ)
 
-        # Our economic score
-        econ_score = calculate_economic_score(
-            data.base_amount, p_off, p_best_actual, lot_cfg.alpha, max_econ
-        )
-        my_total = data.current_tech_score + econ_score
+    my_scores = data.current_tech_score + my_econ
+    competitor_scores = comp_tech_scores + comp_econ
 
-        # Competitor economic score (against actual best)
-        c_econ = calculate_economic_score(
-            data.base_amount, p_comp, p_best_actual, lot_cfg.alpha, max_econ
-        )
-        comp_total = comp_tech_score + c_econ
-
-        if my_total > comp_total:
-            wins += 1
-
-        my_scores.append(my_total)
-        competitor_scores.append(comp_total)
-
+    wins = int(np.sum(my_scores > competitor_scores))
     prob = (wins / data.iterations) * 100
 
     return {
@@ -1798,7 +1857,7 @@ def monte_carlo_simulation(
         "avg_total_score": round(float(np.mean(my_scores)), 2),
         "min_score": round(float(np.min(my_scores)), 2),
         "max_score": round(float(np.max(my_scores)), 2),
-        "score_distribution": [round(s, 1) for s in my_scores[:50]],
+        "score_distribution": [round(float(s), 1) for s in my_scores[:50]],
         "competitor_avg_score": round(float(np.mean(competitor_scores)), 2),
         "competitor_min_score": round(float(np.min(competitor_scores)), 2),
         "competitor_max_score": round(float(np.max(competitor_scores)), 2),
@@ -1911,36 +1970,31 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
         )
         competitor_total_scenario = data.competitor_tech_score + comp_econ_scenario
 
-        # Run Monte Carlo simulation to estimate win probability
-        wins = 0
-        for _ in range(iterations):
-            # Add variance to competitor tech score
-            comp_tech_var = np.random.normal(data.competitor_tech_score, 2.0)
-            comp_tech_var = max(0, min(lot_cfg.max_tech_score, comp_tech_var))
+        # Run Monte Carlo simulation to estimate win probability (vectorized).
+        comp_tech_var = np.clip(
+            np.random.normal(data.competitor_tech_score, 2.0, iterations),
+            0, lot_cfg.max_tech_score,
+        )
+        comp_disc_var = np.clip(
+            np.random.normal(data.competitor_discount, 1.5, iterations),
+            0, data.best_offer_discount,
+        )
+        p_comp_var = p_base * (1 - comp_disc_var / 100)
 
-            # Add variance to competitor discount (cannot exceed best_offer)
-            comp_disc_var = np.random.normal(data.competitor_discount, 1.5)
-            comp_disc_var = max(0, min(data.best_offer_discount, comp_disc_var))
-            p_comp_var = p_base * (1 - comp_disc_var / 100)
+        # Actual best per iteration (including our offer and the market best).
+        p_actual_best_mc = np.minimum(np.minimum(p_my, p_comp_var), p_market_best)
 
-            # Actual best in this Monte Carlo iteration (including our offer)
-            p_actual_best_mc = min(p_my, p_comp_var, p_market_best)
+        comp_econ_var = _economic_score_vec(
+            p_base, p_comp_var, p_actual_best_mc, lot_cfg.alpha, lot_cfg.max_econ_score
+        )
+        comp_total_var = comp_tech_var + comp_econ_var
 
-            # Competitor economic score against actual best
-            comp_econ_var = calculate_economic_score(
-                p_base, p_comp_var, p_actual_best_mc, lot_cfg.alpha, lot_cfg.max_econ_score
-            )
-            comp_total_var = comp_tech_var + comp_econ_var
+        my_econ_var = _economic_score_vec(
+            p_base, p_my, p_actual_best_mc, lot_cfg.alpha, lot_cfg.max_econ_score
+        )
+        my_total_var = data.my_tech_score + my_econ_var
 
-            # Our score against actual best (recalculate in case competitor beat market)
-            my_econ_var = calculate_economic_score(
-                p_base, p_my, p_actual_best_mc, lot_cfg.alpha, lot_cfg.max_econ_score
-            )
-            my_total_var = data.my_tech_score + my_econ_var
-
-            if my_total_var > comp_total_var:
-                wins += 1
-
+        wins = int(np.sum(my_total_var > comp_total_var))
         prob = (wins / iterations) * 100
 
         economic_impact = p_base - p_my
@@ -2041,8 +2095,8 @@ def export_excel(data: schemas.ExportExcelRequest, db: Session = Depends(get_db)
                 k: (len(v) if isinstance(v, list) else int(v or 0))
                 for k, v in raw.items()
             }
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to read prof_certs_resources: {e}")
 
     # Generate Excel report
     buffer = generate_excel_report(
@@ -2181,13 +2235,13 @@ def verify_certificates(
         logger.error(f"OCR import error: {e}")
         raise HTTPException(
             status_code=503,
-            detail=f"OCR dependencies not available: {str(e)}"
+            detail="OCR dependencies not available"
         )
     except Exception as e:
         logger.error(f"Certificate verification error: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Certificate verification failed: {str(e)}"
+            detail="Certificate verification failed"
         )
 
 
@@ -2322,7 +2376,7 @@ def verify_certificates_stream(
             logger.info(f"SSE client disconnected during cert verification (processed {len(results)} files)")
         except Exception as e:
             logger.error(f"Streaming cert verification error: {e}", exc_info=True)
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Certificate verification failed'})}\n\n"
         finally:
             if cancelled:
                 logger.debug("SSE stream cancelled by client")
@@ -2342,40 +2396,50 @@ def verify_certificates_stream(
 def verify_single_certificate(pdf_path: str, db: Session = Depends(get_db)):
     """
     Verify a single PDF certificate using OCR.
-    
+
     Args:
-        pdf_path: Absolute path to the PDF file
-    
+        pdf_path: Path to a PDF file produced by a prior upload/extraction. The
+            path MUST resolve inside the system temp directory; arbitrary
+            server paths are rejected to prevent local file inclusion.
+
     Returns:
         Verification result with extracted data
     """
-    logger.info(f"Single certificate verification requested: {pdf_path}")
-    
+    logger.info("Single certificate verification requested")
+
+    # Confine to the upload/extraction area (cert ZIPs extract under tempdir).
+    allowed_base = os.path.realpath(tempfile.gettempdir())
+    real_path = os.path.realpath(pdf_path)
+    if os.path.commonpath([real_path, allowed_base]) != allowed_base:
+        logger.warning("Rejected verify-certs/single path outside temp dir")
+        raise HTTPException(status_code=400, detail="Invalid certificate path")
+
     try:
         from services.cert_verification_service import CertVerificationService, OCR_AVAILABLE
-        
+
         if not OCR_AVAILABLE:
             raise HTTPException(
                 status_code=503,
                 detail="OCR dependencies not available"
             )
-        
-        import os
-        if not os.path.exists(pdf_path):
-            raise HTTPException(status_code=404, detail=f"File not found: {pdf_path}")
-        
+
+        if not (os.path.exists(real_path) and os.path.isfile(real_path)):
+            raise HTTPException(status_code=404, detail="Certificate file not found")
+
         vendors = CertVerificationService.load_vendors_from_db(db)
         settings = CertVerificationService.load_settings_from_db(db)
         service = CertVerificationService(vendors=vendors, settings=settings)
-        result = service.verify_certificate(pdf_path)
-        
+        result = service.verify_certificate(real_path)
+
         return result.to_dict()
-        
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+
+    except HTTPException:
+        raise
+    except ImportError:
+        raise HTTPException(status_code=503, detail="OCR dependencies not available")
     except Exception as e:
         logger.error(f"Certificate verification error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Certificate verification failed")
 
 
 @api_router.post("/verify-certs/upload")
@@ -2504,11 +2568,11 @@ async def verify_certs_upload(
     
     except HTTPException:
         raise
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    except ImportError:
+        raise HTTPException(status_code=503, detail="OCR dependencies not available")
     except Exception as e:
         logger.error(f"ZIP verification error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Certificate verification failed")
 
 
 @api_router.post("/verify-certs/upload/stream")
@@ -2540,9 +2604,9 @@ async def verify_certs_upload_stream(
                 status_code=503,
                 detail="OCR dependencies not available"
             )
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    
+    except ImportError:
+        raise HTTPException(status_code=503, detail="OCR dependencies not available")
+
     # Read file content upfront (can't read inside generator)
     file_content = await file.read()
     upload_filename = file.filename
@@ -2675,14 +2739,14 @@ async def verify_certs_upload_stream(
             logger.info(f"SSE client disconnected during ZIP verification (processed {len(results)} files)")
         except Exception as e:
             logger.error(f"Streaming ZIP verification error: {e}", exc_info=True)
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Certificate verification failed'})}\n\n"
         finally:
             # Cleanup temp directory
             if temp_dir:
                 try:
                     shutil.rmtree(temp_dir)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to clean up temp dir {temp_dir}: {e}")
             if cancelled:
                 logger.debug("SSE stream cancelled by client")
     
@@ -2899,17 +2963,8 @@ def calculate_business_plan(
     profile_rates: Dict[str, float] = {}
     team_result: Dict[str, Any] = {}
     if bp.team_composition:
-        # Build profile_rates from practices catalog
-        # Format: {practice_id:profile_id: daily_rate}
-        # Falls back to default_daily_rate if profile not found
-        practices = crud.get_practices(db)
-        profile_rates = {}
-        for practice in practices:
-            for profile in (practice.profiles or []):
-                profile_id = profile.get('id', '')
-                if profile_id:
-                    key = f"{practice.id}:{profile_id}"
-                    profile_rates[key] = float(profile.get('daily_rate', 0.0))
+        # Build profile_rates from practices catalog: {practice_id:profile_id -> rate}
+        profile_rates = crud.build_profile_rates(db)
 
         team_result = BusinessPlanService.calculate_team_cost(
             team_composition=bp.team_composition,
@@ -3124,14 +3179,7 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
     team_cost = 0.0
     profile_rates: Dict[str, float] = {}
     if bp.team_composition:
-        practices = crud.get_practices(db)
-        profile_rates = {}
-        for practice in practices:
-            for profile in (practice.profiles or []):
-                profile_id = profile.get('id', '')
-                if profile_id:
-                    key = f"{practice.id}:{profile_id}"
-                    profile_rates[key] = float(profile.get('daily_rate', 0.0))
+        profile_rates = crud.build_profile_rates(db)
 
         is_rti_s = lot.rti_enabled
         quota_lutech_s = lot.rti_quotas.get("Lutech", 100) / 100 if is_rti_s and lot.rti_quotas else 1.0
@@ -3212,14 +3260,7 @@ def find_discount_for_target(
         raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
 
     # Calculate team cost dynamically
-    practices = crud.get_practices(db)
-    profile_rates = {}
-    for practice in practices:
-        for profile in (practice.profiles or []):
-            profile_id = profile.get('id', '')
-            if profile_id:
-                key = f"{practice.id}:{profile_id}"
-                profile_rates[key] = float(profile.get('daily_rate', 0.0))
+    profile_rates = crud.build_profile_rates(db)
 
     team_cost = 0.0
     if bp.team_composition:
@@ -3311,10 +3352,8 @@ def export_business_plan_excel(data: schemas.ExportBusinessPlanRequest, db: Sess
             lutech_breakdown=data.lutech_breakdown,
         )
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        logger.error(f"Error generating Business Plan Excel: {str(e)}\n{tb}")
-        raise HTTPException(status_code=500, detail=f"Errore nella generazione dell'Excel: {str(e)}")
+        logger.error(f"Error generating Business Plan Excel: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Errore nella generazione dell'Excel")
 
     logger.info(f"Business Plan Excel export completed for lot: {data.lot_key}")
 
@@ -3486,8 +3525,16 @@ _PROVIDER_DEFAULT_MODELS = {
 }
 
 
-async def _call_ai_provider(provider: str, messages: list, system_prompt: str, model_name: Optional[str] = None) -> schemas.ChatResponse:
-    """Route a chat request to the appropriate AI provider."""
+# Timeout (seconds) for outbound AI-provider calls.
+_AI_CALL_TIMEOUT = 60.0
+
+
+def _call_ai_provider(provider: str, messages: list, system_prompt: str, model_name: Optional[str] = None) -> schemas.ChatResponse:
+    """Route a chat request to the appropriate AI provider.
+
+    Synchronous by design: the provider SDK calls block, so the caller runs this
+    in a threadpool (run_in_threadpool) to avoid stalling the asyncio event loop.
+    """
     key_name = _PROVIDER_KEY_MAP.get(provider, "ANTHROPIC_API_KEY")
     api_key = os.getenv(key_name)
     if not api_key:
@@ -3511,7 +3558,10 @@ async def _call_ai_provider(provider: str, messages: list, system_prompt: str, m
                 role = "user" if m["role"] == "user" else "model"
                 history.append({"role": role, "parts": [m["content"]]})
             chat_session = genai_model.start_chat(history=history)
-            resp = chat_session.send_message(messages[-1]["content"])
+            resp = chat_session.send_message(
+                messages[-1]["content"],
+                request_options={"timeout": _AI_CALL_TIMEOUT},
+            )
             return schemas.ChatResponse(content=resp.text, input_tokens=0, output_tokens=0)
         except Exception as e:
             logger.error(f"Gemini chat error: {e}")
@@ -3520,7 +3570,7 @@ async def _call_ai_provider(provider: str, messages: list, system_prompt: str, m
     elif provider == "groq":
         try:
             from groq import Groq
-            client = Groq(api_key=api_key)
+            client = Groq(api_key=api_key, timeout=_AI_CALL_TIMEOUT)
             resp = client.chat.completions.create(
                 model=resolved_model,
                 max_tokens=2048,
@@ -3538,7 +3588,7 @@ async def _call_ai_provider(provider: str, messages: list, system_prompt: str, m
     else:  # "claude"
         try:
             from anthropic import Anthropic, BadRequestError, AuthenticationError, APIStatusError
-            client = Anthropic(api_key=api_key)
+            client = Anthropic(api_key=api_key, timeout=_AI_CALL_TIMEOUT)
             response = client.messages.create(
                 model=resolved_model,
                 max_tokens=2048,
@@ -3599,7 +3649,8 @@ async def chat(
     ai_models = (master_data.ai_models or {}) if master_data else {}
     model_name = ai_models.get(provider) or None
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
-    return await _call_ai_provider(provider, messages, _CHAT_SYSTEM_PROMPT, model_name)
+    # Run the blocking provider SDK call off the event loop.
+    return await run_in_threadpool(_call_ai_provider, provider, messages, _CHAT_SYSTEM_PROMPT, model_name)
 
 
 # Register all routers - included early for priority

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Brush, ReferenceDot } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { Maximize2, Minimize2 } from 'lucide-react';
-import { formatNumber } from '../../../utils/formatters';
 
 /**
  * SimulationChart - Display economic score simulation with current position and key points
@@ -69,7 +68,6 @@ export default function SimulationChart({ simulationData, monteCarlo, results, m
   // Calculate 4 key points
   const competitorPoint = simulationData.find(p => Math.abs(p.discount - competitorDiscount) < 0.1);
   const competitorEconScore = competitorPoint?.economic_score || 0;
-  const competitorTotalScore = monteCarlo?.competitor_threshold || competitorEconScore;
 
   const toggleFullscreen = () => {
     const element = chartRef.current;

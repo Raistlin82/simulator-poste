@@ -1,70 +1,65 @@
 """
-Test new gara_weight scoring logic
-"""
-import sys
-from main import calculate_score
-from schemas import CalculateRequest, TechInput
-from database import SessionLocal
+Tests for gara_weight (competition weight) normalization in scoring.
 
-def test_gara_weight_scoring():
-    db = SessionLocal()
-    
-    print("=" * 80)
-    print("TEST: Gara Weight Scoring")
-    print("=" * 80)
-    
-    # Test Lotto 2 with simple values
-    lot_key = "Lotto 2"
-    
-    # Example: VAL_REQ_20 (Resource)
-    # max_points = 15, gara_weight = 9.68
-    # If raw = 10, then weighted = (10/15) * 9.68 = 6.45
-    
-    tech_inputs = [
-        TechInput(
-            req_id="VAL_REQ_20",
-            r_val=5,  # Will give raw score based on formula
-            c_val=0
-        )
-    ]
-    
+Verifies the invariant the feature must hold:
+    weighted_score == round((raw_score / max_points) * gara_weight, 2)
+
+and that a `resource` requirement using proportional `max_points_manual`
+scaling produces the expected raw score. These are real assertions, not the
+previous tautological print-checks.
+"""
+from main import calculate_score, calculate_prof_score
+from schemas import CalculateRequest, TechInput
+
+
+# Reference values from the seeded `Lotto 2` / VAL_REQ_20 configuration:
+#   type=resource, max_points=15, gara_weight=9.68,
+#   prof_R=5, prof_C=3, max_points_manual=True
+LOT_KEY = "Lotto 2"
+REQ_ID = "VAL_REQ_20"
+MAX_POINTS = 15
+GARA_WEIGHT = 9.68
+
+
+def _calc(db, r_val, c_val):
     req = CalculateRequest(
-        lot_key=lot_key,
-        base_amount=1000000.0,
+        lot_key=LOT_KEY,
+        base_amount=1_000_000.0,
         competitor_discount=30.0,
         my_discount=10.0,
-        tech_inputs=tech_inputs,
-        selected_company_certs=[]
+        tech_inputs=[TechInput(req_id=REQ_ID, r_val=r_val, c_val=c_val)],
+        selected_company_certs=[],
     )
-    
-    result = calculate_score(req, db)
-    
-    print(f"\nLot: {lot_key}")
-    print(f"Requirement: VAL_REQ_20 (r_val=5, c_val=0)")
-    print(f"")
-    print(f"Raw Score: {result['details'].get('VAL_REQ_20', 0)}")
-    print(f"Weighted Score: {result['weighted_scores'].get('VAL_REQ_20', 0)}")
-    print(f"")
-    print(f"Expected calculation:")
-    print(f"  raw = 2*5 + 5*0 = 10")
-    print(f"  weighted = (10 / 15) * 9.68 = 6.45")
-    print(f"")
-    print(f"Total Technical Score: {result['technical_score']}")
-    print(f"(Should equal weighted score since only one requirement)")
-    
-    # Verify
-    raw_val = result['details'].get('VAL_REQ_20', 0)
-    weighted_val = result['weighted_scores'].get('VAL_REQ_20', 0)
-    expected_weighted = round((raw_val / 15) * 9.68, 2)
-    
-    print("\n" + "=" * 80)
-    if abs(weighted_val - expected_weighted) < 0.01:
-        print(f"✅ Test PASSED! Weighted score {weighted_val} matches expected {expected_weighted}")
-    else:
-        print(f"❌ Test FAILED! Weighted score {weighted_val} != expected {expected_weighted}")
-    print("=" * 80)
-    
-    db.close()
+    return calculate_score(req, db)
 
-if __name__ == "__main__":
-    test_gara_weight_scoring()
+
+def test_resource_raw_uses_proportional_max_points(db):
+    """r_val=5, c_val=0 -> base (2*5)+(5*0)=10, scaled by 15/theoretical_max(25) = 6.0."""
+    result = _calc(db, r_val=5, c_val=0)
+    raw = result["details"][REQ_ID]
+    assert raw == 6.0, f"expected proportional raw 6.0, got {raw}"
+
+
+def test_weighted_score_respects_gara_weight_invariant(db):
+    result = _calc(db, r_val=5, c_val=0)
+    raw = result["details"][REQ_ID]
+    weighted = result["weighted_scores"][REQ_ID]
+    expected_weighted = round((raw / MAX_POINTS) * GARA_WEIGHT, 2)
+    assert weighted == expected_weighted
+    # With a single requirement the total technical score equals its weighted value.
+    assert result["technical_score"] == weighted
+
+
+def test_higher_inputs_never_exceed_max_points(db):
+    """Even maxed inputs must stay within the requirement's max_points cap."""
+    result = _calc(db, r_val=99, c_val=99)
+    assert result["details"][REQ_ID] <= MAX_POINTS
+
+
+def test_calculate_prof_score_proportional_unit():
+    """Unit-level check of the proportional scaling used above (theoretical_max=25)."""
+    score = calculate_prof_score(
+        R=5, C=0, max_res=10, max_points=15, max_certs=5,
+        max_points_manual=True, prof_R=5, prof_C=3,
+    )
+    assert score == 6.0

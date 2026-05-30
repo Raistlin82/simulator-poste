@@ -43,7 +43,7 @@ export default function PracticeCatalogManager({
       .substring(0, 50); // Limita lunghezza
 
     await onSavePractice?.({
-      id: generatedId || `practice_${Date.now()}`, // Fallback se label è solo caratteri speciali
+      id: generatedId || `practice_${crypto?.randomUUID?.() ?? Date.now()}`, // Fallback se label è solo caratteri speciali
       label: newPractice.label,
       profiles: [],
     });

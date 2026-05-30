@@ -66,42 +66,6 @@ class ScoringService:
         # Apply alpha exponent and scale to max
         return max_econ * (ratio ** alpha)
 
-    @staticmethod
-    def calculate_professional_score(
-        resources: float,
-        certifications: float,
-        max_resources: float,
-        max_points: float,
-        max_certifications: float = 5.0
-    ) -> float:
-        """
-        Calculate professional score based on resources and certifications.
-
-        Formula: score = (2 * R) + (R * C)
-        where R = min(resources, max_resources)
-              C = min(certifications, max_certifications)
-
-        Args:
-            resources: Number of resources
-            certifications: Number of certifications
-            max_resources: Maximum resources to count
-            max_points: Cap score at this value
-            max_certifications: Maximum certifications to count
-
-        Returns:
-            Professional score (capped at max_points)
-        """
-        # Limit R and C to their maximums
-        R = min(resources, max_resources)
-        C = min(certifications, max_certifications)
-
-        # Ensure C doesn't exceed R
-        if R < C:
-            C = R
-
-        # Calculate score: base points for resources + bonus for certifications
-        # Each resource = 2 points base, each certification adds R points
-        score = (2 * R) + (R * C)
-
-        # Cap at maximum points allowed
-        return min(score, max_points)
+    # NOTE: professional-score logic lives in main.calculate_prof_score, which
+    # also handles the proportional `max_points_manual` mode. A second copy used
+    # to live here, diverged, and was never called — removed to avoid drift.

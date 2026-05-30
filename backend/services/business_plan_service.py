@@ -886,8 +886,10 @@ class BusinessPlanService:
         elif mode == "team_mix":
             team_composition = bp_data.get("team_composition", [])
             total_fte = sum([float(m.get("fte", 0) or 0) for m in team_composition])
+            # governance_pct is stored as a decimal (0.04 == 4%), like the rest
+            # of the codebase — do NOT divide by 100 again.
             gov_pct = float(bp_data.get("governance_pct", 0) or 0)
-            gov_fte = total_fte * (gov_pct / 100.0)
+            gov_fte = total_fte * gov_pct
             gov_mix = bp_data.get("governance_profile_mix", [])
             
             if gov_mix:
@@ -918,13 +920,15 @@ class BusinessPlanService:
                     meta = {"method": "mix_profili"}
                     
         if base_cost == 0.0 and not meta:
+            # governance_pct is a decimal (0.04 == 4%); base = (team + catalog) * pct.
             gov_pct = float(bp_data.get("governance_pct", 0) or 0)
-            base_cost = team_cost * (gov_pct / 100.0)
+            base_cost = team_cost * gov_pct
             meta = {"method": "percentuale_team", "pct": gov_pct}
-            
+
         final_cost = base_cost
         if bp_data.get("governance_apply_reuse") and float(bp_data.get("reuse_factor", 0) or 0) > 0:
-            reuse_factor = float(bp_data.get("reuse_factor", 0) or 0) / 100.0
+            # reuse_factor is also a decimal (0.15 == 15%).
+            reuse_factor = float(bp_data.get("reuse_factor", 0) or 0)
             final_cost = base_cost * (1 - reuse_factor)
             meta["reuse_applied"] = True
             

@@ -5,10 +5,13 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/simulator_poste.db:/app/simulator_poste.db
-      # Mount user home for certificate verification (read-only)
-      - /Users/gabriele.rendina:/host_home:ro
-      # Mount CloudStorage (OneDrive/SharePoint synced folders)
-      - /Users/gabriele.rendina/Library/CloudStorage:/host_home/Library/CloudStorage:ro
+      # SECURITY: do NOT mount the whole host home directory. The previous
+      # `/Users/<user>:/host_home:ro` (plus CloudStorage) exposed every file the
+      # user could read — including OneDrive/SharePoint — to the container.
+      # If folder-path certificate scanning is needed in Docker, mount only a
+      # single, dedicated certs directory, e.g.:
+      #   - ${CERT_DIR:-./certs}:/host_certs:ro
+      # The ZIP-upload flow (/api/verify-certs/upload) needs no host mount.
     env_file:
       - .env
     environment:
