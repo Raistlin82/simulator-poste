@@ -667,6 +667,19 @@ def get_practices(db: Session) -> List[models.PracticeModel]:
     return db.query(models.PracticeModel).order_by(models.PracticeModel.label).all()
 
 
+def build_profile_rates(db: Session) -> Dict[str, float]:
+    """Build the {``practice_id:profile_id`` -> daily_rate} map from the practices
+    catalog. Used by every Business Plan endpoint to resolve Lutech profile rates.
+    """
+    rates: Dict[str, float] = {}
+    for practice in get_practices(db):
+        for profile in (practice.profiles or []):
+            profile_id = profile.get("id", "")
+            if profile_id:
+                rates[f"{practice.id}:{profile_id}"] = float(profile.get("daily_rate", 0.0))
+    return rates
+
+
 def get_practice(db: Session, practice_id: str) -> Optional[models.PracticeModel]:
     """Retrieve a practice by ID"""
     return db.query(models.PracticeModel).filter(

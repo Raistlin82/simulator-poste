@@ -425,9 +425,10 @@ def health_check(db: Session = Depends(get_db)):
             "message": "OK" if master_data else "Master data not initialized"
         }
     except Exception as e:
+        logger.warning(f"Health check master_data error: {e}")
         health_status["checks"]["master_data"] = {
             "status": "warning",
-            "message": str(e)
+            "message": "master_data check failed"
         }
 
     # Response with appropriate status code
@@ -1056,8 +1057,8 @@ async def preview_lutech_resources(file: UploadFile = File(...), db: Session = D
                 try:
                     if _re.search(pattern, cert_lower, _re.IGNORECASE):
                         return vc.key
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Skipping invalid cert pattern '{pattern}' for vendor {vc.key}: {e}")
         return ""
 
     for item in unmatched:
@@ -2094,8 +2095,8 @@ def export_excel(data: schemas.ExportExcelRequest, db: Session = Depends(get_db)
                 k: (len(v) if isinstance(v, list) else int(v or 0))
                 for k, v in raw.items()
             }
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to read prof_certs_resources: {e}")
 
     # Generate Excel report
     buffer = generate_excel_report(
@@ -2375,7 +2376,7 @@ def verify_certificates_stream(
             logger.info(f"SSE client disconnected during cert verification (processed {len(results)} files)")
         except Exception as e:
             logger.error(f"Streaming cert verification error: {e}", exc_info=True)
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Certificate verification failed'})}\n\n"
         finally:
             if cancelled:
                 logger.debug("SSE stream cancelled by client")
@@ -2738,14 +2739,14 @@ async def verify_certs_upload_stream(
             logger.info(f"SSE client disconnected during ZIP verification (processed {len(results)} files)")
         except Exception as e:
             logger.error(f"Streaming ZIP verification error: {e}", exc_info=True)
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Certificate verification failed'})}\n\n"
         finally:
             # Cleanup temp directory
             if temp_dir:
                 try:
                     shutil.rmtree(temp_dir)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to clean up temp dir {temp_dir}: {e}")
             if cancelled:
                 logger.debug("SSE stream cancelled by client")
     
@@ -2962,17 +2963,8 @@ def calculate_business_plan(
     profile_rates: Dict[str, float] = {}
     team_result: Dict[str, Any] = {}
     if bp.team_composition:
-        # Build profile_rates from practices catalog
-        # Format: {practice_id:profile_id: daily_rate}
-        # Falls back to default_daily_rate if profile not found
-        practices = crud.get_practices(db)
-        profile_rates = {}
-        for practice in practices:
-            for profile in (practice.profiles or []):
-                profile_id = profile.get('id', '')
-                if profile_id:
-                    key = f"{practice.id}:{profile_id}"
-                    profile_rates[key] = float(profile.get('daily_rate', 0.0))
+        # Build profile_rates from practices catalog: {practice_id:profile_id -> rate}
+        profile_rates = crud.build_profile_rates(db)
 
         team_result = BusinessPlanService.calculate_team_cost(
             team_composition=bp.team_composition,
@@ -3187,14 +3179,7 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
     team_cost = 0.0
     profile_rates: Dict[str, float] = {}
     if bp.team_composition:
-        practices = crud.get_practices(db)
-        profile_rates = {}
-        for practice in practices:
-            for profile in (practice.profiles or []):
-                profile_id = profile.get('id', '')
-                if profile_id:
-                    key = f"{practice.id}:{profile_id}"
-                    profile_rates[key] = float(profile.get('daily_rate', 0.0))
+        profile_rates = crud.build_profile_rates(db)
 
         is_rti_s = lot.rti_enabled
         quota_lutech_s = lot.rti_quotas.get("Lutech", 100) / 100 if is_rti_s and lot.rti_quotas else 1.0
@@ -3275,14 +3260,7 @@ def find_discount_for_target(
         raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
 
     # Calculate team cost dynamically
-    practices = crud.get_practices(db)
-    profile_rates = {}
-    for practice in practices:
-        for profile in (practice.profiles or []):
-            profile_id = profile.get('id', '')
-            if profile_id:
-                key = f"{practice.id}:{profile_id}"
-                profile_rates[key] = float(profile.get('daily_rate', 0.0))
+    profile_rates = crud.build_profile_rates(db)
 
     team_cost = 0.0
     if bp.team_composition:

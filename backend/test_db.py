@@ -3,6 +3,7 @@ Tests that the database seeds reference/master data correctly.
 (Replaces the previous print-only script.)
 """
 import crud
+import models
 
 
 def test_master_data_is_seeded(db):
@@ -19,3 +20,24 @@ def test_lots_are_seeded(db):
         configs = db.query(models.LotConfigModel).all()
     names = {c.name for c in configs}
     assert {"Lotto 1", "Lotto 2", "Lotto 3"}.issubset(names)
+
+
+def test_build_profile_rates_maps_practice_profiles(db):
+    """The shared helper maps 'practice_id:profile_id' -> daily_rate."""
+    practice = models.PracticeModel(
+        id="testprac_rates",
+        label="Test Practice",
+        profiles=[
+            {"id": "dev_sr", "daily_rate": 480.0},
+            {"id": "dev_jr", "daily_rate": 300.0},
+        ],
+    )
+    db.add(practice)
+    db.commit()
+    try:
+        rates = crud.build_profile_rates(db)
+        assert rates["testprac_rates:dev_sr"] == 480.0
+        assert rates["testprac_rates:dev_jr"] == 300.0
+    finally:
+        db.delete(practice)
+        db.commit()
