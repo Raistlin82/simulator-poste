@@ -126,8 +126,11 @@ export const calculateTeamCost = (bp, lutechRates, lutechLabels, overrides = {})
                     if (towPct > 0) {
                         const tFactor = adjustmentPeriod.by_tow?.[towId] ?? 1.0;
                         const towDef = (bp.tows || []).find(t => (t.id === towId || t.tow_id === towId));
-                        // In caso di RTI, usiamo la quota Lutech specifica del TOW (default 100%)
-                        const lutechPct = (towDef?.lutech_pct ?? 100) / 100;
+                        // Lutech quota per-TOW applies ONLY under RTI (matches the
+                        // backend, which gates the lutech factor on is_rti). Without
+                        // this guard, stale lutech_pct on a TOW would wrongly reduce
+                        // team days on a non-RTI bid.
+                        const lutechPct = bp.is_rti ? ((towDef?.lutech_pct ?? 100) / 100) : 1.0;
                         
                         towFactorSum += (towPct / 100) * tFactor * lutechPct;
                         totalAllocatedPct += (towPct / 100);
