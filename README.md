@@ -28,8 +28,9 @@ Sistema enterprise per la simulazione e valutazione di gare d'appalto pubbliche 
 | **Discount Optimizer** | Suggerisce lo sconto ottimale per massimizzare la probabilità di vittoria |
 | **Export PDF** | Report professionali con grafici e analisi strategica |
 | **Autenticazione OIDC** | Integrazione sicura con SAP Identity Authentication Service |
-| **Internazionalizzazione** | Supporto lingua italiana (i18n) |
+| **Internazionalizzazione** | Italiano (primario) e Inglese (i18next) |
 | **Verifica Certificazioni OCR** | Riconoscimento automatico certificazioni PDF con OCR |
+| **Business Plan** | Motore costi/margini multi-anno (team, catalogo, governance, RTI) con scenari e ottimizzazione sconto |
 
 ## Architettura
 
@@ -73,7 +74,7 @@ simulator-poste/
 │   └── technical.md              # Documentazione tecnica
 │
 ├── docker-compose.yml            # Deployment Docker locale
-└── render.yaml                   # Configurazione Render.com
+└── render.yaml.disabled          # Configurazione Render.com (disattivata)
 ```
 
 ## Quick Start
@@ -187,9 +188,9 @@ pytest test_main.py::TestProfScore -v
 
 **Test Suite:**
 
-- 13 test unitari
-- Coverage formule di scoring
-- Test endpoint API
+- Backend: ~50 test (pytest) — scoring, motore Business Plan, validazione token OIDC
+- Frontend: vitest (`npm test`) — utility Business Plan
+- CI esegue l'intera suite e fallisce su test/lint rotti (vedi `.github/workflows/test.yml`)
 
 ## Deployment
 
@@ -205,7 +206,7 @@ kubectl apply -f k8s/apirule.yaml
 
 ### Render.com
 
-Il file `render.yaml` contiene la configurazione Blueprint per deployment automatico.
+Il file `render.yaml.disabled` contiene la configurazione Blueprint (attualmente disattivata: rinominare in `render.yaml` per usarla).
 
 ### Docker Compose (Production)
 
@@ -222,7 +223,7 @@ Il file `render.yaml` contiene la configurazione Blueprint per deployment automa
 | FastAPI | 0.128.0 | Framework API REST |
 | SQLAlchemy | 2.0.46 | ORM database |
 | Pydantic | 2.12.5 | Validazione dati |
-| NumPy | 2.2.6 | Calcoli numerici, Monte Carlo |
+| NumPy | 1.26.4 | Calcoli numerici, Monte Carlo |
 | ReportLab | 4.4.9 | Generazione PDF |
 | python-jose | 3.3.0 | Validazione JWT |
 | pytesseract | 0.3.13 | OCR per certificazioni |
