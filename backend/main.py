@@ -2,11 +2,12 @@ from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, status,
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 import uvicorn
 import numpy as np
@@ -381,7 +382,7 @@ def health_check(db: Session = Depends(get_db)):
     """
     health_status = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "1.0.0",
         "checks": {}
     }
@@ -443,7 +444,7 @@ def readiness_check(db: Session = Depends(get_db)):
     try:
         # Quick database check - just verify connection works
         db.execute(text("SELECT 1"))
-        return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
+        return {"status": "ready", "timestamp": datetime.now(timezone.utc).isoformat()}
     except Exception as e:
         logger.warning("Readiness check failed", extra={"error": str(e)})
         return JSONResponse(
@@ -460,7 +461,7 @@ def liveness_check():
     """
     return {
         "status": "alive",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -477,7 +478,7 @@ def metrics_endpoint():
         process = psutil.Process(os.getpid())
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "process": {
                 "memory_mb": round(process.memory_info().rss / 1024 / 1024, 2),
                 "memory_percent": round(process.memory_percent(), 2),
@@ -495,7 +496,7 @@ def metrics_endpoint():
     except ImportError:
         logger.warning("psutil not installed, metrics limited")
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "message": "Install psutil for detailed metrics"
         }
     except Exception as e:
@@ -3546,8 +3547,16 @@ _PROVIDER_DEFAULT_MODELS = {
 }
 
 
-async def _call_ai_provider(provider: str, messages: list, system_prompt: str, model_name: Optional[str] = None) -> schemas.ChatResponse:
-    """Route a chat request to the appropriate AI provider."""
+# Timeout (seconds) for outbound AI-provider calls.
+_AI_CALL_TIMEOUT = 60.0
+
+
+def _call_ai_provider(provider: str, messages: list, system_prompt: str, model_name: Optional[str] = None) -> schemas.ChatResponse:
+    """Route a chat request to the appropriate AI provider.
+
+    Synchronous by design: the provider SDK calls block, so the caller runs this
+    in a threadpool (run_in_threadpool) to avoid stalling the asyncio event loop.
+    """
     key_name = _PROVIDER_KEY_MAP.get(provider, "ANTHROPIC_API_KEY")
     api_key = os.getenv(key_name)
     if not api_key:
@@ -3571,7 +3580,10 @@ async def _call_ai_provider(provider: str, messages: list, system_prompt: str, m
                 role = "user" if m["role"] == "user" else "model"
                 history.append({"role": role, "parts": [m["content"]]})
             chat_session = genai_model.start_chat(history=history)
-            resp = chat_session.send_message(messages[-1]["content"])
+            resp = chat_session.send_message(
+                messages[-1]["content"],
+                request_options={"timeout": _AI_CALL_TIMEOUT},
+            )
             return schemas.ChatResponse(content=resp.text, input_tokens=0, output_tokens=0)
         except Exception as e:
             logger.error(f"Gemini chat error: {e}")
@@ -3580,7 +3592,7 @@ async def _call_ai_provider(provider: str, messages: list, system_prompt: str, m
     elif provider == "groq":
         try:
             from groq import Groq
-            client = Groq(api_key=api_key)
+            client = Groq(api_key=api_key, timeout=_AI_CALL_TIMEOUT)
             resp = client.chat.completions.create(
                 model=resolved_model,
                 max_tokens=2048,
@@ -3598,7 +3610,7 @@ async def _call_ai_provider(provider: str, messages: list, system_prompt: str, m
     else:  # "claude"
         try:
             from anthropic import Anthropic, BadRequestError, AuthenticationError, APIStatusError
-            client = Anthropic(api_key=api_key)
+            client = Anthropic(api_key=api_key, timeout=_AI_CALL_TIMEOUT)
             response = client.messages.create(
                 model=resolved_model,
                 max_tokens=2048,
@@ -3659,7 +3671,8 @@ async def chat(
     ai_models = (master_data.ai_models or {}) if master_data else {}
     model_name = ai_models.get(provider) or None
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
-    return await _call_ai_provider(provider, messages, _CHAT_SYSTEM_PROMPT, model_name)
+    # Run the blocking provider SDK call off the event loop.
+    return await run_in_threadpool(_call_ai_provider, provider, messages, _CHAT_SYSTEM_PROMPT, model_name)
 
 
 # Register all routers - included early for priority
