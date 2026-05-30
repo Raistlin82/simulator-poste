@@ -43,6 +43,10 @@ fi
 # Set environment variables for development
 export ENVIRONMENT=development
 export LOG_LEVEL=INFO
+# Local development only: run without OIDC. Authentication is fail-closed, so
+# this explicit opt-in is required to use the app without configuring OIDC.
+# NEVER set this in staging/production.
+export AUTH_DEV_BYPASS=1
 
 echo ""
 echo "🎯 Backend server starting on http://localhost:8000"
@@ -53,4 +57,6 @@ echo "Press Ctrl+C to stop"
 echo ""
 
 # Start the server with auto-reload
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# Bind to loopback only: this script runs with AUTH_DEV_BYPASS=1 (no auth), so
+# the server must NOT be reachable from other devices on the network.
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
