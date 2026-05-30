@@ -170,6 +170,11 @@ class BusinessPlanService:
             elif isinstance(tow_alloc_input, dict):
                 tow_allocation = {k: float(v) for k, v in tow_alloc_input.items()}
 
+            # Per-member GG/anno override (matches the frontend getEffectiveDaysYear):
+            # if manual_days_year is set it replaces fte × days_per_fte.
+            manual_days = float(member.get("manual_days_year", 0) or 0)
+            member_days_per_fte = (manual_days / fte_original) if (manual_days > 0 and fte_original > 0) else days_per_fte
+
             member_total_cost = 0.0
             member_total_days = 0.0
             member_weighted_fte_sum = 0.0
@@ -193,33 +198,32 @@ class BusinessPlanService:
                 else:
                     inflation_factor = 1.0
 
-                # Calcolo TOW factor (Volume Adjustment) e Lutech factor (RTI Quota)
-                tow_vol_factor_sum = 0.0
-                tow_lutech_factor_sum = 0.0
+                # Combined per-TOW multiplier = weighted avg of (volume_factor ×
+                # lutech_quota) across the member's TOWs. This is the sum-of-products
+                # form (Σ wᵢ·vᵢ·lᵢ / Σ wᵢ), matching the frontend engine — NOT
+                # avg(vᵢ)·avg(lᵢ), which diverges when TOWs have heterogeneous
+                # volume adjustments AND RTI quotas.
+                tow_combined_sum = 0.0
                 total_alloc = sum([float(v) for v in tow_allocation.values() if float(v) > 0])
-                
+
                 if total_alloc > 0:
                     for tow_id, pct in tow_allocation.items():
                         tow_pct = float(pct)
                         if tow_pct > 0:
                             t_vol_factor = float(adj_period.get("by_tow", {}).get(tow_id, 1.0))
-                            tow_vol_factor_sum += (tow_pct / 100.0) * t_vol_factor
-                            if is_rti:
-                                l_factor = tow_lutech_map.get(tow_id, quota_lutech)
-                                tow_lutech_factor_sum += (tow_pct / 100.0) * l_factor
-                    
-                    final_tow_vol_factor = tow_vol_factor_sum / (total_alloc / 100.0)
-                    final_tow_lutech_factor = (tow_lutech_factor_sum / (total_alloc / 100.0)) if is_rti else 1.0
+                            l_factor = (tow_lutech_map.get(tow_id, quota_lutech)) if is_rti else 1.0
+                            tow_combined_sum += (tow_pct / 100.0) * t_vol_factor * l_factor
+
+                    final_tow_combined = tow_combined_sum / (total_alloc / 100.0)
                 else:
-                    final_tow_vol_factor = 1.0
-                    final_tow_lutech_factor = quota_lutech if is_rti else 1.0
-                
-                # final_factor is the combined multiplier for FTE/Days adjustment
-                # We include p_factor here for consistency with total adjustment
-                final_factor = final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier * p_factor
+                    final_tow_combined = quota_lutech if is_rti else 1.0
+
+                # final_factor is the combined multiplier for FTE/Days adjustment.
+                # We include p_factor here for consistency with total adjustment.
+                final_factor = final_tow_combined * reuse_multiplier * p_factor
 
                 # Logic Parity: fte * daysPerFte * years
-                interval_raw_days = float(fte_original) * days_per_fte * years_in_interval
+                interval_raw_days = float(fte_original) * member_days_per_fte * years_in_interval
                 interval_base_days = interval_raw_days * p_factor
                 # effective_fte and interval_days reflect Lutech's quota for this TOW
                 interval_days = interval_raw_days * final_factor
@@ -260,7 +264,7 @@ class BusinessPlanService:
                         "cost": l_cost, 
                         "start": start, "end": m_end,
                         "p_factor": p_factor,
-                        "eff_factor": (final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier)
+                        "eff_factor": (final_tow_combined * reuse_multiplier)
                     })
                     
                     triplets.append({
@@ -271,7 +275,7 @@ class BusinessPlanService:
                         "cost": l_cost,
                         "rate": rate,
                         "p_factor": p_factor,
-                        "eff_factor": (final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier)
+                        "eff_factor": (final_tow_combined * reuse_multiplier)
                     })
 
 
@@ -312,7 +316,7 @@ class BusinessPlanService:
                             "cost": mix_cost, 
                             "start": start, "end": m_end,
                             "p_factor": p_factor,
-                            "eff_factor": (final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier)
+                            "eff_factor": (final_tow_combined * reuse_multiplier)
                         })
 
                         triplets.append({
@@ -323,7 +327,7 @@ class BusinessPlanService:
                             "cost": mix_cost,
                             "rate": rate,
                             "p_factor": p_factor,
-                            "eff_factor": (final_tow_vol_factor * final_tow_lutech_factor * reuse_multiplier)
+                            "eff_factor": (final_tow_combined * reuse_multiplier)
                         })
 
 
@@ -1121,11 +1125,22 @@ class BusinessPlanService:
                 # Il catalog_cost è fisso (FTE dal bando, non variano per scenario)
                 base_for_overhead = team_cost + catalog_cost
 
-                # Aggiungi overhead sulla base completa (team + catalog)
-                governance_cost = base_for_overhead * governance_pct
+                # Governance via the canonical mode-aware service (manual / fte /
+                # team_mix / percentage) — same as /calculate and /find-discount.
+                governance_cost = BusinessPlanService.calculate_governance_cost(
+                    bp_data=bp_data,
+                    profile_rates=profile_rates or {},
+                    team_cost=base_for_overhead,
+                    duration_months=duration_months,
+                    default_daily_rate=default_daily_rate,
+                    days_per_fte=int(bp_data.get("days_per_fte", 220)),
+                    inflation_pct=float(bp_data.get("inflation_pct", 0.0)),
+                )["value"]
                 # Risk includes governance cost (aligned with frontend calculation)
                 risk_cost = (base_for_overhead + governance_cost) * risk_contingency_pct
-                sub_quota = float((subcontract_config or {}).get("quota_pct", 0.0))
+                # Subcontract: canonical tow_split model (Σ pct / 100 of base).
+                tow_split = (subcontract_config or {}).get("tow_split") or {}
+                sub_quota = sum(float(v) for v in tow_split.values()) / 100.0
                 subcontract_cost = base_for_overhead * sub_quota
 
                 estimated_cost = base_for_overhead + governance_cost + risk_cost + subcontract_cost

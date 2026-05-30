@@ -1610,8 +1610,12 @@ def calculate_score(data: schemas.CalculateRequest, db: Session = Depends(get_db
                 # 4. Bonus (legacy)
                 bonus = req.get("bonus_val", 0.0) if inp.bonus_active else 0.0
 
-                # Calculate dynamic max points to include custom_metrics
-                req_max = calculate_max_points_for_req(req)
+                # Calculate dynamic max points to include custom_metrics. When the
+                # legacy attestazione bonus is active, raise the cap by bonus_val so
+                # the bonus actually adds points (the "Attestazione (+N)" intent) and
+                # the RAW path stays consistent with the WEIGHTED path, which already
+                # includes the bonus in both numerator and denominator.
+                req_max = calculate_max_points_for_req(req) + bonus
                 pts = min(sub_score_sum + att_score + custom_score + bonus, req_max)
 
             raw_tech_score += pts
@@ -3007,125 +3011,44 @@ def calculate_business_plan(
     # Base for overhead = team cost + catalog cost
     base_for_overhead = team_cost + catalog_cost
 
-    # Calculate overhead costs
-    # Governance: supports manual override, profile mix, or percentage fallback
-    governance_cost = 0.0
-    # Precompute reuse factor for governance adjustments
-    reuse_factor = bp.reuse_factor or 0.0
-    if bp.governance_cost_manual is not None:
-        # Manual override
-        governance_cost = float(bp.governance_cost_manual)
-    elif bp.governance_profile_mix and len(bp.governance_profile_mix) > 0:
-        # Calculate based on governance FTE and profile mix
-        total_fte = sum(float(m.get("fte", 0)) for m in (bp.team_composition or []))
-        governance_pct = bp.governance_pct or 0.04
-        governance_fte = total_fte * governance_pct
-        # If governance should respect reuse, reduce governance FTE before costing
-        if bp.governance_apply_reuse and reuse_factor > 0:
-            governance_fte = governance_fte * (1 - reuse_factor)
-        duration_months = bp.duration_months or 36
-        duration_years = duration_months / 12
-        days_per_fte = bp.days_per_fte or 220.0
+    # --- Governance: delegate to the canonical, mode-aware service so /calculate,
+    # /scenarios and /find-discount all compute it the same way. ---
+    governance_cost = BusinessPlanService.calculate_governance_cost(
+        bp_data={
+            "governance_mode": getattr(bp, "governance_mode", None) or "percentage",
+            "governance_cost_manual": bp.governance_cost_manual,
+            "governance_fte_periods": bp.governance_fte_periods or [],
+            "governance_profile_mix": bp.governance_profile_mix or [],
+            "governance_pct": bp.governance_pct or 0.04,
+            "governance_apply_reuse": bp.governance_apply_reuse,
+            "reuse_factor": bp.reuse_factor or 0.0,
+            "team_composition": bp.team_composition or [],
+        },
+        profile_rates=profile_rates,
+        team_cost=base_for_overhead,
+        duration_months=bp.duration_months or 36,
+        default_daily_rate=bp.default_daily_rate or 250.0,
+        days_per_fte=bp.days_per_fte or 220,
+        inflation_pct=bp.inflation_pct or 0.0,
+    )["value"]
 
-        total_pct = 0.0
-        weighted_rate = 0.0
-        for item in bp.governance_profile_mix:
-            lutech_profile = item.get("lutech_profile", "")
-            pct = float(item.get("pct", 0)) / 100
-            rate = profile_rates.get(lutech_profile, bp.default_daily_rate or 250.0)
-            total_pct += pct
-            weighted_rate += rate * pct
-
-        if total_pct > 0:
-            avg_rate = weighted_rate / total_pct
-            inflation_pct_val = bp.inflation_pct or 0.0
-            if inflation_pct_val > 0:
-                # Year-by-year escalation for team_mix governance
-                inflated_gov_cost = 0.0
-                total_years = -(-duration_months // 12)  # ceiling division without math.ceil
-                for yr in range(total_years):
-                    yr_start = yr * 12 + 1
-                    yr_end = min((yr + 1) * 12, duration_months)
-                    yr_fraction = (yr_end - yr_start + 1) / 12
-                    yr_inflation = (1 + inflation_pct_val / 100) ** yr
-                    inflated_gov_cost += governance_fte * days_per_fte * yr_fraction * avg_rate * yr_inflation
-                governance_cost = inflated_gov_cost
-            else:
-                governance_cost = governance_fte * days_per_fte * duration_years * avg_rate
-    else:
-        # Fallback: percentage of base_for_overhead (team + catalog, already has inflation applied)
-        governance_cost = base_for_overhead * (bp.governance_pct or 0.04)
-
-    # If governance was provided as a manual override, apply reuse reduction now
-    if bp.governance_apply_reuse and reuse_factor > 0 and bp.governance_cost_manual is not None:
-        governance_cost = governance_cost * (1 - reuse_factor)
-
-    # Risk includes governance cost (aligned with frontend calculation)
+    # Risk includes governance cost (aligned with frontend + calculate_total_cost).
     risk_cost = (base_for_overhead + governance_cost) * (bp.risk_contingency_pct or 0.03)
 
-    # Subcontract: support allocation to specific TOWs via subcontract_config
+    # --- Subcontract: canonical model = base_overhead * (Σ tow_split pct / 100),
+    # matching calculate_total_cost and the frontend. tow_split is {tow_id: pct}
+    # where pct is the share of the base subcontracted for that TOW. ---
     sub_config = bp.subcontract_config or {}
-    sub_quota = float(sub_config.get("quota_pct", 0.0))
-    # Normalize quota: accept either decimal (0.15) or percentage (15)
-    if sub_quota > 1.0:
-        sub_quota = sub_quota / 100.0
-
-    # Initialize subcontract fields on tow_breakdown
-    for tid in tow_breakdown:
-        try:
-            tow_breakdown[tid]["subcontract_cost"] = float(tow_breakdown[tid].get("subcontract_cost", 0.0))
-        except Exception:
-            tow_breakdown[tid]["subcontract_cost"] = 0.0
-
-    # Determine base amount to which subcontract quota applies
-    subcontract_base = base_for_overhead
-    selected_tows = sub_config.get("tows") or []
     tow_split = sub_config.get("tow_split") or {}
+    sub_quota_total = sum(float(v) for v in tow_split.values()) / 100.0
+    subcontract_cost = base_for_overhead * sub_quota_total
 
-    if selected_tows:
-        # Sum costs of explicitly selected tows (backward-compatible with docs examples)
-        selected_sum = 0.0
-        for tid in selected_tows:
-            if tid in tow_breakdown:
-                selected_sum += float(tow_breakdown[tid].get("cost", 0.0))
-        subcontract_base = selected_sum
-        # If selection yields no cost (e.g. invalid ids), fallback to full base
-        if subcontract_base <= 0:
-            subcontract_base = base_for_overhead
-    elif tow_split:
-        # tow_split is a dict {tow_id: pct} indicating portion of subcontract base per tow
-        selected_sum = 0.0
-        for tid, pct in tow_split.items():
-            if tid in tow_breakdown:
-                selected_sum += float(tow_breakdown[tid].get("cost", 0.0)) * (float(pct) / 100.0)
-        subcontract_base = selected_sum
-        if subcontract_base <= 0:
-            subcontract_base = base_for_overhead
-
-    subcontract_cost = subcontract_base * sub_quota
-
-    # Allocate subcontract cost back to tows for transparency
-    if subcontract_cost > 0:
-        if selected_tows:
-            # Allocate proportionally to cost among selected tows
-            costs = {tid: float(tow_breakdown[tid].get("cost", 0.0)) for tid in selected_tows if tid in tow_breakdown}
-            total = sum(costs.values()) or 1.0
-            for tid, c in costs.items():
-                share = (c / total) * subcontract_cost
-                tow_breakdown[tid]["subcontract_cost"] = round(share, 2)
-        elif tow_split:
-            # Allocate according to explicit percentages in tow_split
-            for tid, pct in tow_split.items():
-                if tid in tow_breakdown:
-                    share = subcontract_cost * (float(pct) / 100.0)
-                    tow_breakdown[tid]["subcontract_cost"] = round(share, 2)
-        else:
-            # Fallback: distribute proportionally across all tows
-            costs = {tid: float(tow_breakdown[tid].get("cost", 0.0)) for tid in tow_breakdown}
-            total = sum(costs.values()) or 1.0
-            for tid, c in costs.items():
-                share = (c / total) * subcontract_cost
-                tow_breakdown[tid]["subcontract_cost"] = round(share, 2)
+    # Per-TOW allocation for transparency in the breakdown (sums to subcontract_cost).
+    for tid in tow_breakdown:
+        tow_breakdown[tid]["subcontract_cost"] = 0.0
+    for tid, pct in tow_split.items():
+        if tid in tow_breakdown:
+            tow_breakdown[tid]["subcontract_cost"] = round(base_for_overhead * (float(pct) / 100.0), 2)
 
     total_cost = base_for_overhead + governance_cost + risk_cost + subcontract_cost
 
@@ -3220,6 +3143,18 @@ def get_business_plan_scenarios(lot_key: str, db: Session = Depends(get_db)):
         "total_cost": team_cost + catalog_cost_s,
         "reuse_factor": bp.reuse_factor or 0.0,
         "volume_adjustments": bp.volume_adjustments or {},
+        # Governance config so scenarios use the same mode-aware service as
+        # /calculate and /find-discount (not just the percentage fallback).
+        "governance_mode": getattr(bp, "governance_mode", None) or "percentage",
+        "governance_cost_manual": bp.governance_cost_manual,
+        "governance_fte_periods": bp.governance_fte_periods or [],
+        "governance_profile_mix": bp.governance_profile_mix or [],
+        "governance_pct": bp.governance_pct or 0.04,
+        "governance_apply_reuse": bp.governance_apply_reuse,
+        "team_composition": bp.team_composition or [],
+        "days_per_fte": bp.days_per_fte or 220,
+        "inflation_pct": bp.inflation_pct or 0.0,
+        "subcontract_config": bp.subcontract_config or {},
     }
 
     # Generate scenarios with full recalculation
@@ -3300,12 +3235,21 @@ def find_discount_for_target(
 
     bp_data = {
         "total_cost": team_cost + catalog_cost_d,
+        "governance_mode": getattr(bp, "governance_mode", None) or "percentage",
+        "governance_cost_manual": bp.governance_cost_manual,
+        "governance_fte_periods": bp.governance_fte_periods or [],
+        "governance_profile_mix": bp.governance_profile_mix or [],
         "governance_pct": bp.governance_pct,
+        "governance_apply_reuse": bp.governance_apply_reuse,
         "risk_contingency_pct": bp.risk_contingency_pct,
         "subcontract_config": bp.subcontract_config or {},
+        "team_composition": bp.team_composition or [],
+        "days_per_fte": bp.days_per_fte or 220,
+        "inflation_pct": bp.inflation_pct or 0.0,
+        "duration_months": bp.duration_months or 36,
     }
 
-    cost_breakdown = BusinessPlanService.calculate_total_cost(bp_data)
+    cost_breakdown = BusinessPlanService.calculate_total_cost(bp_data, profile_rates=profile_rates)
 
     is_rti = lot.rti_enabled
     quota_lutech = lot.rti_quotas.get("Lutech", 100) / 100 if is_rti and lot.rti_quotas else 1.0

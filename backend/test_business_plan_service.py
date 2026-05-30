@@ -80,6 +80,52 @@ class TestTotalCostGovernance:
         assert r["governance"] == 0.0
         assert r["total"] == pytest.approx(50_000.0)
 
+    def test_governance_manual_mode(self):
+        r = BP.calculate_total_cost({
+            "total_cost": 100_000.0, "governance_mode": "manual",
+            "governance_cost_manual": 8000.0, "risk_contingency_pct": 0.0,
+        })
+        assert r["governance"] == 8000.0
+
+    def test_subcontract_uses_tow_split_not_quota_pct(self):
+        # Canonical: subcontract = (Σ tow_split pct / 100) * base_overhead.
+        r = BP.calculate_total_cost({
+            "total_cost": 1_000_000.0, "governance_pct": 0.0, "risk_contingency_pct": 0.0,
+            "subcontract_config": {"tow_split": {"T1": 30, "T2": 20}},
+        })
+        assert r["subcontract"] == pytest.approx(500_000.0)  # 50% of 1M
+        assert r["total"] == pytest.approx(1_500_000.0)
+
+    def test_subcontract_ignores_dead_quota_pct(self):
+        # quota_pct is never written by the app; it must NOT drive subcontract.
+        r = BP.calculate_total_cost({
+            "total_cost": 1_000_000.0, "governance_pct": 0.0, "risk_contingency_pct": 0.0,
+            "subcontract_config": {"quota_pct": 15},
+        })
+        assert r["subcontract"] == 0.0
+
+
+class TestTeamCostMultiTowFactor:
+    """A member split across TOWs with heterogeneous volume AND RTI quota must use
+    the sum-of-products weighting Σ(wᵢ·vᵢ·lᵢ)/Σwᵢ (matches the frontend), not
+    avg(vᵢ)·avg(lᵢ)."""
+
+    def test_sum_of_products_combination(self):
+        team = [{"profile_id": "P1", "label": "P1", "fte": 1.0,
+                 "tow_allocation": {"T1": 50, "T2": 50}}]
+        all_tows = [{"tow_id": "T1", "lutech_pct": 100}, {"tow_id": "T2", "lutech_pct": 50}]
+        vol = {"periods": [{"month_start": 1, "month_end": 12,
+                            "by_tow": {"T1": 1.0, "T2": 0.5}, "by_profile": {}}]}
+        r = BP.calculate_team_cost(
+            team_composition=team, volume_adjustments=vol, reuse_factor=0.0,
+            profile_mappings={}, profile_rates={}, duration_months=12,
+            default_daily_rate=250.0, days_per_fte=220, is_rti=True, quota_lutech=1.0,
+            all_tows=all_tows,
+        )
+        # combined factor = 0.5*1.0*1.0 + 0.5*0.5*0.5 = 0.625 (NOT 0.75*0.75=0.5625)
+        # days = 220 * 0.625 = 137.5 ; cost = 137.5 * 250 = 34375
+        assert r["total_cost"] == pytest.approx(34375.0)
+
 
 class TestVolumeAdjustments:
     def test_global_factor_scales_fte(self):
