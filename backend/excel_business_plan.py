@@ -109,9 +109,11 @@ class BusinessPlanExcelGenerator:
             ("TEAM", self._create_team_sheet),
             ("RETTIFICA_VOLUMI", self._create_volume_adj_sheet),
             ("MAPPING", self._create_mapping_sheet),
+            # CATALOGO before SUBAPPALTO/GOVERNANCE so CATALOG_COST is defined
+            # when the subcontract base (team + catalog) references it.
+            ("CATALOGO", self._create_catalog_sheet),
             ("SUBAPPALTO", self._create_subcontract_sheet),
             ("ANALISI_TOW", self._create_tow_analysis_sheet),
-            ("CATALOGO", self._create_catalog_sheet),
             ("GOVERNANCE", self._create_governance_sheet),
             ("CRONOPROGRAMMA", self._create_timeline_sheet),
             ("CALCOLO_COSTI", self._create_cost_calc_sheet),
@@ -1183,9 +1185,10 @@ class BusinessPlanExcelGenerator:
             self._style_input_cell(cell_pct)
             cell_pct.alignment = CENTER
 
-            # Costo = Team Cost × Split %
+            # Costo = (Team + Catalog) × Split %  — base_overhead, matching the
+            # backend (calculate_total_cost subcontract base).
             cell_cost = ws.cell(row=row, column=3)
-            cell_cost.value = f"=B{row}*{self.named_ranges['TEAM_COST']}"
+            cell_cost.value = f"=B{row}*({self.named_ranges['TEAM_COST']}+{self.named_ranges['CATALOG_COST']})"
             cell_cost.number_format = '#,##0'
             self._style_formula_cell(cell_cost)
 

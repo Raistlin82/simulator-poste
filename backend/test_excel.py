@@ -41,3 +41,22 @@ def test_economic_ratio_is_clamped():
     ]
     clamped = [f for f in formulas if "MIN(1," in f and "MIN(C" in f]
     assert clamped, "expected a clamped Rapporto formula (MIN(1, .../(base-MIN(mio,best))))"
+
+
+def test_partial_company_cert_status_is_accepted():
+    """The scoring Excel accepts company_certs_status (partial certs) without error
+    (the category raw uses points_partial for 'partial')."""
+    gen = ExcelReportGenerator(
+        lot_key="Lotto 2",
+        lot_config={"reqs": [], "rti_enabled": False, "rti_companies": [],
+                    "company_certs": [{"id": "c1", "label": "ISO 27001",
+                                       "points": 10, "points_partial": 4, "gara_weight": 5}]},
+        base_amount=1_000_000, my_discount=25, competitor_discount=30,
+        technical_score=50, economic_score=20, total_score=70,
+        details={}, weighted_scores={},
+        category_scores={"company_certs": 0, "resource": 0, "reference": 0, "project": 0},
+        max_tech_score=60, max_econ_score=40, alpha=0.3, win_probability=65,
+        tech_inputs_full={}, rti_quotas={},
+        company_certs_status={"ISO 27001": "partial"},
+    )
+    assert len(gen.generate().getvalue()) > 5000

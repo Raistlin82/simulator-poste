@@ -203,6 +203,7 @@ class ExportExcelRequest(BaseModel):
     rti_quotas: Dict[str, float] = Field(default_factory=dict)  # Company quotas for RTI
     prof_certs_resources: Dict[str, int] = Field(default_factory=dict)  # cert_label -> Lutech resource count
     prof_certs_weights: Dict[str, float] = Field(default_factory=dict)  # cert_label -> weight (0.1-1.0)
+    company_certs_status: Dict[str, str] = Field(default_factory=dict)  # cert_label -> "all"|"partial"|"none"
 
 
 class ExportBusinessPlanRequest(BaseModel):

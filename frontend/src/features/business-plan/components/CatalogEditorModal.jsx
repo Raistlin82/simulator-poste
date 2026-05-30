@@ -43,7 +43,7 @@ const GROUP_BADGES = [
 /**
  * Computes the weighted average Lutech daily rate for a given profile_mix.
  */
-function computeItemRate(profileMix, profileMappings, profileRates, durationMonths = 36, defaultRate = 250) {
+function computeItemRate(profileMix, profileMappings, profileRates, durationMonths = 36, defaultRate = 250, inflationPct = 0) {
   if (!profileMix || profileMix.length === 0) return defaultRate;
   let totalWeighted = 0;
   let totalPct = 0;
@@ -68,7 +68,11 @@ function computeItemRate(profileMix, profileMappings, profileRates, durationMont
           const mpct = (parseFloat(mi.pct) || 0) / 100;
           pRate += mpct * (profileRates[mi.lutech_profile] || defaultRate);
         }
-        periodWeighted += pRate * months;
+        // YoY inflation escalation per period, matching the backend
+        // _compute_lutech_rate_from_mapping (year_index = (month_start-1)//12).
+        const yearIndex = Math.floor((ms - 1) / 12);
+        const inflationFactor = inflationPct > 0 ? Math.pow(1 + inflationPct / 100, yearIndex) : 1.0;
+        periodWeighted += pRate * inflationFactor * months;
         periodMonthsTotal += months;
       }
       lutech_rate = periodMonthsTotal > 0 ? periodWeighted / periodMonthsTotal : defaultRate;
@@ -689,6 +693,7 @@ export default function CatalogEditorModal({
   durationMonths = 36,
   daysPerFte = 220,
   defaultDailyRate = 250,
+  inflationPct = 0,
   onClose,
 }) {
   const [activeTab, setActiveTab] = useState('items');
@@ -1054,7 +1059,7 @@ export default function CatalogEditorModal({
       const item_fte = effective_group_fte * item_pct / 100;
 
       const rate = computeItemRate(
-        item.profile_mix || [], profileMappings, profileRates, durationMonths, defaultDailyRate
+        item.profile_mix || [], profileMappings, profileRates, durationMonths, defaultDailyRate, inflationPct
       );
 
       // ── APPLY RTI Reduction to Costs and FTE ──

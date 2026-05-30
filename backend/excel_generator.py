@@ -105,7 +105,9 @@ class ExcelReportGenerator:
         rti_quotas: Optional[Dict[str, float]] = None,
         prof_certs_resources: Optional[Dict[str, int]] = None,
         prof_certs_weights: Optional[Dict[str, float]] = None,
+        company_certs_status: Optional[Dict[str, str]] = None,
     ):
+        self.company_certs_status = company_certs_status or {}
         self.lot_key = lot_key
         self.lot_config = lot_config
         self.base_amount = base_amount
@@ -430,17 +432,25 @@ class ExcelReportGenerator:
         company_certs_raw_sum = 0
         for cert in company_certs:
             cert_id = cert.get('id', '')
-            # Try multiple key patterns for tech_inputs_full
-            cert_input = (self.tech_inputs_full.get(f'company_cert_{cert_id}', {}) or
-                          self.tech_inputs_full.get(cert_id, {}) or
-                          {})
-            has_cert = False
-            if isinstance(cert_input, dict):
-                has_cert = cert_input.get('has_cert', False) or cert_input.get('hasCert', False)
-            elif isinstance(cert_input, bool):
-                has_cert = cert_input
-            if has_cert:
+            # Prefer the explicit per-cert status ("all"/"partial"/"none"), keyed by
+            # label, matching the API (calculate_score). Fall back to the legacy
+            # has_cert boolean in tech_inputs_full when status is absent.
+            status = self.company_certs_status.get(cert.get('label', ''))
+            if status == 'all':
                 company_certs_raw_sum += cert.get('points', 0)
+            elif status == 'partial':
+                company_certs_raw_sum += cert.get('points_partial', 0)
+            elif status is None:
+                cert_input = (self.tech_inputs_full.get(f'company_cert_{cert_id}', {}) or
+                              self.tech_inputs_full.get(cert_id, {}) or
+                              {})
+                has_cert = False
+                if isinstance(cert_input, dict):
+                    has_cert = cert_input.get('has_cert', False) or cert_input.get('hasCert', False)
+                elif isinstance(cert_input, bool):
+                    has_cert = cert_input
+                if has_cert:
+                    company_certs_raw_sum += cert.get('points', 0)
             category_data['company_certs']['max_raw'] += cert.get('points', 0)
             category_data['company_certs']['gara_weight'] += cert.get('gara_weight', 0)
         
@@ -1823,6 +1833,7 @@ def generate_excel_report(
     rti_quotas: Optional[Dict[str, float]] = None,
     prof_certs_resources: Optional[Dict[str, int]] = None,
     prof_certs_weights: Optional[Dict[str, float]] = None,
+    company_certs_status: Optional[Dict[str, str]] = None,
 ) -> io.BytesIO:
     """Generate Excel report"""
     generator = ExcelReportGenerator(
@@ -1845,6 +1856,7 @@ def generate_excel_report(
         rti_quotas=rti_quotas,
         prof_certs_resources=prof_certs_resources,
         prof_certs_weights=prof_certs_weights,
+        company_certs_status=company_certs_status,
     )
-    
+
     return generator.generate()

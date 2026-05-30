@@ -2123,6 +2123,7 @@ def export_excel(data: schemas.ExportExcelRequest, db: Session = Depends(get_db)
         rti_quotas=data.rti_quotas,
         prof_certs_resources=prof_certs_resources,
         prof_certs_weights=data.prof_certs_weights,
+        company_certs_status=data.company_certs_status,
     )
 
     logger.info(f"Excel export completed for lot: {data.lot_key}")
@@ -2960,6 +2961,11 @@ def calculate_business_plan(
     if not lot:
         raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
 
+    # RTI is driven by the lot config (the same source /scenarios and /find-discount
+    # use), not by the request body — keeps the three endpoints consistent.
+    is_rti = bool(lot.rti_enabled)
+    quota_lutech = (lot.rti_quotas.get("Lutech", 100) / 100) if (is_rti and lot.rti_quotas) else 1.0
+
     # Calculate team cost from composition if available
     team_cost = 0.0
     tow_breakdown = {}
@@ -2980,8 +2986,8 @@ def calculate_business_plan(
             default_daily_rate=bp.default_daily_rate or 250.0,
             inflation_pct=bp.inflation_pct or 0.0,
             days_per_fte=bp.days_per_fte or 220,
-            is_rti=calc_request.is_rti,
-            quota_lutech=calc_request.quota_lutech,
+            is_rti=is_rti,
+            quota_lutech=quota_lutech,
             all_tows=bp.tows or [],
         )
 
@@ -3001,8 +3007,8 @@ def calculate_business_plan(
         default_daily_rate=bp.default_daily_rate or 250.0,
         days_per_fte=bp.days_per_fte or 220,
         inflation_pct=bp.inflation_pct or 0.0,
-        is_rti=calc_request.is_rti,
-        quota_lutech=calc_request.quota_lutech,
+        is_rti=is_rti,
+        quota_lutech=quota_lutech,
     )
 
     catalog_cost = catalog_result["total_cost"]
@@ -3057,8 +3063,8 @@ def calculate_business_plan(
         base_amount=lot.base_amount,
         total_cost=total_cost,
         discount_pct=calc_request.discount_pct,
-        is_rti=calc_request.is_rti,
-        quota_lutech=calc_request.quota_lutech,
+        is_rti=is_rti,
+        quota_lutech=quota_lutech,
     )
 
     # Calculate savings percentage using the weighted average from service if available
