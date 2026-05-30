@@ -11,16 +11,19 @@ psycopg2-binary==2.9.10
 python-json-logger==2.0.7
 psutil==5.9.8
 python-dotenv==1.0.1
+# NOTE: python-jose 3.3.0 is the latest 3.x. CVE-2024-33663 (alg confusion) is
+# mitigated here by the explicit RS256 allow-list in auth.py. Revisit migrating
+# to PyJWT/joserfc if the library remains unmaintained.
 python-jose[cryptography]==3.3.0
-requests==2.31.0
+requests==2.32.4  # CVE-2024-35195
 cairosvg==2.8.2
 # Excel template generation
 openpyxl>=3.1.0
-# OCR for certificate verification
+# OCR for certificate verification — parse untrusted PDFs/images, keep patched.
 pytesseract==0.3.13
 pdf2image==1.17.0
-Pillow==11.2.1
-PyMuPDF==1.24.0
+Pillow==11.3.0
+PyMuPDF==1.24.14
 anthropic>=0.40.0
 google-generativeai>=0.8.0
 groq>=0.11.0

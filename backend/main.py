@@ -219,10 +219,10 @@ def get_allowed_origins():
         return [normalized_url]
 
     elif env == "staging":
-        # Staging: Allow staging domain + localhost for testing
+        # Staging: only the staging domain (no localhost — staging may be exposed).
         staging_url = os.getenv("FRONTEND_URL", "https://staging.simulator-poste.example.com")
         normalized_url = normalize_origin_url(staging_url)
-        origins = [normalized_url, "http://localhost:5173"]
+        origins = [normalized_url]
         logger.info(f"Staging CORS: {origins}")
         return origins
 
@@ -331,6 +331,20 @@ async def limit_upload_size(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Apply baseline security headers to every response."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    if os.getenv("ENVIRONMENT") == "production":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
 # --- DB Dependency ---
 def get_db():
     db = SessionLocal()
@@ -338,6 +352,23 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def require_admin(request: Request, user: dict = Depends(get_current_user)) -> dict:
+    """Authorization gate for destructive/admin endpoints.
+
+    - Local dev bypass (AUTH_DEV_BYPASS) counts as admin for convenience.
+    - Otherwise the caller's email/sub must be in the ADMIN_EMAILS allowlist.
+    - Fails closed: if no allowlist is configured, access is denied.
+    """
+    if getattr(request.state, "auth_dev_bypass", False):
+        return user
+    allow = [e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()]
+    email = (user.get("email") or "").lower()
+    sub = (user.get("sub") or "").lower()
+    if allow and (email in allow or sub in allow):
+        return user
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
 
 
 # --- HEALTH CHECK & MONITORING ENDPOINTS ---
@@ -548,21 +579,22 @@ def get_sqlite_db_path():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_dir, "simulator_poste.db")
 
+# SQLite file magic header — used to validate uploaded database files.
+_SQLITE_MAGIC = b"SQLite format 3\x00"
+
+
 @api_router.get("/system/export-db")
-def export_database(db: Session = Depends(get_db)):
-    """Export the entire SQLite database."""
-    try:
-        db.commit()
-    except Exception:
-        pass
-        
+def export_database(db: Session = Depends(get_db), _: dict = Depends(require_admin)):
+    """Export the entire SQLite database. Admin only."""
+    db.commit()
+
     db_path = get_sqlite_db_path()
     logger.info(f"Exporting database from path: {db_path}")
-    
+
     if not os.path.exists(db_path):
         logger.error(f"Database file not found at {db_path}")
         raise HTTPException(status_code=404, detail="Database file not found")
-        
+
     return FileResponse(
         path=db_path,
         filename=f"simulator_poste_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
@@ -570,31 +602,51 @@ def export_database(db: Session = Depends(get_db)):
     )
 
 @api_router.post("/system/import-db")
-async def import_database(file: UploadFile = File(...), db=Depends(get_db)):
-    """Import and replace the SQLite database."""
+async def import_database(file: UploadFile = File(...), db=Depends(get_db), _: dict = Depends(require_admin)):
+    """Import and replace the SQLite database. Admin only.
+
+    Validates the upload is a real SQLite file and backs up the current DB
+    before overwriting so a bad import can be rolled back.
+    """
     if not file.filename.endswith('.db'):
         raise HTTPException(status_code=400, detail="Il file deve avere estensione .db")
-        
-    db_path = get_sqlite_db_path()
-    
+
+    # Read into a temp file and validate the SQLite magic header before touching
+    # the live database.
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".db", prefix="import_")
     try:
+        with os.fdopen(tmp_fd, "wb") as tmp:
+            shutil.copyfileobj(file.file, tmp)
+        with open(tmp_path, "rb") as fh:
+            header = fh.read(16)
+        if header != _SQLITE_MAGIC:
+            raise HTTPException(status_code=400, detail="Il file non è un database SQLite valido")
+
+        db_path = get_sqlite_db_path()
+
         from database import engine
         engine.dispose()
-    except Exception as e:
-        logger.warning(f"Error disposing engine: {e}")
-    
-    try:
-        # Create directory if it doesn't exist
+
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        
-        with open(db_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
+
+        # Timestamped backup of the current DB before replacing it.
+        if os.path.exists(db_path):
+            backup_path = f"{db_path}.bak_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            shutil.copy2(db_path, backup_path)
+            logger.info(f"Backed up current database to {backup_path}")
+
+        shutil.move(tmp_path, db_path)
+        tmp_path = None  # moved
         logger.info(f"Database successfully restored from {file.filename} to {db_path}")
         return {"status": "success", "message": "Database ripristinato con successo"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error restoring database: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Errore durante il ripristino del database")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 
@@ -2181,13 +2233,13 @@ def verify_certificates(
         logger.error(f"OCR import error: {e}")
         raise HTTPException(
             status_code=503,
-            detail=f"OCR dependencies not available: {str(e)}"
+            detail="OCR dependencies not available"
         )
     except Exception as e:
         logger.error(f"Certificate verification error: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Certificate verification failed: {str(e)}"
+            detail="Certificate verification failed"
         )
 
 
@@ -2342,40 +2394,50 @@ def verify_certificates_stream(
 def verify_single_certificate(pdf_path: str, db: Session = Depends(get_db)):
     """
     Verify a single PDF certificate using OCR.
-    
+
     Args:
-        pdf_path: Absolute path to the PDF file
-    
+        pdf_path: Path to a PDF file produced by a prior upload/extraction. The
+            path MUST resolve inside the system temp directory; arbitrary
+            server paths are rejected to prevent local file inclusion.
+
     Returns:
         Verification result with extracted data
     """
-    logger.info(f"Single certificate verification requested: {pdf_path}")
-    
+    logger.info("Single certificate verification requested")
+
+    # Confine to the upload/extraction area (cert ZIPs extract under tempdir).
+    allowed_base = os.path.realpath(tempfile.gettempdir())
+    real_path = os.path.realpath(pdf_path)
+    if os.path.commonpath([real_path, allowed_base]) != allowed_base:
+        logger.warning("Rejected verify-certs/single path outside temp dir")
+        raise HTTPException(status_code=400, detail="Invalid certificate path")
+
     try:
         from services.cert_verification_service import CertVerificationService, OCR_AVAILABLE
-        
+
         if not OCR_AVAILABLE:
             raise HTTPException(
                 status_code=503,
                 detail="OCR dependencies not available"
             )
-        
-        import os
-        if not os.path.exists(pdf_path):
-            raise HTTPException(status_code=404, detail=f"File not found: {pdf_path}")
-        
+
+        if not (os.path.exists(real_path) and os.path.isfile(real_path)):
+            raise HTTPException(status_code=404, detail="Certificate file not found")
+
         vendors = CertVerificationService.load_vendors_from_db(db)
         settings = CertVerificationService.load_settings_from_db(db)
         service = CertVerificationService(vendors=vendors, settings=settings)
-        result = service.verify_certificate(pdf_path)
-        
+        result = service.verify_certificate(real_path)
+
         return result.to_dict()
-        
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+
+    except HTTPException:
+        raise
+    except ImportError:
+        raise HTTPException(status_code=503, detail="OCR dependencies not available")
     except Exception as e:
         logger.error(f"Certificate verification error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Certificate verification failed")
 
 
 @api_router.post("/verify-certs/upload")
@@ -2504,11 +2566,11 @@ async def verify_certs_upload(
     
     except HTTPException:
         raise
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    except ImportError:
+        raise HTTPException(status_code=503, detail="OCR dependencies not available")
     except Exception as e:
         logger.error(f"ZIP verification error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Certificate verification failed")
 
 
 @api_router.post("/verify-certs/upload/stream")
@@ -2540,9 +2602,9 @@ async def verify_certs_upload_stream(
                 status_code=503,
                 detail="OCR dependencies not available"
             )
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    
+    except ImportError:
+        raise HTTPException(status_code=503, detail="OCR dependencies not available")
+
     # Read file content upfront (can't read inside generator)
     file_content = await file.read()
     upload_filename = file.filename
@@ -3311,10 +3373,8 @@ def export_business_plan_excel(data: schemas.ExportBusinessPlanRequest, db: Sess
             lutech_breakdown=data.lutech_breakdown,
         )
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        logger.error(f"Error generating Business Plan Excel: {str(e)}\n{tb}")
-        raise HTTPException(status_code=500, detail=f"Errore nella generazione dell'Excel: {str(e)}")
+        logger.error(f"Error generating Business Plan Excel: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Errore nella generazione dell'Excel")
 
     logger.info(f"Business Plan Excel export completed for lot: {data.lot_key}")
 

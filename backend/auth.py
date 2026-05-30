@@ -3,6 +3,7 @@ OIDC Authentication Middleware for FastAPI
 Validates JWT tokens from SAP IAS (Identity Authentication Service)
 """
 import os
+import time
 import logging
 from typing import Optional, Dict, Any
 from fastapi import Request, HTTPException, status
@@ -10,26 +11,41 @@ from fastapi.responses import JSONResponse
 from jose import jwt, JWTError
 from jose.jwk import construct
 import requests
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+# JWKS cache time-to-live (seconds). Keys are refetched after this window so
+# IdP key rotation is picked up without a process restart.
+JWKS_CACHE_TTL = 3600
+
+
+def _env_flag(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "on")
 
 
 class OIDCConfig:
     """OIDC Configuration from environment variables"""
     def __init__(self):
-        self.issuer = os.getenv("OIDC_ISSUER", "https://asojzafbi.accounts.ondemand.com")
+        # No real tenant baked in as a default — must be provided via env.
+        self.issuer = (os.getenv("OIDC_ISSUER") or "").rstrip("/")
         self.client_id = os.getenv("OIDC_CLIENT_ID")
         self.audience = os.getenv("OIDC_AUDIENCE", self.client_id)
+        # Explicit opt-in for the unauthenticated local-dev bypass. Never honoured
+        # in production (see middleware). Without this flag, missing OIDC config
+        # fails closed instead of silently disabling auth.
+        self.dev_bypass = _env_flag("AUTH_DEV_BYPASS")
 
         if not self.client_id:
-            logger.warning("OIDC_CLIENT_ID not set - authentication will fail")
+            logger.warning("OIDC_CLIENT_ID not set - authentication is not configured")
 
         # Discover OIDC endpoints
-        self.well_known_url = f"{self.issuer}/.well-known/openid-configuration"
+        self.well_known_url = f"{self.issuer}/.well-known/openid-configuration" if self.issuer else None
         self.jwks_uri = None
         self.jwks_cache = None
-        self._discover_endpoints()
+        self.jwks_cache_ts = 0.0
+        if self.issuer:
+            self._discover_endpoints()
 
     def _discover_endpoints(self):
         """Fetch OIDC discovery document"""
@@ -44,24 +60,32 @@ class OIDCConfig:
             # Set default JWKS URI based on common SAP IAS pattern
             self.jwks_uri = f"{self.issuer}/oauth2/certs"
 
-    def get_jwks(self) -> Dict[str, Any]:
-        """Fetch JSON Web Key Set with caching"""
-        if self.jwks_cache:
+    def get_jwks(self, force: bool = False) -> Dict[str, Any]:
+        """Fetch the JSON Web Key Set, cached with a TTL.
+
+        Set ``force=True`` to bypass the cache (e.g. when a token references a
+        ``kid`` not present in the cached keys, indicating IdP key rotation).
+        """
+        fresh = (time.time() - self.jwks_cache_ts) < JWKS_CACHE_TTL
+        if self.jwks_cache and fresh and not force:
             return self.jwks_cache
 
         if not self.jwks_uri:
             logger.error("JWKS URI is not configured")
-            return {"keys": []}
+            return self.jwks_cache or {"keys": []}
 
         try:
             response = requests.get(self.jwks_uri, timeout=5)
             response.raise_for_status()
             self.jwks_cache = response.json()
+            self.jwks_cache_ts = time.time()
             logger.info(f"JWKS fetched successfully from {self.jwks_uri}")
             return self.jwks_cache
         except Exception as e:
             logger.error(f"Failed to fetch JWKS: {e}")
-            return {"keys": []}
+            # Keep serving the previous cache (if any) rather than locking out
+            # all tokens on a transient network blip.
+            return self.jwks_cache or {"keys": []}
 
 
 class OIDCMiddleware:
@@ -95,17 +119,28 @@ class OIDCMiddleware:
         if any(request.url.path.startswith(path) for path in self.PUBLIC_PATHS):
             return await call_next(request)
 
-        # Skip authentication if OIDC not configured (dev mode)
+        # Authentication not configured (no client id).
         if not self.config.client_id:
-            # In production, OIDC must be configured - fail fast
+            # Production must never run without auth.
             if os.getenv("ENVIRONMENT") == "production":
                 logger.error("OIDC not configured in production environment")
                 return JSONResponse(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     content={"detail": "Authentication service not configured"},
                 )
-            logger.warning("OIDC not configured - bypassing authentication (dev mode)")
+            # Fail closed unless the dev bypass is explicitly opted into.
+            if not self.config.dev_bypass:
+                logger.error(
+                    "OIDC not configured and AUTH_DEV_BYPASS not set - refusing request. "
+                    "Set OIDC_CLIENT_ID (real auth) or AUTH_DEV_BYPASS=1 (local dev only)."
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    content={"detail": "Authentication service not configured"},
+                )
+            logger.warning("AUTH_DEV_BYPASS enabled - bypassing authentication (dev only)")
             request.state.user = {"sub": "dev-user", "email": "dev@example.com"}
+            request.state.auth_dev_bypass = True
             return await call_next(request)
 
         # Extract token from Authorization header
@@ -130,6 +165,7 @@ class OIDCMiddleware:
         try:
             user_info = self._validate_token(token)
             request.state.user = user_info
+            request.state.auth_dev_bypass = False
             logger.debug(f"Authenticated user: {user_info.get('email', user_info.get('sub'))}")
         except HTTPException as e:
             return JSONResponse(
@@ -158,13 +194,17 @@ class OIDCMiddleware:
             unverified_header = jwt.get_unverified_header(token)
             kid = unverified_header.get("kid")
 
-            # Log token claims for debugging (without sensitive data)
-            try:
-                unverified_claims = jwt.get_unverified_claims(token)
-                logger.info(f"Token claims: iss={unverified_claims.get('iss')}, aud={unverified_claims.get('aud')}, azp={unverified_claims.get('azp')}, exp={unverified_claims.get('exp')}")
-                logger.info(f"Expected: issuer={self.config.issuer}, client_id={self.config.client_id}, audience={self.config.audience}")
-            except Exception:
-                pass
+            # Log token claims for debugging (DEBUG only — identity metadata).
+            if logger.isEnabledFor(logging.DEBUG):
+                try:
+                    c = jwt.get_unverified_claims(token)
+                    logger.debug(
+                        "Token claims: iss=%s aud=%s azp=%s exp=%s (expected iss=%s aud=%s)",
+                        c.get("iss"), c.get("aud"), c.get("azp"), c.get("exp"),
+                        self.config.issuer, self.config.audience,
+                    )
+                except Exception:
+                    pass
 
             if not kid:
                 raise HTTPException(
@@ -172,14 +212,17 @@ class OIDCMiddleware:
                     detail="Token missing key ID (kid)"
                 )
 
-            # Get JWKS and find matching key
-            jwks = self.config.get_jwks()
-            key = None
+            # Find the matching key; if not found, refetch JWKS once in case the
+            # IdP rotated keys, then look again.
+            def _find_key(jwks):
+                for jwk_key in jwks.get("keys", []):
+                    if jwk_key.get("kid") == kid:
+                        return construct(jwk_key)
+                return None
 
-            for jwk_key in jwks.get("keys", []):
-                if jwk_key.get("kid") == kid:
-                    key = construct(jwk_key)
-                    break
+            key = _find_key(self.config.get_jwks())
+            if not key:
+                key = _find_key(self.config.get_jwks(force=True))
 
             if not key:
                 raise HTTPException(
@@ -204,7 +247,10 @@ class OIDCMiddleware:
                 options=decode_options,
             )
 
-            current_time = datetime.utcnow().timestamp()
+            # Use time.time() (true UTC epoch). datetime.utcnow().timestamp()
+            # is wrong on non-UTC hosts because it treats the naive UTC value
+            # as local time.
+            current_time = time.time()
 
             # Check expiration
             exp = decoded.get("exp")
@@ -222,35 +268,47 @@ class OIDCMiddleware:
                     detail="Token not yet valid"
                 )
 
-            # Issuer validation
+            # Issuer validation (mandatory: reject tokens with no/invalid issuer).
             issuer = decoded.get("iss")
-            if issuer and issuer != self.config.issuer:
+            if not self.config.issuer:
+                # Without a configured issuer we cannot validate — fail closed.
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Issuer not configured"
+                )
+            if issuer != self.config.issuer:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token issuer"
                 )
 
-            # Audience / azp validation (SAP IAS uses azp for client_id)
+            # Audience / azp validation (mandatory). SAP IAS uses azp for client_id.
             allowed_audiences = [a for a in {self.config.audience, self.config.client_id} if a]
+            if not allowed_audiences:
+                # No audience to check against — fail closed rather than accept all.
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Audience not configured"
+                )
+
             aud_claim = decoded.get("aud")
             azp_claim = decoded.get("azp")
 
             audience_ok = False
-            if allowed_audiences:
-                if isinstance(aud_claim, list):
-                    audience_ok = any(aud in aud_claim for aud in allowed_audiences)
-                elif isinstance(aud_claim, str):
-                    audience_ok = aud_claim in allowed_audiences
+            if isinstance(aud_claim, list):
+                audience_ok = any(aud in aud_claim for aud in allowed_audiences)
+            elif isinstance(aud_claim, str):
+                audience_ok = aud_claim in allowed_audiences
 
-                # Fallback: SAP IAS often places client_id in azp
-                if not audience_ok and azp_claim:
-                    audience_ok = azp_claim in allowed_audiences
+            # Fallback: SAP IAS often places client_id in azp
+            if not audience_ok and azp_claim:
+                audience_ok = azp_claim in allowed_audiences
 
-                if not audience_ok:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Invalid token audience"
-                    )
+            if not audience_ok:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token audience"
+                )
 
             return decoded
 
