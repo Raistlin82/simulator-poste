@@ -5,13 +5,61 @@ Tests scoring logic, API endpoints, and data validation
 
 import pytest
 from fastapi.testclient import TestClient
+import numpy as np
 from main import (
     app,
     calculate_economic_score,
     calculate_prof_score,
+    _economic_score_vec,
 )
 
 client = TestClient(app)
+
+
+class TestEconomicScoreVectorized:
+    """The vectorized economic score must match the scalar implementation
+    element-wise (it backs the Monte Carlo simulations)."""
+
+    def test_matches_scalar_on_grid(self):
+        p_base = 1000.0
+        alpha, max_econ = 0.3, 40.0
+        offered = np.linspace(300, 1100, 17)   # includes > p_base (invalid)
+        best = np.linspace(300, 1000, 17)
+        for p_off in offered:
+            scalar = np.array([
+                calculate_economic_score(p_base, p_off, p_b, alpha, max_econ) for p_b in best
+            ])
+            vec = _economic_score_vec(p_base, p_off, best, alpha, max_econ)
+            assert np.allclose(scalar, vec, atol=1e-9), f"mismatch at p_off={p_off}"
+
+    def test_edge_cases(self):
+        # offer above base -> 0; no spread (best == base) -> 0
+        assert float(_economic_score_vec(1000.0, 1100.0, np.array([900.0]))[0]) == 0.0
+        assert float(_economic_score_vec(1000.0, 1000.0, np.array([1000.0]))[0]) == 0.0
+
+
+class TestMonteCarloEndpoints:
+    def test_monte_carlo_shape_and_bounds(self):
+        r = client.post("/api/monte-carlo", json={
+            "lot_key": "Lotto 2", "base_amount": 1_000_000.0, "my_discount": 25.0,
+            "competitor_discount_mean": 30.0, "current_tech_score": 50.0, "iterations": 300,
+        })
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert 0.0 <= body["win_probability"] <= 100.0
+        assert body["iterations"] == 300
+        assert len(body["score_distribution"]) <= 50
+
+    def test_optimize_discount_shape(self):
+        r = client.post("/api/optimize-discount", json={
+            "lot_key": "Lotto 2", "base_amount": 1_000_000.0, "my_tech_score": 55.0,
+            "competitor_tech_score": 50.0, "competitor_discount": 30.0, "best_offer_discount": 35.0,
+        })
+        assert r.status_code == 200, r.text
+        scenarios = r.json()["scenarios"]
+        assert len(scenarios) == 4
+        for s in scenarios:
+            assert 0.0 <= s["win_probability"] <= 100.0
 
 # ============================================================================
 # SCORING FUNCTION TESTS

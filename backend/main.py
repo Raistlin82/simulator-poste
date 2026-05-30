@@ -516,6 +516,28 @@ def calculate_economic_score(p_base, p_offered, p_best_competitor, alpha=0.3, ma
     return ScoringService.calculate_economic_score(p_base, p_offered, p_best_competitor, alpha, max_econ)
 
 
+def _economic_score_vec(p_base, p_offered, p_best_competitor, alpha=0.3, max_econ=40.0):
+    """Vectorized economic score (numpy). Numerically equivalent to
+    ScoringService.calculate_economic_score, element-wise over arrays.
+
+    Used by the Monte Carlo simulations so the per-iteration scoring runs as a
+    single numpy operation instead of a Python loop.
+    """
+    p_offered = np.asarray(p_offered, dtype=float)
+    p_best = np.asarray(p_best_competitor, dtype=float)
+    actual_best = np.minimum(p_offered, p_best)
+    denom = p_base - actual_best
+    num = p_base - p_offered
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(denom > 0, num / denom, 0.0)
+    ratio = np.clip(ratio, 0.0, 1.0)
+    score = max_econ * np.power(ratio, alpha)
+    # Edge cases mirroring the scalar implementation:
+    # offer above base, or no discount spread => score 0.
+    score = np.where((p_offered > p_base) | (denom <= 0), 0.0, score)
+    return score
+
+
 def calculate_prof_score(R, C, max_res, max_points, max_certs=5, max_points_manual=False, prof_R=None, prof_C=None):
     """
     Calculate professional score for a requirement.
@@ -1799,14 +1821,6 @@ def monte_carlo_simulation(
         raise HTTPException(status_code=404, detail="Lot not found")
     lot_cfg = schemas.LotConfig.model_validate(lot_cfg_db)
 
-    comp_discounts = np.random.normal(
-        data.competitor_discount_mean, data.competitor_discount_std, data.iterations
-    )
-    wins = 0
-
-    my_scores = []
-    competitor_scores = []
-
     max_tech = lot_cfg.max_tech_score
     max_econ = lot_cfg.max_econ_score
 
@@ -1814,36 +1828,27 @@ def monte_carlo_simulation(
     comp_tech_mean = data.competitor_tech_score_mean if data.competitor_tech_score_mean is not None else max_tech * 0.9
     comp_tech_std = data.competitor_tech_score_std
 
-    for c_disc in comp_discounts:
-        c_disc = max(0, min(100, c_disc))
-        p_comp = data.base_amount * (1 - (c_disc / 100))
-        p_off = data.base_amount * (1 - (data.my_discount / 100))
+    # Vectorized Monte Carlo (equivalent to the previous per-iteration loop).
+    comp_discounts = np.clip(
+        np.random.normal(data.competitor_discount_mean, data.competitor_discount_std, data.iterations),
+        0, 100,
+    )
+    comp_tech_scores = np.clip(
+        np.random.normal(comp_tech_mean, comp_tech_std, data.iterations),
+        0, max_tech,
+    )
 
-        # Competitor tech score with variance around user-specified mean
-        comp_tech_score = np.random.normal(loc=comp_tech_mean, scale=comp_tech_std)
-        comp_tech_score = max(0, min(max_tech, comp_tech_score))
+    p_comp = data.base_amount * (1 - comp_discounts / 100)
+    p_off = data.base_amount * (1 - data.my_discount / 100)
+    p_best_actual = np.minimum(p_comp, p_off)
 
-        # Determine actual best price
-        p_best_actual = min(p_comp, p_off)
+    my_econ = _economic_score_vec(data.base_amount, p_off, p_best_actual, lot_cfg.alpha, max_econ)
+    comp_econ = _economic_score_vec(data.base_amount, p_comp, p_best_actual, lot_cfg.alpha, max_econ)
 
-        # Our economic score
-        econ_score = calculate_economic_score(
-            data.base_amount, p_off, p_best_actual, lot_cfg.alpha, max_econ
-        )
-        my_total = data.current_tech_score + econ_score
+    my_scores = data.current_tech_score + my_econ
+    competitor_scores = comp_tech_scores + comp_econ
 
-        # Competitor economic score (against actual best)
-        c_econ = calculate_economic_score(
-            data.base_amount, p_comp, p_best_actual, lot_cfg.alpha, max_econ
-        )
-        comp_total = comp_tech_score + c_econ
-
-        if my_total > comp_total:
-            wins += 1
-
-        my_scores.append(my_total)
-        competitor_scores.append(comp_total)
-
+    wins = int(np.sum(my_scores > competitor_scores))
     prob = (wins / data.iterations) * 100
 
     return {
@@ -1852,7 +1857,7 @@ def monte_carlo_simulation(
         "avg_total_score": round(float(np.mean(my_scores)), 2),
         "min_score": round(float(np.min(my_scores)), 2),
         "max_score": round(float(np.max(my_scores)), 2),
-        "score_distribution": [round(s, 1) for s in my_scores[:50]],
+        "score_distribution": [round(float(s), 1) for s in my_scores[:50]],
         "competitor_avg_score": round(float(np.mean(competitor_scores)), 2),
         "competitor_min_score": round(float(np.min(competitor_scores)), 2),
         "competitor_max_score": round(float(np.max(competitor_scores)), 2),
@@ -1965,36 +1970,31 @@ def optimize_discount(data: schemas.OptimizeDiscountRequest, db: Session = Depen
         )
         competitor_total_scenario = data.competitor_tech_score + comp_econ_scenario
 
-        # Run Monte Carlo simulation to estimate win probability
-        wins = 0
-        for _ in range(iterations):
-            # Add variance to competitor tech score
-            comp_tech_var = np.random.normal(data.competitor_tech_score, 2.0)
-            comp_tech_var = max(0, min(lot_cfg.max_tech_score, comp_tech_var))
+        # Run Monte Carlo simulation to estimate win probability (vectorized).
+        comp_tech_var = np.clip(
+            np.random.normal(data.competitor_tech_score, 2.0, iterations),
+            0, lot_cfg.max_tech_score,
+        )
+        comp_disc_var = np.clip(
+            np.random.normal(data.competitor_discount, 1.5, iterations),
+            0, data.best_offer_discount,
+        )
+        p_comp_var = p_base * (1 - comp_disc_var / 100)
 
-            # Add variance to competitor discount (cannot exceed best_offer)
-            comp_disc_var = np.random.normal(data.competitor_discount, 1.5)
-            comp_disc_var = max(0, min(data.best_offer_discount, comp_disc_var))
-            p_comp_var = p_base * (1 - comp_disc_var / 100)
+        # Actual best per iteration (including our offer and the market best).
+        p_actual_best_mc = np.minimum(np.minimum(p_my, p_comp_var), p_market_best)
 
-            # Actual best in this Monte Carlo iteration (including our offer)
-            p_actual_best_mc = min(p_my, p_comp_var, p_market_best)
+        comp_econ_var = _economic_score_vec(
+            p_base, p_comp_var, p_actual_best_mc, lot_cfg.alpha, lot_cfg.max_econ_score
+        )
+        comp_total_var = comp_tech_var + comp_econ_var
 
-            # Competitor economic score against actual best
-            comp_econ_var = calculate_economic_score(
-                p_base, p_comp_var, p_actual_best_mc, lot_cfg.alpha, lot_cfg.max_econ_score
-            )
-            comp_total_var = comp_tech_var + comp_econ_var
+        my_econ_var = _economic_score_vec(
+            p_base, p_my, p_actual_best_mc, lot_cfg.alpha, lot_cfg.max_econ_score
+        )
+        my_total_var = data.my_tech_score + my_econ_var
 
-            # Our score against actual best (recalculate in case competitor beat market)
-            my_econ_var = calculate_economic_score(
-                p_base, p_my, p_actual_best_mc, lot_cfg.alpha, lot_cfg.max_econ_score
-            )
-            my_total_var = data.my_tech_score + my_econ_var
-
-            if my_total_var > comp_total_var:
-                wins += 1
-
+        wins = int(np.sum(my_total_var > comp_total_var))
         prob = (wins / iterations) * 100
 
         economic_impact = p_base - p_my
