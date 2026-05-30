@@ -43,6 +43,10 @@ fi
 # Set environment variables for development
 export ENVIRONMENT=development
 export LOG_LEVEL=INFO
+# Local development only: run without OIDC. Authentication is fail-closed, so
+# this explicit opt-in is required to use the app without configuring OIDC.
+# NEVER set this in staging/production.
+export AUTH_DEV_BYPASS=1
 
 echo ""
 echo "🎯 Backend server starting on http://localhost:8000"
