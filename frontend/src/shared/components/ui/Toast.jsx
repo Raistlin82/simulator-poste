@@ -1,7 +1,11 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 
 const ToastContext = createContext(null);
+
+// Monotonic id source — guarantees unique toast ids (Date.now() collided for
+// near-simultaneous toasts, producing duplicate React keys).
+let _toastSeq = 0;
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useToast = () => {
@@ -19,14 +23,15 @@ export const ToastProvider = ({ children }) => {
 
   // Cleanup all timeouts on unmount
   useEffect(() => {
+    const timeouts = timeoutsRef.current;
     return () => {
-      timeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
-      timeoutsRef.current.clear();
+      timeouts.forEach(timeoutId => clearTimeout(timeoutId));
+      timeouts.clear();
     };
   }, []);
 
   const showToast = useCallback(({ type = 'info', message, duration = 5000 }) => {
-    const id = Date.now();
+    const id = ++_toastSeq;
     const toast = { id, type, message, duration };
 
     setToasts(prev => [...prev, toast]);
@@ -52,14 +57,15 @@ export const ToastProvider = ({ children }) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const value = {
+  // Memoized so consumers don't re-render on every provider render.
+  const value = useMemo(() => ({
     showToast,
     hideToast,
     success: (message, duration) => showToast({ type: 'success', message, duration }),
     error: (message, duration) => showToast({ type: 'error', message, duration }),
     info: (message, duration) => showToast({ type: 'info', message, duration }),
     warning: (message, duration) => showToast({ type: 'warning', message, duration })
-  };
+  }), [showToast, hideToast]);
 
   return (
     <ToastContext.Provider value={value}>

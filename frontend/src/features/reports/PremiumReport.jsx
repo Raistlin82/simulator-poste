@@ -15,7 +15,6 @@ const PremiumReport = forwardRef(({
     categoryScores,
     winProbability,
     businessPlanData,
-    t
 }, ref) => {
     // ---- Extract simulation data (snake_case from Dashboard props) ----
     const baseAmount = simulationData?.base_amount || 0;
@@ -67,13 +66,6 @@ const PremiumReport = forwardRef(({
         { name: 'Canoni', value: businessPlanData?.costs?.recurring || 0 },
     ].filter(d => d.value > 0);
     const costPalette = ['#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc'];
-
-    // Score composition pie
-    const pieData = [
-        { name: 'Tecnico', value: technicalScore, color: '#1e3a8a' },
-        { name: 'Economico', value: economicScore, color: '#3b82f6' },
-        { name: 'Gap', value: Math.max(0, 100 - totalScore), color: '#e5e7eb' }
-    ];
 
     return (
         <div ref={ref} style={{ background: '#fff', color: '#0f172a', fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}>

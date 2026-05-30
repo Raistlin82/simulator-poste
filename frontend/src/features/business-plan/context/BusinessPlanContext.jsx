@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../../utils/api';
 import { useSimulation } from '../../simulation/context/SimulationContext';
@@ -190,7 +190,9 @@ export function BusinessPlanProvider({ children, activeView }) {
     }
   }, []);
 
-  const value = {
+  // Memoized so consumers of the (page-wide) BP context don't re-render on
+  // every provider render.
+  const value = useMemo(() => ({
     businessPlan,
     practices,
     loading,
@@ -203,7 +205,12 @@ export function BusinessPlanProvider({ children, activeView }) {
     refreshPractices,
     registerSaveTrigger,
     triggerSave,
-  };
+  }), [
+    businessPlan, practices, loading, error,
+    saveBusinessPlan, calculateCosts, setBusinessPlan,
+    savePractice, deletePractice, refreshPractices,
+    registerSaveTrigger, triggerSave,
+  ]);
 
   return (
     <BusinessPlanContext.Provider value={value}>

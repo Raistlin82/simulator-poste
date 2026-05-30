@@ -40,8 +40,11 @@ export default function TowConfigTable({
     lutech_pct: quotaLutech * 100
   });
 
-  // Re-sync newTow default if quotaLutech changes
+  // Keep the new-TOW draft's default lutech_pct in sync with the current quota.
+  // This is a legitimate prop->draft-default sync, so the set-state-in-effect
+  // heuristic is intentionally disabled here.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNewTow(prev => ({ ...prev, lutech_pct: quotaLutech * 100 }));
   }, [quotaLutech]);
 

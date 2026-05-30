@@ -1,27 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Target, Loader2 } from 'lucide-react';
 import axios from 'axios';
-import { formatCurrency, formatNumber } from '../../../utils/formatters';
+import { formatNumber } from '../../../utils/formatters';
 import { useSimulation } from '../context/SimulationContext';
 import { useConfig } from '../../config/context/ConfigContext';
 import { API_URL } from '../../../utils/api';
 import { logger } from '../../../utils/logger';
-
-const fadeUp = {
-    hidden: { opacity: 0, y: 12, filter: 'blur(8px)' },
-    visible: (i) => ({
-        opacity: 1,
-        y: 0,
-        filter: 'blur(0px)',
-        transition: {
-            delay: i * 0.08,
-            duration: 0.45,
-            ease: [0.22, 1, 0.36, 1]
-        },
-    }),
-};
 
 export default function CompetitorAnalysis() {
     const { t } = useTranslation();
@@ -194,7 +179,7 @@ export default function CompetitorAnalysis() {
                                     <div className="h-px bg-slate-200 flex-1 ml-6" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    {optimizerResults.scenarios?.map((scenario, i) => {
+                                    {optimizerResults.scenarios?.map((scenario) => {
                                         const theme = {
                                             'Conservativo': { bg: 'bg-white/40', border: 'border-amber-200', text: 'text-amber-600', accent: 'bg-amber-500', icon: '🛡️' },
                                             'Bilanciato': { bg: 'bg-white/40', border: 'border-indigo-200', text: 'text-indigo-600', accent: 'bg-indigo-500', icon: '⚖️' },

@@ -15,8 +15,18 @@ const COMPLESSITA_OPTIONS = [
   { value: 'alta', fallback: 'Alta', tKey: 'business_plan.complexity_high' },
 ];
 
+// Collision-free id generator. crypto.randomUUID() avoids the duplicate-id bug
+// that Date.now()-based ids caused on rapid/batch creation. Kept at module
+// scope so the React Compiler doesn't treat it as an impure render call.
+function genId(prefix = 'item') {
+  const rand = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}_${rand}`;
+}
+
 function generateId() {
-  return `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  return genId('item');
 }
 
 const GROUP_DOTS = ['bg-amber-400', 'bg-cyan-500', 'bg-violet-400', 'bg-emerald-400', 'bg-orange-400', 'bg-pink-400', 'bg-teal-400'];
@@ -169,7 +179,7 @@ function ClusterEditor({ clusters = [], posteProfiles = [], onChange }) {
     handleChange(clusterIdx, 'poste_profiles', (c.poste_profiles || []).filter(p => p !== profile));
   };
   const handleAddCluster = () => {
-    const newId = `clust_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const newId = genId('clust');
     onChange([...clusters, { id: newId, label: `Cluster ${clusters.length + 1}`, poste_profiles: [], required_pct: 0, constraint_type: 'equality' }]);
   };
   const handleRemoveCluster = (idx) => onChange(clusters.filter((_, i) => i !== idx));
@@ -277,7 +287,7 @@ function GroupEditor({ groups, items, totalCatalogValue, totalFte, bandoTotalFte
     allExpandedGrps ? setCollapsedGrps(new Set(groups.map(g => g.id))) : setCollapsedGrps(new Set());
 
   const handleAddGroup = () => {
-    const newId = `grp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const newId = genId('grp');
     onGroupsChange([...groups, {
       id: newId,
       label: `Raggruppamento ${groups.length + 1}`,
