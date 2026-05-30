@@ -212,10 +212,11 @@ class TestBusinessPlanService:
 
     def test_simple_mapping_no_time_variation(self):
         """Test cost with a simple 1-to-1 profile mapping, no time variance."""
+        # pct uses the percentage convention (0-100), matching the frontend.
         mappings = {
-            "Senior Developer": [{"mix": [{"lutech_profile": "dev_sr", "pct": 1.0}]}]
+            "Senior Developer": [{"mix": [{"lutech_profile": "dev_sr", "pct": 100}]}]
         }
-        
+
         result = BusinessPlanService.calculate_team_cost(
             team_composition=TEAM_COMPOSITION,
             volume_adjustments=VOLUME_ADJUSTMENTS,
@@ -224,7 +225,7 @@ class TestBusinessPlanService:
             profile_rates=PROFILE_RATES,
             duration_months=12
         )
-        
+
         expected_cost = 1.0 * DAYS_PER_FTE * 500  # 1 FTE * 220 days * €500/day
         assert result["total_cost"] == expected_cost
         assert result["total_fte_adjusted"] == 1.0
@@ -234,8 +235,8 @@ class TestBusinessPlanService:
         mappings = {
             "Senior Developer": [{
                 "mix": [
-                    {"lutech_profile": "dev_sr", "pct": 0.5},
-                    {"lutech_profile": "dev_mid", "pct": 0.5}
+                    {"lutech_profile": "dev_sr", "pct": 50},
+                    {"lutech_profile": "dev_mid", "pct": 50}
                 ]
             }]
         }
@@ -255,13 +256,14 @@ class TestBusinessPlanService:
 
     def test_time_varying_mapping(self):
         """Test cost with a mix that changes from Year 1 to Year 2."""
+        # Time variance is driven by month_start/month_end windows (not "period" labels).
         mappings = {
             "Senior Developer": [
-                {"period": "Anno 1", "mix": [{"lutech_profile": "dev_sr", "pct": 1.0}]},
-                {"period": "Anno 2", "mix": [{"lutech_profile": "dev_mid", "pct": 1.0}]}
+                {"month_start": 1, "month_end": 12, "mix": [{"lutech_profile": "dev_sr", "pct": 100}]},
+                {"month_start": 13, "month_end": 24, "mix": [{"lutech_profile": "dev_mid", "pct": 100}]}
             ]
         }
-        
+
         result = BusinessPlanService.calculate_team_cost(
             team_composition=TEAM_COMPOSITION,
             volume_adjustments=VOLUME_ADJUSTMENTS,
@@ -280,16 +282,17 @@ class TestBusinessPlanService:
 
     def test_time_varying_mapping_with_plus_notation(self):
         """Test cost with 'Anno 2+' notation for subsequent years."""
+        # "Anno 2+" (months 13 onward) expressed as a single window to end of contract.
         mappings = {
             "Senior Developer": [
-                {"period": "Anno 1", "mix": [{"lutech_profile": "dev_sr", "pct": 1.0}]},
-                {"period": "Anno 2+", "mix": [
-                    {"lutech_profile": "dev_mid", "pct": 0.5},
-                    {"lutech_profile": "dev_jr", "pct": 0.5},
+                {"month_start": 1, "month_end": 12, "mix": [{"lutech_profile": "dev_sr", "pct": 100}]},
+                {"month_start": 13, "month_end": 36, "mix": [
+                    {"lutech_profile": "dev_mid", "pct": 50},
+                    {"lutech_profile": "dev_jr", "pct": 50},
                 ]}
             ]
         }
-        
+
         result = BusinessPlanService.calculate_team_cost(
             team_composition=TEAM_COMPOSITION,
             volume_adjustments=VOLUME_ADJUSTMENTS,
@@ -321,8 +324,8 @@ class TestBusinessPlanService:
             duration_months=12
         )
         
-        # Falls back to a default rate (currently 350 in the service)
-        expected_cost = 1.0 * DAYS_PER_FTE * 350
+        # No mapping -> falls back to the service default_daily_rate (250).
+        expected_cost = 1.0 * DAYS_PER_FTE * 250
         assert result["total_cost"] == expected_cost
 
 
