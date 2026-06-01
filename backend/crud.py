@@ -332,6 +332,9 @@ def update_master_data(
     if master_data.economic_formulas:
         db_master.economic_formulas = master_data.economic_formulas
     db_master.rti_partners = master_data.rti_partners or []
+    db_master.ai_enabled = bool(master_data.ai_enabled)
+    db_master.ai_provider = master_data.ai_provider or "gemini"
+    db_master.ai_models = master_data.ai_models or {}
 
     db.commit()
     db.refresh(db_master)
@@ -350,7 +353,10 @@ def update_master_data(
             "prof_certs_vendors": db_master.prof_certs_vendors or {},
             "requirement_labels": db_master.requirement_labels or [],
             "economic_formulas": db_master.economic_formulas or [],
-            "rti_partners": db_master.rti_partners or []
+            "rti_partners": db_master.rti_partners or [],
+            "ai_enabled": bool(db_master.ai_enabled),
+            "ai_provider": db_master.ai_provider or "gemini",
+            "ai_models": db_master.ai_models or {},
         }
         save_json_file("master_data.json", json_data)
     

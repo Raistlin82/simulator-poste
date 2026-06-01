@@ -175,7 +175,6 @@ export default function TowConfigTable({
   };
 
   // Calcola riduzioni TOW per periodo
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const adjustedQtyMap = useMemo(() => {
     const result = {};
     const periods = volumeAdjustments?.periods || [];
@@ -217,7 +216,6 @@ export default function TowConfigTable({
       }
     }
     return result;
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
   }, [tows, volumeAdjustments, durationMonths]);
 
   const hasAdjustments = Object.keys(adjustedQtyMap).length > 0;

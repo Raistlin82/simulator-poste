@@ -245,7 +245,7 @@ export default function BusinessPlanPage() {
       logger.error('Calculation error', err, { lot: selectedLot });
       toast.error(`Errore nel calcolo: ${err.message || 'Errore sconosciuto'}`);
     }
-  }, [localBP, lotData, toast, buildLutechRates, buildLutechLabels]);
+  }, [localBP, lotData, selectedLot, toast, buildLutechRates, buildLutechLabels]);
 
   useEffect(() => {
     runCalculation();
@@ -294,7 +294,6 @@ export default function BusinessPlanPage() {
         bpSaveTrigger._id = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isRti = lotData?.rti_enabled || false;
@@ -745,7 +744,7 @@ export default function BusinessPlanPage() {
 
     return { data: offerData, total: checkTotal };
 
-  }, [calcResult, localBP, lotData, discount, isRti]);
+  }, [calcResult, localBP, lotData, discount, quotaLutech]);
 
   // Loading state
   if (!selectedLot || !lotData) {

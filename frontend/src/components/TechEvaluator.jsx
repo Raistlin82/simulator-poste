@@ -232,9 +232,9 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
             {activeTab === 'valutazione' ? (
                 <div className="space-y-6">
                     {/* Top Row: Cert. Aziendali (left) + Dettaglio Punteggi (right) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
                         {/* 1. Company Certifications */}
-                        <div className="lg:col-span-1 glass-card rounded-[2rem] overflow-hidden border-white/60 shadow-xl shadow-slate-200/40 group">
+                        <div className="xl:col-span-4 min-w-0 glass-card rounded-[2rem] overflow-hidden border-white/60 shadow-xl shadow-slate-200/40 group">
                             <button
                                 onClick={() => toggleSection('companyCerts')}
                                 className="w-full px-6 py-4 border-b border-slate-100/50 flex justify-between items-center bg-white/40 hover:bg-white/60 transition-all duration-300"
@@ -294,7 +294,7 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                         </div>
 
                         {/* Dettaglio Punteggi Tecnici — right column of top row */}
-                        <div className="lg:col-span-2">
+                        <div className="xl:col-span-8 min-w-0">
                             <DetailedScoreTable results={results} lotData={lotData} onNavigate={onNavigate} />
                         </div>
                     </div>{/* end top 3-col grid */}
@@ -1012,8 +1012,8 @@ export default function TechEvaluator({ onNavigate, onAddLot, onDeleteLot }) {
                 </div>
             )}
 
-            {/* Hidden container per il PDF Export (PremiumReport) */}
-            <div style={{ display: 'none' }}>
+            {/* Container off-screen per il PDF Export: resta misurabile per i grafici Recharts. */}
+            <div className="fixed top-0 left-0 -z-10 w-[794px] bg-white opacity-0 pointer-events-none" aria-hidden="true">
                 {results && lotData && (
                     <PremiumReport
                         ref={reportRef}

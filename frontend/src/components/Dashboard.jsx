@@ -42,7 +42,8 @@ export default function Dashboard({ onNavigate }) {
         results,
         simulationData,
         setCompetitorParam,
-        monteCarlo, // Added from instruction
+        monteCarlo,
+        setMonteCarlo,
         businessPlanData // Added from instruction
     } = useSimulation();
 
@@ -71,7 +72,7 @@ export default function Dashboard({ onNavigate }) {
 
         const runMC = async () => {
             try {
-                await axios.post(`${API_URL}/monte-carlo`, {
+                const res = await axios.post(`${API_URL}/monte-carlo`, {
                     lot_key: lotKey,
                     base_amount: lotData.base_amount,
                     my_discount: myDiscount,
@@ -82,7 +83,7 @@ export default function Dashboard({ onNavigate }) {
                     competitor_tech_score_std: 3.0, // assumed volatility
                     iterations: 500
                 }, { signal: controller.signal });
-                // setMonteCarlo(res.data); // This is now handled by useSimulation if needed, or removed if not
+                setMonteCarlo(res.data);
             } catch (err) {
                 if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
                 logger.error("Monte Carlo simulation failed", err, { component: "Dashboard" });
@@ -95,7 +96,7 @@ export default function Dashboard({ onNavigate }) {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [myDiscount, competitorDiscount, results, lotKey, lotData, competitorTechScore, toast, t]); // Changed showError to toast
+    }, [myDiscount, competitorDiscount, results, lotKey, lotData, competitorTechScore, setMonteCarlo, toast, t]); // Changed showError to toast
 
     // Run optimizer when competitor inputs change
     useEffect(() => {
@@ -556,8 +557,8 @@ export default function Dashboard({ onNavigate }) {
                 </div>
             </motion.div>
 
-            {/* Hidden container per il PDF Export (PremiumReport) */}
-            <div style={{ display: 'none' }}>
+            {/* Container off-screen per il PDF Export: resta misurabile per i grafici Recharts. */}
+            <div className="fixed top-0 left-0 -z-10 w-[794px] bg-white opacity-0 pointer-events-none" aria-hidden="true">
                 {results && lotData && (
                     <PremiumReport
                         ref={reportRef}

@@ -127,6 +127,27 @@ models.Base.metadata.create_all(bind=engine)
 matplotlib.use("Agg")
 
 
+def _build_expected_certs_map(lot_config: Optional[models.LotConfigModel]) -> Dict[str, List[str]]:
+    """Return req_id -> expected professional cert names for OCR result enrichment."""
+    expected_certs_map: Dict[str, List[str]] = {}
+    if not lot_config or not lot_config.reqs:
+        return expected_certs_map
+
+    for req in lot_config.reqs:
+        req_id = req.get("id", "")
+        selected_certs = req.get("selected_prof_certs", [])
+        if req_id and selected_certs:
+            expected_certs_map[req_id] = selected_certs
+
+    return expected_certs_map
+
+
+def _zip_member_is_safe(extract_dir: str, member: str) -> bool:
+    base_dir = os.path.realpath(extract_dir)
+    member_path = os.path.realpath(os.path.join(base_dir, member))
+    return os.path.commonpath([base_dir, member_path]) == base_dir
+
+
 def run_auto_migrations():
     """Add missing columns to existing tables (lightweight auto-migration for SQLite)."""
     import sqlalchemy
@@ -1171,14 +1192,39 @@ def update_lot_state(
     lot_key: str, state: schemas.SimulationState, db: Session = Depends(get_db)
 ):
     logger.info(f"State update requested for lot: {lot_key}")
-    logger.debug(f"State data: {state.dict()}")
+    logger.debug(f"State data: {state.model_dump()}")
 
     lot = crud.get_lot_config(db, lot_key)
     if not lot:
         logger.warning(f"Lot not found: {lot_key}")
         raise HTTPException(status_code=404, detail="Lot not found")
 
-    lot.state = state.dict()
+    state_payload = state.model_dump()
+
+    valid_cert_labels = {
+        cert.get("label")
+        for cert in (lot.company_certs or [])
+        if isinstance(cert, dict) and cert.get("label")
+    }
+    valid_cert_statuses = {"all", "partial", "none"}
+    state_payload["company_certs"] = {
+        label: status
+        for label, status in (state_payload.get("company_certs") or {}).items()
+        if label in valid_cert_labels and status in valid_cert_statuses
+    }
+
+    valid_req_ids = {
+        req.get("id")
+        for req in (lot.reqs or [])
+        if isinstance(req, dict) and req.get("id")
+    }
+    state_payload["tech_inputs"] = {
+        req_id: value
+        for req_id, value in (state_payload.get("tech_inputs") or {}).items()
+        if req_id in valid_req_ids
+    }
+
+    lot.state = state_payload
     db.commit()
 
     logger.info(f"State saved successfully for lot: {lot_key}")
@@ -2194,14 +2240,7 @@ def verify_certificates(
     # Build mapping of req_id -> expected cert names from lot config
     expected_certs_map = {}
     if lot_key:
-        lot_config = crud.get_lot_config(db, lot_key)
-        if lot_config and lot_config.reqs:
-            for req in lot_config.reqs:
-                req_id = req.get("id", "")
-                # Get selected_prof_certs as expected cert names
-                selected_certs = req.get("selected_prof_certs", [])
-                if selected_certs:
-                    expected_certs_map[req_id] = selected_certs
+        expected_certs_map = _build_expected_certs_map(crud.get_lot_config(db, lot_key))
     
     try:
         from services.cert_verification_service import CertVerificationService, OCR_AVAILABLE
@@ -2278,13 +2317,7 @@ def verify_certificates_stream(
     # Build expected_certs_map from lot config
     expected_certs_map = {}
     if lot_key:
-        lot_config = crud.get_lot_config(db, lot_key)
-        if lot_config and lot_config.reqs:
-            for req in lot_config.reqs:
-                req_id = req.get("id", "")
-                selected_certs = req.get("selected_prof_certs", [])
-                if selected_certs:
-                    expected_certs_map[req_id] = selected_certs
+        expected_certs_map = _build_expected_certs_map(crud.get_lot_config(db, lot_key))
     
     # Load vendors and settings from DB before generator (captured in closure)
     from services.cert_verification_service import CertVerificationService, OCR_AVAILABLE
@@ -2505,8 +2538,7 @@ async def verify_certs_upload(
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     # Security: check for path traversal attacks
                     for member in zip_ref.namelist():
-                        member_path = os.path.realpath(os.path.join(extract_dir, member))
-                        if not member_path.startswith(os.path.realpath(extract_dir)):
+                        if not _zip_member_is_safe(extract_dir, member):
                             raise HTTPException(
                                 status_code=400,
                                 detail="ZIP file contains unsafe paths"
@@ -2538,14 +2570,7 @@ async def verify_certs_upload(
             # Build expected certs map if lot_key provided
             expected_certs_map = {}
             if lot_key:
-                from models import LotConfigModel
-                lot_config = db.query(LotConfigModel).filter(LotConfigModel.name == lot_key).first()
-                if lot_config and lot_config.requirements_config:
-                    for req in lot_config.requirements_config:
-                        req_code = req.get("codice_requisito", "")
-                        cert_names = req.get("certificazione", "")
-                        if req_code and cert_names:
-                            expected_certs_map[req_code] = [c.strip() for c in cert_names.split(",")]
+                expected_certs_map = _build_expected_certs_map(crud.get_lot_config(db, lot_key))
             
             # Verify folder
             result = service.verify_folder(extract_dir, req_filter=req_filter)
@@ -2622,14 +2647,7 @@ async def verify_certs_upload_stream(
     
     expected_certs_map = {}
     if lot_key:
-        from models import LotConfigModel
-        lot_config = db.query(LotConfigModel).filter(LotConfigModel.name == lot_key).first()
-        if lot_config and lot_config.requirements_config:
-            for req in lot_config.requirements_config:
-                req_code = req.get("codice_requisito", "")
-                cert_names = req.get("certificazione", "")
-                if req_code and cert_names:
-                    expected_certs_map[req_code] = [c.strip() for c in cert_names.split(",")]
+        expected_certs_map = _build_expected_certs_map(crud.get_lot_config(db, lot_key))
     
     import json
     from pathlib import Path
@@ -2654,8 +2672,7 @@ async def verify_certs_upload_stream(
             try:
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     for member in zip_ref.namelist():
-                        member_path = os.path.realpath(os.path.join(extract_dir, member))
-                        if not member_path.startswith(os.path.realpath(extract_dir)):
+                        if not _zip_member_is_safe(extract_dir, member):
                             yield f"data: {json.dumps({'type': 'error', 'message': 'ZIP contains unsafe paths'})}\n\n"
                             return
                     zip_ref.extractall(extract_dir)

@@ -13,12 +13,21 @@ const resources = {
     }
 };
 
+const storedLanguage = typeof window !== 'undefined'
+    ? window.localStorage.getItem('i18nextLng')
+    : null;
+
 i18n
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
         resources,
+        lng: storedLanguage || 'it',
         fallbackLng: 'it',
+        detection: {
+            order: ['localStorage'],
+            caches: ['localStorage']
+        },
         interpolation: {
             escapeValue: false
         }

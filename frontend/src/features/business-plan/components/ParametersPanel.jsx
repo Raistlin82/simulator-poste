@@ -84,7 +84,7 @@ export default function ParametersPanel({
   const durationYears = durationMonths / 12;
 
   // === CALCULATE GOVERNANCE COST FOR ALL MODES ===
-  const governanceCalc = useMemo(() => {
+  const governanceCalc = (() => {
     const mode = current.governance_mode;
     let baseCost = 0;
     let description = '';
@@ -176,22 +176,7 @@ export default function ParametersPanel({
       reuseApplied: current.governance_apply_reuse && current.reuse_factor > 0,
       reuseSavings: baseCost - finalCost,
     };
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  }, [
-    current.governance_mode,
-    current.governance_pct,
-    current.governance_cost_manual,
-    current.governance_fte_periods,
-    current.governance_profile_mix,
-    current.governance_apply_reuse,
-    current.reuse_factor,
-    teamCost,
-    governanceFteFromPct,
-    durationYears,
-    daysPerFte,
-    durationMonths,
-    lutechProfiles,
-  ]);
+  })();
 
   // === MODE CONFIGS ===
   const governanceModes = [

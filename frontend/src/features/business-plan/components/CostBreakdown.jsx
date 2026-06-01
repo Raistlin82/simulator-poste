@@ -83,7 +83,7 @@ export default function CostBreakdown({
       ...item,
       pct: (item.value / total) * 100
     }));
-  }, [team, catalogCost, governance, risk, subcontract, total]);
+  }, [team, catalogCost, governance, risk, subcontract, total, t]);
 
   // Calcola breakdown annuale
   const yearlyBreakdown = useMemo(() => {

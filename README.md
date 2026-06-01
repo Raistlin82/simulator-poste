@@ -127,8 +127,10 @@ FRONTEND_URL=http://localhost:5173
 
 # Frontend (.env)
 VITE_API_URL=/api
-VITE_OIDC_ISSUER=...
+VITE_OIDC_AUTHORITY=...
 VITE_OIDC_CLIENT_ID=...
+VITE_OIDC_REDIRECT_URI=https://your-app.example.com/callback
+VITE_OIDC_POST_LOGOUT_REDIRECT_URI=https://your-app.example.com
 ```
 
 ## Documentazione

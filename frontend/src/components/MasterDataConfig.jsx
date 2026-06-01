@@ -1,11 +1,38 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, CheckCircle, Building2, Database, FileDown, Upload, Bot, Users, X } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Award, Info, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Search, Save, AlertCircle, CheckCircle, Check, Building2, Database, FileDown, Upload, Bot, Users, X } from 'lucide-react';
 import { API_URL } from '../utils/api';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { logger } from '../utils/logger';
 import { ConfirmDialog } from './ui/confirm-dialog';
+
+const DEFAULT_AI_MODELS = {
+    gemini: 'gemini-3.1-flash-lite-preview',
+    groq: 'llama-3.1-70b-versatile',
+    claude: 'claude-sonnet-4-6',
+};
+
+const AI_PROVIDER_THEMES = {
+    gemini: {
+        selected: 'border-teal-500 bg-teal-50/60 shadow-xl shadow-teal-200/40',
+        check: 'bg-teal-500',
+        icon: 'text-teal-600',
+        title: 'text-teal-800',
+    },
+    groq: {
+        selected: 'border-orange-500 bg-orange-50/60 shadow-xl shadow-orange-200/40',
+        check: 'bg-orange-500',
+        icon: 'text-orange-600',
+        title: 'text-orange-800',
+    },
+    claude: {
+        selected: 'border-indigo-500 bg-indigo-50/60 shadow-xl shadow-indigo-200/40',
+        check: 'bg-indigo-500',
+        icon: 'text-indigo-600',
+        title: 'text-indigo-800',
+    },
+};
 
 export default function MasterDataConfig() {
     const { t } = useTranslation();
@@ -19,11 +46,7 @@ export default function MasterDataConfig() {
         rti_partners: [],
         ai_enabled: false,
         ai_provider: 'gemini',
-        ai_models: {
-            gemini: 'gemini-3.1-flash-lite-preview',
-            groq: 'llama-3.1-70b-versatile',
-            claude: 'claude-sonnet-4-6',
-        },
+        ai_models: DEFAULT_AI_MODELS,
     });
     const [aiProviders, setAiProviders] = useState([]);
     const [vendors, setVendors] = useState([]);
@@ -54,13 +77,15 @@ export default function MasterDataConfig() {
     const [expandedCertVendor, setExpandedCertVendor] = useState(null);
     const [certSearch, setCertSearch] = useState('');
 
-    const showToast = (type, message) => {
+    const showToast = useCallback((type, message) => {
         setToast({ type, message });
         setTimeout(() => setToast(null), 3000);
-    };
+    }, []);
 
     // Auto-save master data when it changes (debounced)
     const saveTimeoutRef = useRef(null);
+    const skipInitialSaveRef = useRef(true);
+    const lastPersistedDataRef = useRef(null);
     const saveMasterData = useCallback(async (newData) => {
         // Pre-save deduplication: silently remove duplicates (case-insensitive) instead of blocking
         const sectionsToCheck = ['company_certs', 'prof_certs', 'requirement_labels', 'rti_partners'];
@@ -79,6 +104,7 @@ export default function MasterDataConfig() {
 
         try {
             await axios.post(`${API_URL}/master-data`, dedupedData);
+            lastPersistedDataRef.current = JSON.stringify(newData);
             showToast('success', t('master.saved'));
             // Refresh ConfigContext so other components (TechEvaluator) get updated masterData
             if (refetchConfig) refetchConfig();
@@ -86,11 +112,20 @@ export default function MasterDataConfig() {
             logger.error('Error saving master data', error);
             showToast('error', `${t('master.error_prefix')}: ${error.response?.data?.detail || error.message}`);
         }
-    }, [refetchConfig]); // WARNING: Do not add showToast or t here. showToast causes infinite loops without its own useCallback
+    }, [refetchConfig, showToast, t]);
 
     useEffect(() => {
         // Skip initial load
         if (loading) return;
+        const serializedData = JSON.stringify(data);
+        if (skipInitialSaveRef.current) {
+            skipInitialSaveRef.current = false;
+            lastPersistedDataRef.current = serializedData;
+            return;
+        }
+        if (lastPersistedDataRef.current === serializedData) {
+            return;
+        }
 
         // Debounce save
         if (saveTimeoutRef.current) {
@@ -122,7 +157,11 @@ export default function MasterDataConfig() {
                     prof_certs: masterRes.data.prof_certs ? [...new Set(masterRes.data.prof_certs)] : [],
                     requirement_labels: masterRes.data.requirement_labels ? [...new Set(masterRes.data.requirement_labels)] : [],
                     rti_partners: masterRes.data.rti_partners ? [...new Set(masterRes.data.rti_partners)] : [],
+                    ai_enabled: masterRes.data.ai_enabled ?? false,
+                    ai_provider: masterRes.data.ai_provider || 'gemini',
+                    ai_models: { ...DEFAULT_AI_MODELS, ...(masterRes.data.ai_models || {}) },
                 };
+                lastPersistedDataRef.current = JSON.stringify(cleanedData);
                 setData(cleanedData);
                 setVendors(vendorRes.data || []);
                 setAiProviders(aiStatusRes.data?.providers || []);
@@ -954,30 +993,31 @@ export default function MasterDataConfig() {
                                     {/* Provider cards — only shown when enabled */}
                                     {data.ai_enabled && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         {[
-                                            { id: 'gemini', name: 'Google Gemini', hint: t('master.ai_gemini_hint'), color: 'teal' },
-                                            { id: 'groq', name: 'Groq (Llama 3.1)', hint: t('master.ai_groq_hint'), color: 'orange' },
-                                            { id: 'claude', name: 'Anthropic Claude', hint: t('master.ai_claude_hint'), color: 'indigo' },
-                                        ].map(({ id, name, hint, color }) => {
+                                            { id: 'gemini', name: 'Google Gemini', hint: t('master.ai_gemini_hint') },
+                                            { id: 'groq', name: 'Groq (Llama 3.1)', hint: t('master.ai_groq_hint') },
+                                            { id: 'claude', name: 'Anthropic Claude', hint: t('master.ai_claude_hint') },
+                                        ].map(({ id, name, hint }) => {
                                             const providerStatus = aiProviders.find(p => p.id === id);
                                             const isReady = providerStatus?.ready ?? false;
                                             const isSelected = data.ai_provider === id;
+                                            const theme = AI_PROVIDER_THEMES[id];
                                             return (
                                                 <button
                                                     key={id}
                                                     onClick={() => setData(prev => ({ ...prev, ai_provider: id }))}
                                                     className={`relative p-6 rounded-[1.5rem] border-2 text-left transition-all duration-300 ${isSelected
-                                                        ? `border-${color}-500 bg-${color}-50/60 shadow-xl shadow-${color}-200/40`
+                                                        ? theme.selected
                                                         : 'border-slate-200 bg-white/40 hover:border-slate-300 hover:bg-white/60'
                                                     }`}
                                                 >
                                                     {isSelected && (
-                                                        <div className={`absolute top-3 right-3 w-5 h-5 rounded-full bg-${color}-500 flex items-center justify-center`}>
+                                                        <div className={`absolute top-3 right-3 w-5 h-5 rounded-full ${theme.check} flex items-center justify-center`}>
                                                             <Check className="w-3 h-3 text-white" />
                                                         </div>
                                                     )}
                                                     <div className="flex items-center gap-3 mb-3">
-                                                        <Bot className={`w-5 h-5 ${isSelected ? `text-${color}-600` : 'text-slate-400'}`} />
-                                                        <span className={`text-sm font-black font-display uppercase tracking-widest-plus ${isSelected ? `text-${color}-800` : 'text-slate-700'}`}>
+                                                        <Bot className={`w-5 h-5 ${isSelected ? theme.icon : 'text-slate-400'}`} />
+                                                        <span className={`text-sm font-black font-display uppercase tracking-widest-plus ${isSelected ? theme.title : 'text-slate-700'}`}>
                                                             {name}
                                                         </span>
                                                     </div>

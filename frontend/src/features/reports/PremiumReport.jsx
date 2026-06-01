@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Cell, PieChart, Pie } from 'recharts';
 
 /**
  * PremiumReport Component
@@ -180,16 +180,14 @@ const PremiumReport = forwardRef(({
                 {categoryChartData.length > 0 && (
                     <div style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', border: '1px solid #e2e8f0' }}>
                         <div style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '12px' }}>Punteggi per Categoria</div>
-                        <div style={{ height: '100px' }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={categoryChartData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                                    <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                                    <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }} />
-                                    <Bar dataKey="score" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={16} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <div style={{ height: '100px', width: '100%' }}>
+                            <BarChart width={650} height={100} data={categoryChartData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                                <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }} />
+                                <Bar dataKey="score" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={16} />
+                            </BarChart>
                         </div>
                     </div>
                 )}
@@ -311,16 +309,14 @@ const PremiumReport = forwardRef(({
                         {costBreakdown.length > 0 && (
                             <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                                 <div style={{ width: '130px', height: '130px' }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie data={costBreakdown} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={4} dataKey="value">
-                                                {costBreakdown.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={costPalette[index % costPalette.length]} />
-                                                ))}
-                                            </Pie>
-                                            <RechartsTooltip formatter={(value) => fmt(value)} contentStyle={{ fontSize: '10px', borderRadius: '6px' }} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
+                                    <PieChart width={130} height={130}>
+                                        <Pie data={costBreakdown} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={4} dataKey="value">
+                                            {costBreakdown.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={costPalette[index % costPalette.length]} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip formatter={(value) => fmt(value)} contentStyle={{ fontSize: '10px', borderRadius: '6px' }} />
+                                    </PieChart>
                                 </div>
                                 <table style={{ flex: 1, fontSize: '10px', borderCollapse: 'collapse' }}>
                                     <thead>

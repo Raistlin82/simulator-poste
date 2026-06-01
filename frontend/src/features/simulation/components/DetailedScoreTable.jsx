@@ -24,7 +24,7 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
     if (!results || !lotData) return null;
 
     return (
-        <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-1 shadow-2xl shadow-slate-500/5 overflow-hidden">
+        <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="min-w-0 max-w-full bg-white/40 backdrop-blur-xl rounded-[2rem] border border-white/60 p-1 shadow-2xl shadow-slate-500/5 overflow-hidden">
             <div className="p-6 border-b border-white/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center shadow-xl shadow-slate-900/10">
@@ -47,32 +47,32 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
                 </div>
             </div>
 
-            <div className="overflow-x-auto p-4 pt-2">
-                <table className="w-full text-sm text-left border-separate border-spacing-y-1 lg:border-spacing-y-1.5">
+            <div className="max-w-full overflow-x-auto p-3 pt-2">
+                <table className="w-full min-w-[720px] xl:min-w-0 text-sm text-left border-separate border-spacing-y-1 lg:border-spacing-y-1.5">
                     <thead>
                         <tr className="text-slate-400">
-                            <th scope="col" className="px-8 py-2.5 text-left text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.requirement')}</th>
-                            <th scope="col" className="px-6 py-2.5 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.raw')}</th>
-                            <th scope="col" className="px-6 py-2.5 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.max_raw')}</th>
-                            <th scope="col" className="px-6 py-2.5 text-right text-[9px] font-black text-indigo-500 uppercase tracking-widest font-display">{t('dashboard.weighted')}</th>
-                            <th scope="col" className="px-6 py-2.5 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.tender_weight')}</th>
-                            <th scope="col" className="px-8 py-2.5 text-center text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.status')}</th>
+                            <th scope="col" className="px-4 py-2.5 text-left text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.requirement')}</th>
+                            <th scope="col" className="px-3 py-2.5 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.raw')}</th>
+                            <th scope="col" className="px-3 py-2.5 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.max_raw')}</th>
+                            <th scope="col" className="px-3 py-2.5 text-right text-[9px] font-black text-indigo-500 uppercase tracking-widest font-display">{t('dashboard.weighted')}</th>
+                            <th scope="col" className="px-3 py-2.5 text-right text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.tender_weight')}</th>
+                            <th scope="col" className="px-4 py-2.5 text-center text-[9px] font-black uppercase tracking-widest font-display">{t('dashboard.status')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {/* Company Certs */}
                         <tr className="bg-white/60 backdrop-blur-md rounded-[2rem] hover:bg-white transition-all shadow-sm hover:shadow-md group">
-                            <td className="px-8 py-2.5 font-black text-slate-800 rounded-l-[1.5rem] font-display uppercase tracking-tight">
+                            <td className="px-4 py-2.5 font-black text-slate-800 rounded-l-[1.5rem] font-display uppercase tracking-tight">
                                 <div className="flex flex-col">
                                     <span className="group-hover:text-indigo-600 transition-colors">{t('dashboard.company_certs')}</span>
                                     <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest opacity-60 mt-0.5">{t('config.company_certs')}</span>
                                 </div>
                             </td>
-                            <td className="px-6 py-2.5 text-right font-black text-slate-900 font-display tabular-nums text-lg">{formatNumber(results.company_certs_score || 0, 1)}</td>
-                            <td className="px-6 py-2.5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(results.max_company_certs_raw || lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0, 1)}</td>
-                            <td className="px-6 py-2.5 text-right font-black text-indigo-600 font-display tabular-nums text-lg">{formatNumber(results.category_company_certs || 0, 2)}</td>
-                            <td className="px-6 py-2.5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(lotData.company_certs?.reduce((sum, c) => sum + (c.gara_weight || 0), 0) || 0, 1)}</td>
-                            <td className="px-8 py-2.5 text-center rounded-r-[1.5rem]">
+                            <td className="px-3 py-2.5 text-right font-black text-slate-900 font-display tabular-nums text-lg">{formatNumber(results.company_certs_score || 0, 1)}</td>
+                            <td className="px-3 py-2.5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(results.max_company_certs_raw || lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0, 1)}</td>
+                            <td className="px-3 py-2.5 text-right font-black text-indigo-600 font-display tabular-nums text-lg">{formatNumber(results.category_company_certs || 0, 2)}</td>
+                            <td className="px-3 py-2.5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(lotData.company_certs?.reduce((sum, c) => sum + (c.gara_weight || 0), 0) || 0, 1)}</td>
+                            <td className="px-4 py-2.5 text-center rounded-r-[1.5rem]">
                                 {(() => {
                                     const maxRaw = results.max_company_certs_raw || (lotData.company_certs?.reduce((sum, c) => sum + (c.points || 0), 0) || 0);
                                     const score = results.company_certs_score || 0;
@@ -99,7 +99,7 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
                             const isResourceType = req.type === 'resource';
                             return (
                                 <tr key={req.id} className="bg-white/60 backdrop-blur-md rounded-[2rem] hover:bg-white transition-all shadow-sm hover:shadow-md group">
-                                    <td className="px-8 py-2.5 font-black text-slate-800 rounded-l-[1.5rem] font-display uppercase tracking-tight">
+                                    <td className="px-4 py-2.5 font-black text-slate-800 rounded-l-[1.5rem] font-display uppercase tracking-tight">
                                         <div className="flex items-center gap-4">
                                             <div className="flex flex-col">
                                                 <span className="group-hover:text-indigo-600 transition-colors leading-tight">{req.label}</span>
@@ -116,11 +116,11 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-2.5 text-right font-black text-slate-900 font-display tabular-nums text-lg">{formatNumber(score, 1)}</td>
-                                    <td className="px-6 py-2.5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(maxRaw, 1)}</td>
-                                    <td className="px-6 py-2.5 text-right font-black text-indigo-600 font-display tabular-nums text-lg">{formatNumber(weightedScore, 2)}</td>
-                                    <td className="px-6 py-2.5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(req.gara_weight || 0, 1)}</td>
-                                    <td className="px-8 py-2.5 text-center rounded-r-[1.5rem]">
+                                    <td className="px-3 py-2.5 text-right font-black text-slate-900 font-display tabular-nums text-lg">{formatNumber(score, 1)}</td>
+                                    <td className="px-3 py-2.5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(maxRaw, 1)}</td>
+                                    <td className="px-3 py-2.5 text-right font-black text-indigo-600 font-display tabular-nums text-lg">{formatNumber(weightedScore, 2)}</td>
+                                    <td className="px-3 py-2.5 text-right text-slate-400 font-bold font-display tabular-nums">{formatNumber(req.gara_weight || 0, 1)}</td>
+                                    <td className="px-4 py-2.5 text-center rounded-r-[1.5rem]">
                                         {isMax ?
                                             <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl border border-emerald-200 shadow-sm">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

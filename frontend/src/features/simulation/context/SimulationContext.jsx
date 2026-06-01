@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useReducer, useMemo } from 'react';
+import { createContext, useContext, useState, useReducer, useMemo, useCallback } from 'react';
 
 const SimulationContext = createContext(null);
+const VALID_CERT_STATUSES = new Set(['all', 'partial', 'none']);
 
 // Reducer for complex state (techInputs, companyCerts)
 // companyCerts: { [label]: "all" | "partial" | "none" }
@@ -40,6 +41,9 @@ const simulationReducer = (state, action) => {
         }
       };
     case 'SET_COMPANY_CERT':
+      if (!action.label || !VALID_CERT_STATUSES.has(action.status)) {
+        return state;
+      }
       return {
         ...state,
         companyCerts: {
@@ -76,8 +80,10 @@ export const SimulationProvider = ({ children }) => {
 
   const [results, setResults] = useState(null);
   const [simulationData, setSimulationData] = useState([]);
+  const [monteCarlo, setMonteCarlo] = useState(null);
+  const [businessPlanData, setBusinessPlanData] = useState(null);
 
-  const setLot = (lotKey) => {
+  const setLot = useCallback((lotKey) => {
     dispatch({ type: 'SET_LOT', payload: lotKey });
     // Save to localStorage for restoration on next app load
     if (lotKey) {
@@ -85,27 +91,29 @@ export const SimulationProvider = ({ children }) => {
     } else {
       localStorage.removeItem('lastSelectedLot');
     }
-  };
+  }, []);
 
-  const setDiscount = (key, value) => {
+  const setDiscount = useCallback((key, value) => {
     dispatch({ type: 'SET_DISCOUNT', key, value });
-  };
+  }, []);
 
-  const setCompetitorParam = (key, value) => {
+  const setCompetitorParam = useCallback((key, value) => {
     dispatch({ type: 'SET_COMPETITOR_PARAM', key, value });
-  };
+  }, []);
 
-  const setTechInput = (reqId, value) => {
+  const setTechInput = useCallback((reqId, value) => {
+    if (!reqId) return;
     dispatch({ type: 'SET_TECH_INPUT', reqId, value });
-  };
+  }, []);
 
-  const setCompanyCert = (label, status) => {
+  const setCompanyCert = useCallback((label, status) => {
+    if (!label || !VALID_CERT_STATUSES.has(status)) return;
     dispatch({ type: 'SET_COMPANY_CERT', label, status });  // status: "all", "partial", "none"
-  };
+  }, []);
 
-  const resetState = (newState) => {
+  const resetState = useCallback((newState) => {
     dispatch({ type: 'RESET', payload: newState });
-  };
+  }, []);
 
   // Memoize context value to prevent unnecessary re-renders in consumers
   // when unrelated state changes (e.g. results update shouldn't recreate the whole value)
@@ -113,6 +121,8 @@ export const SimulationProvider = ({ children }) => {
     ...state,
     results,
     simulationData,
+    monteCarlo,
+    businessPlanData,
     setLot,
     setDiscount,
     setCompetitorParam,
@@ -120,9 +130,22 @@ export const SimulationProvider = ({ children }) => {
     setCompanyCert,
     resetState,
     setResults,
-    setSimulationData
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [state, results, simulationData]);
+    setSimulationData,
+    setMonteCarlo,
+    setBusinessPlanData
+  }), [
+    state,
+    results,
+    simulationData,
+    monteCarlo,
+    businessPlanData,
+    setLot,
+    setDiscount,
+    setCompetitorParam,
+    setTechInput,
+    setCompanyCert,
+    resetState
+  ]);
 
   return (
     <SimulationContext.Provider value={value}>

@@ -19,10 +19,11 @@ export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [userManager, setUserManager] = useState(null);
+    const isDevMode = !isOIDCConfigured();
 
     // Initialize UserManager
     useEffect(() => {
-        if (!isOIDCConfigured()) {
+        if (isDevMode) {
             logger.warn('OIDC not configured - running in dev mode without authentication');
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsLoading(false);
@@ -109,7 +110,7 @@ export const AuthProvider = ({ children }) => {
             setError(getAuthErrorMessage(err));
             setIsLoading(false);
         }
-    }, []);
+    }, [isDevMode]);
 
     // Login function
     const login = useCallback(async () => {
@@ -225,6 +226,7 @@ export const AuthProvider = ({ children }) => {
         handleCallback,
         renewToken,
         getAccessToken,
+        isDevMode,
     };
 
     return (

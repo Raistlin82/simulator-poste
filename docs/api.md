@@ -6,7 +6,7 @@ Documentazione completa delle API REST del sistema Simulator Poste.
 
 **Autenticazione:** Bearer Token (JWT) - header `Authorization: Bearer <token>`
 
-> **Nota:** In modalità development (`ENVIRONMENT != production`), l'autenticazione è bypassata automaticamente.
+> **Nota:** il bypass autenticazione è disponibile solo in locale con `AUTH_DEV_BYPASS=1`. In staging/production configurare sempre `OIDC_CLIENT_ID`, `OIDC_ISSUER` e `OIDC_AUDIENCE`.
 
 ---
 

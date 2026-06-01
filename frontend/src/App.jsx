@@ -1,15 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { bpSaveTrigger } from './utils/bpSaveTrigger';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
-import TechEvaluator from './components/TechEvaluator';
-import Dashboard from './components/Dashboard';
-import ConfigPage from './components/ConfigPage';
-import MasterDataConfig from './components/MasterDataConfig';
-import CertVerificationPage from './components/CertVerificationPage';
-import BusinessPlanPage from './features/business-plan/pages/BusinessPlanPage';
 import { BusinessPlanProvider } from './features/business-plan/context/BusinessPlanContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Menu, Save } from 'lucide-react';
@@ -22,6 +16,12 @@ import { ConfigProvider, useConfig } from './features/config/context/ConfigConte
 import { SimulationProvider, useSimulation } from './features/simulation/context/SimulationContext';
 import { ToastProvider, useToast } from './shared/components/ui/Toast';
 import { API_URL } from './utils/api';
+
+const TechEvaluator = lazy(() => import('./components/TechEvaluator'));
+const ConfigPage = lazy(() => import('./components/ConfigPage'));
+const MasterDataConfig = lazy(() => import('./components/MasterDataConfig'));
+const CertVerificationPage = lazy(() => import('./components/CertVerificationPage'));
+const BusinessPlanPage = lazy(() => import('./features/business-plan/pages/BusinessPlanPage'));
 
 // Main app content (to be wrapped with auth)
 function AppContent() {
@@ -48,7 +48,8 @@ function AppContent() {
     setLot,
     resetState,
     setResults,
-    setSimulationData
+    setSimulationData,
+    setMonteCarlo
   } = useSimulation();
 
   const [view, setView] = useState('dashboard'); // dashboard, config, master, certs, businessPlan
@@ -98,7 +99,6 @@ function AppContent() {
   // Update loading state when config loads - intentional derived state sync
   useEffect(() => {
     if (config !== null || configLoading === false) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
     }
   }, [config, configLoading]);
@@ -142,6 +142,9 @@ function AppContent() {
       isLoadingState.current = true;
 
       resetState(newState);
+      setMonteCarlo(null);
+      setResults(null);
+      setSimulationData([]);
 
       lastLoadedLot.current = selectedLot;
 
@@ -150,7 +153,7 @@ function AppContent() {
         isLoadingState.current = false;
       }, 500);
     }
-  }, [selectedLot, config, resetState]);
+  }, [selectedLot, config, resetState, setMonteCarlo, setResults, setSimulationData]);
 
   // Manual save function for simulation state
   const handleSaveState = useCallback(async () => {
@@ -229,7 +232,7 @@ function AppContent() {
     }, 1000); // 1 second debounce
 
     return () => clearTimeout(timer);
-  }, [handleSaveState, config, selectedLot, loading, authLoading, isAuthenticated, myDiscount, competitorDiscount, competitorTechScore, competitorEconDiscount, techInputs, companyCerts]);
+  }, [handleSaveState, isDeleting, config, selectedLot, loading, authLoading, isAuthenticated, myDiscount, competitorDiscount, competitorTechScore, competitorEconDiscount, techInputs, companyCerts]);
 
   // HANDLERS FOR LOT MANAGEMENT
   const handleAddNewLot = useCallback(async (lotName) => {
@@ -256,6 +259,7 @@ function AppContent() {
       setLot(null);
       setResults(null);
       setSimulationData([]);
+      setMonteCarlo(null);
 
       await refetchConfig();
 
@@ -268,7 +272,7 @@ function AppContent() {
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedLot, setLot, refetchConfig, success, t, showError]);
+  }, [setLot, setResults, setSimulationData, setMonteCarlo, refetchConfig, success, t, showError]);
 
   // Main Calculation Effect - with AbortController to prevent race conditions
   useEffect(() => {
@@ -301,7 +305,7 @@ function AppContent() {
 
     // Cleanup: abort previous request when dependencies change
     return () => controller.abort();
-  }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config, authLoading, isAuthenticated, setResults, showError, t]);
+  }, [baseAmount, competitorDiscount, myDiscount, techInputs, companyCerts, selectedLot, config, authLoading, isAuthenticated, isDeleting, setResults, showError, t]);
 
   // Simulation Effect (runs only when technical or economic results change) - with AbortController
   useEffect(() => {
@@ -328,7 +332,59 @@ function AppContent() {
       });
 
     return () => controller.abort();
-  }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config, authLoading, isAuthenticated, results, setSimulationData, showError, t]);
+  }, [baseAmount, competitorDiscount, myDiscount, results?.technical_score, selectedLot, config, authLoading, isAuthenticated, isDeleting, results, setSimulationData, showError, t]);
+
+  // Monte Carlo effect for win probability and optimal discount
+  useEffect(() => {
+    if (isDeleting || !config || !selectedLot || !config[selectedLot] || !results || authLoading || !isAuthenticated || baseAmount <= 0) {
+      setMonteCarlo(null);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const timer = setTimeout(() => {
+      axios.post(`${API_URL}/monte-carlo`, {
+        lot_key: selectedLot,
+        base_amount: baseAmount,
+        my_discount: myDiscount,
+        competitor_discount_mean: competitorDiscount,
+        competitor_discount_std: 3.5,
+        current_tech_score: results.technical_score,
+        competitor_tech_score_mean: competitorTechScore,
+        competitor_tech_score_std: 3.0,
+        iterations: 500
+      }, { signal: controller.signal })
+        .then(res => setMonteCarlo(res.data))
+        .catch(err => {
+          if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
+            logger.error("Monte Carlo simulation failed", err, { component: "App", lot: selectedLot });
+            showError(t('errors.monte_carlo_failed'));
+            setMonteCarlo(null);
+          }
+        });
+    }, 1000);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    baseAmount,
+    competitorDiscount,
+    competitorTechScore,
+    myDiscount,
+    results?.technical_score,
+    results,
+    selectedLot,
+    config,
+    authLoading,
+    isAuthenticated,
+    isDeleting,
+    setMonteCarlo,
+    showError,
+    t
+  ]);
 
   if (loading) return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
 
@@ -437,30 +493,32 @@ function AppContent() {
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="flex-1 overflow-auto flex flex-col min-h-0"
           >
-            {view === 'config' ? (
-              <ConfigPage
-                onAddLot={handleAddNewLot}
-                onDeleteLot={handleDeleteExistingLot}
-              />
-            ) : view === 'master' ? (
-              <MasterDataConfig />
-            ) : view === 'certs' ? (
-              <CertVerificationPage />
-            ) : view === 'businessPlan' ? (
-              <BusinessPlanProvider activeView={view}>
-                <BusinessPlanPage />
-              </BusinessPlanProvider>
-            ) : (
-              <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center">
-                <div className="w-full max-w-[1600px]">
-                  <TechEvaluator
-                    onNavigate={setView}
-                    onAddLot={handleAddNewLot}
-                    onDeleteLot={handleDeleteExistingLot}
-                  />
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-500">{t('common.loading')}</div>}>
+              {view === 'config' ? (
+                <ConfigPage
+                  onAddLot={handleAddNewLot}
+                  onDeleteLot={handleDeleteExistingLot}
+                />
+              ) : view === 'master' ? (
+                <MasterDataConfig />
+              ) : view === 'certs' ? (
+                <CertVerificationPage />
+              ) : view === 'businessPlan' ? (
+                <BusinessPlanProvider activeView={view}>
+                  <BusinessPlanPage />
+                </BusinessPlanProvider>
+              ) : (
+                <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center">
+                  <div className="w-full max-w-[1600px]">
+                    <TechEvaluator
+                      onNavigate={setView}
+                      onAddLot={handleAddNewLot}
+                      onDeleteLot={handleDeleteExistingLot}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>

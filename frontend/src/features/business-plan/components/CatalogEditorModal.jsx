@@ -1123,7 +1123,7 @@ export default function CatalogEditorModal({
         lutechPct
       };
     });
-  }, [items, itemToGroup, totalCatalogValue, refTotalFte, profileMappings, profileRates, defaultDailyRate, durationMonths, durationYears, defaultTargetMarginPct, scontoGaraFactor, daysPerFte, tow.lutech_pct, tow?.catalog_reuse_factor]);
+  }, [items, itemToGroup, totalCatalogValue, refTotalFte, profileMappings, profileRates, defaultDailyRate, durationMonths, durationYears, defaultTargetMarginPct, inflationPct, scontoGaraFactor, daysPerFte, tow.lutech_pct, tow?.catalog_reuse_factor]);
 
   const totals = useMemo(() => {
     const totalDerivedFte = itemCalcs.reduce((s, c) => s + c.item_fte, 0);
@@ -1203,15 +1203,26 @@ export default function CatalogEditorModal({
   }, [items, itemCalcs, catalogGroups, groupTotals, totals, itemToGroup, tow?.id]);
 
   const prevFingerprintRef = useRef(null);
+  const towRef = useRef(tow);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    towRef.current = tow;
+  }, [tow]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   useEffect(() => {
     const fpJson = JSON.stringify(computedFingerprint);
     if (prevFingerprintRef.current === fpJson) return;  // no change
     prevFingerprintRef.current = fpJson;
     // Persist into tow without triggering a full re-render cycle
-    if (tow && typeof onChange === 'function') {
-      onChange({ ...tow, catalog_computed: computedFingerprint });
+    if (towRef.current && typeof onChangeRef.current === 'function') {
+      onChangeRef.current({ ...towRef.current, catalog_computed: computedFingerprint });
     }
-  }, [computedFingerprint]);  // intentionally omit tow/onChange to avoid loops
+  }, [computedFingerprint]);
 
   // Raggruppa gli item per gruppo (usato per collapse nel tab Voci)
   const groupedItems = useMemo(() => {
