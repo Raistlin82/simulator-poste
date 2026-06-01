@@ -29,6 +29,7 @@ SHEET_MD_CERT_PROF = "_MD_CertProfessionali"
 SHEET_MD_FORMULE = "_MD_Formule"
 SHEET_MD_TIPI = "_MD_Tipi"
 SHEET_MD_RTI_PARTNERS = "_MD_RTI_Partners"
+SHEET_PROTECTION_MARKER = "readonly"
 
 # Styles
 HEADER_FILL = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -339,7 +340,7 @@ class ExcelConfigService:
             wb.create_named_range("MD_CertAziendali", ws, f"$A$2:$A${len(company_certs) + 1}")
         # Protect sheet
         ws.protection.sheet = True
-        ws.protection.password = 'readonly'
+        ws.protection.password = SHEET_PROTECTION_MARKER
         for row in ws.iter_rows():
             for cell in row:
                 cell.fill = MD_FILL
@@ -356,7 +357,7 @@ class ExcelConfigService:
         if prof_certs:
             wb.create_named_range("MD_CertProfessionali", ws, f"$A$2:$A${len(prof_certs) + 1}")
         ws.protection.sheet = True
-        ws.protection.password = 'readonly'
+        ws.protection.password = SHEET_PROTECTION_MARKER
         for row in ws.iter_rows():
             for cell in row:
                 cell.fill = MD_FILL
@@ -374,7 +375,7 @@ class ExcelConfigService:
         if formulas:
             wb.create_named_range("MD_Formule", ws, f"$A$2:$A${len(formulas) + 1}")
         ws.protection.sheet = True
-        ws.protection.password = 'readonly'
+        ws.protection.password = SHEET_PROTECTION_MARKER
         for row in ws.iter_rows():
             for cell in row:
                 cell.fill = MD_FILL
@@ -390,7 +391,7 @@ class ExcelConfigService:
         ws.column_dimensions['A'].width = 20
         wb.create_named_range("MD_Tipi", ws, f"$A$2:$A${len(types) + 1}")
         ws.protection.sheet = True
-        ws.protection.password = 'readonly'
+        ws.protection.password = SHEET_PROTECTION_MARKER
         for row in ws.iter_rows():
             for cell in row:
                 cell.fill = MD_FILL
@@ -407,7 +408,7 @@ class ExcelConfigService:
         if rti_partners:
             wb.create_named_range("MD_RTI_Partners", ws, f"$A$2:$A${len(rti_partners) + 1}")
         ws.protection.sheet = True
-        ws.protection.password = 'readonly'
+        ws.protection.password = SHEET_PROTECTION_MARKER
         for row in ws.iter_rows():
             for cell in row:
                 cell.fill = MD_FILL

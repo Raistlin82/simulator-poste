@@ -1249,6 +1249,8 @@ def update_config(
                     "issues": blocking,
                 },
             )
+
+    for lot_name, lot_data in new_config.items():
         crud.update_lot_config(db, lot_name, lot_data)
 
     configs = crud.get_lot_configs(db)
@@ -2933,13 +2935,14 @@ def get_cert_verification_config(db: Session = Depends(get_db)):
 bp_router = APIRouter(prefix="/api/business-plan", tags=["Business Plan"])
 
 
-@bp_router.get("/{lot_key}", response_model=schemas.BusinessPlanResponse)
+@bp_router.get("/{lot_key}", response_model=Optional[schemas.BusinessPlanResponse])
 def get_business_plan(lot_key: str, db: Session = Depends(get_db)):
     """Get business plan for a lot"""
+    lot = crud.get_lot_config(db, lot_key)
+    if not lot:
+        raise HTTPException(status_code=404, detail=f"Lotto '{lot_key}' non trovato")
     bp = crud.get_business_plan(db, lot_key)
-    if not bp:
-        raise HTTPException(status_code=404, detail=f"Business plan per '{lot_key}' non trovato")
-    return bp
+    return bp or None
 
 
 @bp_router.post("/{lot_key}", response_model=schemas.BusinessPlanResponse)
@@ -3641,4 +3644,4 @@ app.include_router(practice_router)
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=8000)

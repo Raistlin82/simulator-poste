@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Installa le dipendenze
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 # Accetta variabili d'ambiente al build time per Vite
 ARG VITE_API_URL
@@ -36,9 +36,8 @@ RUN mkdir -p /var/cache/nginx/client_temp \
     /var/cache/nginx/fastcgi_temp \
     /var/cache/nginx/uwsgi_temp \
     /var/cache/nginx/scgi_temp \
-    && chmod -R 777 /var/cache/nginx \
-    && chmod -R 777 /var/run \
-    && chmod -R 777 /etc/nginx/conf.d
+    && chown -R nginx:nginx /var/cache/nginx /var/run /etc/nginx/conf.d \
+    && chmod -R 755 /var/cache/nginx /var/run /etc/nginx/conf.d
 
 # Copia la build di Vite nella directory dei file statici di Nginx
 COPY --from=build /app/dist /usr/share/nginx/html

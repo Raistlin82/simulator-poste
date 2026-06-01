@@ -13,15 +13,16 @@ services:
       #   - ${CERT_DIR:-./certs}:/host_certs:ro
       # The ZIP-upload flow (/api/verify-certs/upload) needs no host mount.
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       - PORT=8000
       - DATABASE_URL=sqlite:///./simulator_poste.db
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      - OIDC_ISSUER=${OIDC_ISSUER}
-      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
-      - OIDC_AUDIENCE=${OIDC_AUDIENCE}
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready"]

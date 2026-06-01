@@ -203,8 +203,8 @@ class OIDCMiddleware:
                         c.get("iss"), c.get("aud"), c.get("azp"), c.get("exp"),
                         self.config.issuer, self.config.audience,
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Unable to inspect unverified token claims: %s", exc)
 
             if not kid:
                 raise HTTPException(

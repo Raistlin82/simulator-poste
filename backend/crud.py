@@ -247,22 +247,26 @@ def update_lot_config(
         else:
             db_lot.rti_companies = []
         
-        # Handle RTI quotas
-        if lot_config.rti_quotas:
-            # Validate that quotas sum to 100
-            quota_sum = sum(lot_config.rti_quotas.values())
+        # Handle RTI quotas. Keep only active RTI companies so stale client-side
+        # entries cannot corrupt the persisted active quota split.
+        active_rti_companies = ["Lutech", *db_lot.rti_companies] if lot_config.rti_enabled else []
+        submitted_quotas = lot_config.rti_quotas or {}
+        active_quotas = {
+            company: float(submitted_quotas.get(company) or 0)
+            for company in active_rti_companies
+            if company in submitted_quotas
+        }
+
+        if active_quotas:
+            quota_sum = sum(active_quotas.values())
             if abs(quota_sum - 100.0) > 0.01:
                 logger.warning(f"RTI quotas sum to {quota_sum}, adjusting to 100")
-                # Adjust the largest quota to make sum exactly 100
-                if lot_config.rti_quotas:
-                    max_company = max(lot_config.rti_quotas.keys(), key=lambda k: lot_config.rti_quotas[k])
-                    adjusted_quotas = dict(lot_config.rti_quotas)
-                    adjusted_quotas[max_company] += (100.0 - quota_sum)
-                    db_lot.rti_quotas = adjusted_quotas
-                else:
-                    db_lot.rti_quotas = lot_config.rti_quotas
+                max_company = max(active_quotas.keys(), key=lambda k: active_quotas[k])
+                adjusted_quotas = dict(active_quotas)
+                adjusted_quotas[max_company] += (100.0 - quota_sum)
+                db_lot.rti_quotas = adjusted_quotas
             else:
-                db_lot.rti_quotas = lot_config.rti_quotas
+                db_lot.rti_quotas = active_quotas
         else:
             # Initialize default quotas if RTI is enabled but no quotas provided
             if lot_config.rti_enabled and db_lot.rti_companies:

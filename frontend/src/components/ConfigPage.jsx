@@ -15,9 +15,10 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
     const { t } = useTranslation();
     const { config, setConfig, masterData, refetch } = useConfig();
     const { selectedLot: globalSelectedLot, setLot: setGlobalLot } = useSimulation();
-    const [editedConfig, setEditedConfig] = useState(() => JSON.parse(JSON.stringify(config)));
+    const initialConfig = config || {};
+    const [editedConfig, setEditedConfig] = useState(() => JSON.parse(JSON.stringify(initialConfig)));
     // Initialize from global selected lot if available, otherwise first lot
-    const [selectedLot, setSelectedLotLocal] = useState(() => globalSelectedLot || Object.keys(config)[0] || "");
+    const [selectedLot, setSelectedLotLocal] = useState(() => globalSelectedLot || Object.keys(initialConfig)[0] || "");
     const [activeTab, setActiveTab] = useState('resource');
     const [certSearch, setCertSearch] = useState('');
 
@@ -30,7 +31,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
 
     // Sync local selectedLot with global selectedLot when switching tabs
     useEffect(() => {
-        if (globalSelectedLot && globalSelectedLot !== selectedLot && config[globalSelectedLot]) {
+        if (globalSelectedLot && globalSelectedLot !== selectedLot && config?.[globalSelectedLot]) {
             setSelectedLotLocal(globalSelectedLot);
         }
     }, [globalSelectedLot, config, selectedLot]);
@@ -42,11 +43,11 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
     }, [setGlobalLot]);
 
     // Track last synced value to prevent infinite loops between context <-> local state
-    const lastSyncedToContextRef = useRef(JSON.stringify(config));
+    const lastSyncedToContextRef = useRef(JSON.stringify(initialConfig));
 
     // Sync FROM context when config changes externally (e.g. after onAddLot/onDeleteLot/refetch)
     useEffect(() => {
-        const configStr = JSON.stringify(config);
+        const configStr = JSON.stringify(config || {});
         if (configStr !== lastSyncedToContextRef.current) {
             setEditedConfig(JSON.parse(configStr));
             lastSyncedToContextRef.current = configStr;
@@ -66,7 +67,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
     const [displayBase, setDisplayBase] = useState("");
 
     const currentLot = useMemo(() => (
-        editedConfig[selectedLot] || { name: "", base_amount: 0, max_tech_score: 60, max_econ_score: 40, max_raw_score: 100, reqs: [], company_certs: [] }
+        editedConfig?.[selectedLot] || { name: "", base_amount: 0, max_tech_score: 60, max_econ_score: 40, max_raw_score: 100, reqs: [], company_certs: [] }
     ), [editedConfig, selectedLot]);
 
     // Prefill data for suggestions from Master Data
@@ -133,7 +134,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
     // Helper function to update current lot immutably
     const updateLot = useCallback((updater) => {
         setEditedConfig(prev => {
-            const newConfig = JSON.parse(JSON.stringify(prev));
+            const newConfig = JSON.parse(JSON.stringify(prev || {}));
             const lot = newConfig[selectedLot];
             if (lot) {
                 updater(lot);

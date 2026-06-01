@@ -39,6 +39,10 @@ from vendor_defaults import DEFAULT_VENDORS
 KNOWN_VENDORS = DEFAULT_VENDORS
 
 
+def _log_ocr_attempt_failure(stage: str, exc: Exception) -> None:
+    logger.debug("OCR attempt failed during %s: %s", stage, exc)
+
+
 @dataclass
 class CertVerificationResult:
     """Result of verifying a single certificate PDF"""
@@ -431,7 +435,8 @@ class CertVerificationService:
         for cfg in configs:
             try:
                 text = pytesseract.image_to_string(image, lang='eng+ita', config=cfg)
-            except Exception:
+            except Exception as exc:
+                _log_ocr_attempt_failure("original image", exc)
                 continue
             score = self._score_ocr_text(text)
             if score > best_score:
@@ -447,7 +452,8 @@ class CertVerificationService:
             for cfg in configs:
                 try:
                     text = pytesseract.image_to_string(preprocessed, lang='eng+ita', config=cfg)
-                except Exception:
+                except Exception as exc:
+                    _log_ocr_attempt_failure("light preprocessing", exc)
                     continue
                 score = self._score_ocr_text(text)
                 if score > best_score:
@@ -463,7 +469,8 @@ class CertVerificationService:
             for cfg in configs:
                 try:
                     text = pytesseract.image_to_string(preprocessed_aggr, lang='eng+ita', config=cfg)
-                except Exception:
+                except Exception as exc:
+                    _log_ocr_attempt_failure("aggressive preprocessing", exc)
                     continue
                 score = self._score_ocr_text(text)
                 if score > best_score:
@@ -480,7 +487,8 @@ class CertVerificationService:
                 for cfg in configs:
                     try:
                         text = pytesseract.image_to_string(rotated, lang='eng+ita', config=cfg)
-                    except Exception:
+                    except Exception as exc:
+                        _log_ocr_attempt_failure(f"rotation {rotation}", exc)
                         continue
                     score = self._score_ocr_text(text)
                     if score > best_score:
@@ -903,10 +911,15 @@ class CertVerificationService:
             # Try to extract person name from OCR using filename resource as reference
             result.resource_name_detected = self.extract_person_name(text, resource_name)
             
-            logger.debug(f"Extracted: vendor={result.vendor_detected}, code={result.cert_code_detected}, cert_name={result.cert_name_detected}, person={result.resource_name_detected}")
-            logger.debug(f"OCR text first 200 chars: {text[:200] if text else 'EMPTY'}")
-            logger.debug(f"OCR text FULL length: {len(text) if text else 0}")
-            logger.debug(f"OCR text COMPLETE: {text if text else 'EMPTY'}")  # DEBUG FULL TEXT
+            logger.debug(
+                "OCR extraction summary: vendor=%s code_present=%s cert_name_present=%s "
+                "person_detected=%s text_length=%s",
+                result.vendor_detected,
+                bool(result.cert_code_detected),
+                bool(result.cert_name_detected),
+                bool(result.resource_name_detected),
+                len(text) if text else 0,
+            )
             
             # Extract dates
             valid_from, valid_until = self.extract_dates(text)
@@ -1323,8 +1336,8 @@ def check_ocr_available() -> Dict[str, Any]:
         try:
             version = pytesseract.get_tesseract_version()
             status["tesseract_version"] = str(version)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Unable to read tesseract version: %s", exc)
     except ImportError:
         pass
     
@@ -1335,8 +1348,8 @@ def check_ocr_available() -> Dict[str, Any]:
         try:
             pdf2image.pdfinfo_from_path.__wrapped__  # Just check if it's available
             status["poppler_available"] = True
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Unable to verify poppler availability: %s", exc)
     except ImportError:
         pass
     

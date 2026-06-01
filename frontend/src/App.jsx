@@ -456,7 +456,7 @@ function AppContent() {
         {mockMode && (
           <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-center">
             <span className="text-sm font-medium text-yellow-800">
-              🎨 {t('app.demo_mode')}
+              {t('app.demo_mode')}
             </span>
           </div>
         )}

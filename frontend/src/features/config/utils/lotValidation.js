@@ -18,7 +18,7 @@ export function validateLotConfig(lot, masterData = {}) {
     issues.push({ severity: 'warning', message: 'Nessuna certificazione aziendale configurata.' });
   }
   if (reqs.length === 0) {
-    issues.push({ severity: 'error', message: 'Nessun requisito tecnico configurato.' });
+    issues.push({ severity: 'warning', message: 'Nessun requisito tecnico configurato.' });
   }
 
   const certLabels = new Set();

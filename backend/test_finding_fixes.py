@@ -1,3 +1,5 @@
+import copy
+
 from fastapi.testclient import TestClient
 
 import crud
@@ -119,3 +121,61 @@ def test_update_config_rejects_blocking_domain_errors():
     detail = response.json()["detail"]
     assert detail["lot"] == "Lotto 1"
     assert any(issue["code"] == "REQ_C_GT_R" for issue in detail["issues"])
+
+
+def test_update_config_rejects_invalid_batch_atomically():
+    config = client.get("/api/config").json()
+    valid_lot_key = "Lotto 1"
+    invalid_lot_key = "Lotto 2"
+    original_base_amount = config[valid_lot_key]["base_amount"]
+
+    valid_lot = copy.deepcopy(config[valid_lot_key])
+    valid_lot["base_amount"] = original_base_amount + 12345
+
+    invalid_lot = copy.deepcopy(config[invalid_lot_key])
+    invalid_lot["reqs"][0]["prof_R"] = 1
+    invalid_lot["reqs"][0]["prof_C"] = 2
+
+    response = client.post(
+        "/api/config",
+        json={
+            valid_lot_key: valid_lot,
+            invalid_lot_key: invalid_lot,
+        },
+    )
+
+    assert response.status_code == 422
+    persisted = client.get("/api/config").json()
+    assert persisted[valid_lot_key]["base_amount"] == original_base_amount
+
+
+def test_update_config_strips_stale_rti_quota_entries():
+    config = client.get("/api/config").json()
+    master_data = client.get("/api/master-data").json()
+    partner = master_data["rti_partners"][0]
+
+    original_lot = copy.deepcopy(config["Lotto 1"])
+    lot = copy.deepcopy(original_lot)
+    lot["rti_enabled"] = True
+    lot["rti_companies"] = [partner]
+    lot["rti_quotas"] = {
+        "Lutech": 70.0,
+        partner: 30.0,
+        "GHOST SPA": 500.0,
+    }
+
+    try:
+        response = client.post("/api/config", json={"Lotto 1": lot})
+
+        assert response.status_code == 200, response.text
+        saved = response.json()["Lotto 1"]
+        assert saved["rti_quotas"] == {"Lutech": 70.0, partner: 30.0}
+    finally:
+        client.post("/api/config", json={"Lotto 1": original_lot})
+
+
+def test_get_business_plan_returns_null_for_valid_lot_without_plan():
+    response = client.get("/api/business-plan/Lotto%201")
+
+    assert response.status_code == 200, response.text
+    assert response.json() is None

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LoginButton from './LoginButton';
+import { AlertTriangle } from 'lucide-react';
 
 export default function ProtectedRoute({ children }) {
     const { isAuthenticated, isLoading, error, login } = useAuth();
@@ -38,7 +39,7 @@ export default function ProtectedRoute({ children }) {
             <div className="flex items-center justify-center h-screen bg-slate-50">
                 <div className="text-center max-w-md p-8 bg-white rounded-xl shadow-lg">
                     <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-3xl">⚠️</span>
+                        <AlertTriangle className="w-8 h-8 text-red-600" />
                     </div>
                     <h2 className="text-xl font-bold text-slate-800 mb-2">{t('auth.error')}</h2>
                     <p className="text-slate-600 mb-6">{error}</p>
