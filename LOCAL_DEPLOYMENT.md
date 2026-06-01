@@ -121,18 +121,22 @@ Point directly to your local folder path in the UI.
 
 ### Docker Deployment
 
-The docker-compose.yml mounts `/Users/gabriele.rendina` as `/host_home` (read-only).
+The docker-compose.yml does not mount the host home directory. This avoids
+exposing personal files or synced cloud folders to the backend container.
 
-In the UI, use paths like:
+For certificate verification in Docker, prefer the ZIP upload flow in the UI. If
+folder-path scanning is required, mount only a dedicated certificate directory,
+for example:
 
-```text
-/host_home/path/to/your/certs
+```yaml
+volumes:
+  - ${CERT_DIR:-./certs}:/host_certs:ro
 ```
 
-For example, if your certificates are in `/Users/gabriele.rendina/Documents/Certs`, enter:
+Then use paths under:
 
 ```text
-/host_home/Documents/Certs
+/host_certs
 ```
 
 ### Remote SharePoint Access
@@ -156,7 +160,10 @@ For SharePoint folders, you have two options:
 
 ## Database
 
-The application uses SQLite stored at `backend/simulator_poste.db`.
+The Docker Compose deployment stores SQLite in the named Docker volume
+`backend-data`, mounted at `/data/simulator_poste.db` in the backend container.
+Local non-Docker backend runs still use `backend/simulator_poste.db` unless
+`DATABASE_URL` is set.
 
 Initial data is seeded from:
 
@@ -167,7 +174,7 @@ Initial data is seeded from:
 
 ```bash
 docker-compose down
-rm backend/simulator_poste.db
+docker volume rm simulator-poste_backend-data
 docker-compose up -d
 ```
 

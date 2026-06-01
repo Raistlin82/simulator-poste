@@ -52,7 +52,7 @@ Al deployment vedrai:
 ============================================================
 Business Plan Database Migrations
 ============================================================
-📊 Checking database: /app/simulator_poste.db
+📊 Checking database: /data/simulator_poste.db
   ➕ Adding column: governance_mode (Modalità calcolo governance)
   ➕ Adding column: governance_fte_periods (Time slices per governance FTE)
   ➕ Adding column: governance_apply_reuse (Flag: applicare riuso alla governance)
@@ -74,7 +74,7 @@ Se le migrazioni sono già applicate:
 ============================================================
 Business Plan Database Migrations
 ============================================================
-📊 Checking database: /app/simulator_poste.db
+📊 Checking database: /data/simulator_poste.db
 ✅ All migrations already applied, database is up to date
 ============================================================
 ✅ Migrations completed successfully
@@ -155,10 +155,10 @@ kubectl logs <backend-pod-name> -n <namespace>
 kubectl exec -it <backend-pod-name> -n <namespace> -- /bin/sh
 
 # Verifica permessi database
-ls -la simulator_poste.db
+ls -la "${DB_PATH:-/data/simulator_poste.db}"
 
 # Verifica schema
-sqlite3 simulator_poste.db "PRAGMA table_info(business_plans);"
+sqlite3 "${DB_PATH:-/data/simulator_poste.db}" "PRAGMA table_info(business_plans);"
 
 # Esegui manualmente le migrazioni
 python run_migrations.py
@@ -201,7 +201,7 @@ Se persiste:
 # Verifica non ci siano processi bloccanti
 kubectl exec -it <backend-pod-name> -n <namespace> -- /bin/sh
 ps aux | grep python
-fuser simulator_poste.db  # Se disponibile
+fuser "${DB_PATH:-/data/simulator_poste.db}"  # Se disponibile
 ```
 
 ### Rollback
@@ -240,7 +240,7 @@ kubectl get deployment backend -n <namespace> -o yaml | grep image:
 3. **Database Backup**
    ```bash
    # Fai backup del database prima di deploy importanti
-   kubectl cp <pod>:/app/simulator_poste.db ./backup-$(date +%Y%m%d).db
+   kubectl cp <pod>:/data/simulator_poste.db ./backup-$(date +%Y%m%d).db
    ```
 
 4. **Health Checks**
@@ -296,7 +296,7 @@ export DB_PATH=/custom/path/to/simulator_poste.db
 python run_migrations.py
 ```
 
-Nel container, usa il default `/app/simulator_poste.db`.
+Nel container, usa `DB_PATH=/data/simulator_poste.db` quando il database è su volume persistente.
 
 ### Sicurezza
 

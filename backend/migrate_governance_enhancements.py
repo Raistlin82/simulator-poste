@@ -4,12 +4,16 @@ Migration script: Add governance enhancements (FTE mode, time slices, reuse flag
 """
 
 import sqlite3
+import os
 from pathlib import Path
+
+def get_db_path():
+    return Path(os.environ.get("DB_PATH") or Path(__file__).parent / "simulator_poste.db")
 
 def migrate_governance_enhancements():
     """Add governance_mode, governance_fte_periods, and governance_apply_reuse columns"""
 
-    db_path = Path(__file__).parent / "simulator_poste.db"
+    db_path = get_db_path()
 
     if not db_path.exists():
         print(f"❌ Database not found at {db_path}")
@@ -17,9 +21,16 @@ def migrate_governance_enhancements():
 
     print(f"📊 Migrating business_plans table in {db_path}")
 
+    conn = None
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='business_plans'")
+        if not cursor.fetchone():
+            print("✅ business_plans table not found - it will be created by the application")
+            conn.close()
+            return True
 
         # Check existing columns
         cursor.execute("PRAGMA table_info(business_plans)")

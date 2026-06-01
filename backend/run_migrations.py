@@ -33,9 +33,16 @@ def migrate_database(db_path):
         print(f"   This is normal for first startup - database will be created by the application")
         return True  # Return success - let the app create the DB
 
+    conn = None
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='business_plans'")
+        if not cursor.fetchone():
+            print("✅ business_plans table not found - it will be created by the application")
+            conn.close()
+            return True
 
         # Lista di migrazioni da applicare
         migrations = []
@@ -51,6 +58,13 @@ def migrate_database(db_path):
 
         # Migrazione: Inflation YoY
         migrations.append(('business_plans', 'inflation_pct', 'REAL DEFAULT 0.0', 'Inflazione annua % YoY sulle tariffe Lutech'))
+
+        # Migrazione: Governance avanzata, soglie margine e subcontract
+        migrations.append(('business_plans', 'governance_profile_mix', 'TEXT DEFAULT "[]"', 'Mix profili governance'))
+        migrations.append(('business_plans', 'governance_cost_manual', 'REAL DEFAULT NULL', 'Override manuale costo governance'))
+        migrations.append(('business_plans', 'margin_warning_threshold', 'REAL DEFAULT 0.05', 'Soglia warning margine'))
+        migrations.append(('business_plans', 'margin_success_threshold', 'REAL DEFAULT 0.15', 'Soglia successo margine'))
+        migrations.append(('business_plans', 'max_subcontract_pct', 'REAL DEFAULT 20.0', 'Percentuale massima subcontract'))
 
         # Applica migrazioni
         added_count = 0

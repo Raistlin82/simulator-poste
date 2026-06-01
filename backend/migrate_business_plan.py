@@ -4,11 +4,15 @@ Adds new columns to business_plans table
 Run this BEFORE deploying the new version
 """
 import sqlite3
+import os
 import sys
 from pathlib import Path
 
+def get_db_path():
+    return Path(os.environ.get("DB_PATH") or Path(__file__).parent / 'simulator_poste.db')
+
 def migrate():
-    db_path = Path(__file__).parent / 'simulator_poste.db'
+    db_path = get_db_path()
 
     if not db_path.exists():
         print(f"✓ Database {db_path} doesn't exist yet - will be created on first startup")

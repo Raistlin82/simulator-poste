@@ -27,8 +27,9 @@ COPY . .
 RUN useradd -m -u 1000 appuser
 
 # Rendi eseguibile lo startup script e assegna ownership
-RUN chmod +x startup.sh run_migrations.py && \
-    chown -R appuser:appuser /app
+RUN mkdir -p /data && \
+    chmod +x startup.sh run_migrations.py && \
+    chown -R appuser:appuser /app /data
 
 USER appuser
 

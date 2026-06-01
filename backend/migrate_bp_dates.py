@@ -7,11 +7,14 @@ import sqlite3
 import os
 from pathlib import Path
 
+def get_db_path():
+    return Path(os.environ.get("DB_PATH") or Path(__file__).parent / "simulator_poste.db")
+
 def migrate_business_plan_dates():
     """Add start_year and start_month columns to business_plans table"""
 
     # Database path
-    db_path = Path(__file__).parent / "simulator_poste.db"
+    db_path = get_db_path()
 
     if not db_path.exists():
         print(f"❌ Database not found at {db_path}")
@@ -19,9 +22,16 @@ def migrate_business_plan_dates():
 
     print(f"📊 Migrating business_plans table in {db_path}")
 
+    conn = None
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='business_plans'")
+        if not cursor.fetchone():
+            print("✅ business_plans table not found - it will be created by the application")
+            conn.close()
+            return True
 
         # Check if columns already exist
         cursor.execute("PRAGMA table_info(business_plans)")
