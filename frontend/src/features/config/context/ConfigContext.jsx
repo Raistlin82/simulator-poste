@@ -1,10 +1,24 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useCallback } from 'react';
 import axios from 'axios';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { logger } from '../../../utils/logger';
 import { API_URL } from '../../../utils/api';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const ConfigContext = createContext(null);
+const CONFIG_BUNDLE_QUERY_KEY = ['config-bundle'];
+
+const fetchConfigBundle = async () => {
+  const [configRes, masterRes] = await Promise.all([
+    axios.get(`${API_URL}/config`),
+    axios.get(`${API_URL}/master-data`)
+  ]);
+
+  return {
+    config: configRes.data,
+    masterData: masterRes.data
+  };
+};
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useConfig = () => {
@@ -16,60 +30,74 @@ export const useConfig = () => {
 };
 
 export const ConfigProvider = ({ children }) => {
-  const [config, setConfig] = useState(null);
-  const [masterData, setMasterData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   // Wait for authentication before fetching protected resources
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
+  const queryEnabled = !authLoading && isAuthenticated;
+
+  const {
+    data: configBundle,
+    error: configBundleError,
+    isLoading: isConfigBundleLoading,
+    refetch: refetchConfigBundle,
+  } = useQuery({
+    queryKey: CONFIG_BUNDLE_QUERY_KEY,
+    queryFn: fetchConfigBundle,
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    retry: 1
+  });
 
   const fetchConfig = useCallback(async () => {
-    // Skip if auth not ready or user not authenticated yet (e.g., during OIDC callback)
-    if (authLoading || !isAuthenticated) {
-      return;
+    const result = await refetchConfigBundle();
+    if (result.error) {
+      throw result.error;
     }
+    return result.data;
+  }, [refetchConfigBundle]);
 
-    try {
-      setLoading(true);
-      const [configRes, masterRes] = await Promise.all([
-        axios.get(`${API_URL}/config`),
-        axios.get(`${API_URL}/master-data`)
-      ]);
-      setConfig(configRes.data);
-      setMasterData(masterRes.data);
-      setError(null);
-    } catch (err) {
-      logger.error('Failed to fetch config', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  const setConfig = useCallback((nextConfigOrUpdater) => {
+    queryClient.setQueryData(CONFIG_BUNDLE_QUERY_KEY, (current) => {
+      const previousConfig = current?.config ?? null;
+      const nextConfig = typeof nextConfigOrUpdater === 'function'
+        ? nextConfigOrUpdater(previousConfig)
+        : nextConfigOrUpdater;
+
+      return {
+        config: nextConfig,
+        masterData: current?.masterData ?? null
+      };
+    });
+  }, [queryClient]);
+
+  const { mutateAsync: updateConfigMutation } = useMutation({
+    mutationFn: async (newConfig) => {
+      const res = await axios.post(`${API_URL}/config`, newConfig);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(CONFIG_BUNDLE_QUERY_KEY, (current) => ({
+        config: data,
+        masterData: current?.masterData ?? null
+      }));
     }
-  }, [authLoading, isAuthenticated]);
+  });
 
   const updateConfig = useCallback(async (newConfig) => {
     try {
-      const res = await axios.post(`${API_URL}/config`, newConfig);
-      // Use response from backend (includes correct state from DB, not stale client state)
-      setConfig(res.data);
-      return { success: true };
+      const data = await updateConfigMutation(newConfig);
+      return { success: true, data };
     } catch (err) {
       logger.error('Failed to update config', err);
       return { success: false, error: err.message };
     }
-  }, []);
+  }, [updateConfigMutation]);
 
-  useEffect(() => {
-    // Start fetching as soon as auth is ready + authenticated
-    if (!authLoading && isAuthenticated) {
-      fetchConfig();
-    }
-
-    // If auth completed but user is not authenticated (unexpected), stop loading state
-    if (!authLoading && !isAuthenticated) {
-      setLoading(false);
-    }
-  }, [authLoading, isAuthenticated, fetchConfig]);
+  const config = configBundle?.config ?? null;
+  const masterData = configBundle?.masterData ?? null;
+  const loading = authLoading || (queryEnabled && isConfigBundleLoading);
+  const error = configBundleError?.message ?? null;
 
   const value = {
     config,

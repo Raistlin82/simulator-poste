@@ -38,6 +38,8 @@ from logging_config import setup_logging, get_logger
 from auth import OIDCMiddleware, OIDCConfig, get_current_user
 from services.scoring_service import ScoringService
 from services.business_plan_service import BusinessPlanService
+from services.lot_validation_service import blocking_issues, validate_lot_config
+from routers.config_validation import router as config_validation_router
 from pdf_generator import generate_pdf_report
 from excel_generator import generate_excel_report
 from excel_business_plan import generate_business_plan_excel
@@ -1235,7 +1237,18 @@ def update_lot_state(
 def update_config(
     new_config: Dict[str, schemas.LotConfig], db: Session = Depends(get_db)
 ):
+    master_data = crud.get_master_data(db)
     for lot_name, lot_data in new_config.items():
+        issues = validate_lot_config(lot_data, master_data)
+        blocking = blocking_issues(issues)
+        if blocking:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "lot": lot_name,
+                    "issues": blocking,
+                },
+            )
         crud.update_lot_config(db, lot_name, lot_data)
 
     configs = crud.get_lot_configs(db)
@@ -3621,6 +3634,7 @@ async def chat(
 
 
 # Register all routers - included early for priority
+app.include_router(config_validation_router)
 app.include_router(api_router)
 app.include_router(bp_router)
 app.include_router(practice_router)

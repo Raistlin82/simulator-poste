@@ -23,6 +23,13 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
 
     if (!results || !lotData) return null;
 
+    const formulaHintFor = (req, maxRaw) => {
+        if (req.type === 'resource') return `Formula: (2 x R) + (R x C), cap ${formatNumber(maxRaw, 1)}`;
+        if (req.type === 'reference') return `Formula: somma referenze e bonus, cap ${formatNumber(maxRaw, 1)}`;
+        if (req.type === 'project') return `Formula: somma criteri progettuali, cap ${formatNumber(maxRaw, 1)}`;
+        return `Formula: raw / massimo x peso gara`;
+    };
+
     return (
         <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="min-w-0 max-w-full bg-white/40 backdrop-blur-xl rounded-[2rem] border border-white/60 p-1 shadow-2xl shadow-slate-500/5 overflow-hidden">
             <div className="p-6 border-b border-white/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -66,6 +73,9 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
                                 <div className="flex flex-col">
                                     <span className="group-hover:text-indigo-600 transition-colors">{t('dashboard.company_certs')}</span>
                                     <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest opacity-60 mt-0.5">{t('config.company_certs')}</span>
+                                    <span className="text-[9px] text-slate-500 font-bold normal-case tracking-normal opacity-80 mt-1">
+                                        Formula: somma certificazioni possedute, poi normalizzazione sul peso gara.
+                                    </span>
                                 </div>
                             </td>
                             <td className="px-3 py-2.5 text-right font-black text-slate-900 font-display tabular-nums text-lg">{formatNumber(results.company_certs_score || 0, 1)}</td>
@@ -104,6 +114,7 @@ export default function DetailedScoreTable({ results, lotData, onNavigate }) {
                                             <div className="flex flex-col">
                                                 <span className="group-hover:text-indigo-600 transition-colors leading-tight">{req.label}</span>
                                                 <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest opacity-60 mt-0.5">{req.id}</span>
+                                                <span className="text-[9px] text-slate-500 font-bold normal-case tracking-normal opacity-80 mt-1">{formulaHintFor(req, maxRaw)}</span>
                                             </div>
                                             {isResourceType && (
                                                 <button

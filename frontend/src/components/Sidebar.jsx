@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Settings, X, FileSearch, Building2, AlertCircle, Briefcase, Home, Languages, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../utils/formatters';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
+import { buildLotReadiness } from '../features/config/utils/lotValidation';
+import WorkflowStepper from '../shared/components/ui/WorkflowStepper';
 
 export default function Sidebar({
     onClose,
@@ -24,12 +26,16 @@ export default function Sidebar({
     const quotaSaveTimeoutRef = useRef(null);
 
     // Get data from contexts (no more prop drilling!)
-    const { config, updateConfig, setConfig } = useConfig();
+    const { config, masterData, updateConfig, setConfig } = useConfig();
     const {
         selectedLot,
         myDiscount,
         competitorDiscount,
+        techInputs,
+        companyCerts,
         results,
+        monteCarlo,
+        businessPlanData,
         setLot,
         setDiscount
     } = useSimulation();
@@ -61,6 +67,15 @@ export default function Sidebar({
     const p_best = baseAmount * (1 - competitorDiscount / 100);
     const p_my = baseAmount * (1 - myDiscount / 100);
     const isBest = p_my < p_best;
+    const readiness = useMemo(() => buildLotReadiness({
+        lot: lotData,
+        masterData,
+        techInputs,
+        companyCerts,
+        results,
+        monteCarlo,
+        businessPlanData
+    }), [lotData, masterData, techInputs, companyCerts, results, monteCarlo, businessPlanData]);
 
     // Keep a stable ref to updateConfig to avoid re-triggering the effect
     const updateConfigRef = useRef(updateConfig);
@@ -269,6 +284,29 @@ export default function Sidebar({
             </div>
 
             <div className="p-6 flex-1 overflow-y-auto space-y-4">
+                {lotData && (
+                    <div className="rounded-[2rem] border border-white/60 bg-white/50 backdrop-blur-md p-4 shadow-xl shadow-slate-200/30">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <div className="text-[9px] font-black uppercase tracking-widest-plus text-slate-400 font-display">Workflow gara</div>
+                                <div className="text-xs font-black text-slate-800 font-display mt-0.5">
+                                    {readiness.completedSteps}/{readiness.totalSteps} fasi completate
+                                </div>
+                            </div>
+                            <div className="h-9 w-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-black font-display border border-indigo-100">
+                                {Math.round((readiness.completedSteps / readiness.totalSteps) * 100)}%
+                            </div>
+                        </div>
+                        <WorkflowStepper
+                            steps={readiness.steps}
+                            currentView={currentView}
+                            onNavigate={(view) => {
+                                if (onNavigate) onNavigate(view);
+                                if (window.innerWidth < 768 && onClose) onClose();
+                            }}
+                        />
+                    </div>
+                )}
 
                 {/* Economic Inputs */}
                 <div className="space-y-4">

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { bpSaveTrigger } from './utils/bpSaveTrigger';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Sidebar from './components/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
 import { BusinessPlanProvider } from './features/business-plan/context/BusinessPlanContext';
@@ -23,10 +25,61 @@ const MasterDataConfig = lazy(() => import('./components/MasterDataConfig'));
 const CertVerificationPage = lazy(() => import('./components/CertVerificationPage'));
 const BusinessPlanPage = lazy(() => import('./features/business-plan/pages/BusinessPlanPage'));
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      retry: 1
+    }
+  }
+});
+
+const VIEW_PATHS = {
+  dashboard: '/',
+  config: '/config',
+  master: '/master-data',
+  certs: '/certificazioni',
+  businessPlan: '/business-plan'
+};
+
+const getViewFromPath = (pathname) => {
+  if (pathname.startsWith('/config')) return 'config';
+  if (pathname.startsWith('/master-data')) return 'master';
+  if (pathname.startsWith('/certificazioni')) return 'certs';
+  if (pathname.startsWith('/business-plan')) return 'businessPlan';
+  return 'dashboard';
+};
+
+function AxiosAuthInterceptor({ children }) {
+  const { getAccessToken } = useAuth();
+
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use(
+      (config) => {
+        const token = getAccessToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, [getAccessToken]);
+
+  return children;
+}
+
 // Main app content (to be wrapped with auth)
 function AppContent() {
-  const { getAccessToken, handleCallback, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { handleCallback, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { success, error: showError } = useToast();
   // Force light mode — dark mode toggle hidden for now
   useEffect(() => {
@@ -52,7 +105,7 @@ function AppContent() {
     setMonteCarlo
   } = useSimulation();
 
-  const [view, setView] = useState('dashboard'); // dashboard, config, master, certs, businessPlan
+  const currentView = getViewFromPath(location.pathname);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar state
   const [isDeleting, setIsDeleting] = useState(false); // Guard for deletion race conditions
@@ -63,38 +116,24 @@ function AppContent() {
   const baseAmount = config && selectedLot && config[selectedLot] ? config[selectedLot].base_amount : 0;
   const mockMode = !config; // Demo mode if no config loaded
 
-  // Configure axios interceptor to add auth token
-  useEffect(() => {
-    const interceptor = axios.interceptors.request.use(
-      (config) => {
-        const token = getAccessToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
-
-    return () => {
-      axios.interceptors.request.eject(interceptor);
-    };
-  }, [getAccessToken]);
+  const navigateToView = useCallback((viewName) => {
+    navigate(VIEW_PATHS[viewName] || VIEW_PATHS.dashboard);
+  }, [navigate]);
 
   // Handle OIDC callback - wait for auth to be ready
   useEffect(() => {
     const handleOIDCCallback = async () => {
-      if (window.location.pathname === '/callback' && !authLoading) {
+      if (location.pathname === '/callback' && !authLoading) {
         try {
-          await handleCallback();
-          setView('dashboard');
+          const callbackUser = await handleCallback();
+          navigate(callbackUser?.state?.returnUrl || VIEW_PATHS.dashboard, { replace: true });
         } catch (err) {
           logger.error("OIDC callback failed", err, { component: "App" });
         }
       }
     };
     handleOIDCCallback();
-  }, [handleCallback, authLoading]);
+  }, [handleCallback, authLoading, location.pathname, navigate]);
 
   // Update loading state when config loads - intentional derived state sync
   useEffect(() => {
@@ -263,7 +302,7 @@ function AppContent() {
 
       await refetchConfig();
 
-      setView('dashboard');
+      navigateToView('dashboard');
       success(t('app.delete_success', { name: lotKey }));
     } catch (err) {
       logger.error("Failed to delete lot", err, { component: "ConfigPage", lotKey });
@@ -272,7 +311,7 @@ function AppContent() {
     } finally {
       setIsDeleting(false);
     }
-  }, [setLot, setResults, setSimulationData, setMonteCarlo, refetchConfig, success, t, showError]);
+  }, [setLot, setResults, setSimulationData, setMonteCarlo, refetchConfig, navigateToView, success, t, showError]);
 
   // Main Calculation Effect - with AbortController to prevent race conditions
   useEffect(() => {
@@ -407,8 +446,8 @@ function AppContent() {
         <Sidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          onNavigate={setView}
-          currentView={view}
+          onNavigate={navigateToView}
+          currentView={currentView}
         />
       </div>
 
@@ -449,7 +488,7 @@ function AppContent() {
                   <div className="flex items-center gap-2 mt-0.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display">
-                      {view === 'dashboard' ? t('common.home') : view === 'config' ? t('common.gara_lotto') : view === 'certs' ? t('common.certificates') : view === 'businessPlan' ? t('business_plan.title') : t('common.master_data')}
+                      {currentView === 'dashboard' ? t('common.home') : currentView === 'config' ? t('common.gara_lotto') : currentView === 'certs' ? t('common.certificates') : currentView === 'businessPlan' ? t('business_plan.title') : t('common.master_data')}
                     </span>
                   </div>
                 </div>
@@ -460,8 +499,8 @@ function AppContent() {
 
               {/* Configurazioni Globali */}
               <button
-                onClick={() => setView('master')}
-                className={`hidden sm:flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-2xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest font-display border ${view === 'master' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20' : 'bg-white/40 backdrop-blur-sm text-slate-600 border-white/60 hover:bg-white/70 hover:border-indigo-200 hover:text-indigo-600'}`}
+                onClick={() => navigateToView('master')}
+                className={`hidden sm:flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-2xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest font-display border ${currentView === 'master' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20' : 'bg-white/40 backdrop-blur-sm text-slate-600 border-white/60 hover:bg-white/70 hover:border-indigo-200 hover:text-indigo-600'}`}
                 aria-label={t('common.master_data')}
               >
                 <Settings className="w-4 h-4 flex-shrink-0" />
@@ -486,7 +525,7 @@ function AppContent() {
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={view}
+            key={location.pathname}
             initial={{ opacity: 0, y: 12, filter: 'blur(8px)' }}
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             exit={{ opacity: 0, y: -12, filter: 'blur(8px)' }}
@@ -494,30 +533,38 @@ function AppContent() {
             className="flex-1 overflow-auto flex flex-col min-h-0"
           >
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-500">{t('common.loading')}</div>}>
-              {view === 'config' ? (
-                <ConfigPage
-                  onAddLot={handleAddNewLot}
-                  onDeleteLot={handleDeleteExistingLot}
-                />
-              ) : view === 'master' ? (
-                <MasterDataConfig />
-              ) : view === 'certs' ? (
-                <CertVerificationPage />
-              ) : view === 'businessPlan' ? (
-                <BusinessPlanProvider activeView={view}>
-                  <BusinessPlanPage />
-                </BusinessPlanProvider>
-              ) : (
-                <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center">
-                  <div className="w-full max-w-[1600px]">
-                    <TechEvaluator
-                      onNavigate={setView}
-                      onAddLot={handleAddNewLot}
-                      onDeleteLot={handleDeleteExistingLot}
-                    />
+              <Routes location={location}>
+                <Route path="/config" element={(
+                  <ConfigPage
+                    onAddLot={handleAddNewLot}
+                    onDeleteLot={handleDeleteExistingLot}
+                  />
+                )} />
+                <Route path="/master-data" element={<MasterDataConfig />} />
+                <Route path="/certificazioni" element={<CertVerificationPage />} />
+                <Route path="/business-plan" element={(
+                  <BusinessPlanProvider activeView={currentView}>
+                    <BusinessPlanPage />
+                  </BusinessPlanProvider>
+                )} />
+                <Route path="/" element={(
+                  <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center">
+                    <div className="w-full max-w-[1600px]">
+                      <TechEvaluator
+                        onNavigate={navigateToView}
+                        onAddLot={handleAddNewLot}
+                        onDeleteLot={handleDeleteExistingLot}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )} />
+                <Route path="/callback" element={(
+                  <div className="flex-1 flex items-center justify-center text-slate-500">
+                    {t('common.loading')}
+                  </div>
+                )} />
+                <Route path="*" element={<Navigate to={VIEW_PATHS.dashboard} replace />} />
+              </Routes>
             </Suspense>
           </motion.div>
         </AnimatePresence>
@@ -531,17 +578,23 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <ProtectedRoute>
-          <ToastProvider>
-            <ConfigProvider>
-              <SimulationProvider>
-                <AppContent />
-              </SimulationProvider>
-            </ConfigProvider>
-          </ToastProvider>
-        </ProtectedRoute>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <AxiosAuthInterceptor>
+              <ProtectedRoute>
+                <ToastProvider>
+                  <ConfigProvider>
+                    <SimulationProvider>
+                      <AppContent />
+                    </SimulationProvider>
+                  </ConfigProvider>
+                </ToastProvider>
+              </ProtectedRoute>
+            </AxiosAuthInterceptor>
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

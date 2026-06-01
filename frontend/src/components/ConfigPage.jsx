@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '../utils/formatters';
 import { Plus, Trash2, Copy, Briefcase, FileCheck, Award, Info, TrendingUp, Search, X, Building2, PauseCircle } from 'lucide-react';
@@ -8,6 +8,8 @@ import { ConfirmDialog } from './ui/confirm-dialog';
 import { useConfig } from '../features/config/context/ConfigContext';
 import { useSimulation } from '../features/simulation/context/SimulationContext';
 import { logger } from '../utils/logger';
+import { validateLotConfig } from '../features/config/utils/lotValidation';
+import ValidationSummary from '../shared/components/ui/ValidationSummary';
 
 export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => { } }) {
     const { t } = useTranslation();
@@ -63,7 +65,9 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
     // For formatted display of Euro values
     const [displayBase, setDisplayBase] = useState("");
 
-    const currentLot = editedConfig[selectedLot] || { name: "", base_amount: 0, max_tech_score: 60, max_econ_score: 40, max_raw_score: 100, reqs: [], company_certs: [] };
+    const currentLot = useMemo(() => (
+        editedConfig[selectedLot] || { name: "", base_amount: 0, max_tech_score: 60, max_econ_score: 40, max_raw_score: 100, reqs: [], company_certs: [] }
+    ), [editedConfig, selectedLot]);
 
     // Prefill data for suggestions from Master Data
     const knownCerts = masterData?.company_certs || [];
@@ -446,6 +450,7 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
     };
 
     const filteredReqs = currentLot.reqs?.filter(r => r.type === activeTab) || [];
+    const validationIssues = useMemo(() => validateLotConfig(currentLot, masterData), [currentLot, masterData]);
 
     if (!selectedLot || !currentLot) return <div className="p-10 text-center">{t('config.no_config')}</div>;
 
@@ -498,6 +503,8 @@ export default function ConfigPage({ onAddLot = () => { }, onDeleteLot = () => {
                 <datalist id="known-prof-certs">
                     {knownProfCerts.map(l => <option key={l} value={l} />)}
                 </datalist>
+
+                <ValidationSummary issues={validationIssues} title="Controlli preliminari lotto" />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                     <div className="bg-white/40 backdrop-blur-xl p-6 rounded-[2rem] border border-white/60 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all duration-500">

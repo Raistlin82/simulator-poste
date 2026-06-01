@@ -91,3 +91,31 @@ def test_zip_member_safety_rejects_sibling_prefix_escape(tmp_path):
 
     assert _zip_member_is_safe(str(extract_dir), "folder/cert.pdf") is True
     assert _zip_member_is_safe(str(extract_dir), "../extract_evil/cert.pdf") is False
+
+
+def test_config_validate_endpoint_reports_blocking_domain_errors():
+    config = client.get("/api/config").json()
+    lot = config["Lotto 1"]
+    lot["reqs"][0]["prof_R"] = 1
+    lot["reqs"][0]["prof_C"] = 2
+
+    response = client.post("/api/config/validate", json={"Lotto 1": lot})
+
+    assert response.status_code == 200, response.text
+    body = response.json()["Lotto 1"]
+    assert body["valid"] is False
+    assert any(issue["code"] == "REQ_C_GT_R" for issue in body["issues"])
+
+
+def test_update_config_rejects_blocking_domain_errors():
+    config = client.get("/api/config").json()
+    lot = config["Lotto 1"]
+    lot["reqs"][0]["prof_R"] = 1
+    lot["reqs"][0]["prof_C"] = 2
+
+    response = client.post("/api/config", json={"Lotto 1": lot})
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["lot"] == "Lotto 1"
+    assert any(issue["code"] == "REQ_C_GT_R" for issue in detail["issues"])
